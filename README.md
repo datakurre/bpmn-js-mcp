@@ -2,7 +2,7 @@
 
 A Model Context Protocol (MCP) server for creating and manipulating BPMN 2.0 workflow diagrams programmatically. This server enables AI assistants and other tools to generate, edit, and export business process diagrams in the standard BPMN format.
 
-![BPMN Diagram Example](./screenshot.png)
+![BPMN Diagram Example](./docs/images/bpmn.png)
 
 ## Features
 
@@ -71,6 +71,8 @@ node /path/to/BPMN-MCP/dist/index.js
 
 Once configured, you can ask your AI assistant to create BPMN diagrams. Here are some example requests:
 
+![Full Output Example](./docs/images/full-output.png)
+
 ### Creating a Simple Workflow
 
 ```
@@ -82,6 +84,8 @@ Create a BPMN diagram for an order processing workflow with these steps:
 
 Connect them with sequence flows.
 ```
+
+![Query Example](./docs/images/query.png)
 
 ### Creating a Workflow with Decision Points
 
