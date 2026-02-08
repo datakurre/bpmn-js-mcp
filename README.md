@@ -13,6 +13,9 @@ A Model Context Protocol (MCP) server for creating and manipulating BPMN 2.0 wor
 - **Connect Elements**: Create sequence flows between workflow components
 - **Export Formats**: Save diagrams as BPMN 2.0 XML or SVG
 - **Import Support**: Load and modify existing BPMN XML files
+- **BPMN Linting**: Integrated [bpmnlint](https://github.com/bpmn-io/bpmnlint) validation with 27+ rules — automatic feedback on mutating operations
+- **Label Positioning**: Geometry-based label adjustment to prevent overlaps with connections and other labels
+- **Camunda 7 Support**: Full Camunda extension properties (assignee, form keys, external tasks, etc.)
 - **Smart Hints**: Get helpful nudges to ensure complete workflows with proper connections
 
 ## Installation
@@ -101,34 +104,63 @@ Create a BPMN diagram for customer support ticket routing:
 - Both paths lead to: Ticket Resolved (end)
 ```
 
-## Available Tools
+## Available Tools (24)
 
 The MCP server provides these tools:
 
-### `create_bpmn_diagram`
-Creates a new BPMN diagram and returns a diagram ID.
+### Core BPMN Tools
+| Tool | Description |
+|---|---|
+| `create_bpmn_diagram` | Create a new BPMN diagram |
+| `add_bpmn_element` | Add elements (events, tasks, gateways, subprocesses, participants, lanes) |
+| `connect_bpmn_elements` | Connect elements with sequence/message flows or associations |
+| `delete_bpmn_element` | Remove an element or connection |
+| `move_bpmn_element` | Move an element to a new position |
+| `list_bpmn_elements` | List all elements with positions and connections |
+| `validate_bpmn_diagram` | Validate using bpmnlint (recommended + Camunda 7 compat + custom MCP rules) |
+| `align_bpmn_elements` | Align elements along an axis |
+| `distribute_bpmn_elements` | Evenly distribute elements |
+| `export_bpmn` | Export as BPMN 2.0 XML or SVG |
+| `import_bpmn_xml` | Import existing BPMN XML |
 
-### `add_bpmn_element`
-Adds an element to the diagram. Supported types:
-- Events: `bpmn:StartEvent`, `bpmn:EndEvent`, `bpmn:IntermediateCatchEvent`, `bpmn:IntermediateThrowEvent`
-- Tasks: `bpmn:Task`, `bpmn:UserTask`, `bpmn:ServiceTask`, `bpmn:ScriptTask`, `bpmn:ManualTask`, `bpmn:BusinessRuleTask`, `bpmn:SendTask`, `bpmn:ReceiveTask`
-- Gateways: `bpmn:ExclusiveGateway`, `bpmn:ParallelGateway`, `bpmn:InclusiveGateway`, `bpmn:EventBasedGateway`
-- Other: `bpmn:SubProcess`
+### Camunda 7 (Operaton) Tools
+| Tool | Description |
+|---|---|
+| `set_element_properties` | Set standard and Camunda extension properties |
+| `set_input_output_mapping` | Configure input/output parameter mappings |
+| `set_event_definition` | Add error, timer, message, signal event definitions |
+| `set_form_data` | Configure generated task forms (Camunda FormData) |
+| `set_camunda_error_event_definition` | Set error handling on service tasks |
+| `set_loop_characteristics` | Configure loop/multi-instance markers |
 
-### `connect_bpmn_elements`
-Creates a sequence flow between two elements.
+### Utility Tools
+| Tool | Description |
+|---|---|
+| `get_element_properties` | Inspect all properties of an element |
+| `delete_diagram` | Remove a diagram from memory |
+| `list_diagrams` | List all in-memory diagrams |
+| `clone_diagram` | Duplicate a diagram |
+| `layout_diagram` | Auto-layout using bpmn-auto-layout |
+| `lint_bpmn_diagram` | Lint with bpmnlint rules (full report with all severities) |
+| `adjust_labels` | Adjust external labels to reduce overlap |
 
-### `export_bpmn_xml`
-Exports the diagram as BPMN 2.0 XML format.
+### Automatic Lint Feedback
 
-### `export_bpmn_svg`
-Exports the diagram as SVG for visualization.
+All mutating tools (`add_bpmn_element`, `connect_bpmn_elements`, `delete_bpmn_element`, `set_element_properties`, etc.) automatically append bpmnlint error-level issues to their response. This gives AI callers immediate feedback when an operation introduces a rule violation.
 
-### `list_bpmn_elements`
-Lists all elements in a diagram.
+### Default Lint Rules
 
-### `import_bpmn_xml`
-Imports an existing BPMN XML file for editing.
+The server uses a layered lint configuration extending three rule sets:
+- **`bpmnlint:recommended`** — 27 standard BPMN validation rules
+- **`plugin:camunda-compat/camunda-platform-7-24`** — Camunda 7 (Operaton) compatibility checks
+- **`plugin:bpmn-mcp/recommended`** — Custom MCP rules (external task topic validation, gateway default flow checks)
+
+With these adjustments for incremental AI-driven diagram construction:
+- `label-required` → downgraded to warning (labels may be added incrementally)
+- `no-disconnected` → downgraded to warning (diagrams are built step-by-step)
+- `no-overlapping-elements` → disabled (false positives in headless mode)
+
+Use the `lint_bpmn_diagram` tool with a custom config to override rules, or place a `.bpmnlintrc` JSON file in the working directory.
 
 ## Example Output
 
@@ -191,15 +223,19 @@ Then send JSON-RPC requests via stdin. Example:
 
 - **Runtime**: Node.js with TypeScript
 - **BPMN Engine**: bpmn-js (headless mode with jsdom)
+- **BPMN Linting**: bpmnlint with McpPluginResolver (27+ built-in rules, Camunda 7 compat, custom MCP rules)
 - **Protocol**: Model Context Protocol (MCP)
 - **Output**: BPMN 2.0 XML standard
 
-### Smart Workflow Hints
+### Smart Workflow Hints & Validation
 
-The server includes helpful hints to ensure complete diagrams:
+The server includes helpful hints and automated validation:
 - Reminds you to connect elements when adding tasks/events
 - Warns when exporting diagrams with disconnected elements
-- Suggests using `connect_bpmn_elements` to create proper workflows
+- Automatic bpmnlint feedback after every mutating operation
+- Camunda 7 (Operaton) compatibility checks via bpmnlint-plugin-camunda-compat
+- Custom MCP rules (e.g. external task topic without type, missing gateway defaults)
+- Geometry-based label positioning to avoid overlaps with connections
 
 ## License
 
