@@ -1,0 +1,54 @@
+/**
+ * MCP tool schema definitions — thin barrel.
+ *
+ * Each tool definition is co-located with its handler module.
+ * This file collects them into a single array for the MCP server.
+ */
+
+import { TOOL_DEFINITION as CREATE_DIAGRAM } from "./handlers/create-diagram";
+import { TOOL_DEFINITION as ADD_ELEMENT } from "./handlers/add-element";
+import { TOOL_DEFINITION as CONNECT } from "./handlers/connect";
+import { TOOL_DEFINITION as DELETE_ELEMENT } from "./handlers/delete-element";
+import { TOOL_DEFINITION as MOVE_ELEMENT } from "./handlers/move-element";
+import { TOOL_DEFINITION as GET_PROPERTIES } from "./handlers/get-properties";
+import { TOOL_DEFINITION as EXPORT_BPMN } from "./handlers/export";
+import { TOOL_DEFINITION as LIST_ELEMENTS } from "./handlers/list-elements";
+import { TOOL_DEFINITION as SET_PROPERTIES } from "./handlers/set-properties";
+import { TOOL_DEFINITION as IMPORT_XML } from "./handlers/import-xml";
+import { TOOL_DEFINITION as DELETE_DIAGRAM } from "./handlers/delete-diagram";
+import { TOOL_DEFINITION as LIST_DIAGRAMS } from "./handlers/list-diagrams";
+import { TOOL_DEFINITION as CLONE_DIAGRAM } from "./handlers/clone-diagram";
+import { TOOL_DEFINITION as VALIDATE } from "./handlers/validate";
+import { TOOL_DEFINITION as ALIGN_ELEMENTS } from "./handlers/align-elements";
+import { TOOL_DEFINITION as DISTRIBUTE_ELEMENTS } from "./handlers/distribute-elements";
+import { TOOL_DEFINITION as SET_INPUT_OUTPUT } from "./handlers/set-input-output";
+import { TOOL_DEFINITION as SET_EVENT_DEFINITION } from "./handlers/set-event-definition";
+import { TOOL_DEFINITION as SET_FORM_DATA } from "./handlers/set-form-data";
+import { TOOL_DEFINITION as LAYOUT_DIAGRAM } from "./handlers/layout-diagram";
+import { TOOL_DEFINITION as SET_CAMUNDA_ERROR } from "./handlers/set-camunda-error";
+import { TOOL_DEFINITION as SET_LOOP_CHARACTERISTICS } from "./handlers/set-loop-characteristics";
+
+export const TOOL_DEFINITIONS = [
+  CREATE_DIAGRAM,
+  ADD_ELEMENT,
+  CONNECT,
+  DELETE_ELEMENT,
+  MOVE_ELEMENT,
+  GET_PROPERTIES,
+  EXPORT_BPMN,
+  LIST_ELEMENTS,
+  SET_PROPERTIES,
+  IMPORT_XML,
+  DELETE_DIAGRAM,
+  LIST_DIAGRAMS,
+  CLONE_DIAGRAM,
+  VALIDATE,
+  ALIGN_ELEMENTS,
+  DISTRIBUTE_ELEMENTS,
+  SET_INPUT_OUTPUT,
+  SET_EVENT_DEFINITION,
+  SET_FORM_DATA,
+  LAYOUT_DIAGRAM,
+  SET_CAMUNDA_ERROR,
+  SET_LOOP_CHARACTERISTICS,
+] as const;
