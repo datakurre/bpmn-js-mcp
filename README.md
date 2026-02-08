@@ -9,26 +9,15 @@ MCP server that lets AI assistants create and manipulate BPMN 2.0 workflow diagr
 
 ## Setup
 
-**Requirements:** Node.js ≥ 16
-
-```bash
-git clone https://github.com/dattmavis/BPMN-MCP.git
-cd BPMN-MCP
-npm install && npm run build
-```
-
-Or install directly: `npm install github:dattmavis/BPMN-MCP`
-
-### MCP Client Configuration
-
-Add to your MCP client config (e.g. Claude Desktop, VS Code, etc.):
+### `./vscode/mcp.json`
 
 ```json
 {
-  "mcpServers": {
-    "bpmn": {
-      "command": "node",
-      "args": ["/absolute/path/to/BPMN-MCP/dist/index.js"]
+  "servers": {
+    "BPMN-MCP": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["git+https://github.com/datakurre/BPMN-MCP"]
     }
   }
 }
@@ -54,13 +43,13 @@ Add to your MCP client config (e.g. Claude Desktop, VS Code, etc.):
 | `delete_bpmn_element`      | Remove an element or connection                                           |
 | `move_bpmn_element`        | Move an element to a new position                                         |
 | `list_bpmn_elements`       | List all elements with positions and connections                          |
-| `validate_bpmn_diagram`    | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)     |
+| `validate_bpmn_diagram`    | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)      |
 | `align_bpmn_elements`      | Align elements along an axis (with optional compaction)                   |
 | `distribute_bpmn_elements` | Evenly distribute elements                                                |
 | `export_bpmn`              | Export as BPMN 2.0 XML or SVG                                             |
 | `import_bpmn_xml`          | Import existing BPMN XML                                                  |
 
-### Camunda 7 (Operaton) Tools
+### Camunda 7 Tools (Operaton BPM compatible)
 
 | Tool                                 | Description                                         |
 | ------------------------------------ | --------------------------------------------------- |
