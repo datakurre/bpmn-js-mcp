@@ -4,7 +4,7 @@
   "description": "MCP server for creating and manipulating BPMN diagrams using bpmn-js",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node16 --format=cjs --outfile=dist/index.js --external:jsdom --external:bpmn-js --external:bpmn-auto-layout --banner:js='#!/usr/bin/env node'",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node16 --format=cjs --outfile=dist/index.js --external:jsdom --external:bpmn-js --external:bpmn-auto-layout --external:bpmnlint --external:bpmnlint-plugin-camunda-compat --banner:js='#!/usr/bin/env node'",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
     "watch": "npm run build -- --watch",
@@ -30,6 +30,8 @@
     "@types/bpmn-moddle": "^9.0.0",
     "bpmn-auto-layout": "^1.2.0",
     "bpmn-js": "^18.8.0",
+    "bpmnlint": "^11.10.0",
+    "bpmnlint-plugin-camunda-compat": "^2.47.0",
     "camunda-bpmn-moddle": "^7.0.1",
     "jsdom": "^25.0.1"
   },
