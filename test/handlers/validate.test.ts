@@ -23,7 +23,7 @@ describe("handleValidate", () => {
     await addElement(diagramId, "bpmn:Task", { name: "Lonely" });
     const res = parseResult(await handleValidate({ diagramId }));
     expect(
-      res.issues.some((i: any) => i.message.includes("disconnected")),
+      res.issues.some((i: any) => i.message.includes("not connected") || i.rule === "no-disconnected"),
     ).toBe(true);
   });
 
@@ -32,7 +32,7 @@ describe("handleValidate", () => {
     await addElement(diagramId, "bpmn:Task");
     const res = parseResult(await handleValidate({ diagramId }));
     expect(
-      res.issues.some((i: any) => i.message.includes("unnamed")),
+      res.issues.some((i: any) => i.message.includes("missing label") || i.rule === "label-required"),
     ).toBe(true);
   });
 

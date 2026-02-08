@@ -5,7 +5,7 @@ describe("tool-definitions", () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   it("exports the expected number of tools", () => {
-    expect(TOOL_DEFINITIONS.length).toBe(22);
+    expect(TOOL_DEFINITIONS.length).toBe(24);
   });
 
   it.each([
@@ -31,6 +31,8 @@ describe("tool-definitions", () => {
     "layout_diagram",
     "set_camunda_error_event_definition",
     "set_loop_characteristics",
+    "lint_bpmn_diagram",
+    "adjust_labels",
   ])("includes tool '%s'", (name) => {
     expect(toolNames).toContain(name);
   });
