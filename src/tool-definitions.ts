@@ -27,6 +27,8 @@ import { TOOL_DEFINITION as SET_FORM_DATA } from "./handlers/set-form-data";
 import { TOOL_DEFINITION as LAYOUT_DIAGRAM } from "./handlers/layout-diagram";
 import { TOOL_DEFINITION as SET_CAMUNDA_ERROR } from "./handlers/set-camunda-error";
 import { TOOL_DEFINITION as SET_LOOP_CHARACTERISTICS } from "./handlers/set-loop-characteristics";
+import { TOOL_DEFINITION as LINT_DIAGRAM } from "./handlers/lint";
+import { TOOL_DEFINITION as ADJUST_LABELS } from "./handlers/adjust-labels-handler";
 
 export const TOOL_DEFINITIONS = [
   CREATE_DIAGRAM,
@@ -51,4 +53,6 @@ export const TOOL_DEFINITIONS = [
   LAYOUT_DIAGRAM,
   SET_CAMUNDA_ERROR,
   SET_LOOP_CHARACTERISTICS,
+  LINT_DIAGRAM,
+  ADJUST_LABELS,
 ] as const;

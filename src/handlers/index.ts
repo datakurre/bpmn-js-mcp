@@ -34,6 +34,8 @@ import { handleSetFormData } from "./set-form-data";
 import { handleLayoutDiagram } from "./layout-diagram";
 import { handleSetCamundaErrorEventDefinition } from "./set-camunda-error";
 import { handleSetLoopCharacteristics } from "./set-loop-characteristics";
+import { handleLintDiagram } from "./lint";
+import { handleAdjustLabels } from "./adjust-labels-handler";
 
 // Re-export every handler so existing imports keep working
 export {
@@ -61,6 +63,8 @@ export {
   handleLayoutDiagram,
   handleSetCamundaErrorEventDefinition,
   handleSetLoopCharacteristics,
+  handleLintDiagram,
+  handleAdjustLabels,
 };
 
 // ── Dispatch map ───────────────────────────────────────────────────────────
@@ -98,6 +102,8 @@ const handlers: Record<string, (args: any) => Promise<ToolResult>> = {
   auto_layout: handleLayoutDiagram, // backward compat alias
   set_camunda_error_event_definition: handleSetCamundaErrorEventDefinition,
   set_loop_characteristics: handleSetLoopCharacteristics,
+  lint_bpmn_diagram: handleLintDiagram,
+  adjust_labels: handleAdjustLabels,
 };
 
 /** Route a CallTool request to the correct handler. */

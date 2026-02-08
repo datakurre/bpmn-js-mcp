@@ -157,6 +157,14 @@ export interface SetCamundaErrorEventDefinitionArgs {
   }>;
 }
 
+export interface LintDiagramArgs {
+  diagramId: string;
+  config?: {
+    extends?: string | string[];
+    rules?: Record<string, string | number | [string | number, any]>;
+  };
+}
+export interface AdjustLabelsArgs { diagramId: string; }
 export interface SetLoopCharacteristicsArgs {
   diagramId: string;
   elementId: string;
