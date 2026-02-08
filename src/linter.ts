@@ -183,10 +183,16 @@ const lintCache = new Map<string, LintCacheEntry>();
  * This is faster than a full saveXML round-trip.
  */
 function computeDiagramHash(definitions: any): string {
-  // Use JSON of root elements as a fingerprint — fast and deterministic
+  // Use JSON of root elements as a fingerprint — fast and deterministic.
+  // Track seen objects to break ALL circular references (not just $parent —
+  // bpmn-moddle also has sourceRef/targetRef/default cycles).
+  const seen = new WeakSet();
   const fingerprint = JSON.stringify(definitions, (_key, value) => {
-    // Skip circular $parent references
     if (_key === '$parent') return undefined;
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) return '[Circular]';
+      seen.add(value);
+    }
     return value;
   });
   return crypto.createHash('sha256').update(fingerprint).digest('hex').slice(0, 16);
