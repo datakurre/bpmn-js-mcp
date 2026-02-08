@@ -29,7 +29,6 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "@resvg/resvg-js": "^2.6.2",
     "@types/bpmn-moddle": "^9.0.0",
     "bpmn-auto-layout": "^1.2.0",
     "bpmn-js": "^18.8.0",

@@ -1,5 +1,5 @@
 /**
- * Unified handler for export_bpmn tool (XML, SVG, and PNG).
+ * Unified handler for export_bpmn tool (XML and SVG).
  *
  * Merges the former export_bpmn_xml and export_bpmn_svg tools into a
  * single tool with a required `format` parameter.
@@ -14,7 +14,7 @@ import { lintDiagramFlat } from '../linter';
 
 export interface ExportBpmnArgs {
   diagramId: string;
-  format: 'xml' | 'svg' | 'png';
+  format: 'xml' | 'svg';
   skipLint?: boolean;
   lintMinSeverity?: 'error' | 'warning';
 }
@@ -58,28 +58,7 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
 
   // ── Export ────────────────────────────────────────────────────────────
   let output: string;
-  let isBase64 = false;
-  if (format === 'png') {
-    const { svg } = await diagram.modeler.saveSVG();
-    const svgStr = svg || '';
-    try {
-      const { Resvg } = await import('@resvg/resvg-js');
-      const resvg = new Resvg(svgStr, { fitTo: { mode: 'original' } });
-      const pngData = resvg.render();
-      const pngBuffer = pngData.asPng();
-      output = Buffer.from(pngBuffer).toString('base64');
-      isBase64 = true;
-    } catch (err: any) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `PNG export failed: ${err?.message || String(err)}. Ensure @resvg/resvg-js is installed.`,
-          },
-        ],
-      };
-    }
-  } else if (format === 'svg') {
+  if (format === 'svg') {
     const { svg } = await diagram.modeler.saveSVG();
     output = svg || '';
   } else {
@@ -90,9 +69,7 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
   const elementRegistry = diagram.modeler.get('elementRegistry');
   const warnings = buildConnectivityWarnings(elementRegistry);
 
-  const content: ToolResult['content'] = isBase64
-    ? [{ type: 'text', text: `data:image/png;base64,${output}` }]
-    : [{ type: 'text', text: output }];
+  const content: ToolResult['content'] = [{ type: 'text', text: output }];
   if (warnings.length > 0) {
     content.push({ type: 'text', text: '\n' + warnings.join('\n') });
   }
@@ -102,16 +79,15 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
 export const TOOL_DEFINITION = {
   name: 'export_bpmn',
   description:
-    'Export a BPMN diagram as XML, SVG, or PNG. By default, runs bpmnlint and blocks export if there are error-level lint issues. Set skipLint to true to bypass validation.',
+    'Export a BPMN diagram as XML or SVG. By default, runs bpmnlint and blocks export if there are error-level lint issues. Set skipLint to true to bypass validation.',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
       format: {
         type: 'string',
-        enum: ['xml', 'svg', 'png'],
-        description:
-          "The export format: 'xml' for BPMN XML, 'svg' for SVG image, 'png' for PNG raster image (requires @resvg/resvg-js)",
+        enum: ['xml', 'svg'],
+        description: "The export format: 'xml' for BPMN XML, 'svg' for SVG image",
       },
       skipLint: {
         type: 'boolean',
