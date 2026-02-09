@@ -316,7 +316,8 @@ describe('tool-handlers', () => {
 
       const res = await handleExportBpmn({ format: 'xml', diagramId, skipLint: true });
       expect(res.content.length).toBeGreaterThan(1);
-      expect(res.content[1].text).toContain('flows');
+      const allText = res.content.map((c: any) => c.text).join('\n');
+      expect(allText).toContain('flows');
     });
   });
 
@@ -336,7 +337,8 @@ describe('tool-handlers', () => {
 
       const res = await handleExportBpmn({ format: 'svg', diagramId, skipLint: true });
       expect(res.content.length).toBeGreaterThan(1);
-      expect(res.content[1].text).toContain('flows');
+      const allText = res.content.map((c: any) => c.text).join('\n');
+      expect(allText).toContain('flows');
     });
   });
 

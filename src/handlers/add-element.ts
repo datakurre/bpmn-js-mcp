@@ -225,12 +225,20 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
   const shape = elementFactory.createShape(shapeOpts);
   let createdElement: any;
 
+  let hostInfo:
+    | { hostElementId: string; hostElementType: string; hostElementName?: string }
+    | undefined;
   if (elementType === 'bpmn:BoundaryEvent' && hostElementId) {
     // Boundary events must be attached to a host
     const host = requireElement(elementRegistry, hostElementId);
     createdElement = modeling.createShape(shape, { x, y }, host, {
       attach: true,
     });
+    hostInfo = {
+      hostElementId: host.id,
+      hostElementType: host.type || host.businessObject?.$type || '',
+      hostElementName: host.businessObject?.name || undefined,
+    };
   } else if (elementType === 'bpmn:BoundaryEvent' && !hostElementId) {
     throw new McpError(
       ErrorCode.InvalidRequest,
@@ -304,8 +312,15 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     name: elementName,
     position: { x, y },
     ...(connectionId ? { connectionId, autoConnected: true } : {}),
+    ...(hostInfo
+      ? {
+          attachedTo: hostInfo,
+          message: `Added ${elementType} attached to ${hostInfo.hostElementType} '${hostInfo.hostElementName || hostInfo.hostElementId}'${hint}`,
+        }
+      : {
+          message: `Added ${elementType} to diagram${hint}`,
+        }),
     diagramCounts: buildElementCounts(elementRegistry),
-    message: `Added ${elementType} to diagram${hint}`,
   });
   return appendLintFeedback(result, diagram);
 }

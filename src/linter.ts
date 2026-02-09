@@ -343,9 +343,21 @@ export async function appendLintFeedback(
     const errors = issues.filter((i) => i.severity === 'error');
     if (errors.length === 0) return result;
 
-    const lines = errors.map(
-      (i) => `- [${i.rule}] ${i.message}${i.elementId ? ` (${i.elementId})` : ''}`
-    );
+    // Enrich error messages with contextual hints
+    const elementRegistry = diagram.modeler.get('elementRegistry');
+    const lines = errors.map((i) => {
+      let line = `- [${i.rule}] ${i.message}${i.elementId ? ` (${i.elementId})` : ''}`;
+      // Add context for boundary event issues
+      if (i.elementId && (i.rule === 'no-implicit-start' || i.rule === 'no-implicit-end')) {
+        const el = elementRegistry.get(i.elementId);
+        if (el?.type === 'bpmn:BoundaryEvent' && !el.host) {
+          line +=
+            ' — This boundary event is not attached to a host element. ' +
+            'Use add_bpmn_element with hostElementId to attach it to a task or subprocess.';
+        }
+      }
+      return line;
+    });
     const feedback = `\n⚠ Lint issues (${errors.length}):\n${lines.join('\n')}`;
     result.content.push({ type: 'text', text: feedback });
   } catch {

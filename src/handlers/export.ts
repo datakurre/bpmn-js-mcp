@@ -48,6 +48,28 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
     return handleScopedExport(diagram, elementId, format);
   }
 
+  // ── skipLint warning: inform caller about bypassed issues ─────────────
+  let skipLintWarning: string | undefined;
+  if (skipLint) {
+    try {
+      const skipLintIssues = await lintDiagramFlat(diagram);
+      const skipLintErrors = skipLintIssues.filter((i) => i.severity === 'error');
+      if (skipLintErrors.length > 0) {
+        const summary = skipLintErrors
+          .slice(0, 5)
+          .map((i) => `[${i.rule}]${i.elementId ? ` ${i.elementId}` : ''}`)
+          .join(', ');
+        const suffix = skipLintErrors.length > 5 ? `, ... (${skipLintErrors.length} total)` : '';
+        skipLintWarning =
+          `⚠️ skipLint bypassed ${skipLintErrors.length} error(s): ${summary}${suffix}. ` +
+          'The exported diagram may have structural issues. ' +
+          'Run validate_bpmn_diagram to review all issues.';
+      }
+    } catch {
+      // Lint failure is non-fatal when skipping
+    }
+  }
+
   // ── Implicit lint (unless explicitly skipped) ─────────────────────────
   if (!skipLint) {
     try {
@@ -113,6 +135,11 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
     const writeContent = content[0].text;
     fs.writeFileSync(filePath, writeContent, 'utf-8');
     content.push({ type: 'text', text: `\n✅ Written to ${filePath}` });
+  }
+
+  // ── Append skipLint warning if present ─────────────────────────────────
+  if (skipLintWarning) {
+    content.push({ type: 'text', text: '\n' + skipLintWarning });
   }
 
   const elementRegistry = diagram.modeler.get('elementRegistry');

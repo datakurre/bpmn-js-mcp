@@ -30,7 +30,8 @@ describe('handleExportBpmn', () => {
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     expect(res.content.length).toBeGreaterThan(1);
-    expect(res.content[1].text).toContain('flows');
+    const allText = res.content.map((c: any) => c.text).join('\n');
+    expect(allText).toContain('flows');
   });
 
   // ── Implicit lint (skipLint: false — default) ───────────────────────────

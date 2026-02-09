@@ -37,7 +37,6 @@ const REPLACEABLE_TYPES = new Set([
   'bpmn:StartEvent',
   'bpmn:EndEvent',
   'bpmn:SubProcess',
-  'bpmn:BoundaryEvent',
 ]);
 
 export async function handleReplaceElement(args: ReplaceElementArgs): Promise<ToolResult> {
@@ -58,6 +57,22 @@ export async function handleReplaceElement(args: ReplaceElementArgs): Promise<To
       newType,
       message: `Element ${elementId} is already of type ${newType}, no change needed`,
     });
+  }
+
+  // Block replacement to/from BoundaryEvent — requires host attachment
+  if (newType === 'bpmn:BoundaryEvent') {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      'Cannot replace an element to bpmn:BoundaryEvent. Boundary events must be attached to a host element. ' +
+        'Use add_bpmn_element with hostElementId to create a boundary event on a task or subprocess.'
+    );
+  }
+  if (oldType === 'bpmn:BoundaryEvent') {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      'Cannot replace a BoundaryEvent to another type. Delete the boundary event and create the desired ' +
+        'element type separately using add_bpmn_element.'
+    );
   }
 
   if (!REPLACEABLE_TYPES.has(newType)) {
@@ -140,7 +155,6 @@ export const TOOL_DEFINITION = {
           'bpmn:StartEvent',
           'bpmn:EndEvent',
           'bpmn:SubProcess',
-          'bpmn:BoundaryEvent',
         ],
         description: 'The new BPMN element type',
       },
