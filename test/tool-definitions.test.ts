@@ -74,7 +74,7 @@ describe('tool-definitions', () => {
     const tool = TOOL_DEFINITIONS.find((t) => t.name === 'export_bpmn');
     expect(tool?.inputSchema.required).toEqual(expect.arrayContaining(['diagramId', 'format']));
     const props = tool?.inputSchema.properties as any;
-    expect(props.format.enum).toEqual(['xml', 'svg']);
+    expect(props.format.enum).toEqual(['xml', 'svg', 'both']);
   });
 
   it('connect_bpmn_elements has connectionType and conditionExpression params', () => {

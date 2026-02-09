@@ -1,9 +1,10 @@
 {
   "servers": {
     "bpmn-js-mcp": {
-      "command": "node",
+      "command": "npm",
       "args": [
-        "dist/index.js"
+        "run",
+        "dev"
       ],
       "env": {}
     }

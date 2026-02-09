@@ -130,12 +130,28 @@ Generated BPMN 2.0 XML works with [Camunda Modeler](https://camunda.com/download
 ## Development
 
 ```bash
+npm run dev        # auto-reload server on code changes (runs watch + nodemon)
 npm run watch      # rebuild on change
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 npm run format     # format with Prettier
 npm test           # vitest
 ```
+
+### Auto-reload Setup
+
+For development with VS Code's MCP integration, the server will automatically reload when you make code changes:
+
+1. The `watch` script (esbuild --watch) rebuilds `dist/index.js` when source files change
+2. The `dev` script (nodemon) watches `dist/index.js` and restarts the server on rebuild
+3. `.vscode/mcp.json` is configured to use `npm run dev`
+4. Nodemon is configured with `--quiet` and stdio passthrough to ensure MCP protocol compatibility
+
+To develop with auto-reload:
+
+- Start the `watch` script in one terminal: `npm run watch`
+- The MCP server (configured in VS Code) will automatically restart via nodemon when the build completes
+- Nodemon runs in quiet mode and passes stdin/stdout directly to the server process, maintaining MCP stdio compatibility
 
 Or equivalently via `make`:
 

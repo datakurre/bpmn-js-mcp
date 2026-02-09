@@ -43,6 +43,8 @@ export function getPersistDir(): string | null {
 
 /**
  * Save a single diagram to disk (if persistence is enabled).
+ * After writing, re-reads the file and validates the XML can be parsed
+ * to catch any corruption early.
  */
 export async function persistDiagram(diagramId: string, diagram: DiagramState): Promise<void> {
   if (!persistDir) return;
@@ -53,6 +55,15 @@ export async function persistDiagram(diagramId: string, diagram: DiagramState): 
     const metaPath = path.join(persistDir, `${diagramId}.meta.json`);
     fs.writeFileSync(filePath, xml || '', 'utf-8');
     fs.writeFileSync(metaPath, JSON.stringify(meta), 'utf-8');
+
+    // Post-write validation: re-read and verify XML integrity
+    const written = fs.readFileSync(filePath, 'utf-8');
+    if (!written.includes('</bpmn:definitions>') && !written.includes('</definitions>')) {
+      console.error(
+        `[persistence] Post-write validation failed for ${diagramId}: ` +
+          'written file is missing closing </bpmn:definitions> tag'
+      );
+    }
   } catch {
     // Persistence failures are non-fatal
   }

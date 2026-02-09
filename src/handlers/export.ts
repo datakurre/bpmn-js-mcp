@@ -11,6 +11,7 @@
  */
 
 import { type ToolResult } from '../types';
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import {
   requireDiagram,
   requireElement,
@@ -23,15 +24,23 @@ import { createModelerFromXml } from '../diagram-manager';
 
 export interface ExportBpmnArgs {
   diagramId: string;
-  format: 'xml' | 'svg';
+  format: 'xml' | 'svg' | 'both';
   skipLint?: boolean;
   lintMinSeverity?: 'error' | 'warning';
   elementId?: string;
+  filePath?: string;
 }
 
 export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'format']);
-  const { diagramId, format, skipLint = false, lintMinSeverity = 'error', elementId } = args;
+  const {
+    diagramId,
+    format,
+    skipLint = false,
+    lintMinSeverity = 'error',
+    elementId,
+    filePath,
+  } = args;
   const diagram = requireDiagram(diagramId);
 
   // ── Scoped export (subprocess / participant) ──────────────────────────
@@ -72,13 +81,38 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
   }
 
   // ── Export ────────────────────────────────────────────────────────────
-  let output: string;
-  if (format === 'svg') {
+  const content: ToolResult['content'] = [];
+
+  if (format === 'both') {
+    const { xml } = await diagram.modeler.saveXML({ format: true });
+    const xmlOutput = xml || '';
+    validateXmlOutput(xmlOutput);
     const { svg } = await diagram.modeler.saveSVG();
-    output = svg || '';
+    const svgOutput = svg || '';
+    content.push({ type: 'text', text: xmlOutput });
+    content.push({ type: 'text', text: svgOutput });
+  } else if (format === 'svg') {
+    const { svg } = await diagram.modeler.saveSVG();
+    content.push({ type: 'text', text: svg || '' });
   } else {
     const { xml } = await diagram.modeler.saveXML({ format: true });
-    output = xml || '';
+    const xmlOutput = xml || '';
+    validateXmlOutput(xmlOutput);
+    content.push({ type: 'text', text: xmlOutput });
+  }
+
+  // ── Write to file if filePath is specified ─────────────────────────────
+  if (filePath) {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    // Write the primary output (XML or SVG; for 'both', write XML)
+    const writeContent = content[0].text;
+    fs.writeFileSync(filePath, writeContent, 'utf-8');
+    content.push({ type: 'text', text: `\n✅ Written to ${filePath}` });
   }
 
   const elementRegistry = diagram.modeler.get('elementRegistry');
@@ -86,7 +120,6 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
   const layoutWarnings = buildLayoutWarnings(elementRegistry);
   warnings.push(...layoutWarnings);
 
-  const content: ToolResult['content'] = [{ type: 'text', text: output }];
   if (warnings.length > 0) {
     content.push({ type: 'text', text: '\n' + warnings.join('\n') });
   }
@@ -94,6 +127,22 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
 }
 
 // ── Layout quality warnings ──────────────────────────────────────────────
+
+/**
+ * Validate that exported XML is well-formed by checking structure markers.
+ * Throws if the XML appears corrupted (e.g. from terminal heredoc corruption).
+ */
+function validateXmlOutput(xml: string): void {
+  if (!xml || xml.length === 0) {
+    throw new McpError(ErrorCode.InternalError, 'Export produced empty XML output');
+  }
+  if (!xml.includes('</bpmn:definitions>') && !xml.includes('</definitions>')) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      'Export produced malformed XML: missing closing </bpmn:definitions> tag'
+    );
+  }
+}
 
 /**
  * Detect layout issues (overlapping elements, missing layout) and return
@@ -286,15 +335,18 @@ async function exportSubprocessContent(opts: {
 export const TOOL_DEFINITION = {
   name: 'export_bpmn',
   description:
-    'Export a BPMN diagram as XML or SVG. By default, runs bpmnlint and blocks export if there are error-level lint issues. Set skipLint to true to bypass validation. Optionally scope to a subprocess or participant via elementId.',
+    'Export a BPMN diagram as XML or SVG. By default, runs bpmnlint and blocks export if there are error-level lint issues. Set skipLint to true to bypass validation. Optionally scope to a subprocess or participant via elementId. ' +
+    "Use format 'both' to get XML and SVG in a single call. " +
+    'Use filePath to write the exported content directly to a file.',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
       format: {
         type: 'string',
-        enum: ['xml', 'svg'],
-        description: "The export format: 'xml' for BPMN XML, 'svg' for SVG image",
+        enum: ['xml', 'svg', 'both'],
+        description:
+          "The export format: 'xml' for BPMN XML, 'svg' for SVG image, 'both' for XML and SVG in one call",
       },
       skipLint: {
         type: 'boolean',
@@ -311,6 +363,11 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Optional ID of a SubProcess or Participant to export as a standalone diagram. When provided, lint gating is skipped.',
+      },
+      filePath: {
+        type: 'string',
+        description:
+          "Optional file path to write the exported content to. For 'both' format, writes the XML portion. Directories are created automatically.",
       },
     },
     required: ['diagramId', 'format'],

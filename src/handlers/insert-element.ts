@@ -26,6 +26,78 @@ import {
 import { STANDARD_BPMN_GAP, getElementSize } from '../constants';
 import { appendLintFeedback } from '../linter';
 
+// ── Overlap detection & resolution for post-insertion cleanup ─────────────
+
+/**
+ * Detect elements that overlap with the newly inserted element.
+ * Returns pairs [overlappingElement, insertedElement].
+ */
+function detectOverlaps(elementRegistry: any, inserted: any): any[] {
+  const elements = elementRegistry.filter(
+    (el: any) =>
+      el.id !== inserted.id &&
+      el.type &&
+      !el.type.includes('SequenceFlow') &&
+      !el.type.includes('MessageFlow') &&
+      !el.type.includes('Association') &&
+      el.type !== 'bpmn:Participant' &&
+      el.type !== 'bpmn:Lane' &&
+      el.type !== 'bpmn:Process' &&
+      el.type !== 'bpmn:Collaboration' &&
+      el.type !== 'label' &&
+      !el.type.includes('BPMNDiagram') &&
+      !el.type.includes('BPMNPlane') &&
+      // Skip parent-child relationships
+      el.parent !== inserted &&
+      inserted.parent !== el
+  );
+
+  const ix = inserted.x ?? 0;
+  const iy = inserted.y ?? 0;
+  const iw = inserted.width ?? 0;
+  const ih = inserted.height ?? 0;
+
+  return elements.filter((el: any) => {
+    const ex = el.x ?? 0;
+    const ey = el.y ?? 0;
+    const ew = el.width ?? 0;
+    const eh = el.height ?? 0;
+    return ix < ex + ew && ix + iw > ex && iy < ey + eh && iy + ih > ey;
+  });
+}
+
+/**
+ * Resolve overlaps by shifting the overlapping elements vertically.
+ * Uses a simple heuristic: move the non-inserted element down by the
+ * overlap amount plus a standard gap.
+ */
+function resolveInsertionOverlaps(
+  modeling: any,
+  _elementRegistry: any,
+  inserted: any,
+  overlapping: any[]
+): void {
+  const iy = inserted.y ?? 0;
+  const ih = inserted.height ?? 0;
+  const insertedBottom = iy + ih;
+
+  for (const el of overlapping) {
+    const ey = el.y ?? 0;
+    // Calculate how much we need to shift to clear the overlap
+    const overlap = insertedBottom - ey + STANDARD_BPMN_GAP;
+    if (overlap > 0) {
+      // Collect the element and its connected downstream elements on same branch
+      modeling.moveElements([el], { x: 0, y: overlap });
+      // Also move boundary events attached to this element
+      if (el.attachers) {
+        for (const attacher of el.attachers) {
+          modeling.moveElements([attacher], { x: 0, y: overlap });
+        }
+      }
+    }
+  }
+}
+
 export interface InsertElementArgs {
   diagramId: string;
   flowId: string;
@@ -174,6 +246,12 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
   });
   fixConnectionId(conn2, flowId2);
 
+  // Step 6: Detect and fix overlaps caused by insertion/shift
+  const overlaps = detectOverlaps(elementRegistry, createdElement);
+  if (overlaps.length > 0) {
+    resolveInsertionOverlaps(modeling, elementRegistry, createdElement, overlaps);
+  }
+
   await syncXml(diagram);
 
   const result = jsonResult({
@@ -191,6 +269,11 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
       ? { shiftApplied, shiftNote: 'Downstream elements shifted right to make space' }
       : {}),
     diagramCounts: buildElementCounts(elementRegistry),
+    ...(overlaps.length > 0
+      ? {
+          overlapResolution: `Resolved ${overlaps.length} overlap(s) by shifting elements: ${overlaps.map((el: any) => el.id).join(', ')}`,
+        }
+      : {}),
     message: `Inserted ${elementType}${elementName ? ` "${elementName}"` : ''} between ${sourceId} and ${targetId}`,
     ...(flowLabel ? { note: `Original flow label "${flowLabel}" was removed` } : {}),
   });

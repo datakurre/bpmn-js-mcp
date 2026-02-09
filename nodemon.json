@@ -1,0 +1,10 @@
+{
+  "watch": ["dist/index.js"],
+  "exec": "node dist/index.js",
+  "quiet": true,
+  "signal": "SIGTERM",
+  "stdout": true,
+  "stdin": true,
+  "colours": false,
+  "events": {}
+}

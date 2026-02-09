@@ -66,7 +66,8 @@ export interface SetPropertiesArgs {
 }
 
 export interface ImportXmlArgs {
-  xml: string;
+  xml?: string;
+  filePath?: string;
   autoLayout?: boolean;
 }
 

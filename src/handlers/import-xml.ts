@@ -16,6 +16,7 @@ import { storeDiagram, generateDiagramId, createModelerFromXml } from '../diagra
 import { jsonResult, syncXml } from './helpers';
 import { appendLintFeedback } from '../linter';
 import { elkLayout } from '../elk-layout';
+import * as fs from 'fs';
 
 /** Check whether BPMN XML contains diagram interchange (DI) coordinates. */
 function xmlHasDiagramDI(xml: string): boolean {
@@ -23,7 +24,24 @@ function xmlHasDiagramDI(xml: string): boolean {
 }
 
 export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> {
-  const { xml, autoLayout } = args;
+  const { autoLayout, filePath } = args as ImportXmlArgs & { filePath?: string };
+
+  // Resolve XML content from either args.xml or args.filePath
+  let xml: string;
+  if (filePath) {
+    if (!fs.existsSync(filePath)) {
+      return {
+        content: [{ type: 'text', text: `File not found: ${filePath}` }],
+      };
+    }
+    xml = fs.readFileSync(filePath, 'utf-8');
+  } else if (args.xml) {
+    xml = args.xml;
+  } else {
+    return {
+      content: [{ type: 'text', text: 'Either xml or filePath must be provided.' }],
+    };
+  }
   const diagramId = generateDiagramId();
 
   // Determine whether to run auto-layout
@@ -51,10 +69,11 @@ export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> 
     success: true,
     diagramId,
     autoLayoutApplied: shouldLayout,
+    ...(filePath ? { sourceFile: filePath } : {}),
     historyNote:
       'Import creates a fresh modeler with an empty undo/redo history. ' +
       'Use bpmn_history after making changes to undo/redo within this session.',
-    message: `Imported BPMN diagram with ID: ${diagramId}${shouldLayout ? ' (auto-layout applied)' : ''}`,
+    message: `Imported BPMN diagram with ID: ${diagramId}${shouldLayout ? ' (auto-layout applied)' : ''}${filePath ? ` from ${filePath}` : ''}`,
   });
   return appendLintFeedback(result, diagram);
 }
@@ -68,17 +87,26 @@ export const TOOL_DEFINITION = {
     'elements and can affect boundary event placement. For diagrams with boundary events, subprocesses, ' +
     'or complex structures, prefer autoLayout: false (or omit it to use auto-detection). ' +
     '**History:** Each import creates a fresh modeler with an empty undo/redo stack. ' +
-    'Use bpmn_history to undo/redo changes made after import.',
+    'Use bpmn_history to undo/redo changes made after import. ' +
+    'Provide either xml (inline content) or filePath (read from disk). ' +
+    'Combine with export_bpmn filePath to implement an open→edit→save workflow.',
   inputSchema: {
     type: 'object',
     properties: {
-      xml: { type: 'string', description: 'The BPMN XML to import' },
+      xml: {
+        type: 'string',
+        description: 'The BPMN XML to import. Required unless filePath is provided.',
+      },
+      filePath: {
+        type: 'string',
+        description:
+          'Path to a .bpmn file to read and import. When provided, xml parameter is ignored.',
+      },
       autoLayout: {
         type: 'boolean',
         description:
           'Force (true) or skip (false) auto-layout. When omitted, auto-layout runs only if the XML has no diagram coordinates.',
       },
     },
-    required: ['xml'],
   },
 } as const;
