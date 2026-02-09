@@ -164,9 +164,9 @@ Start and End events are small (36×36px). With only `ELEMENT_LABEL_DISTANCE = 1
 
 bpmn-js has `AdaptiveLabelPositioningBehavior` but it only considers connection direction quadrants, not actual bounding-box intersection. Our approach scores 4 candidate positions (top/bottom/left/right) against all connection segments and other labels using Cohen-Sutherland intersection tests, picking the position with the lowest collision score.
 
-### Why element IDs use sequential counters instead of random suffixes
+### Why element IDs use 2-part naming with 3-part random fallback
 
-bpmn-js generates IDs like `Activity_0m4w27p` with random hex suffixes. These are hard to distinguish and remember during interactive diagram construction. `generateDescriptiveId()` now always returns a meaningful ID: `UserTask_EnterName` when a name is given, or `StartEvent_1`, `Gateway_2` when unnamed. Sequential counters are short, predictable, and easy to reference in subsequent tool calls. The same pattern applies to flows via `generateFlowId()` (`Flow_1`, `Flow_2`, or `Flow_EnterName_to_HasSurname`).
+bpmn-js generates IDs like `Activity_0m4w27p` with random hex suffixes but no semantic meaning. Our approach prefers short, readable 2-part IDs: `UserTask_EnterName` when a name is given. On collision (same name used twice), it falls back to 3-part IDs with a random middle section: `UserTask_a1b2c3d_EnterName`. Unnamed elements always use a random part: `StartEvent_x9y8z7w`. The random 7-character alphanumeric part ensures reasonable uniqueness, making elements safe to copy/paste across diagrams without ID collisions. The same pattern applies to flows via `generateFlowId()`: `Flow_Done` first, then `Flow_m4n5p6q_Done` on collision, or `Flow_x9y8z7w` when no names are available.
 
 ### Why all tool names include "bpmn"
 
@@ -181,6 +181,6 @@ When multiple MCP servers are active, tool names must be globally unique. Generi
 - **Do not cache a bpmnlint `Linter` instance.** Some rules use closure state that accumulates across calls. `createLinter()` in `src/linter.ts` always creates a fresh instance.
 - The `DEFAULT_LINT_CONFIG` extends `bpmnlint:recommended`, `plugin:camunda-compat/camunda-platform-7-24`, and `plugin:bpmn-mcp/recommended`. It downgrades `label-required` and `no-disconnected` to warnings (AI callers build diagrams incrementally), and disables `no-overlapping-elements` (false positives in headless mode).
 - Custom bpmnlint rules live in `src/bpmnlint-plugin-bpmn-mcp/` and are registered as a proper bpmnlint plugin via `McpPluginResolver` in `src/linter.ts`. They can be referenced in config as `plugin:bpmn-mcp/recommended` or individually as `bpmn-mcp/rule-name`.
-- Element IDs are always deterministic: named elements get `UserTask_EnterName`, unnamed elements get sequential `StartEvent_1`, `Gateway_2`, flows get `Flow_1` or `Flow_Begin_to_End`. No random suffixes.
+- Element IDs prefer short 2-part naming: `UserTask_EnterName`, `Flow_Done`. On collision, falls back to 3-part with random middle: `UserTask_a1b2c3d_EnterName`, `Flow_m4n5p6q_Done`. Unnamed elements use `StartEvent_x9y8z7w`. The random 7-char part ensures uniqueness for copy/paste across diagrams.
 - `elkjs` is dynamically imported and externalized in esbuild (same as `bpmn-js`). It runs synchronously in the headless Node.js/jsdom environment (no web workers). The ELK graph is built from `elementRegistry.getAll()`, boundary events are excluded (they follow their host automatically via `modeling.moveElements`).
 - bpmnlint has no rule to detect semantic gateway-type mismatches (e.g. using a parallel gateway to merge mutually exclusive paths). Such errors require manual review or domain-specific rules.
