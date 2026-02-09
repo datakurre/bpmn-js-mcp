@@ -38,6 +38,7 @@ export interface AddElementArgs {
   y?: number;
   hostElementId?: string;
   afterElementId?: string;
+  participantId?: string;
 }
 
 export interface ConnectArgs {
@@ -97,6 +98,11 @@ export interface CloneDiagramArgs {
 
 export interface ValidateArgs {
   diagramId: string;
+  config?: {
+    extends?: string | string[];
+    rules?: Record<string, string | number | [string | number, any]>;
+  };
+  lintMinSeverity?: 'error' | 'warning';
 }
 
 export interface AlignElementsArgs {
@@ -126,6 +132,9 @@ export interface SetEventDefinitionArgs {
   eventDefinitionType: string;
   properties?: Record<string, any>;
   errorRef?: { id: string; name?: string; errorCode?: string };
+  messageRef?: { id: string; name?: string };
+  signalRef?: { id: string; name?: string };
+  escalationRef?: { id: string; name?: string; escalationCode?: string };
 }
 
 export interface SetFormDataArgs {
@@ -146,6 +155,9 @@ export interface SetFormDataArgs {
 
 export interface LayoutDiagramArgs {
   diagramId: string;
+  direction?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
+  nodeSpacing?: number;
+  layerSpacing?: number;
 }
 
 export interface SetCamundaErrorEventDefinitionArgs {
@@ -219,6 +231,13 @@ export interface RedoChangeArgs {
 export interface DiffDiagramsArgs {
   diagramIdA: string;
   diagramIdB: string;
+}
+
+export interface ResizeElementArgs {
+  diagramId: string;
+  elementId: string;
+  width: number;
+  height: number;
 }
 
 export interface BatchOperationsArgs {

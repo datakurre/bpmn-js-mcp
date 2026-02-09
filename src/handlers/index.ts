@@ -39,6 +39,7 @@ import { handleUndoChange } from './undo';
 import { handleRedoChange } from './redo';
 import { handleDiffDiagrams } from './diff-diagrams';
 import { handleBatchOperations } from './batch-operations';
+import { handleResizeElement } from './resize-element';
 
 // Re-export every handler so existing imports keep working
 export {
@@ -74,6 +75,7 @@ export {
   handleRedoChange,
   handleDiffDiagrams,
   handleBatchOperations,
+  handleResizeElement,
 };
 
 // ── Dispatch map ───────────────────────────────────────────────────────────
@@ -113,6 +115,7 @@ const handlers: Record<string, (args: any) => Promise<ToolResult>> = {
   redo_bpmn_change: handleRedoChange,
   diff_bpmn_diagrams: handleDiffDiagrams,
   batch_bpmn_operations: handleBatchOperations,
+  resize_bpmn_element: handleResizeElement,
 };
 
 /** Route a CallTool request to the correct handler. */

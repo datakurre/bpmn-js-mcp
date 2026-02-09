@@ -14,13 +14,28 @@ const ANNOTATION_TYPES = new Set(['bpmn:TextAnnotation', 'bpmn:Group']);
 const DATA_TYPES = new Set(['bpmn:DataObjectReference', 'bpmn:DataStoreReference']);
 
 /**
+ * Walk up the parent chain to find the owning Participant (pool).
+ * Returns undefined if the element is not inside a Participant.
+ */
+function findParentParticipant(element: any): any {
+  let current = element;
+  while (current) {
+    if (current.type === 'bpmn:Participant') return current;
+    current = current.parent;
+  }
+  return undefined;
+}
+
+/**
  * Validate source/target types and auto-detect or correct connectionType.
  * Returns the resolved connectionType and an optional auto-correction hint.
  */
 function resolveConnectionType(
   sourceType: string,
   targetType: string,
-  requestedType: string | undefined
+  requestedType: string | undefined,
+  source?: any,
+  target?: any
 ): { connectionType: string; autoHint?: string } {
   // Data objects/stores must use create_bpmn_data_association
   if (DATA_TYPES.has(sourceType) || DATA_TYPES.has(targetType)) {
@@ -41,6 +56,36 @@ function resolveConnectionType(
           `(${ANNOTATION_TYPES.has(sourceType) ? sourceType : targetType} ` +
           `requires Association, not SequenceFlow).`,
       };
+    }
+  }
+
+  // Cross-pool detection: auto-correct SequenceFlow → MessageFlow
+  if (source && target) {
+    const sourceParticipant = findParentParticipant(source);
+    const targetParticipant = findParentParticipant(target);
+    const crossPool =
+      sourceParticipant && targetParticipant && sourceParticipant.id !== targetParticipant.id;
+
+    if (crossPool && (!requestedType || requestedType === 'bpmn:SequenceFlow')) {
+      return {
+        connectionType: 'bpmn:MessageFlow',
+        autoHint:
+          `Connection type auto-corrected to bpmn:MessageFlow ` +
+          `(source and target are in different participants: ` +
+          `${sourceParticipant.businessObject?.name || sourceParticipant.id} / ` +
+          `${targetParticipant.businessObject?.name || targetParticipant.id}).`,
+      };
+    }
+
+    // Validate: MessageFlow must connect elements in different pools
+    if (requestedType === 'bpmn:MessageFlow') {
+      if (!crossPool) {
+        throw new McpError(
+          ErrorCode.InvalidRequest,
+          `bpmn:MessageFlow requires source and target to be in different participants (pools). ` +
+            `Both elements are in the same participant. Use bpmn:SequenceFlow for intra-pool connections.`
+        );
+      }
     }
   }
 
@@ -103,7 +148,9 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
   const { connectionType, autoHint } = resolveConnectionType(
     sourceType,
     targetType,
-    args.connectionType
+    args.connectionType,
+    source,
+    target
   );
 
   const flowId = generateFlowId(

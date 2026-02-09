@@ -37,6 +37,7 @@ import { TOOL_DEFINITION as UNDO_CHANGE } from './handlers/undo';
 import { TOOL_DEFINITION as REDO_CHANGE } from './handlers/redo';
 import { TOOL_DEFINITION as DIFF_DIAGRAMS } from './handlers/diff-diagrams';
 import { TOOL_DEFINITION as BATCH_OPERATIONS } from './handlers/batch-operations';
+import { TOOL_DEFINITION as RESIZE_ELEMENT } from './handlers/resize-element';
 
 export const TOOL_DEFINITIONS = [
   CREATE_DIAGRAM,
@@ -71,4 +72,5 @@ export const TOOL_DEFINITIONS = [
   REDO_CHANGE,
   DIFF_DIAGRAMS,
   BATCH_OPERATIONS,
+  RESIZE_ELEMENT,
 ] as const;

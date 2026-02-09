@@ -5,7 +5,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   it('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(32);
+    expect(TOOL_DEFINITIONS.length).toBe(33);
   });
 
   it.each([

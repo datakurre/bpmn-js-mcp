@@ -64,13 +64,19 @@ function isInfrastructure(type: string): boolean {
   );
 }
 
-/** Check if an element type is an artifact (data object, data store, text annotation). */
+/** Check if an element type is an artifact (data object, data store, text annotation, group). */
 function isArtifact(type: string): boolean {
   return (
     type === 'bpmn:TextAnnotation' ||
     type === 'bpmn:DataObjectReference' ||
-    type === 'bpmn:DataStoreReference'
+    type === 'bpmn:DataStoreReference' ||
+    type === 'bpmn:Group'
   );
+}
+
+/** Check if an element type is a lane (excluded from ELK layout). */
+function isLane(type: string): boolean {
+  return type === 'bpmn:Lane' || type === 'bpmn:LaneSet';
 }
 
 // ── ELK graph building ─────────────────────────────────────────────────────
@@ -89,13 +95,14 @@ function buildContainerGraph(
   const edges: ElkExtendedEdge[] = [];
   const nodeIds = new Set<string>();
 
-  // Direct child shapes (skip connections, boundary events, infrastructure, artifacts)
+  // Direct child shapes (skip connections, boundary events, infrastructure, artifacts, lanes)
   const childShapes = allElements.filter(
     (el: any) =>
       el.parent === container &&
       !isInfrastructure(el.type) &&
       !isConnection(el.type) &&
       !isArtifact(el.type) &&
+      !isLane(el.type) &&
       el.type !== 'bpmn:BoundaryEvent'
   );
 
@@ -623,6 +630,13 @@ function snapAllConnectionsOrthogonal(elementRegistry: any): void {
 
 // ── Main entry point ───────────────────────────────────────────────────────
 
+/** Optional parameters for ELK layout. */
+export interface ElkLayoutOptions {
+  direction?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
+  nodeSpacing?: number;
+  layerSpacing?: number;
+}
+
 /**
  * Run ELK layered layout on a BPMN diagram.
  *
@@ -638,7 +652,7 @@ function snapAllConnectionsOrthogonal(elementRegistry: any): void {
  * 5. Apply ELK edge sections as connection waypoints (bypasses
  *    bpmn-js ManhattanLayout entirely for ELK-routed edges)
  */
-export async function elkLayout(diagram: DiagramState): Promise<void> {
+export async function elkLayout(diagram: DiagramState, options?: ElkLayoutOptions): Promise<void> {
   // Dynamic import — elkjs is externalized in esbuild
   const ELK = (await import('elkjs')).default;
   const elk = new ELK();
@@ -653,9 +667,21 @@ export async function elkLayout(diagram: DiagramState): Promise<void> {
 
   if (children.length === 0) return;
 
+  // Merge user-provided options with defaults
+  const layoutOptions: LayoutOptions = { ...ELK_LAYOUT_OPTIONS };
+  if (options?.direction) {
+    layoutOptions['elk.direction'] = options.direction;
+  }
+  if (options?.nodeSpacing !== undefined) {
+    layoutOptions['elk.spacing.nodeNode'] = String(options.nodeSpacing);
+  }
+  if (options?.layerSpacing !== undefined) {
+    layoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = String(options.layerSpacing);
+  }
+
   const elkGraph: ElkNode = {
     id: 'root',
-    layoutOptions: ELK_LAYOUT_OPTIONS,
+    layoutOptions,
     children,
     edges,
   };

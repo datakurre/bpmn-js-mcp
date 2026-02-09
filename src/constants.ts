@@ -22,6 +22,7 @@ export const ELEMENT_SIZES: Readonly<Record<string, { width: number; height: num
   textAnnotation: { width: 100, height: 30 },
   dataObject: { width: 36, height: 50 },
   dataStore: { width: 50, height: 50 },
+  group: { width: 300, height: 200 },
   default: { width: 100, height: 80 },
 };
 
@@ -62,6 +63,7 @@ export function getElementSize(elementType: string): { width: number; height: nu
   if (elementType === 'bpmn:TextAnnotation') return ELEMENT_SIZES.textAnnotation;
   if (elementType === 'bpmn:DataObjectReference') return ELEMENT_SIZES.dataObject;
   if (elementType === 'bpmn:DataStoreReference') return ELEMENT_SIZES.dataStore;
+  if (elementType === 'bpmn:Group') return ELEMENT_SIZES.group;
   if (elementType.includes('Task') || elementType === 'bpmn:CallActivity') {
     return ELEMENT_SIZES.task;
   }

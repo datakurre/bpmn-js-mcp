@@ -9,6 +9,8 @@ import { type ToolResult } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { validateArgs, jsonResult } from './helpers';
 import { dispatchToolCall } from './index';
+import { setBatchMode, appendLintFeedback } from '../linter';
+import { getDiagram } from '../diagram-manager';
 
 export interface BatchOperationsArgs {
   operations: Array<{
@@ -33,6 +35,9 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
     }
   }
 
+  // Suppress intermediate lint feedback during batch execution
+  setBatchMode(true);
+
   const results: Array<{
     index: number;
     tool: string;
@@ -41,31 +46,36 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
     error?: string;
   }> = [];
 
-  for (let i = 0; i < operations.length; i++) {
-    const op = operations[i];
-    try {
-      const result = await dispatchToolCall(op.tool, op.args);
-      // Try to parse the result text as JSON for cleaner output
-      let parsed: any;
+  try {
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
       try {
-        parsed = JSON.parse(result.content[0]?.text || '{}');
-      } catch {
-        parsed = result.content[0]?.text;
-      }
-      results.push({ index: i, tool: op.tool, success: true, result: parsed });
-    } catch (err: any) {
-      const errorMsg = err?.message || String(err);
-      results.push({ index: i, tool: op.tool, success: false, error: errorMsg });
-      if (stopOnError) {
-        break;
+        const result = await dispatchToolCall(op.tool, op.args);
+        // Try to parse the result text as JSON for cleaner output
+        let parsed: any;
+        try {
+          parsed = JSON.parse(result.content[0]?.text || '{}');
+        } catch {
+          parsed = result.content[0]?.text;
+        }
+        results.push({ index: i, tool: op.tool, success: true, result: parsed });
+      } catch (err: any) {
+        const errorMsg = err?.message || String(err);
+        results.push({ index: i, tool: op.tool, success: false, error: errorMsg });
+        if (stopOnError) {
+          break;
+        }
       }
     }
+  } finally {
+    setBatchMode(false);
   }
 
   const successCount = results.filter((r) => r.success).length;
   const failCount = results.filter((r) => !r.success).length;
 
-  return jsonResult({
+  // Run a single lint pass at the end for the affected diagram
+  const batchResult = jsonResult({
     success: failCount === 0,
     totalOperations: operations.length,
     executed: results.length,
@@ -77,6 +87,17 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
         ? `All ${successCount} operations completed successfully`
         : `${failCount} operation(s) failed out of ${results.length} executed`,
   });
+
+  // Find the diagram ID from the operations to run a single final lint
+  const diagramId = operations[0]?.args?.diagramId;
+  if (diagramId) {
+    const diagram = getDiagram(diagramId);
+    if (diagram) {
+      return appendLintFeedback(batchResult, diagram);
+    }
+  }
+
+  return batchResult;
 }
 
 export const TOOL_DEFINITION = {

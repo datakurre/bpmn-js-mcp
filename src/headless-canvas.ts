@@ -104,10 +104,32 @@ function applyGlobalPolyfills(win: any): void {
       e: 0,
       f: 0,
       inverse() {
-        return this;
+        // 2D affine matrix inverse: [a b e; c d f; 0 0 1]
+        const det = this.a * this.d - this.b * this.c;
+        if (Math.abs(det) < 1e-10) {
+          // Singular matrix — return identity as fallback
+          const m = new win.SVGMatrix();
+          return m;
+        }
+        const m = new win.SVGMatrix();
+        m.a = this.d / det;
+        m.b = -this.b / det;
+        m.c = -this.c / det;
+        m.d = this.a / det;
+        m.e = (this.c * this.f - this.d * this.e) / det;
+        m.f = (this.b * this.e - this.a * this.f) / det;
+        return m;
       },
-      multiply() {
-        return this;
+      multiply(other: any) {
+        // 2D affine matrix multiplication
+        const m = new win.SVGMatrix();
+        m.a = this.a * other.a + this.b * other.c;
+        m.b = this.a * other.b + this.b * other.d;
+        m.c = this.c * other.a + this.d * other.c;
+        m.d = this.c * other.b + this.d * other.d;
+        m.e = this.a * other.e + this.b * other.f + this.e;
+        m.f = this.c * other.e + this.d * other.f + this.f;
+        return m;
       },
       translate(x: number, y: number) {
         this.e += x;
@@ -151,23 +173,7 @@ function applySvgElementPolyfills(win: any): void {
 
   if (SVGElement && !SVGElement.prototype.getScreenCTM) {
     SVGElement.prototype.getScreenCTM = function () {
-      return {
-        a: 1,
-        b: 0,
-        c: 0,
-        d: 1,
-        e: 0,
-        f: 0,
-        inverse() {
-          return this;
-        },
-        multiply() {
-          return this;
-        },
-        translate() {
-          return this;
-        },
-      };
+      return new win.SVGMatrix();
     };
   }
 
@@ -196,26 +202,7 @@ function applySvgSvgElementPolyfills(win: any): void {
 
   if (!SVGSVGElement.prototype.createSVGMatrix) {
     SVGSVGElement.prototype.createSVGMatrix = function () {
-      return {
-        a: 1,
-        b: 0,
-        c: 0,
-        d: 1,
-        e: 0,
-        f: 0,
-        inverse() {
-          return this;
-        },
-        multiply() {
-          return this;
-        },
-        translate() {
-          return this;
-        },
-        scale() {
-          return this;
-        },
-      };
+      return new win.SVGMatrix();
     };
   }
   if (!SVGSVGElement.prototype.createSVGTransform) {

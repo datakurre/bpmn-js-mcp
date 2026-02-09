@@ -88,7 +88,14 @@ function snapToLane(
 
 export async function handleAddElement(args: AddElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementType']);
-  const { diagramId, elementType, name: elementName, hostElementId, afterElementId } = args;
+  const {
+    diagramId,
+    elementType,
+    name: elementName,
+    hostElementId,
+    afterElementId,
+    participantId,
+  } = args;
   let { x = 100, y = 100 } = args;
   const diagram = requireDiagram(diagramId);
 
@@ -147,14 +154,22 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     const rootElement = canvas.getRootElement();
     createdElement = modeling.createShape(shape, { x, y }, rootElement);
   } else {
-    // Regular element — add to process (or first participant)
-    const process = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Participant'
-    )[0];
-    if (!process) {
+    // Regular element — add to specified participant or first process/participant
+    let parent: any;
+    if (participantId) {
+      parent = elementRegistry.get(participantId);
+      if (!parent) {
+        throw new McpError(ErrorCode.InvalidRequest, `Participant not found: ${participantId}`);
+      }
+    } else {
+      parent = elementRegistry.filter(
+        (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Participant'
+      )[0];
+    }
+    if (!parent) {
       throw new McpError(ErrorCode.InternalError, 'No bpmn:Process found in diagram');
     }
-    createdElement = modeling.createShape(shape, { x, y }, process);
+    createdElement = modeling.createShape(shape, { x, y }, parent);
   }
 
   if (elementName) {
@@ -220,6 +235,7 @@ export const TOOL_DEFINITION = {
           'bpmn:TextAnnotation',
           'bpmn:DataObjectReference',
           'bpmn:DataStoreReference',
+          'bpmn:Group',
           'bpmn:Participant',
           'bpmn:Lane',
         ],
@@ -246,6 +262,11 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Place the new element to the right of this element (auto-positions x/y). Overrides explicit x/y.',
+      },
+      participantId: {
+        type: 'string',
+        description:
+          'For collaboration diagrams: the ID of the participant (pool) to add the element into. If omitted, uses the first participant or process.',
       },
     },
     required: ['diagramId', 'elementType'],

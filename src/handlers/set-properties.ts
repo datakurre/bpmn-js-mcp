@@ -82,6 +82,25 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
   handleDefaultOnGateway(element, standardProps, elementRegistry);
   handleConditionExpression(standardProps, diagram.modeler.get('moddle'));
 
+  // Handle `documentation` — creates/updates bpmn:documentation child element
+  if ('documentation' in standardProps) {
+    const moddle = diagram.modeler.get('moddle');
+    const bo = element.businessObject;
+    const docText = standardProps['documentation'];
+    delete standardProps['documentation'];
+
+    if (docText != null && docText !== '') {
+      const docElement = moddle.create('bpmn:Documentation', { text: String(docText) });
+      docElement.$parent = bo;
+      bo.documentation = [docElement];
+      modeling.updateProperties(element, { documentation: bo.documentation });
+    } else {
+      // Clear documentation
+      bo.documentation = [];
+      modeling.updateProperties(element, { documentation: bo.documentation });
+    }
+  }
+
   if (Object.keys(standardProps).length > 0) {
     modeling.updateProperties(element, standardProps);
   }

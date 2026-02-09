@@ -282,6 +282,18 @@ export async function lintDiagramFlat(
   return flat;
 }
 
+// ── Batch mode flag ────────────────────────────────────────────────────────
+
+let batchMode = false;
+
+/**
+ * Enable or disable batch mode.  When enabled, `appendLintFeedback()` is
+ * a no-op — the batch handler runs a single lint pass at the end instead.
+ */
+export function setBatchMode(enabled: boolean): void {
+  batchMode = enabled;
+}
+
 // ── Implicit lint feedback ─────────────────────────────────────────────────
 
 /**
@@ -295,6 +307,9 @@ export async function appendLintFeedback(
   result: ToolResult,
   diagram: DiagramState
 ): Promise<ToolResult> {
+  // In batch mode, skip intermediate lint to avoid N full lint runs
+  if (batchMode) return result;
+
   // Invalidate cache since a mutation just occurred
   const diagramId = getDiagramIdForState(diagram);
   if (diagramId) invalidateLintCache(diagramId);

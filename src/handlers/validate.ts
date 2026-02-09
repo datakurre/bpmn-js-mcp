@@ -21,13 +21,14 @@ interface ValidationIssue {
 
 export async function handleValidate(args: ValidateArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
+  const { config, lintMinSeverity } = args;
   const diagram = requireDiagram(args.diagramId);
 
   // Run bpmnlint — the default config extends bpmnlint:recommended,
   // plugin:camunda-compat/camunda-platform-7-24, and plugin:bpmn-mcp/recommended
   let lintIssues: FlatLintIssue[] = [];
   try {
-    lintIssues = await lintDiagramFlat(diagram);
+    lintIssues = await lintDiagramFlat(diagram, config as any);
   } catch {
     // If bpmnlint fails, return empty issues gracefully
   }
@@ -40,9 +41,17 @@ export async function handleValidate(args: ValidateArgs): Promise<ToolResult> {
     rule: li.rule,
   }));
 
+  // Filter based on lintMinSeverity if provided
+  const blockingSeverities: Set<string> = new Set(['error']);
+  if (lintMinSeverity === 'warning') {
+    blockingSeverities.add('warning');
+  }
+
+  const blockingIssues = issues.filter((i) => blockingSeverities.has(i.severity));
+
   return jsonResult({
     success: true,
-    valid: issues.filter((i) => i.severity === 'error').length === 0,
+    valid: blockingIssues.length === 0,
     issues,
     issueCount: issues.length,
   });
@@ -56,6 +65,27 @@ export const TOOL_DEFINITION = {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
+      config: {
+        type: 'object',
+        description: 'Optional bpmnlint config override. Default extends bpmnlint:recommended.',
+        properties: {
+          extends: {
+            description: "Config(s) to extend, e.g. 'bpmnlint:recommended'",
+            oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          },
+          rules: {
+            type: 'object',
+            description: 'Rule overrides, e.g. { "label-required": "off" }',
+            additionalProperties: { type: 'string', enum: ['off', 'warn', 'error', 'info'] },
+          },
+        },
+      },
+      lintMinSeverity: {
+        type: 'string',
+        enum: ['error', 'warning'],
+        description:
+          "Minimum lint severity that marks the diagram as invalid. 'error' (default) counts only errors. 'warning' counts warnings too.",
+      },
     },
     required: ['diagramId'],
   },

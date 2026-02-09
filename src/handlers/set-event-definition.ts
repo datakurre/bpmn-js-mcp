@@ -10,13 +10,25 @@ import {
   jsonResult,
   syncXml,
   resolveOrCreateError,
+  resolveOrCreateMessage,
+  resolveOrCreateSignal,
+  resolveOrCreateEscalation,
   validateArgs,
 } from './helpers';
 import { appendLintFeedback } from '../linter';
 
 export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
-  const { diagramId, elementId, eventDefinitionType, properties: defProps = {}, errorRef } = args;
+  const {
+    diagramId,
+    elementId,
+    eventDefinitionType,
+    properties: defProps = {},
+    errorRef,
+    messageRef,
+    signalRef,
+    escalationRef,
+  } = args;
   const diagram = requireDiagram(diagramId);
 
   const elementRegistry = diagram.modeler.get('elementRegistry');
@@ -69,12 +81,52 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
     }
   }
 
+  // Handle conditional-specific properties
+  if (eventDefinitionType === 'bpmn:ConditionalEventDefinition') {
+    if (defProps.condition) {
+      eventDefAttrs.condition = moddle.create('bpmn:FormalExpression', {
+        body: defProps.condition,
+      });
+    }
+  }
+
+  // Handle link-specific properties
+  if (eventDefinitionType === 'bpmn:LinkEventDefinition') {
+    if (defProps.name) {
+      eventDefAttrs.name = defProps.name;
+    }
+  }
+
   // Handle error reference
   if (eventDefinitionType === 'bpmn:ErrorEventDefinition' && errorRef) {
     const canvas = diagram.modeler.get('canvas');
     const rootElement = canvas.getRootElement();
     const definitions = rootElement.businessObject.$parent;
     eventDefAttrs.errorRef = resolveOrCreateError(moddle, definitions, errorRef);
+  }
+
+  // Handle message reference
+  if (eventDefinitionType === 'bpmn:MessageEventDefinition' && messageRef) {
+    const canvas = diagram.modeler.get('canvas');
+    const rootElement = canvas.getRootElement();
+    const definitions = rootElement.businessObject.$parent;
+    eventDefAttrs.messageRef = resolveOrCreateMessage(moddle, definitions, messageRef);
+  }
+
+  // Handle signal reference
+  if (eventDefinitionType === 'bpmn:SignalEventDefinition' && signalRef) {
+    const canvas = diagram.modeler.get('canvas');
+    const rootElement = canvas.getRootElement();
+    const definitions = rootElement.businessObject.$parent;
+    eventDefAttrs.signalRef = resolveOrCreateSignal(moddle, definitions, signalRef);
+  }
+
+  // Handle escalation reference
+  if (eventDefinitionType === 'bpmn:EscalationEventDefinition' && escalationRef) {
+    const canvas = diagram.modeler.get('canvas');
+    const rootElement = canvas.getRootElement();
+    const definitions = rootElement.businessObject.$parent;
+    eventDefAttrs.escalationRef = resolveOrCreateEscalation(moddle, definitions, escalationRef);
   }
 
   const eventDef = moddle.create(eventDefinitionType, eventDefAttrs);
@@ -120,13 +172,17 @@ export const TOOL_DEFINITION = {
           'bpmn:SignalEventDefinition',
           'bpmn:TerminateEventDefinition',
           'bpmn:EscalationEventDefinition',
+          'bpmn:ConditionalEventDefinition',
+          'bpmn:CompensateEventDefinition',
+          'bpmn:CancelEventDefinition',
+          'bpmn:LinkEventDefinition',
         ],
         description: 'The type of event definition to add',
       },
       properties: {
         type: 'object',
         description:
-          'Type-specific properties. For Timer events, provide exactly ONE of: timeDuration (ISO 8601 duration, e.g. "PT15M" for 15 minutes, "PT1H30M" for 1.5 hours, "P1D" for 1 day), timeDate (ISO 8601 date-time, e.g. "2025-12-31T23:59:00Z"), or timeCycle (ISO 8601 repeating interval, e.g. "R3/PT10M" for 3 repetitions every 10 minutes, "R/P1D" for daily). Camunda expressions are also supported (e.g. "${myDuration}").',
+          'Type-specific properties. For Timer events, provide exactly ONE of: timeDuration (ISO 8601 duration, e.g. "PT15M" for 15 minutes, "PT1H30M" for 1.5 hours, "P1D" for 1 day), timeDate (ISO 8601 date-time, e.g. "2025-12-31T23:59:00Z"), or timeCycle (ISO 8601 repeating interval, e.g. "R3/PT10M" for 3 repetitions every 10 minutes, "R/P1D" for daily). For Conditional events: condition (expression string). For Link events: name (link name). Camunda expressions are also supported (e.g. "${myDuration}").',
         additionalProperties: true,
       },
       errorRef: {
@@ -138,6 +194,36 @@ export const TOOL_DEFINITION = {
         },
         required: ['id'],
         description: 'For ErrorEventDefinition: creates or references a bpmn:Error root element',
+      },
+      messageRef: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Message element ID' },
+          name: { type: 'string', description: 'Message name' },
+        },
+        required: ['id'],
+        description:
+          'For MessageEventDefinition: creates or references a bpmn:Message root element',
+      },
+      signalRef: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Signal element ID' },
+          name: { type: 'string', description: 'Signal name' },
+        },
+        required: ['id'],
+        description: 'For SignalEventDefinition: creates or references a bpmn:Signal root element',
+      },
+      escalationRef: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Escalation element ID' },
+          name: { type: 'string', description: 'Escalation name' },
+          escalationCode: { type: 'string', description: 'Escalation code' },
+        },
+        required: ['id'],
+        description:
+          'For EscalationEventDefinition: creates or references a bpmn:Escalation root element',
       },
     },
     required: ['diagramId', 'elementId', 'eventDefinitionType'],

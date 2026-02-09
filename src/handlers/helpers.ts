@@ -50,6 +50,7 @@ function typePrefix(bpmnType: string): string {
   if (short === 'TextAnnotation') return 'Annotation';
   if (short === 'DataObjectReference') return 'DataObject';
   if (short === 'DataStoreReference') return 'DataStore';
+  if (short === 'Group') return 'Group';
   if (short === 'Participant') return 'Participant';
   if (short === 'Lane') return 'Lane';
   return short;
@@ -287,4 +288,77 @@ export function resolveOrCreateError(
     errorElement.$parent = definitions;
   }
   return errorElement;
+}
+
+/**
+ * Find or create a `bpmn:Message` root element on the definitions.
+ */
+export function resolveOrCreateMessage(
+  moddle: any,
+  definitions: any,
+  messageRef: { id: string; name?: string }
+): any {
+  if (!definitions.rootElements) definitions.rootElements = [];
+
+  let messageElement = definitions.rootElements.find(
+    (re: any) => re.$type === 'bpmn:Message' && re.id === messageRef.id
+  );
+  if (!messageElement) {
+    messageElement = moddle.create('bpmn:Message', {
+      id: messageRef.id,
+      name: messageRef.name || messageRef.id,
+    });
+    definitions.rootElements.push(messageElement);
+    messageElement.$parent = definitions;
+  }
+  return messageElement;
+}
+
+/**
+ * Find or create a `bpmn:Signal` root element on the definitions.
+ */
+export function resolveOrCreateSignal(
+  moddle: any,
+  definitions: any,
+  signalRef: { id: string; name?: string }
+): any {
+  if (!definitions.rootElements) definitions.rootElements = [];
+
+  let signalElement = definitions.rootElements.find(
+    (re: any) => re.$type === 'bpmn:Signal' && re.id === signalRef.id
+  );
+  if (!signalElement) {
+    signalElement = moddle.create('bpmn:Signal', {
+      id: signalRef.id,
+      name: signalRef.name || signalRef.id,
+    });
+    definitions.rootElements.push(signalElement);
+    signalElement.$parent = definitions;
+  }
+  return signalElement;
+}
+
+/**
+ * Find or create a `bpmn:Escalation` root element on the definitions.
+ */
+export function resolveOrCreateEscalation(
+  moddle: any,
+  definitions: any,
+  escalationRef: { id: string; name?: string; escalationCode?: string }
+): any {
+  if (!definitions.rootElements) definitions.rootElements = [];
+
+  let escalationElement = definitions.rootElements.find(
+    (re: any) => re.$type === 'bpmn:Escalation' && re.id === escalationRef.id
+  );
+  if (!escalationElement) {
+    escalationElement = moddle.create('bpmn:Escalation', {
+      id: escalationRef.id,
+      name: escalationRef.name || escalationRef.id,
+      escalationCode: escalationRef.escalationCode,
+    });
+    definitions.rootElements.push(escalationElement);
+    escalationElement.$parent = definitions;
+  }
+  return escalationElement;
 }

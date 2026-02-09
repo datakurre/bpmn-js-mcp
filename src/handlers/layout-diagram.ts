@@ -14,11 +14,11 @@ import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
 import { elkLayout } from '../elk-layout';
 
 export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
-  const { diagramId } = args;
+  const { diagramId, direction, nodeSpacing, layerSpacing } = args;
   const diagram = requireDiagram(diagramId);
 
   // Run ELK layered layout directly on the modeler (no XML round-trip)
-  await elkLayout(diagram);
+  await elkLayout(diagram, { direction, nodeSpacing, layerSpacing });
   await syncXml(diagram);
 
   const elementRegistry = diagram.modeler.get('elementRegistry');
@@ -52,6 +52,20 @@ export const TOOL_DEFINITION = {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
+      direction: {
+        type: 'string',
+        enum: ['RIGHT', 'DOWN', 'LEFT', 'UP'],
+        description:
+          'Layout direction. RIGHT = left-to-right (default), DOWN = top-to-bottom, LEFT = right-to-left, UP = bottom-to-top.',
+      },
+      nodeSpacing: {
+        type: 'number',
+        description: 'Spacing in pixels between nodes in the same layer (default: 50).',
+      },
+      layerSpacing: {
+        type: 'number',
+        description: 'Spacing in pixels between layers (default: 50).',
+      },
     },
     required: ['diagramId'],
   },
