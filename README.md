@@ -68,7 +68,7 @@ MCP server that lets AI assistants create and manipulate BPMN 2.0 workflow diagr
 | `delete_diagram`         | Remove a diagram from memory                               |
 | `list_diagrams`          | List all in-memory diagrams                                |
 | `clone_diagram`          | Duplicate a diagram                                        |
-| `layout_diagram`         | Auto-layout using bpmn-auto-layout                         |
+| `layout_diagram`         | Auto-layout using ELK layered algorithm (Sugiyama)         |
 | `lint_bpmn_diagram`      | Lint with bpmnlint rules (full report with all severities) |
 | `adjust_labels`          | Adjust external labels to reduce overlap                   |
 

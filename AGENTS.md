@@ -16,7 +16,7 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 
 - **Language:** TypeScript (ES2022, CommonJS)
 - **Runtime:** Node.js ≥ 16
-- **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `jsdom`, `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
+- **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `jsdom`, `camunda-bpmn-moddle`, `elkjs`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
 - **Test:** Vitest
 - **Lint:** ESLint 9 + typescript-eslint 8
 - **Dev env:** Nix (devenv) with devcontainer support
@@ -38,6 +38,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK.
 | `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                   |
 | `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                                                                   |
 | `src/headless-canvas.ts`        | jsdom setup, SVG/CSS polyfills, lazy `BpmnModeler` init                                                                                            |
+| `src/elk-layout.ts`             | ELK-based layout engine — Sugiyama layered algorithm via `elkjs` for automatic diagram arrangement                                                 |
 | `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                              |
 | `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                          |
 | `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router                                                                                                         |
@@ -87,7 +88,7 @@ npm test           # vitest run
 
 `make` targets mirror npm scripts — run `make help` to list them.
 
-**Bundling:** esbuild bundles all source + `@modelcontextprotocol/sdk` + `camunda-bpmn-moddle` into one CJS file. `jsdom` and `bpmn-js` are externalised (remain in `node_modules`).
+**Bundling:** esbuild bundles all source + `@modelcontextprotocol/sdk` + `camunda-bpmn-moddle` into one CJS file. `jsdom`, `bpmn-js`, `elkjs`, `bpmn-auto-layout`, `bpmnlint`, and `bpmnlint-plugin-camunda-compat` are externalised (remain in `node_modules`).
 
 **Install from git:** `npm install github:dattmavis/BPMN-MCP` works — `prepare` triggers `npm run build`.
 
@@ -122,6 +123,10 @@ Each handler file exports both `handleXxx` and `TOOL_DEFINITION`. This keeps the
 ### Why `auto_layout` was merged into `layout_diagram`
 
 `auto_layout` was a strict subset of `layout_diagram` (which called it internally). Having both confused AI callers with a needless choice. Merged into `layout_bpmn_diagram`.
+
+### Why `layout_bpmn_diagram` uses elkjs instead of bpmn-auto-layout
+
+`bpmn-auto-layout` produces decent left-to-right layouts for simple flows but struggles with parallel branches that reconverge, nested subprocesses, and boundary-event recovery paths. `elkjs` implements the Sugiyama layered algorithm (ELK Layered) which handles these complex topologies correctly — proper layer assignment, crossing minimisation via `LAYER_SWEEP`, and `BRANDES_KOEPF` node placement. The `elkLayout()` function in `src/elk-layout.ts` works directly with the bpmn-js modeler (no XML round-trip), builds an ELK graph from the element registry, runs ELK layout, and applies positions back via `modeling.moveElements`. `bpmn-auto-layout` is retained solely for DI generation in `import_bpmn_xml` when imported XML lacks `bpmndi:BPMNShape`/`bpmndi:BPMNEdge` elements.
 
 ### Why `export_bpmn_xml` and `export_bpmn_svg` were merged into `export_bpmn`
 
@@ -177,4 +182,5 @@ When multiple MCP servers are active, tool names must be globally unique. Generi
 - The `DEFAULT_LINT_CONFIG` extends `bpmnlint:recommended`, `plugin:camunda-compat/camunda-platform-7-24`, and `plugin:bpmn-mcp/recommended`. It downgrades `label-required` and `no-disconnected` to warnings (AI callers build diagrams incrementally), and disables `no-overlapping-elements` (false positives in headless mode).
 - Custom bpmnlint rules live in `src/bpmnlint-plugin-bpmn-mcp/` and are registered as a proper bpmnlint plugin via `McpPluginResolver` in `src/linter.ts`. They can be referenced in config as `plugin:bpmn-mcp/recommended` or individually as `bpmn-mcp/rule-name`.
 - Element IDs are always deterministic: named elements get `UserTask_EnterName`, unnamed elements get sequential `StartEvent_1`, `Gateway_2`, flows get `Flow_1` or `Flow_Begin_to_End`. No random suffixes.
+- `elkjs` is dynamically imported and externalized in esbuild (same as `bpmn-js`). It runs synchronously in the headless Node.js/jsdom environment (no web workers). The ELK graph is built from `elementRegistry.getAll()`, boundary events are excluded (they follow their host automatically via `modeling.moveElements`).
 - bpmnlint has no rule to detect semantic gateway-type mismatches (e.g. using a parallel gateway to merge mutually exclusive paths). Such errors require manual review or domain-specific rules.

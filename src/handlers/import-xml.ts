@@ -2,15 +2,20 @@
  * Handler for import_bpmn_xml tool.
  *
  * Supports an optional `autoLayout` boolean:
- *  - `true`:  always run bpmn-auto-layout after import
+ *  - `true`:  always run auto-layout after import
  *  - `false`: never run auto-layout (use embedded DI as-is)
  *  - omitted: auto-detect — run layout only if the XML lacks DI coordinates
+ *
+ * When layout is needed, bpmn-auto-layout generates initial DI (diagram
+ * interchange) coordinates, then elkjs (ELK layered algorithm) improves
+ * the layout quality.
  */
 
 import { type ImportXmlArgs, type ToolResult } from '../types';
 import { storeDiagram, generateDiagramId, createModelerFromXml } from '../diagram-manager';
-import { jsonResult } from './helpers';
+import { jsonResult, syncXml } from './helpers';
 import { appendLintFeedback } from '../linter';
+import { elkLayout } from '../elk-layout';
 
 /** Check whether BPMN XML contains diagram interchange (DI) coordinates. */
 function xmlHasDiagramDI(xml: string): boolean {
@@ -26,13 +31,20 @@ export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> 
 
   let finalXml = xml;
   if (shouldLayout) {
+    // Step 1: bpmn-auto-layout generates DI (BPMNShape/BPMNEdge) for XML that lacks it
     const { layoutProcess } = await import('bpmn-auto-layout');
     finalXml = await layoutProcess(xml);
   }
 
   const modeler = await createModelerFromXml(finalXml);
-
   const diagram = { modeler, xml: finalXml };
+
+  if (shouldLayout) {
+    // Step 2: ELK layered algorithm improves layout quality
+    await elkLayout(diagram);
+    await syncXml(diagram);
+  }
+
   storeDiagram(diagramId, diagram);
 
   const result = jsonResult({
@@ -47,7 +59,7 @@ export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> 
 export const TOOL_DEFINITION = {
   name: 'import_bpmn_xml',
   description:
-    'Import an existing BPMN XML diagram. If the XML lacks diagram coordinates (DI), bpmn-auto-layout is run automatically. Use autoLayout to force or skip auto-layout.',
+    'Import an existing BPMN XML diagram. If the XML lacks diagram coordinates (DI), auto-layout is applied using the ELK layered algorithm. Use autoLayout to force or skip auto-layout.',
   inputSchema: {
     type: 'object',
     properties: {
