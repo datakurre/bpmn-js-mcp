@@ -10,6 +10,7 @@ import {
   jsonResult,
   syncXml,
   generateDescriptiveId,
+  generateFlowId,
   getVisibleElements,
   validateArgs,
 } from './helpers';
@@ -34,11 +35,74 @@ function shiftDownstreamElements(
       !el.type.includes('SequenceFlow') &&
       !el.type.includes('MessageFlow') &&
       !el.type.includes('Association') &&
+      el.type !== 'bpmn:Participant' &&
+      el.type !== 'bpmn:Lane' &&
       el.id !== excludeId
   );
   const toShift = allElements.filter((el: any) => el.x >= fromX);
   for (const el of toShift) {
     modeling.moveElements([el], { x: shiftAmount, y: 0 });
+  }
+
+  // Resize parent pools and lanes to accommodate shifted elements
+  resizeContainersForShift(elementRegistry, modeling, shiftAmount);
+}
+
+/**
+ * Resize participant pools and lanes that are too narrow after elements
+ * were shifted right.  Ensures elements don't end up outside their
+ * containing pool or lane.
+ */
+function resizeContainersForShift(elementRegistry: any, modeling: any, _shiftAmount: number): void {
+  // Resize participants (pools)
+  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
+  for (const pool of participants) {
+    // Find the rightmost child element edge
+    const children = elementRegistry.filter(
+      (el: any) =>
+        el.parent === pool &&
+        el.type !== 'bpmn:Lane' &&
+        !el.type.includes('SequenceFlow') &&
+        !el.type.includes('MessageFlow') &&
+        !el.type.includes('Association')
+    );
+    if (children.length === 0) continue;
+
+    let maxRight = 0;
+    for (const child of children) {
+      const right = child.x + (child.width || 0);
+      if (right > maxRight) maxRight = right;
+    }
+
+    const poolRight = pool.x + (pool.width || 0);
+    const padding = 50;
+    if (maxRight + padding > poolRight) {
+      const newWidth = maxRight - pool.x + padding;
+      modeling.resizeShape(pool, {
+        x: pool.x,
+        y: pool.y,
+        width: newWidth,
+        height: pool.height || 250,
+      });
+    }
+  }
+
+  // Resize lanes
+  const lanes = elementRegistry.filter((el: any) => el.type === 'bpmn:Lane');
+  for (const lane of lanes) {
+    const parent = lane.parent;
+    if (parent && parent.type === 'bpmn:Participant') {
+      // Lane should match parent pool width
+      const poolWidth = parent.width || 600;
+      if (lane.width !== poolWidth - 30) {
+        modeling.resizeShape(lane, {
+          x: lane.x,
+          y: lane.y,
+          width: poolWidth - 30,
+          height: lane.height || 125,
+        });
+      }
+    }
   }
 }
 
@@ -177,6 +241,25 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     modeling.updateProperties(createdElement, { name: elementName });
   }
 
+  // Auto-connect to afterElement when requested (default: true for afterElementId)
+  const autoConnect = (args as any).autoConnect;
+  let connectionId: string | undefined;
+  if (afterElementId && autoConnect !== false) {
+    const afterEl = elementRegistry.get(afterElementId);
+    if (afterEl) {
+      try {
+        const flowId = generateFlowId(elementRegistry, afterEl.businessObject?.name, elementName);
+        const conn = modeling.connect(afterEl, createdElement, {
+          type: 'bpmn:SequenceFlow',
+          id: flowId,
+        });
+        connectionId = conn.id;
+      } catch {
+        // Auto-connect may fail for some element type combinations — non-fatal
+      }
+    }
+  }
+
   await syncXml(diagram);
 
   const needsConnection =
@@ -185,9 +268,10 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     elementType.includes('Gateway') ||
     elementType.includes('SubProcess') ||
     elementType.includes('CallActivity');
-  const hint = needsConnection
-    ? ' (not connected - use connect_bpmn_elements to create sequence flows)'
-    : '';
+  const hint =
+    needsConnection && !connectionId
+      ? ' (not connected - use connect_bpmn_elements to create sequence flows)'
+      : '';
 
   const result = jsonResult({
     success: true,
@@ -195,6 +279,7 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     elementType,
     name: elementName,
     position: { x, y },
+    ...(connectionId ? { connectionId, autoConnected: true } : {}),
     message: `Added ${elementType} to diagram${hint}`,
   });
   return appendLintFeedback(result, diagram);
@@ -263,6 +348,12 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Place the new element to the right of this element (auto-positions x/y). Overrides explicit x/y.',
+      },
+      autoConnect: {
+        type: 'boolean',
+        description:
+          'When afterElementId is set, automatically create a sequence flow from the reference element ' +
+          'to the new element. Default: true. Set to false to skip auto-connection.',
       },
       participantId: {
         type: 'string',

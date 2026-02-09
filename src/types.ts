@@ -322,3 +322,20 @@ export interface MoveToLaneArgs {
   elementId: string;
   laneId: string;
 }
+
+export interface InsertElementArgs {
+  diagramId: string;
+  flowId: string;
+  elementType: string;
+  name?: string;
+}
+
+export interface ReplaceElementArgs {
+  diagramId: string;
+  elementId: string;
+  newType: string;
+}
+
+export interface SummarizeDiagramArgs {
+  diagramId: string;
+}

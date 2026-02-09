@@ -40,6 +40,9 @@ import { handleSetCamundaListeners } from './set-camunda-listeners';
 import { handleSetCallActivityVariables } from './set-call-activity-variables';
 import { handleManageRootElements } from './manage-root-elements';
 import { handleDuplicateElement } from './duplicate-element';
+import { handleInsertElement } from './insert-element';
+import { handleReplaceElement } from './replace-element';
+import { handleSummarizeDiagram } from './summarize-diagram';
 
 // Re-export every handler so existing imports keep working
 export {
@@ -81,6 +84,9 @@ export {
   handleSetCallActivityVariables,
   handleManageRootElements,
   handleDuplicateElement,
+  handleInsertElement,
+  handleReplaceElement,
+  handleSummarizeDiagram,
 };
 
 // Backward-compat aliases for removed tool names
@@ -127,6 +133,9 @@ const handlers: Record<string, (args: any) => Promise<ToolResult>> = {
   set_bpmn_call_activity_variables: handleSetCallActivityVariables,
   manage_bpmn_root_elements: handleManageRootElements,
   duplicate_bpmn_element: handleDuplicateElement,
+  insert_bpmn_element: handleInsertElement,
+  replace_bpmn_element: handleReplaceElement,
+  summarize_bpmn_diagram: handleSummarizeDiagram,
 };
 
 /** Route a CallTool request to the correct handler. */

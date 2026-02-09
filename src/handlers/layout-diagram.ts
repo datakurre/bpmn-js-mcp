@@ -56,7 +56,8 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
       (el: any) =>
         !el.type.includes('SequenceFlow') &&
         !el.type.includes('MessageFlow') &&
-        !el.type.includes('Association')
+        !el.type.includes('Association') &&
+        el.type !== 'bpmn:BoundaryEvent'
     );
     for (const el of visibleElements) {
       const snappedX = Math.round(el.x / pixelGridSnap) * pixelGridSnap;

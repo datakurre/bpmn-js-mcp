@@ -3,8 +3,9 @@
  */
 
 import { type ToolResult } from '../types';
-import { getDiagram } from '../diagram-manager';
+import { getDiagram, getAllDiagrams } from '../diagram-manager';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
+import { isPersistenceEnabled, persistDiagram } from '../persistence';
 
 // ── Runtime argument validation ────────────────────────────────────────────
 
@@ -171,7 +172,10 @@ export function requireDiagram(diagramId: string) {
 export function requireElement(elementRegistry: any, elementId: string) {
   const element = elementRegistry.get(elementId);
   if (!element) {
-    throw new McpError(ErrorCode.InvalidRequest, `Element not found: ${elementId}`);
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Element not found: ${elementId}. Use list_bpmn_elements to see available element IDs.`
+    );
   }
   return element;
 }
@@ -240,10 +244,22 @@ export function buildConnectivityWarnings(elementRegistry: any): string[] {
   return warnings;
 }
 
-/** Save XML back to diagram state. */
+/** Save XML back to diagram state and auto-persist if enabled. */
 export async function syncXml(diagram: ReturnType<typeof requireDiagram>) {
   const { xml } = await diagram.modeler.saveXML({ format: true });
   diagram.xml = xml || '';
+
+  // Auto-persist when file-backed persistence is enabled
+  if (isPersistenceEnabled()) {
+    // Find the diagram ID in the store
+    for (const [id, state] of getAllDiagrams()) {
+      if (state === diagram) {
+        // Fire-and-forget — persistence failures are non-fatal
+        persistDiagram(id, diagram).catch(() => {});
+        break;
+      }
+    }
+  }
 }
 
 // ── Shared element-filtering helper ────────────────────────────────────────

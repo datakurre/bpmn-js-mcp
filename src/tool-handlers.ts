@@ -32,5 +32,8 @@ export {
   handleAutoConnect,
   handleDuplicateElement,
   handleMoveToLane,
+  handleInsertElement,
+  handleReplaceElement,
+  handleSummarizeDiagram,
   dispatchToolCall,
 } from './handlers/index';

@@ -38,6 +38,9 @@ import { TOOL_DEFINITION as SET_CAMUNDA_LISTENERS } from './handlers/set-camunda
 import { TOOL_DEFINITION as SET_CALL_ACTIVITY_VARIABLES } from './handlers/set-call-activity-variables';
 import { TOOL_DEFINITION as MANAGE_ROOT_ELEMENTS } from './handlers/manage-root-elements';
 import { TOOL_DEFINITION as DUPLICATE_ELEMENT } from './handlers/duplicate-element';
+import { TOOL_DEFINITION as INSERT_ELEMENT } from './handlers/insert-element';
+import { TOOL_DEFINITION as REPLACE_ELEMENT } from './handlers/replace-element';
+import { TOOL_DEFINITION as SUMMARIZE_DIAGRAM } from './handlers/summarize-diagram';
 
 export const TOOL_DEFINITIONS = [
   CREATE_DIAGRAM,
@@ -73,4 +76,7 @@ export const TOOL_DEFINITIONS = [
   SET_CALL_ACTIVITY_VARIABLES,
   MANAGE_ROOT_ELEMENTS,
   DUPLICATE_ELEMENT,
+  INSERT_ELEMENT,
+  REPLACE_ELEMENT,
+  SUMMARIZE_DIAGRAM,
 ] as const;

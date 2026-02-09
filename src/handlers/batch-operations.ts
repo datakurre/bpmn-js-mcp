@@ -88,16 +88,22 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
         : `${failCount} operation(s) failed out of ${results.length} executed`,
   });
 
-  // Find the diagram ID from the operations to run a single final lint
-  const diagramId = operations[0]?.args?.diagramId;
-  if (diagramId) {
-    const diagram = getDiagram(diagramId);
+  // Run lint pass for ALL affected diagrams, not just the first
+  const diagramIds = new Set<string>();
+  for (const op of operations) {
+    const id = op.args?.diagramId;
+    if (id) diagramIds.add(id);
+  }
+
+  let lintResult = batchResult;
+  for (const id of diagramIds) {
+    const diagram = getDiagram(id);
     if (diagram) {
-      return appendLintFeedback(batchResult, diagram);
+      lintResult = await appendLintFeedback(lintResult, diagram);
     }
   }
 
-  return batchResult;
+  return lintResult;
 }
 
 export const TOOL_DEFINITION = {

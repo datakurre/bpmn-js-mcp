@@ -59,7 +59,11 @@ export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> 
 export const TOOL_DEFINITION = {
   name: 'import_bpmn_xml',
   description:
-    'Import an existing BPMN XML diagram. If the XML lacks diagram coordinates (DI), auto-layout is applied using the ELK layered algorithm. Use autoLayout to force or skip auto-layout.',
+    'Import an existing BPMN XML diagram. If the XML lacks diagram coordinates (DI), auto-layout is applied ' +
+    'using the ELK layered algorithm. Use autoLayout to force or skip auto-layout. ' +
+    '**Warning:** Forcing autoLayout: true on diagrams that already have DI coordinates may reposition ' +
+    'elements and can affect boundary event placement. For diagrams with boundary events, subprocesses, ' +
+    'or complex structures, prefer autoLayout: false (or omit it to use auto-detection).',
   inputSchema: {
     type: 'object',
     properties: {

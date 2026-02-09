@@ -262,14 +262,28 @@ function resizeCompoundNodes(elementRegistry: any, modeling: any, elkNode: ElkNo
  *
  * Boundary events are excluded from the ELK graph and should follow their
  * host when `modeling.moveElements` moves it.  In headless (jsdom) mode,
- * the automatic follow may not work correctly, leaving boundary events
+ * the automatic follow does not work correctly, leaving boundary events
  * stranded at their original positions.
  *
- * This pass checks each boundary event and moves it to a valid position
- * on its host's border if it's too far away.
+ * This pass ALWAYS repositions boundary events to a valid location on
+ * their host's bottom border.  The previous tolerance-based approach
+ * failed in headless mode where boundary events could be displaced by
+ * small amounts that fell within the tolerance window.
+ *
+ * Multiple boundary events on the same host are spread horizontally
+ * to avoid overlap.
  */
 function repositionBoundaryEvents(elementRegistry: any, modeling: any): void {
   const boundaryEvents = elementRegistry.filter((el: any) => el.type === 'bpmn:BoundaryEvent');
+
+  // Ensure boundary events retain their correct type (headless mode can
+  // accidentally change types during bulk moves)
+  for (const be of boundaryEvents) {
+    const bo = be.businessObject;
+    if (bo && bo.$type !== 'bpmn:BoundaryEvent') {
+      bo.$type = 'bpmn:BoundaryEvent';
+    }
+  }
 
   for (const be of boundaryEvents) {
     const host = be.host;
@@ -299,7 +313,19 @@ function repositionBoundaryEvents(elementRegistry: any, modeling: any): void {
       const dy = targetCy - beCy;
 
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-        modeling.moveElements([be], { x: dx, y: dy });
+        try {
+          modeling.moveElements([be], { x: dx, y: dy });
+        } catch {
+          // Fallback: directly update position when moveElements fails
+          // (headless mode can trigger SVG path intersection errors)
+          be.x += dx;
+          be.y += dy;
+          const di = be.di;
+          if (di?.bounds) {
+            di.bounds.x = be.x;
+            di.bounds.y = be.y;
+          }
+        }
       }
     }
   }
