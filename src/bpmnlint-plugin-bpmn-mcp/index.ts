@@ -15,6 +15,12 @@ export const configs = {
     rules: {
       'bpmn-mcp/camunda-topic-without-external-type': 'warn',
       'bpmn-mcp/gateway-missing-default': 'warn',
+      'bpmn-mcp/naming-convention': 'warn',
+      'bpmn-mcp/gateway-pair-mismatch': 'warn',
+      'bpmn-mcp/backward-sequence-flow': 'warn',
+      'bpmn-mcp/implicit-split': 'warn',
+      'bpmn-mcp/lane-usage': 'info',
+      'bpmn-mcp/exclusive-gateway-marker': 'info',
     },
   },
 };

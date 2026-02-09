@@ -29,5 +29,8 @@ export {
   handleLayoutDiagram,
   handleSetCamundaErrorEventDefinition,
   handleSetLoopCharacteristics,
+  handleAutoConnect,
+  handleDuplicateElement,
+  handleMoveToLane,
   dispatchToolCall,
 } from './handlers/index';

@@ -44,6 +44,9 @@ import { handleSetCamundaListeners } from './set-camunda-listeners';
 import { handleSetCallActivityVariables } from './set-call-activity-variables';
 import { handleManageRootElements } from './manage-root-elements';
 import { handleSearchElements } from './search-elements';
+import { handleAutoConnect } from './auto-connect';
+import { handleDuplicateElement } from './duplicate-element';
+import { handleMoveToLane } from './move-to-lane';
 
 // Re-export every handler so existing imports keep working
 export {
@@ -84,6 +87,9 @@ export {
   handleSetCallActivityVariables,
   handleManageRootElements,
   handleSearchElements,
+  handleAutoConnect,
+  handleDuplicateElement,
+  handleMoveToLane,
 };
 
 // ── Dispatch map ───────────────────────────────────────────────────────────
@@ -128,6 +134,9 @@ const handlers: Record<string, (args: any) => Promise<ToolResult>> = {
   set_bpmn_call_activity_variables: handleSetCallActivityVariables,
   manage_bpmn_root_elements: handleManageRootElements,
   search_bpmn_elements: handleSearchElements,
+  auto_connect_bpmn_elements: handleAutoConnect,
+  duplicate_bpmn_element: handleDuplicateElement,
+  move_to_bpmn_lane: handleMoveToLane,
 };
 
 /** Route a CallTool request to the correct handler. */

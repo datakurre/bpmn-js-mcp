@@ -158,6 +158,7 @@ export interface LayoutDiagramArgs {
   direction?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
   nodeSpacing?: number;
   layerSpacing?: number;
+  scopeElementId?: string;
 }
 
 export interface SetCamundaErrorEventDefinitionArgs {
@@ -301,4 +302,22 @@ export interface SearchElementsArgs {
   namePattern?: string;
   elementType?: string;
   property?: { key: string; value?: string };
+}
+
+export interface AutoConnectArgs {
+  diagramId: string;
+  elementIds: string[];
+}
+
+export interface DuplicateElementArgs {
+  diagramId: string;
+  elementId: string;
+  offsetX?: number;
+  offsetY?: number;
+}
+
+export interface MoveToLaneArgs {
+  diagramId: string;
+  elementId: string;
+  laneId: string;
 }

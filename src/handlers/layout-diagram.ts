@@ -14,11 +14,16 @@ import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
 import { elkLayout } from '../elk-layout';
 
 export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
-  const { diagramId, direction, nodeSpacing, layerSpacing } = args;
+  const { diagramId, direction, nodeSpacing, layerSpacing, scopeElementId } = args;
   const diagram = requireDiagram(diagramId);
 
   // Run ELK layered layout directly on the modeler (no XML round-trip)
-  await elkLayout(diagram, { direction, nodeSpacing, layerSpacing });
+  const layoutResult = await elkLayout(diagram, {
+    direction,
+    nodeSpacing,
+    layerSpacing,
+    scopeElementId,
+  });
   await syncXml(diagram);
 
   const elementRegistry = diagram.modeler.get('elementRegistry');
@@ -39,7 +44,13 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
     success: true,
     elementCount: elements.length,
     labelsMoved: labelsMoved + flowLabelsMoved,
-    message: `Layout applied to diagram ${diagramId} — ${elements.length} elements arranged`,
+    ...(layoutResult.crossingFlows ? { crossingFlows: layoutResult.crossingFlows } : {}),
+    ...(layoutResult.crossingFlows
+      ? {
+          warning: `${layoutResult.crossingFlows} crossing sequence flow(s) detected — consider restructuring the process`,
+        }
+      : {}),
+    message: `Layout applied to diagram ${diagramId}${scopeElementId ? ` (scoped to ${scopeElementId})` : ''} — ${elements.length} elements arranged`,
   });
   return appendLintFeedback(result, diagram);
 }
@@ -47,7 +58,7 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
 export const TOOL_DEFINITION = {
   name: 'layout_bpmn_diagram',
   description:
-    'Automatically arrange all elements in a BPMN diagram using the ELK layered algorithm (Sugiyama), producing a clean left-to-right layout. Handles parallel branches, reconverging gateways, and nested containers. Use this after structural changes (adding gateways, splitting flows) to automatically clean up the layout.',
+    'Automatically arrange all elements in a BPMN diagram using the ELK layered algorithm (Sugiyama), producing a clean left-to-right layout. Handles parallel branches, reconverging gateways, and nested containers. Use this after structural changes (adding gateways, splitting flows) to automatically clean up the layout. Detects and reports crossing sequence flows.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -65,6 +76,11 @@ export const TOOL_DEFINITION = {
       layerSpacing: {
         type: 'number',
         description: 'Spacing in pixels between layers (default: 50).',
+      },
+      scopeElementId: {
+        type: 'string',
+        description:
+          'Optional ID of a Participant or SubProcess to layout in isolation, leaving the rest of the diagram unchanged.',
       },
     },
     required: ['diagramId'],

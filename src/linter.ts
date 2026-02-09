@@ -11,6 +11,12 @@ import type { LintConfig, LintResults, FlatLintIssue } from './bpmnlint-types';
 import { configs as localPluginConfigs } from './bpmnlint-plugin-bpmn-mcp';
 import camundaTopicWithoutExternalType from './bpmnlint-plugin-bpmn-mcp/rules/camunda-topic-without-external-type';
 import gatewayMissingDefault from './bpmnlint-plugin-bpmn-mcp/rules/gateway-missing-default';
+import namingConvention from './bpmnlint-plugin-bpmn-mcp/rules/naming-convention';
+import gatewayPairMismatch from './bpmnlint-plugin-bpmn-mcp/rules/gateway-pair-mismatch';
+import backwardSequenceFlow from './bpmnlint-plugin-bpmn-mcp/rules/backward-sequence-flow';
+import implicitSplit from './bpmnlint-plugin-bpmn-mcp/rules/implicit-split';
+import laneUsage from './bpmnlint-plugin-bpmn-mcp/rules/lane-usage';
+import exclusiveGatewayMarker from './bpmnlint-plugin-bpmn-mcp/rules/exclusive-gateway-marker';
 import { getAllDiagrams } from './diagram-manager';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -84,6 +90,12 @@ const localPlugin = { configs: localPluginConfigs };
 const localRuleFactories: Record<string, any> = {
   'camunda-topic-without-external-type': camundaTopicWithoutExternalType,
   'gateway-missing-default': gatewayMissingDefault,
+  'naming-convention': namingConvention,
+  'gateway-pair-mismatch': gatewayPairMismatch,
+  'backward-sequence-flow': backwardSequenceFlow,
+  'implicit-split': implicitSplit,
+  'lane-usage': laneUsage,
+  'exclusive-gateway-marker': exclusiveGatewayMarker,
 };
 
 /**

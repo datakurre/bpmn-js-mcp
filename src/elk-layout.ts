@@ -377,6 +377,103 @@ function buildOrthogonalWaypoints(
 }
 
 /**
+ * Build a routed path for boundary event connections.
+ *
+ * Boundary events attach to tasks/subprocesses, and their outgoing flows
+ * typically represent error/timeout recovery paths that should route around
+ * the host element.  This produces a clean orthogonal path that exits
+ * downward from the boundary event and then routes to the target.
+ */
+function buildBoundaryEventRoute(source: any, target: any): Array<{ x: number; y: number }> {
+  const srcMid = { x: source.x + (source.width || 0) / 2, y: source.y + (source.height || 0) / 2 };
+  const tgtMid = { x: target.x + (target.width || 0) / 2, y: target.y + (target.height || 0) / 2 };
+
+  // If the boundary event has a host, route around it
+  const host = source.host;
+  if (!host) {
+    return buildOrthogonalWaypoints(srcMid, tgtMid);
+  }
+
+  const hostBottom = host.y + (host.height || 0);
+  const hostRight = host.x + (host.width || 0);
+
+  // Determine exit direction: if boundary event is at bottom of host,
+  // route downward; if at right, route rightward
+  const isBottomAttached = Math.abs(srcMid.y - hostBottom) < 20;
+  const isRightAttached = Math.abs(srcMid.x - hostRight) < 20;
+
+  const clearance = STANDARD_BPMN_GAP / 2;
+
+  if (isBottomAttached) {
+    // Exit downward, then route horizontally to target
+    const exitY = hostBottom + clearance;
+    if (tgtMid.x > srcMid.x) {
+      // Target is to the right — go down, then right, then to target
+      return [
+        { x: srcMid.x, y: srcMid.y },
+        { x: srcMid.x, y: exitY },
+        { x: tgtMid.x, y: exitY },
+        { x: tgtMid.x, y: tgtMid.y },
+      ];
+    } else {
+      // Target is to the left — go down, then left, then to target
+      return [
+        { x: srcMid.x, y: srcMid.y },
+        { x: srcMid.x, y: exitY },
+        { x: tgtMid.x, y: exitY },
+        { x: tgtMid.x, y: tgtMid.y },
+      ];
+    }
+  } else if (isRightAttached) {
+    // Exit rightward, then route vertically to target
+    const exitX = hostRight + clearance;
+    return [
+      { x: srcMid.x, y: srcMid.y },
+      { x: exitX, y: srcMid.y },
+      { x: exitX, y: tgtMid.y },
+      { x: tgtMid.x, y: tgtMid.y },
+    ];
+  }
+
+  // Fallback for other positions: exit downward
+  const exitY = Math.max(hostBottom, srcMid.y) + clearance;
+  return [
+    { x: srcMid.x, y: srcMid.y },
+    { x: srcMid.x, y: exitY },
+    { x: tgtMid.x, y: exitY },
+    { x: tgtMid.x, y: tgtMid.y },
+  ];
+}
+
+/**
+ * Build a routed path for cross-container message flows.
+ *
+ * Message flows between participants should use clean vertical routing
+ * with a midpoint between the pools.
+ */
+function buildMessageFlowRoute(source: any, target: any): Array<{ x: number; y: number }> {
+  const srcMid = { x: source.x + (source.width || 0) / 2, y: source.y + (source.height || 0) / 2 };
+  const tgtMid = { x: target.x + (target.width || 0) / 2, y: target.y + (target.height || 0) / 2 };
+
+  // If horizontally aligned (within tolerance), use a straight vertical line
+  if (Math.abs(srcMid.x - tgtMid.x) < 20) {
+    return [
+      { x: srcMid.x, y: srcMid.y },
+      { x: srcMid.x, y: tgtMid.y },
+    ];
+  }
+
+  // Route: vertical to midpoint Y, horizontal to target X, vertical to target
+  const midY = (srcMid.y + tgtMid.y) / 2;
+  return [
+    { x: srcMid.x, y: srcMid.y },
+    { x: srcMid.x, y: midY },
+    { x: tgtMid.x, y: midY },
+    { x: tgtMid.x, y: tgtMid.y },
+  ];
+}
+
+/**
  * Apply ELK-computed orthogonal edge routes directly as bpmn-js waypoints.
  *
  * ELK returns edge sections with startPoint, endPoint, and optional
@@ -434,14 +531,26 @@ function applyElkEdgeRoutes(
 
       modeling.updateWaypoints(conn, waypoints);
     } else {
-      // Fallback: build orthogonal waypoints manually for connections
-      // that ELK didn't route (boundary events, cross-container flows).
+      // Fallback: use specialised routing for connections that ELK
+      // didn't route (boundary events, cross-container flows).
       const src = conn.source;
       const tgt = conn.target;
-      const srcMid = { x: src.x + (src.width || 0) / 2, y: src.y + (src.height || 0) / 2 };
-      const tgtMid = { x: tgt.x + (tgt.width || 0) / 2, y: tgt.y + (tgt.height || 0) / 2 };
 
-      const waypoints = buildOrthogonalWaypoints(srcMid, tgtMid);
+      let waypoints: Array<{ x: number; y: number }>;
+
+      if (src.type === 'bpmn:BoundaryEvent') {
+        // Boundary event recovery flows — route around the host element
+        waypoints = buildBoundaryEventRoute(src, tgt);
+      } else if (conn.type === 'bpmn:MessageFlow') {
+        // Cross-pool message flows — clean vertical routing
+        waypoints = buildMessageFlowRoute(src, tgt);
+      } else {
+        // Generic fallback
+        const srcMid = { x: src.x + (src.width || 0) / 2, y: src.y + (src.height || 0) / 2 };
+        const tgtMid = { x: tgt.x + (tgt.width || 0) / 2, y: tgt.y + (tgt.height || 0) / 2 };
+        waypoints = buildOrthogonalWaypoints(srcMid, tgtMid);
+      }
+
       modeling.updateWaypoints(conn, waypoints);
     }
   }
@@ -684,6 +793,8 @@ export interface ElkLayoutOptions {
   direction?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
   nodeSpacing?: number;
   layerSpacing?: number;
+  /** Restrict layout to a specific subprocess or participant (scope). */
+  scopeElementId?: string;
 }
 
 /**
@@ -700,8 +811,12 @@ export interface ElkLayoutOptions {
  * 4. Snap same-layer elements to common Y (vertical alignment)
  * 5. Apply ELK edge sections as connection waypoints (bypasses
  *    bpmn-js ManhattanLayout entirely for ELK-routed edges)
+ * 6. Detect crossing flows and report count
  */
-export async function elkLayout(diagram: DiagramState, options?: ElkLayoutOptions): Promise<void> {
+export async function elkLayout(
+  diagram: DiagramState,
+  options?: ElkLayoutOptions
+): Promise<{ crossingFlows?: number }> {
   // Dynamic import — elkjs is externalized in esbuild
   const ELK = (await import('elkjs')).default;
   const elk = new ELK();
@@ -709,12 +824,26 @@ export async function elkLayout(diagram: DiagramState, options?: ElkLayoutOption
   const elementRegistry = diagram.modeler.get('elementRegistry');
   const modeling = diagram.modeler.get('modeling');
   const canvas = diagram.modeler.get('canvas');
-  const rootElement = canvas.getRootElement();
+
+  // Determine the layout root: scoped to a specific element, or the whole diagram
+  let rootElement: any;
+  if (options?.scopeElementId) {
+    const scopeEl = elementRegistry.get(options.scopeElementId);
+    if (!scopeEl) {
+      throw new Error(`Scope element not found: ${options.scopeElementId}`);
+    }
+    if (scopeEl.type !== 'bpmn:Participant' && scopeEl.type !== 'bpmn:SubProcess') {
+      throw new Error(`Scope element must be a Participant or SubProcess, got: ${scopeEl.type}`);
+    }
+    rootElement = scopeEl;
+  } else {
+    rootElement = canvas.getRootElement();
+  }
 
   const allElements: any[] = elementRegistry.getAll();
   const { children, edges } = buildContainerGraph(allElements, rootElement);
 
-  if (children.length === 0) return;
+  if (children.length === 0) return {};
 
   // Merge user-provided options with defaults
   const layoutOptions: LayoutOptions = { ...ELK_LAYOUT_OPTIONS };
@@ -728,6 +857,14 @@ export async function elkLayout(diagram: DiagramState, options?: ElkLayoutOption
     layoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = String(options.layerSpacing);
   }
 
+  // Happy-path emphasis: prioritise the default/first-connected branch as the
+  // straight-through flow by fixing its layer-sweep priority.  ELK's
+  // LAYER_SWEEP crossing minimization can be guided via port constraints
+  // and model order — we use thoroughness to get better results.
+  layoutOptions['elk.layered.crossingMinimization.thoroughness'] = '30';
+  // Use model order for node ordering — first-connected branches stay central
+  layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
+
   const elkGraph: ElkNode = {
     id: 'root',
     layoutOptions,
@@ -737,8 +874,20 @@ export async function elkLayout(diagram: DiagramState, options?: ElkLayoutOption
 
   const result = await elk.layout(elkGraph);
 
+  // For scoped layout, compute the offset from the scope element's position
+  let offsetX: number;
+  let offsetY: number;
+  if (options?.scopeElementId) {
+    const scopeEl = elementRegistry.get(options.scopeElementId);
+    offsetX = scopeEl.x;
+    offsetY = scopeEl.y;
+  } else {
+    offsetX = ORIGIN_OFFSET_X;
+    offsetY = ORIGIN_OFFSET_Y;
+  }
+
   // Step 1: Apply ELK-computed node positions
-  applyElkPositions(elementRegistry, modeling, result, ORIGIN_OFFSET_X, ORIGIN_OFFSET_Y);
+  applyElkPositions(elementRegistry, modeling, result, offsetX, offsetY);
 
   // Step 2: Snap same-layer elements to common Y (fixes 5–10 px offsets)
   snapSameLayerElements(elementRegistry, modeling);
@@ -750,9 +899,79 @@ export async function elkLayout(diagram: DiagramState, options?: ElkLayoutOption
   // Step 4: Apply ELK edge routes as waypoints (orthogonal, no diagonals).
   // Uses ELK's own edge sections instead of bpmn-js ManhattanLayout,
   // eliminating diagonals, S-curves, and gateway routing interference.
-  applyElkEdgeRoutes(elementRegistry, modeling, result, ORIGIN_OFFSET_X, ORIGIN_OFFSET_Y);
+  applyElkEdgeRoutes(elementRegistry, modeling, result, offsetX, offsetY);
 
   // Step 5: Final orthogonal snap pass on ALL connections.
   // Catches residual near-diagonal segments from ELK rounding or fallback routing.
   snapAllConnectionsOrthogonal(elementRegistry, modeling);
+
+  // Step 6: Detect crossing sequence flows for diagnostics
+  const crossingFlows = detectCrossingFlows(elementRegistry);
+
+  return { crossingFlows };
+}
+
+// ── Post-layout crossing flow detection ────────────────────────────────────
+
+/**
+ * Test whether two line segments intersect (excluding shared endpoints).
+ * Uses the cross-product orientation test.
+ */
+function segmentsIntersect(
+  a1: { x: number; y: number },
+  a2: { x: number; y: number },
+  b1: { x: number; y: number },
+  b2: { x: number; y: number }
+): boolean {
+  function cross(
+    o: { x: number; y: number },
+    a: { x: number; y: number },
+    b: { x: number; y: number }
+  ): number {
+    return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  }
+
+  const d1 = cross(b1, b2, a1);
+  const d2 = cross(b1, b2, a2);
+  const d3 = cross(a1, a2, b1);
+  const d4 = cross(a1, a2, b2);
+
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Detect crossing sequence flows after layout.
+ *
+ * Checks all pairs of connections for segment intersections and returns
+ * the count of crossing pairs.
+ */
+function detectCrossingFlows(elementRegistry: any): number {
+  const connections = elementRegistry.filter(
+    (el: any) => isConnection(el.type) && el.waypoints && el.waypoints.length >= 2
+  );
+
+  let crossings = 0;
+
+  for (let i = 0; i < connections.length; i++) {
+    for (let j = i + 1; j < connections.length; j++) {
+      const wpsA = connections[i].waypoints;
+      const wpsB = connections[j].waypoints;
+
+      let found = false;
+      for (let a = 0; a < wpsA.length - 1 && !found; a++) {
+        for (let b = 0; b < wpsB.length - 1 && !found; b++) {
+          if (segmentsIntersect(wpsA[a], wpsA[a + 1], wpsB[b], wpsB[b + 1])) {
+            crossings++;
+            found = true;
+          }
+        }
+      }
+    }
+  }
+
+  return crossings;
 }

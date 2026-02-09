@@ -195,7 +195,7 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
 export const TOOL_DEFINITION = {
   name: 'connect_bpmn_elements',
   description:
-    "Connect two BPMN elements with a sequence flow, message flow, or association. Supports optional condition expressions for gateway branches. Supports isDefault flag to mark a flow as the gateway's default flow. Generates descriptive flow IDs based on element names or labels.",
+    "Connect two BPMN elements with a sequence flow, message flow, or association. Supports optional condition expressions for gateway branches. Supports isDefault flag to mark a flow as the gateway's default flow. Generates descriptive flow IDs based on element names or labels. Best practice: the default flow from an exclusive/inclusive gateway should represent the happy path (most common/expected outcome). Pair split gateways with corresponding join gateways of the same type (parallel split → parallel join, exclusive split → exclusive merge).",
   inputSchema: {
     type: 'object',
     properties: {
