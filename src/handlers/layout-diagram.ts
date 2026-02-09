@@ -17,7 +17,8 @@ import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
 import { elkLayout, elkLayoutSubset } from '../elk-layout';
 
 export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
-  const { diagramId, direction, nodeSpacing, layerSpacing, scopeElementId } = args;
+  const { diagramId, direction, nodeSpacing, layerSpacing, scopeElementId, preserveHappyPath } =
+    args;
   const elementIds = (args as any).elementIds as string[] | undefined;
   const gridSnap = (args as any).gridSnap as number | undefined;
   const diagram = requireDiagram(diagramId);
@@ -38,6 +39,7 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
       nodeSpacing,
       layerSpacing,
       scopeElementId,
+      preserveHappyPath,
     });
   }
 
@@ -132,6 +134,11 @@ export const TOOL_DEFINITION = {
         type: 'number',
         description:
           'Optional grid size in pixels to snap element positions to after layout (e.g. 10). Reduces near-overlaps and improves visual consistency. Off by default.',
+      },
+      preserveHappyPath: {
+        type: 'boolean',
+        description:
+          'When true (default), detects the main path (start→end via default flows) and pins it to a single row. Set to false to let ELK freely arrange all branches.',
       },
     },
     required: ['diagramId'],

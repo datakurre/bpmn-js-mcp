@@ -159,6 +159,7 @@ export interface LayoutDiagramArgs {
   nodeSpacing?: number;
   layerSpacing?: number;
   scopeElementId?: string;
+  preserveHappyPath?: boolean;
 }
 
 export interface SetCamundaErrorEventDefinitionArgs {

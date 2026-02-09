@@ -378,103 +378,6 @@ function buildOrthogonalWaypoints(
 }
 
 /**
- * Build a routed path for boundary event connections.
- *
- * Boundary events attach to tasks/subprocesses, and their outgoing flows
- * typically represent error/timeout recovery paths that should route around
- * the host element.  This produces a clean orthogonal path that exits
- * downward from the boundary event and then routes to the target.
- */
-function buildBoundaryEventRoute(source: any, target: any): Array<{ x: number; y: number }> {
-  const srcMid = { x: source.x + (source.width || 0) / 2, y: source.y + (source.height || 0) / 2 };
-  const tgtMid = { x: target.x + (target.width || 0) / 2, y: target.y + (target.height || 0) / 2 };
-
-  // If the boundary event has a host, route around it
-  const host = source.host;
-  if (!host) {
-    return buildOrthogonalWaypoints(srcMid, tgtMid);
-  }
-
-  const hostBottom = host.y + (host.height || 0);
-  const hostRight = host.x + (host.width || 0);
-
-  // Determine exit direction: if boundary event is at bottom of host,
-  // route downward; if at right, route rightward
-  const isBottomAttached = Math.abs(srcMid.y - hostBottom) < 20;
-  const isRightAttached = Math.abs(srcMid.x - hostRight) < 20;
-
-  const clearance = STANDARD_BPMN_GAP / 2;
-
-  if (isBottomAttached) {
-    // Exit downward, then route horizontally to target
-    const exitY = hostBottom + clearance;
-    if (tgtMid.x > srcMid.x) {
-      // Target is to the right — go down, then right, then to target
-      return [
-        { x: srcMid.x, y: srcMid.y },
-        { x: srcMid.x, y: exitY },
-        { x: tgtMid.x, y: exitY },
-        { x: tgtMid.x, y: tgtMid.y },
-      ];
-    } else {
-      // Target is to the left — go down, then left, then to target
-      return [
-        { x: srcMid.x, y: srcMid.y },
-        { x: srcMid.x, y: exitY },
-        { x: tgtMid.x, y: exitY },
-        { x: tgtMid.x, y: tgtMid.y },
-      ];
-    }
-  } else if (isRightAttached) {
-    // Exit rightward, then route vertically to target
-    const exitX = hostRight + clearance;
-    return [
-      { x: srcMid.x, y: srcMid.y },
-      { x: exitX, y: srcMid.y },
-      { x: exitX, y: tgtMid.y },
-      { x: tgtMid.x, y: tgtMid.y },
-    ];
-  }
-
-  // Fallback for other positions: exit downward
-  const exitY = Math.max(hostBottom, srcMid.y) + clearance;
-  return [
-    { x: srcMid.x, y: srcMid.y },
-    { x: srcMid.x, y: exitY },
-    { x: tgtMid.x, y: exitY },
-    { x: tgtMid.x, y: tgtMid.y },
-  ];
-}
-
-/**
- * Build a routed path for cross-container message flows.
- *
- * Message flows between participants should use clean vertical routing
- * with a midpoint between the pools.
- */
-function buildMessageFlowRoute(source: any, target: any): Array<{ x: number; y: number }> {
-  const srcMid = { x: source.x + (source.width || 0) / 2, y: source.y + (source.height || 0) / 2 };
-  const tgtMid = { x: target.x + (target.width || 0) / 2, y: target.y + (target.height || 0) / 2 };
-
-  // If horizontally aligned (within tolerance), use a straight vertical line
-  if (Math.abs(srcMid.x - tgtMid.x) < 20) {
-    return [
-      { x: srcMid.x, y: srcMid.y },
-      { x: srcMid.x, y: tgtMid.y },
-    ];
-  }
-
-  // Route: vertical to midpoint Y, horizontal to target X, vertical to target
-  const midY = (srcMid.y + tgtMid.y) / 2;
-  return [
-    { x: srcMid.x, y: srcMid.y },
-    { x: srcMid.x, y: midY },
-    { x: tgtMid.x, y: midY },
-    { x: tgtMid.x, y: tgtMid.y },
-  ];
-}
-
-/**
  * Apply ELK-computed orthogonal edge routes directly as bpmn-js waypoints.
  *
  * ELK returns edge sections with startPoint, endPoint, and optional
@@ -547,37 +450,35 @@ function applyElkEdgeRoutes(
 
       modeling.updateWaypoints(conn, deduped);
     } else {
-      // Fallback: use specialised routing for connections that ELK
-      // didn't route (boundary events, cross-container flows).
+      // Fallback: use bpmn-js built-in connection layout for connections
+      // that ELK didn't route (boundary events, cross-container flows).
+      // This delegates to bpmn-js ManhattanLayout which produces clean
+      // orthogonal paths that respect element boundaries.
       const src = conn.source;
       const tgt = conn.target;
 
-      let waypoints: Array<{ x: number; y: number }>;
-
-      if (src.type === 'bpmn:BoundaryEvent') {
-        // Boundary event recovery flows — route around the host element
-        waypoints = buildBoundaryEventRoute(src, tgt);
-      } else if (conn.type === 'bpmn:MessageFlow') {
-        // Cross-pool message flows — clean vertical routing
-        waypoints = buildMessageFlowRoute(src, tgt);
+      if (src.type === 'bpmn:BoundaryEvent' || conn.type === 'bpmn:MessageFlow') {
+        // Let bpmn-js handle routing for boundary events and message flows
+        // — its ManhattanLayout knows about element boundaries and pool gaps.
+        modeling.layoutConnection(conn);
       } else {
-        // Generic fallback
+        // Generic fallback for other unrouted connections
         const srcMid = { x: src.x + (src.width || 0) / 2, y: src.y + (src.height || 0) / 2 };
         const tgtMid = { x: tgt.x + (tgt.width || 0) / 2, y: tgt.y + (tgt.height || 0) / 2 };
-        waypoints = buildOrthogonalWaypoints(srcMid, tgtMid);
-      }
+        const waypoints = buildOrthogonalWaypoints(srcMid, tgtMid);
 
-      // Round and deduplicate fallback waypoints too
-      const rounded = waypoints.map((wp) => ({ x: Math.round(wp.x), y: Math.round(wp.y) }));
-      const dedupedFallback = [rounded[0]];
-      for (let i = 1; i < rounded.length; i++) {
-        const prev = dedupedFallback[dedupedFallback.length - 1];
-        if (prev.x !== rounded[i].x || prev.y !== rounded[i].y) {
-          dedupedFallback.push(rounded[i]);
+        // Round and deduplicate fallback waypoints
+        const rounded = waypoints.map((wp) => ({ x: Math.round(wp.x), y: Math.round(wp.y) }));
+        const dedupedFallback = [rounded[0]];
+        for (let i = 1; i < rounded.length; i++) {
+          const prev = dedupedFallback[dedupedFallback.length - 1];
+          if (prev.x !== rounded[i].x || prev.y !== rounded[i].y) {
+            dedupedFallback.push(rounded[i]);
+          }
         }
-      }
-      if (dedupedFallback.length >= 2) {
-        modeling.updateWaypoints(conn, dedupedFallback);
+        if (dedupedFallback.length >= 2) {
+          modeling.updateWaypoints(conn, dedupedFallback);
+        }
       }
     }
   }
@@ -814,6 +715,73 @@ function snapAllConnectionsOrthogonal(elementRegistry: any, modeling: any): void
   }
 }
 
+// ── Happy path detection ───────────────────────────────────────────────────
+
+/**
+ * Detect the "happy path" — the main flow from a start event to an end
+ * event, following default flows at gateways (or the first outgoing flow
+ * when no default is set).
+ *
+ * Returns a Set of connection (edge) IDs that form the happy path.
+ */
+function detectHappyPath(allElements: any[]): Set<string> {
+  const happyEdgeIds = new Set<string>();
+
+  // Find start events (entry points)
+  const startEvents = allElements.filter(
+    (el: any) => el.type === 'bpmn:StartEvent' && !isInfrastructure(el.type)
+  );
+  if (startEvents.length === 0) return happyEdgeIds;
+
+  // Build adjacency: node → outgoing connections
+  const outgoing = new Map<string, any[]>();
+  for (const el of allElements) {
+    if (isConnection(el.type) && el.source && el.target) {
+      const list = outgoing.get(el.source.id) || [];
+      list.push(el);
+      outgoing.set(el.source.id, list);
+    }
+  }
+
+  // Build a map of gateway default flows (gateway businessObject.default)
+  const gatewayDefaults = new Map<string, string>();
+  for (const el of allElements) {
+    if (el.type?.includes('Gateway') && el.businessObject?.default) {
+      gatewayDefaults.set(el.id, el.businessObject.default.id);
+    }
+  }
+
+  // Walk from each start event, following default/first flows
+  const visited = new Set<string>();
+  for (const start of startEvents) {
+    let current = start;
+
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id);
+
+      const connections = outgoing.get(current.id);
+      if (!connections || connections.length === 0) break;
+
+      // Pick the preferred outgoing connection:
+      // 1. Gateway with default flow → follow the default
+      // 2. Otherwise → follow the first connection
+      let chosen: any;
+      const defaultFlowId = gatewayDefaults.get(current.id);
+      if (defaultFlowId) {
+        chosen = connections.find((c: any) => c.id === defaultFlowId);
+      }
+      if (!chosen) {
+        chosen = connections[0];
+      }
+
+      happyEdgeIds.add(chosen.id);
+      current = chosen.target;
+    }
+  }
+
+  return happyEdgeIds;
+}
+
 // ── Main entry point ───────────────────────────────────────────────────────
 
 /** Optional parameters for ELK layout. */
@@ -823,6 +791,8 @@ export interface ElkLayoutOptions {
   layerSpacing?: number;
   /** Restrict layout to a specific subprocess or participant (scope). */
   scopeElementId?: string;
+  /** Pin the main (happy) path to a single row for visual clarity. */
+  preserveHappyPath?: boolean;
 }
 
 /**
@@ -893,6 +863,25 @@ export async function elkLayout(
   // Use model order for node ordering — first-connected branches stay central
   layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
 
+  // When preserveHappyPath is enabled (default: true), detect the main path
+  // and tag its edges with high straightness priority so ELK keeps them in
+  // a single row.
+  const shouldPreserveHappyPath = options?.preserveHappyPath !== false;
+  let happyPathEdgeIds: Set<string> | undefined;
+  if (shouldPreserveHappyPath) {
+    happyPathEdgeIds = detectHappyPath(allElements);
+    if (happyPathEdgeIds.size > 0) {
+      for (const edge of edges) {
+        if (happyPathEdgeIds.has(edge.id)) {
+          edge.layoutOptions = {
+            'elk.priority.straightness': '10',
+            'elk.priority.direction': '10',
+          };
+        }
+      }
+    }
+  }
+
   const elkGraph: ElkNode = {
     id: 'root',
     layoutOptions,
@@ -950,6 +939,12 @@ export async function elkLayout(
  * Builds a sub-graph from the specified element IDs and their
  * inter-connections, runs ELK layout on that sub-graph, and applies
  * positions back — leaving all other elements untouched.
+ *
+ * Enhancements:
+ * - Detects if selected elements share a common participant/subprocess
+ *   and uses it as the layout scope (respecting container boundaries).
+ * - Includes nearby artifacts (data objects, annotations) linked to
+ *   selected elements via associations as pinned (fixed-position) context.
  */
 // eslint-disable-next-line complexity
 export async function elkLayoutSubset(
@@ -976,6 +971,44 @@ export async function elkLayoutSubset(
 
   if (shapes.length === 0) return {};
 
+  // Detect if all selected elements share a common container (participant
+  // or subprocess).  If so, constrain the layout offset to that container's
+  // boundaries so elements don't escape their pool.
+  let sharedContainer: any = null;
+  if (shapes.length > 1) {
+    const parents = shapes
+      .map((s: any) => s.parent)
+      .filter((p: any) => p && (p.type === 'bpmn:Participant' || p.type === 'bpmn:SubProcess'));
+    if (parents.length === shapes.length) {
+      const firstParentId = parents[0].id;
+      if (parents.every((p: any) => p.id === firstParentId)) {
+        sharedContainer = parents[0];
+      }
+    }
+  }
+
+  // Include artifacts linked to selected elements via associations.
+  // These are added as fixed-position nodes so ELK routes around them.
+  const allElements: any[] = elementRegistry.getAll();
+  const associations = allElements.filter(
+    (el: any) =>
+      (el.type === 'bpmn:Association' ||
+        el.type === 'bpmn:DataInputAssociation' ||
+        el.type === 'bpmn:DataOutputAssociation') &&
+      el.source &&
+      el.target
+  );
+
+  const linkedArtifactIds = new Set<string>();
+  for (const assoc of associations) {
+    if (idSet.has(assoc.source.id) && isArtifact(assoc.target.type)) {
+      linkedArtifactIds.add(assoc.target.id);
+    }
+    if (idSet.has(assoc.target.id) && isArtifact(assoc.source.type)) {
+      linkedArtifactIds.add(assoc.source.id);
+    }
+  }
+
   // Build ELK children nodes
   const children: ElkNode[] = shapes.map((s: any) => ({
     id: s.id,
@@ -983,8 +1016,22 @@ export async function elkLayoutSubset(
     height: s.height || 80,
   }));
 
-  // Find inter-connections between the specified elements
-  const allElements: any[] = elementRegistry.getAll();
+  // Add linked artifacts as pinned ELK nodes (fixed position) so the
+  // layout respects their presence but doesn't move them.
+  for (const artId of linkedArtifactIds) {
+    if (idSet.has(artId)) continue; // already in the subset
+    const art = elementRegistry.get(artId);
+    if (!art) continue;
+    children.push({
+      id: art.id,
+      width: art.width || 100,
+      height: art.height || 30,
+      layoutOptions: {
+        'elk.position': `(${art.x}, ${art.y})`,
+        'org.eclipse.elk.noLayout': 'true',
+      },
+    });
+  }
   const edges: ElkExtendedEdge[] = [];
   for (const el of allElements) {
     if (
@@ -1023,13 +1070,20 @@ export async function elkLayoutSubset(
 
   const result = await elk.layout(elkGraph);
 
-  // Use the minimum existing position as offset origin so elements
-  // stay roughly in the same area of the canvas
+  // Use the container origin as offset when elements share a container,
+  // otherwise use the minimum existing position so elements stay roughly
+  // in the same area of the canvas.
   let minX = Infinity;
   let minY = Infinity;
-  for (const s of shapes) {
-    if (s.x < minX) minX = s.x;
-    if (s.y < minY) minY = s.y;
+  if (sharedContainer) {
+    // Offset inside the container with padding
+    minX = sharedContainer.x + 20;
+    minY = sharedContainer.y + 50;
+  } else {
+    for (const s of shapes) {
+      if (s.x < minX) minX = s.x;
+      if (s.y < minY) minY = s.y;
+    }
   }
   const offsetX = minX;
   const offsetY = minY;
