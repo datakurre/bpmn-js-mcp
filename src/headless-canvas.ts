@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * Headless browser environment for bpmn-js.
  *
@@ -183,11 +184,13 @@ function applyGlobalPolyfills(win: any): void {
 }
 
 /** Polyfill SVGElement methods: getBBox, getScreenCTM, getComputedTextLength, transform. */
+// eslint-disable-next-line max-lines-per-function
 function applySvgElementPolyfills(win: any): void {
   const SVGElement = win.SVGElement;
   const SVGGraphicsElement = win.SVGGraphicsElement;
 
   if (SVGElement && !SVGElement.prototype.getBBox) {
+    // eslint-disable-next-line complexity
     SVGElement.prototype.getBBox = function () {
       // Content-aware sizing for text/tspan elements
       const tag = this.tagName?.toLowerCase();

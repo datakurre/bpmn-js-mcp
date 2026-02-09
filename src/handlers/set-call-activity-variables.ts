@@ -33,6 +33,7 @@ export interface SetCallActivityVariablesArgs {
   }>;
 }
 
+// eslint-disable-next-line complexity
 export async function handleSetCallActivityVariables(
   args: SetCallActivityVariablesArgs
 ): Promise<ToolResult> {

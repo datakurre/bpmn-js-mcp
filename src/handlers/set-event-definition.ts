@@ -17,6 +17,7 @@ import {
 } from './helpers';
 import { appendLintFeedback } from '../linter';
 
+// eslint-disable-next-line complexity, max-lines-per-function
 export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
   const {

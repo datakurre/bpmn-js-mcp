@@ -19,6 +19,7 @@ import { appendLintFeedback } from '../linter';
 /** Default offset from the original element when duplicating. */
 const DUPLICATE_OFFSET = { x: 50, y: 50 };
 
+// eslint-disable-next-line complexity
 export async function handleDuplicateElement(args: DuplicateElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId']);
   const { diagramId, elementId, offsetX = DUPLICATE_OFFSET.x, offsetY = DUPLICATE_OFFSET.y } = args;

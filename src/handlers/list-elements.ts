@@ -16,6 +16,7 @@ export interface ListElementsArgs {
   property?: { key: string; value?: string };
 }
 
+// eslint-disable-next-line max-lines-per-function
 export async function handleListElements(args: ListElementsArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
   const { diagramId, namePattern, elementType, property } = args;

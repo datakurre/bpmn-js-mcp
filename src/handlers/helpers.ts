@@ -25,6 +25,19 @@ export function validateArgs<T extends object>(args: T, requiredKeys: (keyof T &
 // ── Descriptive ID generation ──────────────────────────────────────────────
 
 /**
+ * Generate a 7-character random alphanumeric string (lowercase).
+ * Mimics bpmn-js default random suffix format.
+ */
+function generateRandomPart(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 7; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
  * Convert a human-readable name into a PascalCase slug suitable for BPMN IDs.
  * Strips non-alphanumeric chars, collapses whitespace, PascalCases each word.
  */
@@ -59,9 +72,11 @@ function typePrefix(bpmnType: string): string {
 /**
  * Generate a descriptive element ID.
  *
- * When a name is supplied the ID looks like `UserTask_EnterName`.
- * When no name is given, uses a sequential counter: `StartEvent_1`, `UserTask_2`.
- * Appends a numeric suffix if the ID already exists in the registry.
+ * Prefers short 2-part IDs: `UserTask_EnterName` or `StartEvent_<random7>`.
+ * Falls back to 3-part IDs on collision: `UserTask_<random7>_EnterName`.
+ *
+ * Named elements get a clean slug first; unnamed elements always include a
+ * random 7-char alphanumeric part for uniqueness.
  */
 export function generateDescriptiveId(
   elementRegistry: any,
@@ -73,23 +88,38 @@ export function generateDescriptiveId(
   if (name) {
     const slug = toPascalSlug(name);
     if (slug) {
+      // Try short 2-part ID first: UserTask_EnterName
       const candidate = `${prefix}_${slug}`;
       if (!elementRegistry.get(candidate)) return candidate;
 
-      // Collision – append incrementing counter
-      let counter = 2;
-      while (elementRegistry.get(`${candidate}_${counter}`)) counter++;
-      return `${candidate}_${counter}`;
+      // Collision — fall back to 3-part ID: UserTask_<random7>_EnterName
+      let fallback: string;
+      let attempts = 0;
+      do {
+        fallback = `${prefix}_${generateRandomPart()}_${slug}`;
+        attempts++;
+      } while (elementRegistry.get(fallback) && attempts < 100);
+      return fallback;
     }
   }
 
-  // No name (or empty slug) – sequential counter: StartEvent_1, Gateway_2, …
-  let counter = 1;
-  while (elementRegistry.get(`${prefix}_${counter}`)) counter++;
-  return `${prefix}_${counter}`;
+  // No name (or empty slug) — 2-part with random: StartEvent_<random7>
+  let candidate: string;
+  let attempts = 0;
+  do {
+    candidate = `${prefix}_${generateRandomPart()}`;
+    attempts++;
+  } while (elementRegistry.get(candidate) && attempts < 100);
+  return candidate;
 }
 
-/** Generate a descriptive ID for a sequence flow / connection. */
+/**
+ * Generate a descriptive ID for a sequence flow / connection.
+ *
+ * Prefers short 2-part IDs: `Flow_Done` or `Flow_Begin_to_Finish`.
+ * Falls back to 3-part IDs on collision: `Flow_<random7>_Done`.
+ * When no label/names are available: `Flow_<random7>`.
+ */
 export function generateFlowId(
   elementRegistry: any,
   sourceName?: string,
@@ -104,18 +134,28 @@ export function generateFlowId(
   }
 
   if (slug) {
+    // Try short 2-part ID first: Flow_Done
     const candidate = `Flow_${slug}`;
     if (!elementRegistry.get(candidate)) return candidate;
 
-    let counter = 2;
-    while (elementRegistry.get(`${candidate}_${counter}`)) counter++;
-    return `${candidate}_${counter}`;
+    // Collision — fall back to 3-part ID: Flow_<random7>_Done
+    let fallback: string;
+    let attempts = 0;
+    do {
+      fallback = `Flow_${generateRandomPart()}_${slug}`;
+      attempts++;
+    } while (elementRegistry.get(fallback) && attempts < 100);
+    return fallback;
   }
 
-  // No names available – sequential counter: Flow_1, Flow_2, …
-  let counter = 1;
-  while (elementRegistry.get(`Flow_${counter}`)) counter++;
-  return `Flow_${counter}`;
+  // No names available — 2-part with random: Flow_<random7>
+  let candidate: string;
+  let attempts = 0;
+  do {
+    candidate = `Flow_${generateRandomPart()}`;
+    attempts++;
+  } while (elementRegistry.get(candidate) && attempts < 100);
+  return candidate;
 }
 
 /** Look up a diagram by ID, throwing an MCP error if not found. */

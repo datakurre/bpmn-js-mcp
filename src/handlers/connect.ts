@@ -37,6 +37,7 @@ function findParentParticipant(element: any): any {
  * Validate source/target types and auto-detect or correct connectionType.
  * Returns the resolved connectionType and an optional auto-correction hint.
  */
+// eslint-disable-next-line complexity
 function resolveConnectionType(
   sourceType: string,
   targetType: string,

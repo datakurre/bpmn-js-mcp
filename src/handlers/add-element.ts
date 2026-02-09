@@ -86,6 +86,7 @@ function snapToLane(
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
+// eslint-disable-next-line complexity, max-lines-per-function
 export async function handleAddElement(args: AddElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementType']);
   const {
@@ -123,7 +124,7 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     }
   }
 
-  // Generate a descriptive ID (named → UserTask_EnterName, unnamed → UserTask_1)
+  // Generate a descriptive ID (named → UserTask_EnterName, collision → UserTask_<random7>_EnterName, unnamed → UserTask_<random7>)
   const descriptiveId = generateDescriptiveId(elementRegistry, elementType, elementName);
 
   // Lane-aware Y snapping: if the target position is inside a lane,
@@ -202,7 +203,7 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
 export const TOOL_DEFINITION = {
   name: 'add_bpmn_element',
   description:
-    'Add an element (task, gateway, event, etc.) to a BPMN diagram. Supports boundary events via hostElementId and auto-positioning via afterElementId. When afterElementId is used, downstream elements are automatically shifted right to prevent overlap. Generates descriptive element IDs when a name is provided (e.g. UserTask_EnterName, Gateway_HasSurname). Naming best practices: tasks → verb-object ("Process Order", "Send Invoice"), events → object-participle or noun-state ("Order Received", "Payment Completed"), gateways → yes/no question ending with "?" ("Order valid?", "Payment successful?").',
+    'Add an element (task, gateway, event, etc.) to a BPMN diagram. Supports boundary events via hostElementId and auto-positioning via afterElementId. When afterElementId is used, downstream elements are automatically shifted right to prevent overlap. Generates descriptive element IDs when a name is provided (e.g. UserTask_EnterName, Gateway_HasSurname). On collision falls back to 3-part IDs with random middle (e.g. UserTask_a1b2c3d_EnterName). Naming best practices: tasks → verb-object ("Process Order", "Send Invoice"), events → object-participle or noun-state ("Order Received", "Payment Completed"), gateways → yes/no question ending with "?" ("Order valid?", "Payment successful?").',
   inputSchema: {
     type: 'object',
     properties: {

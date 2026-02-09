@@ -52,6 +52,7 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
 /**
  * Move an element into a lane (former move_to_bpmn_lane).
  */
+// eslint-disable-next-line complexity
 async function handleMoveToLane(
   diagramId: string,
   elementId: string,

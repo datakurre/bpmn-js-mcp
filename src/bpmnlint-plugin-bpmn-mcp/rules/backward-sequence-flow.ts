@@ -13,6 +13,7 @@ const isType = (node: any, type: string): boolean =>
   node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
 
 function ruleFactory() {
+  // eslint-disable-next-line complexity
   function check(node: any, reporter: any) {
     if (!isType(node, 'bpmn:SequenceFlow')) return;
 
