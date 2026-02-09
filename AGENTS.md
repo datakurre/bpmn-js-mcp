@@ -31,25 +31,25 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 
 Modular `src/` layout, communicates over **stdio** using the MCP SDK.
 
-| File / Directory                | Responsibility                                                                                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.ts`                  | Entry point — wires MCP server, transport, and request handlers                                                                                        |
-| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                       |
-| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                       |
-| `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                                                                       |
-| `src/headless-canvas.ts`        | jsdom setup, SVG/CSS polyfills, lazy `BpmnModeler` init                                                                                                |
-| `src/elk-layout.ts`             | ELK-based layout engine — Sugiyama layered algorithm via `elkjs` for automatic diagram arrangement, plus post-ELK grid snap pass for visual regularity |
-| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                  |
-| `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                              |
-| `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router                                                                                                             |
-| `src/handlers/helpers.ts`       | Shared utilities: `validateArgs`, `requireDiagram`, `requireElement`, `getVisibleElements`, `upsertExtensionElement`, `resolveOrCreateError`, etc.     |
-| `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                |
-| `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                               |
-| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                        |
-| `src/persistence.ts`            | Optional file-backed diagram persistence — auto-save to `.bpmn` files, load on startup                                                                 |
-| `src/handlers/label-utils.ts`   | Pure geometry helpers for label-overlap detection (rect intersection, scoring)                                                                         |
-| `src/handlers/adjust-labels.ts` | Post-processing label adjustment to avoid connection/label overlaps                                                                                    |
-| `src/handlers/<name>.ts`        | One handler file per tool — exports `handleXxx` + `TOOL_DEFINITION`                                                                                    |
+| File / Directory                | Responsibility                                                                                                                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                  | Entry point — wires MCP server, transport, and request handlers                                                                                                                         |
+| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                                        |
+| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                                        |
+| `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                                                                                                        |
+| `src/headless-canvas.ts`        | jsdom setup, SVG/CSS polyfills, lazy `BpmnModeler` init                                                                                                                                 |
+| `src/elk-layout.ts`             | ELK-based layout engine — Sugiyama layered algorithm via `elkjs` for automatic diagram arrangement, plus post-ELK grid snap pass and inter-column channel routing for visual regularity |
+| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                                   |
+| `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                                                               |
+| `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router                                                                                                                                              |
+| `src/handlers/helpers.ts`       | Shared utilities: `validateArgs`, `requireDiagram`, `requireElement`, `getVisibleElements`, `upsertExtensionElement`, `resolveOrCreateError`, etc.                                      |
+| `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                                                 |
+| `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                                                                |
+| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                                                         |
+| `src/persistence.ts`            | Optional file-backed diagram persistence — auto-save to `.bpmn` files, load on startup                                                                                                  |
+| `src/handlers/label-utils.ts`   | Pure geometry helpers for label-overlap detection (rect intersection, scoring)                                                                                                          |
+| `src/handlers/adjust-labels.ts` | Post-processing label adjustment to avoid connection/label overlaps                                                                                                                     |
+| `src/handlers/<name>.ts`        | One handler file per tool — exports `handleXxx` + `TOOL_DEFINITION`                                                                                                                     |
 
 **Core pattern:**
 
@@ -116,65 +116,23 @@ Output goes to `dist/`. Entry point is `dist/index.js` (also declared as the `bp
 
 ## Architecture Decision Records
 
-### Why tool definitions are co-located with handlers
+Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 
-Each handler file exports both `handleXxx` and `TOOL_DEFINITION`. This keeps the MCP schema in sync with the implementation, prevents drift, and makes it easy to see exactly what a tool accepts without switching files. `tool-definitions.ts` is a thin barrel that collects them.
-
-### Why `auto_layout` was merged into `layout_diagram`
-
-`auto_layout` was a strict subset of `layout_diagram` (which called it internally). Having both confused AI callers with a needless choice. Merged into `layout_bpmn_diagram`.
-
-### Why `layout_bpmn_diagram` uses elkjs instead of bpmn-auto-layout
-
-`bpmn-auto-layout` produces decent left-to-right layouts for simple flows but struggles with parallel branches that reconverge, nested subprocesses, and boundary-event recovery paths. `elkjs` implements the Sugiyama layered algorithm (ELK Layered) which handles these complex topologies correctly — proper layer assignment, crossing minimisation via `LAYER_SWEEP`, and `NETWORK_SIMPLEX` node placement. The `elkLayout()` function in `src/elk-layout.ts` works directly with the bpmn-js modeler (no XML round-trip), builds an ELK graph from the element registry, runs ELK layout, applies positions back via `modeling.moveElements`, snaps same-layer elements to a common Y (vertical alignment), and applies ELK's own orthogonal edge routes as connection waypoints. `bpmn-auto-layout` is retained solely for DI generation in `import_bpmn_xml` when imported XML lacks `bpmndi:BPMNShape`/`bpmndi:BPMNEdge` elements.
-
-### Why `export_bpmn_xml` and `export_bpmn_svg` were merged into `export_bpmn`
-
-Both did the same thing with different output formats. A single tool with `format: "xml" | "svg"` is cleaner.
-
-### Why `set_loop_characteristics` is the canonical loop tool
-
-`set_element_properties` had a `loopCharacteristics` passthrough that duplicated the dedicated tool. The dedicated tool has a better schema with typed params. The passthrough was removed.
-
-### Why bpmnlint is integrated via McpPluginResolver
-
-bpmnlint uses dynamic `require()` to resolve rules and configs at runtime. Rather than fighting esbuild bundling with a `StaticResolver`, bpmnlint and `bpmnlint-plugin-camunda-compat` are marked `external` in esbuild (same as `bpmn-js` and `jsdom`), letting `NodeResolver` work naturally from `node_modules`. The `McpPluginResolver` wraps `NodeResolver` and intercepts requests for our bundled `bpmnlint-plugin-bpmn-mcp` plugin, serving its rules and configs from ES imports within the bundle.
-
-### Why `validate_bpmn_diagram` fully delegates to bpmnlint
-
-The hand-written checks in the original `validate` handler overlapped significantly with bpmnlint rules (`start-event-required`, `end-event-required`, `no-disconnected`, `label-required`). Delegating to bpmnlint eliminates maintenance burden while adding 27+ additional checks. Camunda-specific checks (`camunda-topic-without-external-type`, `gateway-missing-default`) are now registered as proper bpmnlint rules in `bpmnlint-plugin-bpmn-mcp` and resolved via `McpPluginResolver`, so the validate handler no longer needs manual check functions.
-
-### Why implicit lint feedback only includes errors
-
-`appendLintFeedback()` filters to error-severity issues only. Including warnings would make every response verbose during incremental diagram construction. The explicit `lint_bpmn_diagram` tool returns all severities for callers who want the full picture.
-
-### Why `createLinter()` creates a fresh Linter per call
-
-bpmnlint's `Linter` class caches rule factory results in `this.cachedRules`. Some rules (e.g. `no-duplicate-sequence-flows`) use closure state (`const keyed = {}`) that accumulates across `lint()` calls and never resets. When a single Linter instance was reused, this caused false positives. `createLinter()` creates a fresh instance each time to ensure clean rule closures.
-
-### Why `export_bpmn` has an implicit lint gate
-
-During real usage, AI callers would export invalid diagrams without checking lint first, producing BPMN XML that engines reject. The implicit lint gate in `export_bpmn` catches error-level issues before export. A `skipLint` parameter allows callers to bypass this when they know what they're doing (e.g. exporting a work-in-progress).
-
-### Why bottom labels have extra spacing (`ELEMENT_LABEL_BOTTOM_EXTRA`)
-
-Start and End events are small (36×36px). With only `ELEMENT_LABEL_DISTANCE = 10` of gap, bottom-placed labels visually touch the event circle. `ELEMENT_LABEL_BOTTOM_EXTRA = 5` adds extra breathing room for the bottom position only, keeping the other three positions unchanged.
-
-### Why label adjustment is geometry-based (not behavior-based)
-
-bpmn-js has `AdaptiveLabelPositioningBehavior` but it only considers connection direction quadrants, not actual bounding-box intersection. Our approach scores 4 candidate positions (top/bottom/left/right) against all connection segments and other labels using Cohen-Sutherland intersection tests, picking the position with the lowest collision score.
-
-### Why element IDs use 2-part naming with 3-part random fallback
-
-bpmn-js generates IDs like `Activity_0m4w27p` with random hex suffixes but no semantic meaning. Our approach prefers short, readable 2-part IDs: `UserTask_EnterName` when a name is given. On collision (same name used twice), it falls back to 3-part IDs with a random middle section: `UserTask_a1b2c3d_EnterName`. Unnamed elements always use a random part: `StartEvent_x9y8z7w`. The random 7-character alphanumeric part ensures reasonable uniqueness, making elements safe to copy/paste across diagrams without ID collisions. The same pattern applies to flows via `generateFlowId()`: `Flow_Done` first, then `Flow_m4n5p6q_Done` on collision, or `Flow_x9y8z7w` when no names are available.
-
-### Why post-ELK grid snapping was added
-
-`bpmn-auto-layout` produces visually appealing diagrams due to its grid-based placement model (150×140 px cells, uniform rhythm, inter-cell channel routing). Our ELK engine has superior crossing minimisation, happy-path preservation, collaboration support, and partial re-layout, but its output lacked the visual regularity of a grid. Rather than replacing ELK with a grid algorithm (losing structural advantages), a post-processing `gridSnapPass()` quantises ELK positions to a virtual grid. After ELK runs its Sugiyama layered algorithm, gridSnapPass: (1) detects layers by grouping elements with similar x-centres, (2) snaps each layer to a uniform x-column based on the previous layer's right edge + gap, (3) distributes elements vertically within each layer with equal spacing while pinning happy-path elements, and (4) re-centres gateways on their connected branches. ELK spacing constants (`ELK_LAYER_SPACING=100`, `ELK_NODE_SPACING=80`, `ELK_EDGE_NODE_SPACING=25`) were tuned to match bpmn-auto-layout's visual density. The grid snap is enabled by default but can be disabled via `gridSnap: false` in `ElkLayoutOptions`. BRANDES_KOEPF node placement was evaluated but rejected in favour of NETWORK_SIMPLEX because it breaks happy-path Y alignment by placing gateway branches symmetrically rather than keeping the default branch on the main row.
-
-### Why all tool names include "bpmn"
-
-When multiple MCP servers are active, tool names must be globally unique. Generic names like `delete_diagram` or `set_form_data` could collide with tools from other MCPs. Adding `bpmn` to every tool name (e.g. `delete_bpmn_diagram`, `set_bpmn_form_data`) eliminates this risk. No backward-compat aliases — MCP tool namespaces don't need them.
+- [ADR-001](agents/adrs/ADR-001-co-located-tool-definitions.md) — Co-located tool definitions
+- [ADR-002](agents/adrs/ADR-002-merged-auto-layout.md) — Merged auto_layout into layout_diagram
+- [ADR-003](agents/adrs/ADR-003-elkjs-over-bpmn-auto-layout.md) — elkjs instead of bpmn-auto-layout
+- [ADR-004](agents/adrs/ADR-004-merged-export-tools.md) — Merged export_bpmn_xml and export_bpmn_svg
+- [ADR-005](agents/adrs/ADR-005-canonical-loop-tool.md) — set_loop_characteristics is canonical
+- [ADR-006](agents/adrs/ADR-006-bpmnlint-mcp-plugin-resolver.md) — bpmnlint via McpPluginResolver
+- [ADR-007](agents/adrs/ADR-007-validate-delegates-to-bpmnlint.md) — validate delegates to bpmnlint
+- [ADR-008](agents/adrs/ADR-008-lint-errors-only.md) — Implicit lint feedback errors only
+- [ADR-009](agents/adrs/ADR-009-fresh-linter-per-call.md) — Fresh Linter per call
+- [ADR-010](agents/adrs/ADR-010-export-lint-gate.md) — Implicit lint gate on export
+- [ADR-011](agents/adrs/ADR-011-bottom-label-extra-spacing.md) — Extra bottom label spacing
+- [ADR-012](agents/adrs/ADR-012-geometry-based-label-adjustment.md) — Geometry-based label adjustment
+- [ADR-013](agents/adrs/ADR-013-element-id-naming.md) — 2-part element ID naming
+- [ADR-014](agents/adrs/ADR-014-post-elk-grid-snapping.md) — Post-ELK grid snapping
+- [ADR-015](agents/adrs/ADR-015-bpmn-in-tool-names.md) — All tool names include "bpmn"
 
 ## Key Gotchas
 

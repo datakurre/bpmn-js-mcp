@@ -62,46 +62,60 @@ For best results, follow this recommended workflow after structural changes:
 
 No separate "repair layout" tool is needed — chain these existing tools for fine-grained control.
 
-## Available Tools (24)
+## Available Tools (33)
 
 ### Core BPMN Tools
 
-| Tool                       | Description                                                               |
-| -------------------------- | ------------------------------------------------------------------------- |
-| `create_bpmn_diagram`      | Create a new BPMN diagram                                                 |
-| `add_bpmn_element`         | Add elements (events, tasks, gateways, subprocesses, participants, lanes) |
-| `connect_bpmn_elements`    | Connect elements with sequence/message flows or associations              |
-| `delete_bpmn_element`      | Remove an element or connection                                           |
-| `move_bpmn_element`        | Move an element to a new position                                         |
-| `list_bpmn_elements`       | List all elements with positions and connections                          |
-| `validate_bpmn_diagram`    | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)      |
-| `align_bpmn_elements`      | Align elements along an axis (with optional compaction)                   |
-| `distribute_bpmn_elements` | Evenly distribute elements                                                |
-| `export_bpmn`              | Export as BPMN 2.0 XML or SVG                                             |
-| `import_bpmn_xml`          | Import existing BPMN XML                                                  |
+| Tool                          | Description                                                               |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `create_bpmn_diagram`         | Create a new BPMN diagram                                                 |
+| `add_bpmn_element`            | Add elements (events, tasks, gateways, subprocesses, participants, lanes) |
+| `connect_bpmn_elements`       | Connect elements with sequence/message flows or associations              |
+| `delete_bpmn_element`         | Remove an element or connection                                           |
+| `move_bpmn_element`           | Move an element to a new position or into a lane                          |
+| `resize_bpmn_element`         | Resize an element (subprocess, participant, pool, etc.)                   |
+| `duplicate_bpmn_element`      | Duplicate an existing element within the same diagram                     |
+| `list_bpmn_elements`          | List elements with filters (name pattern, type, property)                 |
+| `get_bpmn_element_properties` | Inspect all properties of an element                                      |
+| `validate_bpmn_diagram`       | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)      |
+| `export_bpmn`                 | Export as BPMN 2.0 XML or SVG (with implicit lint gate)                   |
+| `import_bpmn_xml`             | Import existing BPMN XML (auto-layout if no DI)                           |
+| `create_bpmn_collaboration`   | Create collaboration diagrams with multiple participants (pools)          |
+| `manage_bpmn_root_elements`   | Create or update shared Message and Signal definitions                    |
 
-### Camunda 7 Tools (Operaton BPM compatible)
+### Layout & Alignment Tools
 
-| Tool                                 | Description                                         |
-| ------------------------------------ | --------------------------------------------------- |
-| `set_element_properties`             | Set standard and Camunda extension properties       |
-| `set_input_output_mapping`           | Configure input/output parameter mappings           |
-| `set_event_definition`               | Add error, timer, message, signal event definitions |
-| `set_form_data`                      | Configure generated task forms (Camunda FormData)   |
-| `set_camunda_error_event_definition` | Set error handling on service tasks                 |
-| `set_loop_characteristics`           | Configure loop/multi-instance markers               |
+| Tool                       | Description                                               |
+| -------------------------- | --------------------------------------------------------- |
+| `layout_bpmn_diagram`      | Auto-layout using ELK layered algorithm with grid snap    |
+| `align_bpmn_elements`      | Align elements along an axis (with optional compaction)   |
+| `distribute_bpmn_elements` | Evenly distribute elements horizontally or vertically     |
+| `adjust_bpmn_labels`       | Adjust external labels to reduce overlap with connections |
+
+### Camunda 7 / Operaton Tools
+
+| Tool                               | Description                                         |
+| ---------------------------------- | --------------------------------------------------- |
+| `set_bpmn_element_properties`      | Set standard and Camunda extension properties       |
+| `set_bpmn_input_output_mapping`    | Configure input/output parameter mappings           |
+| `set_bpmn_event_definition`        | Add error, timer, message, signal event definitions |
+| `set_bpmn_form_data`               | Configure generated task forms (Camunda FormData)   |
+| `set_bpmn_camunda_error`           | Set error handling on service tasks                 |
+| `set_bpmn_camunda_listeners`       | Set execution and task listeners                    |
+| `set_bpmn_loop_characteristics`    | Configure loop/multi-instance markers               |
+| `set_bpmn_script`                  | Set inline script content on ScriptTask elements    |
+| `set_bpmn_call_activity_variables` | Set variable mappings on CallActivity elements      |
 
 ### Utility Tools
 
-| Tool                     | Description                                                |
-| ------------------------ | ---------------------------------------------------------- |
-| `get_element_properties` | Inspect all properties of an element                       |
-| `delete_diagram`         | Remove a diagram from memory                               |
-| `list_diagrams`          | List all in-memory diagrams                                |
-| `clone_diagram`          | Duplicate a diagram                                        |
-| `layout_diagram`         | Auto-layout using ELK layered algorithm (Sugiyama)         |
-| `lint_bpmn_diagram`      | Lint with bpmnlint rules (full report with all severities) |
-| `adjust_labels`          | Adjust external labels to reduce overlap                   |
+| Tool                    | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `delete_bpmn_diagram`   | Remove a diagram from memory                    |
+| `list_bpmn_diagrams`    | List all in-memory diagrams                     |
+| `clone_bpmn_diagram`    | Duplicate a diagram for experimentation         |
+| `bpmn_history`          | Undo or redo changes (supports multiple steps)  |
+| `diff_bpmn_diagrams`    | Compare two diagrams and return structured diff |
+| `batch_bpmn_operations` | Execute multiple operations in a single call    |
 
 ### Automatic Lint Feedback
 
@@ -119,10 +133,17 @@ Generated BPMN 2.0 XML works with [Camunda Modeler](https://camunda.com/download
 npm run watch      # rebuild on change
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
+npm run format     # format with Prettier
 npm test           # vitest
 ```
 
-See [AGENTS.md](AGENTS.md) for architecture details.
+Or equivalently via `make`:
+
+```bash
+make format check test   # format, typecheck + lint, run tests
+```
+
+See [AGENTS.md](AGENTS.md) for architecture details and decision records.
 
 ## License
 
