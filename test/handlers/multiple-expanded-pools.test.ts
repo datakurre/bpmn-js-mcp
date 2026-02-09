@@ -29,10 +29,7 @@ describe('bpmnlint multiple-expanded-pools', () => {
     const collab = parseResult(
       await handleCreateCollaboration({
         diagramId,
-        participants: [
-          { name: 'Main Process' },
-          { name: 'External System' },
-        ],
+        participants: [{ name: 'Main Process' }, { name: 'External System' }],
       })
     );
 
@@ -41,9 +38,8 @@ describe('bpmnlint multiple-expanded-pools', () => {
     // Validate — should warn about multiple expanded pools
     const res = parseResult(await handleValidate({ diagramId }));
 
-    const issues = res.issues?.filter(
-      (issue: any) => issue.rule === 'bpmn-mcp/multiple-expanded-pools'
-    ) ?? [];
+    const issues =
+      res.issues?.filter((issue: any) => issue.rule === 'bpmn-mcp/multiple-expanded-pools') ?? [];
 
     expect(issues.length).toBeGreaterThan(0);
     expect(issues[0].message).toContain('expanded pools found');
@@ -58,10 +54,7 @@ describe('bpmnlint multiple-expanded-pools', () => {
     const collab = parseResult(
       await handleCreateCollaboration({
         diagramId,
-        participants: [
-          { name: 'Main Process' },
-          { name: 'Payment Gateway', collapsed: true },
-        ],
+        participants: [{ name: 'Main Process' }, { name: 'Payment Gateway', collapsed: true }],
       })
     );
 
@@ -76,9 +69,8 @@ describe('bpmnlint multiple-expanded-pools', () => {
     // Validate — should NOT have the multiple-expanded-pools warning
     const res = parseResult(await handleValidate({ diagramId }));
 
-    const issues = res.issues?.filter(
-      (issue: any) => issue.rule === 'bpmn-mcp/multiple-expanded-pools'
-    ) ?? [];
+    const issues =
+      res.issues?.filter((issue: any) => issue.rule === 'bpmn-mcp/multiple-expanded-pools') ?? [];
 
     expect(issues.length).toBe(0);
   });
@@ -90,10 +82,7 @@ describe('bpmnlint multiple-expanded-pools', () => {
     const collab = parseResult(
       await handleCreateCollaboration({
         diagramId,
-        participants: [
-          { name: 'Order Process' },
-          { name: 'Payment Service', collapsed: true },
-        ],
+        participants: [{ name: 'Order Process' }, { name: 'Payment Service', collapsed: true }],
       })
     );
 
@@ -146,9 +135,8 @@ describe('bpmnlint multiple-expanded-pools', () => {
 
     // Validate — should NOT have multiple-expanded-pools warning
     const res = parseResult(await handleValidate({ diagramId }));
-    const poolIssues = res.issues?.filter(
-      (issue: any) => issue.rule === 'bpmn-mcp/multiple-expanded-pools'
-    ) ?? [];
+    const poolIssues =
+      res.issues?.filter((issue: any) => issue.rule === 'bpmn-mcp/multiple-expanded-pools') ?? [];
     expect(poolIssues.length).toBe(0);
   });
 });

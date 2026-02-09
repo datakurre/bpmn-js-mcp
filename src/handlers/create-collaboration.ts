@@ -67,7 +67,8 @@ export async function handleCreateCollaboration(
             // Sum up previous participants' heights + gaps
             let y = 100;
             for (let j = 0; j < i; j++) {
-              const h = participants[j].height ||
+              const h =
+                participants[j].height ||
                 (participants[j].collapsed ? COLLAPSED_POOL_HEIGHT : defaultPoolHeight);
               y += h + verticalGap;
             }

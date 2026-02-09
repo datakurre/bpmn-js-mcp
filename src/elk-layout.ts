@@ -223,11 +223,7 @@ function applyElkPositions(
  * separate pass applies the size.  Must run AFTER applyElkPositions so
  * that the element's current x/y is already correct.
  */
-function resizeCompoundNodes(
-  elementRegistry: any,
-  modeling: any,
-  elkNode: ElkNode
-): void {
+function resizeCompoundNodes(elementRegistry: any, modeling: any, elkNode: ElkNode): void {
   if (!elkNode.children) return;
 
   for (const child of elkNode.children) {

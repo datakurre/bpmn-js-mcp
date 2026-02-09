@@ -26,10 +26,7 @@ describe('pool auto-resize after layout', () => {
     const collab = parseResult(
       await handleCreateCollaboration({
         diagramId,
-        participants: [
-          { name: 'Process A' },
-          { name: 'Process B' },
-        ],
+        participants: [{ name: 'Process A' }, { name: 'Process B' }],
       })
     );
 
@@ -37,18 +34,77 @@ describe('pool auto-resize after layout', () => {
     const poolB = collab.participantIds[1];
 
     // Add a simple flow to pool A (start → task1 → task2 → task3 → end)
-    const s1 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:StartEvent', name: 'Start A', participantId: poolA }));
-    const t1 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:UserTask', name: 'Task A1', participantId: poolA }));
-    const t2 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:UserTask', name: 'Task A2', participantId: poolA }));
-    const t3 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:UserTask', name: 'Task A3', participantId: poolA }));
-    const e1 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:EndEvent', name: 'End A', participantId: poolA }));
+    const s1 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:StartEvent',
+        name: 'Start A',
+        participantId: poolA,
+      })
+    );
+    const t1 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:UserTask',
+        name: 'Task A1',
+        participantId: poolA,
+      })
+    );
+    const t2 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:UserTask',
+        name: 'Task A2',
+        participantId: poolA,
+      })
+    );
+    const t3 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:UserTask',
+        name: 'Task A3',
+        participantId: poolA,
+      })
+    );
+    const e1 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:EndEvent',
+        name: 'End A',
+        participantId: poolA,
+      })
+    );
 
-    await handleConnect({ diagramId, elementIds: [s1.elementId, t1.elementId, t2.elementId, t3.elementId, e1.elementId] });
+    await handleConnect({
+      diagramId,
+      elementIds: [s1.elementId, t1.elementId, t2.elementId, t3.elementId, e1.elementId],
+    });
 
     // Add a shorter flow to pool B (start → task → end)
-    const s2 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:StartEvent', name: 'Start B', participantId: poolB }));
-    const t4 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:ServiceTask', name: 'Task B1', participantId: poolB }));
-    const e2 = parseResult(await handleAddElement({ diagramId, elementType: 'bpmn:EndEvent', name: 'End B', participantId: poolB }));
+    const s2 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:StartEvent',
+        name: 'Start B',
+        participantId: poolB,
+      })
+    );
+    const t4 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:ServiceTask',
+        name: 'Task B1',
+        participantId: poolB,
+      })
+    );
+    const e2 = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:EndEvent',
+        name: 'End B',
+        participantId: poolB,
+      })
+    );
 
     await handleConnect({ diagramId, elementIds: [s2.elementId, t4.elementId, e2.elementId] });
 
@@ -82,9 +138,7 @@ describe('pool auto-resize after layout', () => {
     expect(poolBAfter.height).toBeGreaterThan(0);
 
     // All children of pool A should be inside pool A's bounds
-    const poolAChildren = reg.filter(
-      (el: any) => el.parent?.id === poolA && el.type !== 'label'
-    );
+    const poolAChildren = reg.filter((el: any) => el.parent?.id === poolA && el.type !== 'label');
     for (const child of poolAChildren) {
       if (child.type?.includes('Flow') || child.type?.includes('Association')) continue;
       expect(child.x).toBeGreaterThanOrEqual(poolAAfter.x);

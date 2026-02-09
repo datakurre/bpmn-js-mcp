@@ -37,10 +37,7 @@ function isExpanded(participantId: string, definitions: any): boolean {
     if (!plane?.planeElement) continue;
 
     for (const el of plane.planeElement) {
-      if (
-        isType(el, 'bpmndi:BPMNShape') &&
-        el.bpmnElement?.id === participantId
-      ) {
+      if (isType(el, 'bpmndi:BPMNShape') && el.bpmnElement?.id === participantId) {
         return el.isExpanded !== false;
       }
     }
@@ -56,9 +53,7 @@ export default function multipleExpandedPools() {
     if (participants.length < 2) return;
 
     const definitions = node.$parent;
-    const expanded = participants.filter((p: any) =>
-      isExpanded(p.id, definitions)
-    );
+    const expanded = participants.filter((p: any) => isExpanded(p.id, definitions));
 
     if (expanded.length <= 1) return;
 
