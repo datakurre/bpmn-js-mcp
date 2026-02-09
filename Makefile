@@ -19,55 +19,60 @@ help:
 	@echo "  make clean        - Remove dist/ and node_modules/"
 	@echo "  make all          - Install and build"
 
-# Install dependencies
+# Install dependencies using npm ci for reproducible builds
+node_modules: package.json package-lock.json
+	npm ci
+	@touch node_modules
+
+# Install dependencies (for manual use)
 install:
 	npm install
 
 # Bundle the project
-build:
+build: node_modules
 	npm run build
 
 # Type-check (no emit)
-typecheck:
+typecheck: node_modules
 	npm run typecheck
 
 # Format code with Prettier
-format:
+format: node_modules
 	npm run format
 
 # Check code formatting with Prettier
-format-check:
+format-check: node_modules
 	npm run format:check
 
 # Lint with ESLint
-lint:
+lint: node_modules
 	npm run lint
 
 # Run all static checks (typecheck + lint)
 check: typecheck lint
 
 # Watch mode for development
-watch:
+watch: node_modules
 	npm run watch
 
 # Start the server
-start:
+start: node_modules
 	npm start
 
 # Prepare (triggered by npm on install)
-prepare:
+prepare: node_modules
 	npm run prepare
 
 # Run tests
-test:
+test: node_modules
 	npm test
 
 # Run tests in watch mode
-test-watch:
+test-watch: node_modules
 	npm run test:watch
 
 # Run tests with coverage
-coverage:
+coverage: node_modules
 	npm run coverage
 
 # Clean build artifacts
@@ -76,4 +81,4 @@ clean:
 	rm -rf node_modules/
 
 # Install and build
-all: install build
+all: node_modules build

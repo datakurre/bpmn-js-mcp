@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build output
 dist/
@@ -9,8 +8,10 @@ dist/
 *.tsbuildinfo
 
 # Editor directories and files
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
+.devcontainer.json
 *.swp
 *.swo
 *~
