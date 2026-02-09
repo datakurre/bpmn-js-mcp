@@ -16,7 +16,7 @@ export const INITIAL_XML = `<?xml version="1.0" encoding="UTF-8"?>
                    xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
                    id="Definitions_1"
                    targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true">
+  <bpmn:process id="Process_1" isExecutable="true" camunda:historyTimeToLive="P180D">
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">

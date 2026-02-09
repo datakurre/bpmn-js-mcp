@@ -31,6 +31,7 @@ export const DEFAULT_LINT_CONFIG: LintConfig = {
     'no-overlapping-elements': 'off', // layout handles this; false positives in headless mode
     'no-disconnected': 'warn', // downgrade: diagrams are built incrementally
     'fake-join': 'info', // downgrade: boundary-event retry patterns produce valid fake-joins
+    'camunda-compat/history-time-to-live': 'warn', // upgrade: required for Camunda 7 / Operaton history cleanup
   },
 };
 
