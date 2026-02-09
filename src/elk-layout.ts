@@ -12,8 +12,13 @@
  *
  * Post-layout pipeline:
  * 1. ELK positions nodes → applyElkPositions()
- * 2. Snap same-layer elements to common Y → snapSameLayerElements()
- * 3. Apply ELK edge sections as waypoints → applyElkEdgeRoutes()
+ * 2. Resize compound nodes to ELK-computed sizes → resizeCompoundNodes()
+ * 3. Fix stranded boundary events → repositionBoundaryEvents()
+ * 4. Snap same-layer elements to common Y → snapSameLayerElements()
+ * 5. Reposition artifacts → repositionArtifacts()
+ * 6. Apply ELK edge sections as waypoints → applyElkEdgeRoutes()
+ * 7. Final orthogonal snap → snapAllConnectionsOrthogonal()
+ * 8. Detect crossing flows → detectCrossingFlows()
  */
 
 import type { DiagramState } from './types';
@@ -39,8 +44,11 @@ const ELK_LAYOUT_OPTIONS: LayoutOptions = {
  */
 const SAME_ROW_THRESHOLD = 20;
 
-/** Padding inside compound containers (participants, expanded subprocesses). */
+/** Padding inside compound containers (expanded subprocesses). */
 const CONTAINER_PADDING = '[top=50,left=20,bottom=20,right=20]';
+
+/** Padding inside participant pools — extra left for the ~30px bpmn-js label band. */
+const PARTICIPANT_PADDING = '[top=50,left=50,bottom=20,right=20]';
 
 /** Offset from origin so the diagram has comfortable breathing room. */
 const ORIGIN_OFFSET_X = 150;
@@ -121,6 +129,7 @@ function buildContainerGraph(
 
     if (hasChildren) {
       // Compound node — recurse
+      const isParticipant = shape.type === 'bpmn:Participant';
       const nested = buildContainerGraph(allElements, shape);
       children.push({
         id: shape.id,
@@ -130,7 +139,7 @@ function buildContainerGraph(
         edges: nested.edges,
         layoutOptions: {
           ...ELK_LAYOUT_OPTIONS,
-          'elk.padding': CONTAINER_PADDING,
+          'elk.padding': isParticipant ? PARTICIPANT_PADDING : CONTAINER_PADDING,
         },
       });
     } else {
@@ -198,6 +207,100 @@ function applyElkPositions(
       const updated = elementRegistry.get(child.id);
       if (updated) {
         applyElkPositions(elementRegistry, modeling, child, updated.x, updated.y);
+      }
+    }
+  }
+}
+
+// ── Post-ELK compound node resize ──────────────────────────────────────────
+
+/**
+ * Resize compound nodes (participants, expanded subprocesses) to match
+ * ELK-computed dimensions.
+ *
+ * ELK computes proper width/height for compound children based on their
+ * contents + padding.  `applyElkPositions` only applies x/y, so this
+ * separate pass applies the size.  Must run AFTER applyElkPositions so
+ * that the element's current x/y is already correct.
+ */
+function resizeCompoundNodes(
+  elementRegistry: any,
+  modeling: any,
+  elkNode: ElkNode
+): void {
+  if (!elkNode.children) return;
+
+  for (const child of elkNode.children) {
+    // Only resize compound nodes (those with children in the ELK result)
+    if (!child.children || child.children.length === 0) continue;
+    if (child.width === undefined || child.height === undefined) continue;
+
+    const element = elementRegistry.get(child.id);
+    if (!element) continue;
+
+    const desiredW = Math.round(child.width);
+    const desiredH = Math.round(child.height);
+
+    // Only resize if significantly different from current size
+    if (Math.abs(element.width - desiredW) > 5 || Math.abs(element.height - desiredH) > 5) {
+      modeling.resizeShape(element, {
+        x: element.x,
+        y: element.y,
+        width: desiredW,
+        height: desiredH,
+      });
+    }
+
+    // Recurse for nested compound nodes (expanded subprocesses inside participants)
+    resizeCompoundNodes(elementRegistry, modeling, child);
+  }
+}
+
+// ── Post-layout boundary event repositioning ───────────────────────────────
+
+/**
+ * Fix boundary event positions after layout.
+ *
+ * Boundary events are excluded from the ELK graph and should follow their
+ * host when `modeling.moveElements` moves it.  In headless (jsdom) mode,
+ * the automatic follow may not work correctly, leaving boundary events
+ * stranded at their original positions.
+ *
+ * This pass checks each boundary event and moves it to a valid position
+ * on its host's border if it's too far away.
+ */
+function repositionBoundaryEvents(elementRegistry: any, modeling: any): void {
+  const boundaryEvents = elementRegistry.filter((el: any) => el.type === 'bpmn:BoundaryEvent');
+
+  for (const be of boundaryEvents) {
+    const host = be.host;
+    if (!host) continue;
+
+    const beW = be.width || 36;
+    const beH = be.height || 36;
+    const beCx = be.x + beW / 2;
+    const beCy = be.y + beH / 2;
+
+    // Check if the boundary event center is within reasonable distance of the host
+    const hostRight = host.x + (host.width || 100);
+    const hostBottom = host.y + (host.height || 80);
+    const tolerance = 60;
+
+    const isNearHost =
+      beCx >= host.x - tolerance &&
+      beCx <= hostRight + tolerance &&
+      beCy >= host.y - tolerance &&
+      beCy <= hostBottom + tolerance;
+
+    if (!isNearHost) {
+      // Move boundary event to the bottom edge of the host, offset to the right
+      const targetCx = host.x + (host.width || 100) * 0.67;
+      const targetCy = hostBottom;
+      const dx = targetCx - beCx;
+      const dy = targetCy - beCy;
+
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        modeling.moveElements([be], { x: dx, y: dy });
       }
     }
   }
@@ -906,23 +1009,33 @@ export async function elkLayout(
   // Step 1: Apply ELK-computed node positions
   applyElkPositions(elementRegistry, modeling, result, offsetX, offsetY);
 
-  // Step 2: Snap same-layer elements to common Y (fixes 5–10 px offsets)
+  // Step 2: Resize compound nodes (participants, expanded subprocesses)
+  // to match ELK-computed dimensions.  Must be AFTER applyElkPositions
+  // so that x/y are already correct.
+  resizeCompoundNodes(elementRegistry, modeling, result);
+
+  // Step 3: Fix boundary event positions.  They are excluded from the
+  // ELK graph and should follow their host via moveElements, but
+  // headless mode may leave them stranded.
+  repositionBoundaryEvents(elementRegistry, modeling);
+
+  // Step 4: Snap same-layer elements to common Y (fixes 5–10 px offsets)
   snapSameLayerElements(elementRegistry, modeling);
 
-  // Step 3: Reposition artifacts (data objects, data stores, annotations)
+  // Step 5: Reposition artifacts (data objects, data stores, annotations)
   // outside the main flow — they were excluded from the ELK graph.
   repositionArtifacts(elementRegistry, modeling);
 
-  // Step 4: Apply ELK edge routes as waypoints (orthogonal, no diagonals).
+  // Step 6: Apply ELK edge routes as waypoints (orthogonal, no diagonals).
   // Uses ELK's own edge sections instead of bpmn-js ManhattanLayout,
   // eliminating diagonals, S-curves, and gateway routing interference.
   applyElkEdgeRoutes(elementRegistry, modeling, result, offsetX, offsetY);
 
-  // Step 5: Final orthogonal snap pass on ALL connections.
+  // Step 7: Final orthogonal snap pass on ALL connections.
   // Catches residual near-diagonal segments from ELK rounding or fallback routing.
   snapAllConnectionsOrthogonal(elementRegistry, modeling);
 
-  // Step 6: Detect crossing sequence flows for diagnostics
+  // Step 8: Detect crossing sequence flows for diagnostics
   const crossingFlowsResult = detectCrossingFlows(elementRegistry);
 
   return {

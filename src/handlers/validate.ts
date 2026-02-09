@@ -58,6 +58,8 @@ function suggestFix(issue: FlatLintIssue): string | undefined {
       return `Use set_bpmn_loop_characteristics to set a completionCondition or loopMaximum${elementRef}`;
     case 'bpmn-mcp/compensation-missing-association':
       return `Use connect_bpmn_elements to associate the compensation boundary event with a compensation handler${elementRef}`;
+    case 'bpmn-mcp/multiple-expanded-pools':
+      return 'In Camunda 7 / Operaton, only one pool can be executed. Recreate non-executable pools with collapsed: true in create_bpmn_collaboration, or delete the extra expanded pool and use bpmn:ServiceTask (camunda:type="external") instead';
     default:
       return undefined;
   }

@@ -314,7 +314,7 @@ export function handleCreateDataAssociation(args: any): Promise<ToolResult> {
 export const TOOL_DEFINITION = {
   name: 'connect_bpmn_elements',
   description:
-    'Connect BPMN elements. Supports pair mode (sourceElementId + targetElementId) or chain mode (elementIds array for sequential connections). Auto-detects connection type: SequenceFlow for normal flow, MessageFlow for cross-pool, Association for text annotations, and DataAssociation for data objects/stores. Supports optional condition expressions for gateway branches and isDefault flag for gateway default flows.',
+    'Connect BPMN elements. Supports pair mode (sourceElementId + targetElementId) or chain mode (elementIds array for sequential connections). Auto-detects connection type: SequenceFlow for normal flow, MessageFlow for cross-pool, Association for text annotations, and DataAssociation for data objects/stores. Supports optional condition expressions for gateway branches and isDefault flag for gateway default flows. **Message flow guidance:** Cross-pool connections automatically become MessageFlow. In Camunda 7 / Operaton, the valid pattern is one expanded (executable) pool with collapsed partner pools. Message flows connect elements in the expanded pool (IntermediateThrowEvent/SendTask/IntermediateCatchEvent/ReceiveTask with MessageEventDefinition) directly to collapsed pool shapes. Both uni-directional and bi-directional message flows are valid — collapsed pools document where messages go to/come from.',
   inputSchema: {
     type: 'object',
     properties: {

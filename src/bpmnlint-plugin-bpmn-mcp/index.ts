@@ -24,6 +24,7 @@ export const configs = {
       'bpmn-mcp/compensation-missing-association': 'error',
       'bpmn-mcp/boundary-event-scope': 'warn',
       'bpmn-mcp/loop-without-limit': 'warn',
+      'bpmn-mcp/multiple-expanded-pools': 'warn',
     },
   },
 };

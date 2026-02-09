@@ -17,11 +17,15 @@ import {
 import { appendLintFeedback } from '../linter';
 import { ELEMENT_SIZES } from '../constants';
 
+/** Height of a collapsed participant pool (thin bar, no internal flow). */
+const COLLAPSED_POOL_HEIGHT = 60;
+
 export interface CreateCollaborationArgs {
   diagramId: string;
   participants: Array<{
     name: string;
     processId?: string;
+    collapsed?: boolean;
     width?: number;
     height?: number;
     x?: number;
@@ -55,7 +59,7 @@ export async function handleCreateCollaboration(
   for (let i = 0; i < participants.length; i++) {
     const p = participants[i];
     const id = generateDescriptiveId(elementRegistry, 'bpmn:Participant', p.name);
-    const poolHeight = p.height || defaultPoolHeight;
+    const poolHeight = p.height || (p.collapsed ? COLLAPSED_POOL_HEIGHT : defaultPoolHeight);
     const prevBottom =
       i === 0
         ? 100
@@ -63,36 +67,45 @@ export async function handleCreateCollaboration(
             // Sum up previous participants' heights + gaps
             let y = 100;
             for (let j = 0; j < i; j++) {
-              y += (participants[j].height || defaultPoolHeight) + verticalGap;
+              const h = participants[j].height ||
+                (participants[j].collapsed ? COLLAPSED_POOL_HEIGHT : defaultPoolHeight);
+              y += h + verticalGap;
             }
             return y;
           })();
     const y = p.y ?? prevBottom;
     const x = p.x ?? 300;
 
-    const shape = elementFactory.createShape({
+    const shapeAttrs: Record<string, any> = {
       type: 'bpmn:Participant',
       id,
-    });
+    };
+    if (p.collapsed) {
+      shapeAttrs.isExpanded = false;
+    }
+    const shape = elementFactory.createShape(shapeAttrs);
 
     // Apply custom dimensions before placement
     if (p.width) shape.width = p.width;
-    if (p.height) shape.height = poolHeight;
+    shape.height = poolHeight;
 
     const rootElement = canvas.getRootElement();
     const createdElement = modeling.createShape(shape, { x, y }, rootElement);
     modeling.updateProperties(createdElement, { name: p.name });
 
-    // Resize if custom dimensions were requested
-    if (p.width || p.height) {
-      const newBounds = {
-        x: createdElement.x,
-        y: createdElement.y,
-        width: p.width || createdElement.width,
-        height: poolHeight,
-      };
-      modeling.resizeShape(createdElement, newBounds);
+    // Mark collapsed pools in the DI and resize
+    if (p.collapsed && createdElement.di) {
+      createdElement.di.isExpanded = false;
     }
+
+    // Resize to requested or default dimensions
+    const newBounds = {
+      x: createdElement.x,
+      y: createdElement.y,
+      width: p.width || createdElement.width,
+      height: poolHeight,
+    };
+    modeling.resizeShape(createdElement, newBounds);
 
     if (p.processId) {
       const bo = createdElement.businessObject;
@@ -118,7 +131,7 @@ export async function handleCreateCollaboration(
 export const TOOL_DEFINITION = {
   name: 'create_bpmn_collaboration',
   description:
-    'Create a collaboration diagram with multiple participants (pools). Requires at least 2 participants. Each participant gets its own process. Use connect_bpmn_elements with connectionType "bpmn:MessageFlow" to add message flows between pools.',
+    'Create a collaboration diagram with multiple participants (pools). **Camunda 7 / Operaton pattern:** Only one pool can be deployed and executed — additional pools must be **collapsed** (set collapsed: true) and serve only to document message flow endpoints. The executable pool contains the full process (start → tasks → end); collapsed pools are thin bars representing external systems or partners. Message flows connect elements in the expanded pool to collapsed pool shapes directly. For simple integrations where the external system is not a meaningful message partner, prefer bpmn:ServiceTask (camunda:type="external", camunda:topic) instead of a collaboration. Requires at least 2 participants.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -132,6 +145,11 @@ export const TOOL_DEFINITION = {
             processId: {
               type: 'string',
               description: 'Optional custom process ID for the participant',
+            },
+            collapsed: {
+              type: 'boolean',
+              description:
+                'If true, creates a collapsed pool (thin bar, no internal flow). Use for non-executable partner pools in Camunda 7 / Operaton that only document message flow endpoints.',
             },
             width: {
               type: 'number',

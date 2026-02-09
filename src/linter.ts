@@ -20,6 +20,7 @@ import exclusiveGatewayMarker from './bpmnlint-plugin-bpmn-mcp/rules/exclusive-g
 import compensationMissingAssociation from './bpmnlint-plugin-bpmn-mcp/rules/compensation-missing-association';
 import boundaryEventScope from './bpmnlint-plugin-bpmn-mcp/rules/boundary-event-scope';
 import loopWithoutLimit from './bpmnlint-plugin-bpmn-mcp/rules/loop-without-limit';
+import multipleExpandedPools from './bpmnlint-plugin-bpmn-mcp/rules/multiple-expanded-pools';
 import { getAllDiagrams } from './diagram-manager';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -102,6 +103,7 @@ const localRuleFactories: Record<string, any> = {
   'compensation-missing-association': compensationMissingAssociation,
   'boundary-event-scope': boundaryEventScope,
   'loop-without-limit': loopWithoutLimit,
+  'multiple-expanded-pools': multipleExpandedPools,
 };
 
 /**
