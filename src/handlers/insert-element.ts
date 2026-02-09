@@ -21,6 +21,7 @@ import {
   createBusinessObject,
   fixConnectionId,
   resizeParentContainers,
+  buildElementCounts,
 } from './helpers';
 import { STANDARD_BPMN_GAP, getElementSize } from '../constants';
 import { appendLintFeedback } from '../linter';
@@ -189,6 +190,7 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
     ...(shiftApplied > 0
       ? { shiftApplied, shiftNote: 'Downstream elements shifted right to make space' }
       : {}),
+    diagramCounts: buildElementCounts(elementRegistry),
     message: `Inserted ${elementType}${elementName ? ` "${elementName}"` : ''} between ${sourceId} and ${targetId}`,
     ...(flowLabel ? { note: `Original flow label "${flowLabel}" was removed` } : {}),
   });

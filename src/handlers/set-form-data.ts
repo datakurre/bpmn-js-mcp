@@ -102,7 +102,11 @@ export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResu
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_form_data',
   description:
-    'Create camunda:FormData with camunda:FormField children as extension elements on User Tasks and Start Events (Generated Task Forms). Supports field types: string, long, boolean, date, enum. Fields can have validation constraints, enum values, default values, and custom properties.',
+    'Create camunda:FormData with camunda:FormField children as extension elements on User Tasks and Start Events (Generated Task Forms). Supports field types: string, long, boolean, date, enum. Fields can have validation constraints, enum values, default values, and custom properties. ' +
+    'Common patterns: required text field {id:"name", label:"Name", type:"string", validation:[{name:"required"}]}; ' +
+    'enum dropdown {id:"priority", label:"Priority", type:"enum", defaultValue:"medium", values:[{id:"low",name:"Low"},{id:"medium",name:"Medium"},{id:"high",name:"High"}]}; ' +
+    'date field {id:"dueDate", label:"Due Date", type:"date", datePattern:"dd/MM/yyyy"}; ' +
+    'boolean checkbox {id:"approved", label:"Approved?", type:"boolean", defaultValue:"false"}.',
   inputSchema: {
     type: 'object',
     properties: {

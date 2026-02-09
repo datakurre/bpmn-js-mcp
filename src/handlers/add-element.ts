@@ -15,6 +15,7 @@ import {
   validateArgs,
   createBusinessObject,
   fixConnectionId,
+  buildElementCounts,
 } from './helpers';
 import { STANDARD_BPMN_GAP, getElementSize } from '../constants';
 import { appendLintFeedback } from '../linter';
@@ -290,6 +291,7 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     name: elementName,
     position: { x, y },
     ...(connectionId ? { connectionId, autoConnected: true } : {}),
+    diagramCounts: buildElementCounts(elementRegistry),
     message: `Added ${elementType} to diagram${hint}`,
   });
   return appendLintFeedback(result, diagram);

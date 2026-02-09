@@ -51,6 +51,9 @@ export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> 
     success: true,
     diagramId,
     autoLayoutApplied: shouldLayout,
+    historyNote:
+      'Import creates a fresh modeler with an empty undo/redo history. ' +
+      'Use bpmn_history after making changes to undo/redo within this session.',
     message: `Imported BPMN diagram with ID: ${diagramId}${shouldLayout ? ' (auto-layout applied)' : ''}`,
   });
   return appendLintFeedback(result, diagram);
@@ -63,7 +66,9 @@ export const TOOL_DEFINITION = {
     'using the ELK layered algorithm. Use autoLayout to force or skip auto-layout. ' +
     '**Warning:** Forcing autoLayout: true on diagrams that already have DI coordinates may reposition ' +
     'elements and can affect boundary event placement. For diagrams with boundary events, subprocesses, ' +
-    'or complex structures, prefer autoLayout: false (or omit it to use auto-detection).',
+    'or complex structures, prefer autoLayout: false (or omit it to use auto-detection). ' +
+    '**History:** Each import creates a fresh modeler with an empty undo/redo stack. ' +
+    'Use bpmn_history to undo/redo changes made after import.',
   inputSchema: {
     type: 'object',
     properties: {

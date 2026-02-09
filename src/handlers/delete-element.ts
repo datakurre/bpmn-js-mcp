@@ -7,7 +7,7 @@
 
 import { type DeleteElementArgs, type ToolResult } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { requireDiagram, requireElement, jsonResult, syncXml } from './helpers';
+import { requireDiagram, requireElement, jsonResult, syncXml, buildElementCounts } from './helpers';
 import { appendLintFeedback } from '../linter';
 
 export async function handleDeleteElement(args: DeleteElementArgs): Promise<ToolResult> {
@@ -48,6 +48,7 @@ export async function handleDeleteElement(args: DeleteElementArgs): Promise<Tool
       ...(notFound.length > 0
         ? { notFound, warning: `${notFound.length} element(s) not found` }
         : {}),
+      diagramCounts: buildElementCounts(elementRegistry),
       message: `Removed ${elements.length} element(s) from diagram`,
     });
     return appendLintFeedback(result, diagram);
@@ -66,6 +67,7 @@ export async function handleDeleteElement(args: DeleteElementArgs): Promise<Tool
   const result = jsonResult({
     success: true,
     elementId,
+    diagramCounts: buildElementCounts(elementRegistry),
     message: `Removed element ${elementId} from diagram`,
   });
   return appendLintFeedback(result, diagram);

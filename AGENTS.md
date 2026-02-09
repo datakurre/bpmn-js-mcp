@@ -33,7 +33,9 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK.
 
 | File / Directory                | Responsibility                                                                                                                                                                          |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.ts`                  | Entry point — wires MCP server, transport, and request handlers                                                                                                                         |
+| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                                                                                                             |
+| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends (BPMN, DMN, Forms, …)                                                                                                     |
+| `src/bpmn-module.ts`            | BPMN tool module — registers BPMN tools and dispatch with the generic server                                                                                                            |
 | `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                                        |
 | `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                                        |
 | `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                                                                                                        |
@@ -136,6 +138,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 
 ## Key Gotchas
 
+- **Never write BPMN XML or structured files via terminal commands.** Using `cat > file << EOF` or similar heredoc patterns can corrupt XML through terminal line wrapping (e.g. `<bpmndi:BPMNEdge>` becoming `<bpmndi:BPMEdge>`). Always use `create_file` or `replace_string_in_file` tools which handle content atomically. For BPMN files specifically, always use the BPMN MCP tools (`export_bpmn` → write) rather than hand-editing XML.
 - The `bpmn-js` browser bundle is loaded via `eval` inside jsdom; polyfills for `SVGMatrix`, `getBBox`, `getScreenCTM`, `transform`, `createSVGMatrix`, and `createSVGTransform` are manually defined in `headless-canvas.ts`.
 - Diagram state is in-memory by default. Optional file-backed persistence can be enabled via `enablePersistence(dir)` from `src/persistence.ts`.
 - The `jsdom` instance and `BpmnModeler` constructor are lazily initialized on first use and then reused.

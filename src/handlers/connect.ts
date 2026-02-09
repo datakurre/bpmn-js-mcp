@@ -18,6 +18,7 @@ import {
   generateFlowId,
   validateArgs,
   fixConnectionId,
+  buildElementCounts,
 } from './helpers';
 import { appendLintFeedback } from '../linter';
 
@@ -253,6 +254,7 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
     connectionId: connection.id,
     connectionType,
     isDefault: isDefault || false,
+    diagramCounts: buildElementCounts(elementRegistry),
     message: `Connected ${sourceElementId} to ${targetElementId}`,
     ...(autoHint ? { hint: autoHint } : {}),
   });
@@ -304,6 +306,7 @@ async function handleChainConnect(diagramId: string, elementIds: string[]): Prom
     success: true,
     connectionsCreated: connections.length,
     connections,
+    diagramCounts: buildElementCounts(elementRegistry),
     message: `Created ${connections.length} sequential connection(s) between ${elementIds.length} elements`,
   });
   return appendLintFeedback(result, diagram);

@@ -115,7 +115,7 @@ function buildLayoutWarnings(elementRegistry: any): string[] {
   if (elements.length < 2) return warnings;
 
   // Check for overlapping elements (pairwise bounding-box intersection)
-  let overlapCount = 0;
+  const overlappingPairs: Array<[string, string]> = [];
   for (let i = 0; i < elements.length; i++) {
     for (let j = i + 1; j < elements.length; j++) {
       const a = elements[i];
@@ -134,14 +134,19 @@ function buildLayoutWarnings(elementRegistry: any): string[] {
       const bh = b.height ?? 0;
 
       if (ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by) {
-        overlapCount++;
+        overlappingPairs.push([a.id, b.id]);
       }
     }
   }
 
-  if (overlapCount > 0) {
+  if (overlappingPairs.length > 0) {
+    const pairDetails = overlappingPairs
+      .slice(0, 5) // Limit detail output for readability
+      .map(([a, b]) => `${a} ↔ ${b}`)
+      .join(', ');
+    const suffix = overlappingPairs.length > 5 ? ` (showing 5 of ${overlappingPairs.length})` : '';
     warnings.push(
-      `⚠️ Layout: ${overlapCount} overlapping element pair(s) detected. ` +
+      `⚠️ Layout: ${overlappingPairs.length} overlapping element pair(s) detected: ${pairDetails}${suffix}. ` +
         'Consider running layout_bpmn_diagram to auto-arrange elements, ' +
         'or use move_bpmn_element to manually reposition.'
     );

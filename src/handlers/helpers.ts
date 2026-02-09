@@ -207,10 +207,29 @@ export function buildConnectivityWarnings(elementRegistry: any): string[] {
     warnings.push(
       `⚠️ Note: Diagram has ${elements.length} elements but no flows. Use connect_bpmn_elements to add flows.`
     );
-  } else if (elements.length > flows.length + 1) {
-    warnings.push(
-      `💡 Tip: ${elements.length} elements with ${flows.length} flows - some elements may be disconnected.`
-    );
+  } else if (elements.length > 1 && flows.length > 0) {
+    // Identify actually disconnected elements (no incoming AND no outgoing flows)
+    // Exclude start events (only need outgoing), end events (only need incoming),
+    // and boundary events (attached to hosts, not connected via standalone flows).
+    const disconnected = elements.filter((el: any) => {
+      const hasIncoming = el.incoming && el.incoming.length > 0;
+      const hasOutgoing = el.outgoing && el.outgoing.length > 0;
+      if (el.type === 'bpmn:StartEvent') return !hasOutgoing;
+      if (el.type === 'bpmn:EndEvent') return !hasIncoming;
+      if (el.type === 'bpmn:BoundaryEvent') return false; // attached to host
+      return !hasIncoming && !hasOutgoing;
+    });
+
+    if (disconnected.length > 0) {
+      const ids = disconnected
+        .slice(0, 5)
+        .map((el: any) => el.id)
+        .join(', ');
+      const suffix = disconnected.length > 5 ? ` (and ${disconnected.length - 5} more)` : '';
+      warnings.push(
+        `💡 Tip: ${disconnected.length} element(s) appear disconnected: ${ids}${suffix}. Use connect_bpmn_elements to add flows.`
+      );
+    }
   }
 
   // Warn about orphaned artifacts (TextAnnotation, DataObjectReference, DataStoreReference)
@@ -280,6 +299,44 @@ export function getVisibleElements(elementRegistry: any): any[] {
       !el.type.includes('BPMNDiagram') &&
       !el.type.includes('BPMNPlane')
   );
+}
+
+// ── Element count summary ──────────────────────────────────────────────────
+
+/**
+ * Build a compact element-count summary for a diagram.
+ *
+ * Returns an object like: { tasks: 4, events: 2, gateways: 1, flows: 5, total: 12 }
+ * Useful for tool responses to show how the diagram has grown/changed.
+ */
+export function buildElementCounts(elementRegistry: any): Record<string, number> {
+  const elements = getVisibleElements(elementRegistry);
+  let tasks = 0;
+  let events = 0;
+  let gateways = 0;
+  let flows = 0;
+  let other = 0;
+
+  for (const el of elements) {
+    const t = el.type || '';
+    if (t.includes('Task') || t === 'bpmn:CallActivity' || t === 'bpmn:SubProcess') {
+      tasks++;
+    } else if (t.includes('Event')) {
+      events++;
+    } else if (t.includes('Gateway')) {
+      gateways++;
+    } else if (
+      t.includes('SequenceFlow') ||
+      t.includes('MessageFlow') ||
+      t.includes('Association')
+    ) {
+      flows++;
+    } else if (t !== 'bpmn:Participant' && t !== 'bpmn:Lane') {
+      other++;
+    }
+  }
+
+  return { tasks, events, gateways, flows, other, total: elements.length };
 }
 
 // ── Shared extensionElements management ────────────────────────────────────
