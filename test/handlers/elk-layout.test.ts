@@ -216,8 +216,8 @@ describe('handleLayoutDiagram (ELK)', () => {
     const reg = diagram.modeler.get('elementRegistry');
     const startEl = reg.get(start);
     const taskAEl = reg.get(taskA);
-    const taskBEl = reg.get(taskB);
-    const endEl = reg.get(end);
+    const _taskBEl = reg.get(taskB);
+    const _endEl = reg.get(end);
 
     // All elements on roughly the same Y (horizontal flow)
     const midY = startEl.y + startEl.height / 2;

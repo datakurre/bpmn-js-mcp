@@ -82,6 +82,11 @@ export interface Modeling {
   ): BpmnElement;
   moveElements(elements: BpmnElement[], delta: { x: number; y: number }): void;
   layoutConnection(connection: BpmnElement, hints?: Record<string, unknown>): void;
+  updateWaypoints(
+    connection: BpmnElement,
+    newWaypoints: Array<{ x: number; y: number }>,
+    hints?: Record<string, unknown>
+  ): void;
   connect(source: BpmnElement, target: BpmnElement, attrs?: Record<string, unknown>): BpmnElement;
   updateProperties(element: BpmnElement, properties: Record<string, unknown>): void;
   removeElements(elements: BpmnElement[]): void;
