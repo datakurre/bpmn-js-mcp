@@ -74,8 +74,11 @@ export async function handleListElements(args: ListElementsArgs): Promise<ToolRe
     };
 
     // For boundary events, include host element reference
-    if (el.type === 'bpmn:BoundaryEvent' && el.host) {
-      entry.attachedToRef = el.host.id;
+    if (el.type === 'bpmn:BoundaryEvent') {
+      const hostId = el.host?.id || el.businessObject?.attachedToRef?.id;
+      if (hostId) {
+        entry.attachedToRef = hostId;
+      }
     }
 
     // Add connection info

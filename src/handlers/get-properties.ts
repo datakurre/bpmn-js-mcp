@@ -191,8 +191,11 @@ export async function handleGetProperties(args: GetPropertiesArgs): Promise<Tool
   };
 
   // For boundary events, include host element reference
-  if (element.type === 'bpmn:BoundaryEvent' && element.host) {
-    result.attachedToRef = element.host.id;
+  if (element.type === 'bpmn:BoundaryEvent') {
+    const hostId = element.host?.id || bo.attachedToRef?.id;
+    if (hostId) {
+      result.attachedToRef = hostId;
+    }
   }
 
   const camunda = serializeCamundaAttrs(bo);
