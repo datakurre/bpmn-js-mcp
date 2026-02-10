@@ -15,6 +15,7 @@ export const ELK_LAYOUT_OPTIONS: LayoutOptions = {
   'elk.edgeRouting': 'ORTHOGONAL',
   'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
   'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+  'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST',
 };
 
 /**

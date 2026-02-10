@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Reference" name="Reference Layout Process" isExecutable="true">
+    <bpmn:startEvent id="Start_1" name="Order Received">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Review" name="Review Order">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Valid" name="Valid?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Process" name="Process Order">
+      <bpmn:incoming>Flow_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_Split" name="Prepare">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Ship</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Invoice</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_Ship" name="Ship Items">
+      <bpmn:incoming>Flow_Ship</bpmn:incoming>
+      <bpmn:outgoing>Flow_ShipDone</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Invoice" name="Send Invoice">
+      <bpmn:incoming>Flow_Invoice</bpmn:incoming>
+      <bpmn:outgoing>Flow_InvDone</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_Join">
+      <bpmn:incoming>Flow_ShipDone</bpmn:incoming>
+      <bpmn:incoming>Flow_InvDone</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="Task_Confirm" name="Confirm Delivery">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Success" name="Order Complete">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Reject" name="Order Rejected">
+      <bpmn:incoming>Flow_No</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_Review" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Review" targetRef="Gateway_Valid" />
+    <bpmn:sequenceFlow id="Flow_Yes" name="Yes" sourceRef="Gateway_Valid" targetRef="Task_Process" />
+    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_Valid" targetRef="End_Reject" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_Process" targetRef="Gateway_Split" />
+    <bpmn:sequenceFlow id="Flow_Ship" sourceRef="Gateway_Split" targetRef="Task_Ship" />
+    <bpmn:sequenceFlow id="Flow_Invoice" sourceRef="Gateway_Split" targetRef="Task_Invoice" />
+    <bpmn:sequenceFlow id="Flow_ShipDone" sourceRef="Task_Ship" targetRef="Gateway_Join" />
+    <bpmn:sequenceFlow id="Flow_InvDone" sourceRef="Task_Invoice" targetRef="Gateway_Join" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Gateway_Join" targetRef="Task_Confirm" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_Confirm" targetRef="End_Success" />
+  </bpmn:process>
+</bpmn:definitions>
