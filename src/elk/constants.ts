@@ -24,10 +24,10 @@ export const ELK_LAYOUT_OPTIONS: LayoutOptions = {
 export const SAME_ROW_THRESHOLD = 20;
 
 /** Padding inside compound containers (expanded subprocesses). */
-export const CONTAINER_PADDING = '[top=50,left=20,bottom=20,right=20]';
+export const CONTAINER_PADDING = '[top=60,left=40,bottom=60,right=40]';
 
 /** Padding inside participant pools — extra left for the ~30px bpmn-js label band. */
-export const PARTICIPANT_PADDING = '[top=50,left=50,bottom=20,right=20]';
+export const PARTICIPANT_PADDING = '[top=80,left=50,bottom=80,right=40]';
 
 /** Offset from origin so the diagram has comfortable breathing room. */
 export const ORIGIN_OFFSET_X = 180;

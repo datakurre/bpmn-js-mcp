@@ -90,6 +90,10 @@ export function restoreBoundaryEventData(
  * Determine the best border position for a boundary event based on its
  * outgoing flow targets relative to its host element.
  *
+ * Defaults to 'bottom' following the BPMN convention that exception
+ * flows exit downward.  Only chooses a different border when the target
+ * is clearly in another direction.
+ *
  * Returns 'bottom' (default), 'top', 'left', or 'right'.
  */
 function chooseBoundaryBorder(be: any, host: any): 'top' | 'bottom' | 'left' | 'right' {
@@ -103,20 +107,32 @@ function chooseBoundaryBorder(be: any, host: any): 'top' | 'bottom' | 'left' | '
 
     const hostCx = host.x + (host.width || 100) / 2;
     const hostCy = host.y + (host.height || 80) / 2;
+    const hostH = host.height || 80;
     const targetCx = target.x + (target.width || 36) / 2;
     const targetCy = target.y + (target.height || 36) / 2;
 
     const dx = targetCx - hostCx;
     const dy = targetCy - hostCy;
 
-    // Choose based on the dominant direction to the target
-    if (Math.abs(dy) > Math.abs(dx)) {
-      // Vertical movement dominates
-      return dy < 0 ? 'top' : 'bottom';
-    } else {
-      // Horizontal movement dominates
-      return dx < 0 ? 'left' : 'right';
+    // Default to bottom (BPMN convention: exception flows go downward).
+    // Only choose another border when the target is clearly in that
+    // direction:
+    //   - 'top' only if target is clearly above the host
+    //   - 'right' only if target is significantly to the right AND on the
+    //     same row (|dy| < host height)
+    //   - 'left' only if target is to the left (backward loop)
+    if (dy < -hostH / 2 && Math.abs(dy) > Math.abs(dx)) {
+      return 'top';
     }
+    if (dx < 0 && Math.abs(dx) > Math.abs(dy)) {
+      return 'left';
+    }
+    // Only pick 'right' if target is on roughly the same row
+    if (dx > 0 && Math.abs(dy) < hostH) {
+      return 'right';
+    }
+
+    return 'bottom'; // default: exception flows exit downward
   }
 
   return 'bottom'; // fallback
@@ -137,7 +153,7 @@ function computeBoundaryPosition(
     case 'top':
       return { cx: host.x + hostW * 0.67, cy: host.y };
     case 'bottom':
-      return { cx: host.x + hostW * 0.67, cy: host.y + hostH };
+      return { cx: host.x + hostW * 0.5, cy: host.y + hostH };
     case 'left':
       return { cx: host.x, cy: host.y + hostH * 0.67 };
     case 'right':
@@ -257,6 +273,18 @@ export function repositionBoundaryEvents(
         if (di?.bounds) {
           di.bounds.x = be.x;
           di.bounds.y = be.y;
+        }
+
+        // Move the label by the same delta so it stays near the event
+        // (direct manipulation doesn't update child shapes automatically).
+        if (be.label) {
+          be.label.x += dx;
+          be.label.y += dy;
+        }
+        // Also update the label DI bounds to keep BPMN XML consistent
+        if (di?.label?.bounds) {
+          di.label.bounds.x += dx;
+          di.label.bounds.y += dy;
         }
       }
     }

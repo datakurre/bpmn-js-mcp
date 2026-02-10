@@ -18,8 +18,9 @@
  * 6. Reposition artifacts → repositionArtifacts()
  * 7. Apply ELK edge sections as waypoints → applyElkEdgeRoutes()
  * 7.5. Route branch connections through inter-column channels → routeBranchConnectionsThroughChannels()
- * 8. Final orthogonal snap → snapAllConnectionsOrthogonal()
- * 9. Detect crossing flows → detectCrossingFlows()
+ * 8. Repair disconnected edge endpoints → fixDisconnectedEdges()
+ * 9. Final orthogonal snap → snapAllConnectionsOrthogonal()
+ * 10. Detect crossing flows → detectCrossingFlows()
  */
 
 import type { DiagramState } from '../types';
@@ -35,7 +36,7 @@ import {
   restoreBoundaryEventData,
 } from './boundary-events';
 import { snapSameLayerElements, snapAllConnectionsOrthogonal } from './snap-alignment';
-import { applyElkEdgeRoutes } from './edge-routing';
+import { applyElkEdgeRoutes, fixDisconnectedEdges } from './edge-routing';
 import { repositionArtifacts } from './artifacts';
 import { routeBranchConnectionsThroughChannels } from './channel-routing';
 import { detectHappyPath } from './happy-path';
@@ -61,7 +62,8 @@ export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer } from './types';
  * 6. Apply ELK edge sections as connection waypoints (bypasses
  *    bpmn-js ManhattanLayout entirely for ELK-routed edges)
  * 7. Route branch connections through inter-column channels
- * 8. Detect crossing flows and report count
+ * 8. Repair disconnected edge endpoints after gridSnap moves
+ * 9. Detect crossing flows and report count
  */
 export async function elkLayout(
   diagram: DiagramState,
@@ -231,11 +233,17 @@ export async function elkLayout(
     }
   }
 
-  // Step 8: Final orthogonal snap pass on ALL connections.
+  // Step 8: Repair disconnected edge endpoints.
+  // GridSnap (step 5) may have moved elements after ELK computed edge
+  // routes (step 7), leaving waypoints that no longer connect to their
+  // source/target elements.  This pass snaps endpoints back.
+  fixDisconnectedEdges(elementRegistry, modeling);
+
+  // Step 9: Final orthogonal snap pass on ALL connections.
   // Catches residual near-diagonal segments from ELK rounding or fallback routing.
   snapAllConnectionsOrthogonal(elementRegistry, modeling);
 
-  // Step 9: Detect crossing sequence flows for diagnostics
+  // Step 10: Detect crossing sequence flows for diagnostics
   const crossingFlowsResult = detectCrossingFlows(elementRegistry);
 
   return {

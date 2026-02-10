@@ -2,16 +2,21 @@
  * Happy path detection for BPMN diagrams.
  *
  * Detects the main flow from a start event to an end event, following
- * default flows at gateways (or the first outgoing flow when no default
- * is set).
+ * the conditioned (non-default) flows at exclusive/inclusive gateways.
+ * In BPMN semantics, the `default` flow is the fallback taken when no
+ * condition matches — typically the error/exception path.  The happy
+ * path should follow the designed/conditioned branches instead.
+ *
+ * At parallel gateways (and when no default is set), follows the first
+ * outgoing flow.
  */
 
 import { isConnection, isInfrastructure } from './helpers';
 
 /**
  * Detect the "happy path" — the main flow from a start event to an end
- * event, following default flows at gateways (or the first outgoing flow
- * when no default is set).
+ * event, following conditioned (non-default) flows at exclusive/inclusive
+ * gateways, or the first outgoing flow when no default is set.
  *
  * Returns a Set of connection (edge) IDs that form the happy path.
  */
@@ -42,7 +47,7 @@ export function detectHappyPath(allElements: any[]): Set<string> {
     }
   }
 
-  // Walk from each start event, following default/first flows
+  // Walk from each start event, following the preferred flow at each node
   const visited = new Set<string>();
   for (const start of startEvents) {
     let current = start;
@@ -54,12 +59,20 @@ export function detectHappyPath(allElements: any[]): Set<string> {
       if (!connections || connections.length === 0) break;
 
       // Pick the preferred outgoing connection:
-      // 1. Gateway with default flow → follow the default
-      // 2. Otherwise → follow the first connection
+      //
+      // At exclusive/inclusive gateways with a default flow:
+      //   → Follow the FIRST NON-DEFAULT outgoing flow (the conditioned
+      //     branch).  The default flow is the fallback/exception path
+      //     in BPMN semantics — the happy path should follow the
+      //     designed condition branches.
+      //
+      // At parallel gateways or nodes without a default:
+      //   → Follow the first outgoing flow (preserves model order).
       let chosen: any;
       const defaultFlowId = gatewayDefaults.get(current.id);
-      if (defaultFlowId) {
-        chosen = connections.find((c: any) => c.id === defaultFlowId);
+      if (defaultFlowId && connections.length > 1) {
+        // Prefer the first non-default flow (the conditioned branch)
+        chosen = connections.find((c: any) => c.id !== defaultFlowId);
       }
       if (!chosen) {
         chosen = connections[0];
