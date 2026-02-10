@@ -66,14 +66,6 @@ export interface ConnectArgs {
   isDefault?: boolean;
 }
 
-export interface ExportArgs {
-  diagramId: string;
-}
-
-export interface ListElementsArgs {
-  diagramId: string;
-}
-
 export interface SetPropertiesArgs {
   diagramId: string;
   elementId: string;
@@ -190,16 +182,6 @@ export interface SetCamundaErrorEventDefinitionArgs {
   }>;
 }
 
-export interface LintDiagramArgs {
-  diagramId: string;
-  config?: {
-    extends?: string | string[];
-    rules?: Record<string, string | number | [string | number, any]>;
-  };
-}
-export interface AdjustLabelsArgs {
-  diagramId: string;
-}
 export interface SetLoopCharacteristicsArgs {
   diagramId: string;
   elementId: string;
@@ -212,152 +194,9 @@ export interface SetLoopCharacteristicsArgs {
   elementVariable?: string;
 }
 
-export interface ExportSubprocessArgs {
-  diagramId: string;
-  elementId: string;
-  format?: 'xml' | 'svg';
-}
-
-export interface SetScriptArgs {
-  diagramId: string;
-  elementId: string;
-  scriptFormat: string;
-  script: string;
-  resultVariable?: string;
-}
-
-export interface CreateDataAssociationArgs {
-  diagramId: string;
-  sourceElementId: string;
-  targetElementId: string;
-}
-
-export interface CreateCollaborationArgs {
-  diagramId: string;
-  participants: Array<{
-    name: string;
-    processId?: string;
-    width?: number;
-    height?: number;
-    x?: number;
-    y?: number;
-  }>;
-}
-
-export interface UndoChangeArgs {
-  diagramId: string;
-}
-
-export interface RedoChangeArgs {
-  diagramId: string;
-}
-
-export interface DiffDiagramsArgs {
-  diagramIdA: string;
-  diagramIdB: string;
-}
-
-export interface ResizeElementArgs {
-  diagramId: string;
-  elementId: string;
-  width: number;
-  height: number;
-}
-
-export interface BatchOperationsArgs {
-  operations: Array<{
-    tool: string;
-    args: Record<string, any>;
-  }>;
-  stopOnError?: boolean;
-}
-
-export interface SetCamundaListenersArgs {
-  diagramId: string;
-  elementId: string;
-  executionListeners?: Array<{
-    event: string;
-    class?: string;
-    delegateExpression?: string;
-    expression?: string;
-    script?: { scriptFormat: string; value: string };
-  }>;
-  taskListeners?: Array<{
-    event: string;
-    class?: string;
-    delegateExpression?: string;
-    expression?: string;
-    script?: { scriptFormat: string; value: string };
-  }>;
-}
-
-export interface SetCallActivityVariablesArgs {
-  diagramId: string;
-  elementId: string;
-  inMappings?: Array<{
-    source?: string;
-    sourceExpression?: string;
-    target?: string;
-    variables?: 'all';
-    local?: boolean;
-  }>;
-  outMappings?: Array<{
-    source?: string;
-    sourceExpression?: string;
-    target?: string;
-    variables?: 'all';
-    local?: boolean;
-  }>;
-}
-
-export interface ManageRootElementsArgs {
-  diagramId: string;
-  messages?: Array<{ id: string; name?: string }>;
-  signals?: Array<{ id: string; name?: string }>;
-}
-
-export interface SearchElementsArgs {
-  diagramId: string;
-  namePattern?: string;
-  elementType?: string;
-  property?: { key: string; value?: string };
-}
-
-export interface AutoConnectArgs {
-  diagramId: string;
-  elementIds: string[];
-}
-
 export interface DuplicateElementArgs {
   diagramId: string;
   elementId: string;
   offsetX?: number;
   offsetY?: number;
-}
-
-export interface MoveToLaneArgs {
-  diagramId: string;
-  elementId: string;
-  laneId: string;
-}
-
-export interface InsertElementArgs {
-  diagramId: string;
-  flowId: string;
-  elementType: string;
-  name?: string;
-}
-
-export interface ReplaceElementArgs {
-  diagramId: string;
-  elementId: string;
-  newType: string;
-}
-
-export interface SummarizeDiagramArgs {
-  diagramId: string;
-}
-
-export interface ListProcessVariablesArgs {
-  diagramId: string;
 }

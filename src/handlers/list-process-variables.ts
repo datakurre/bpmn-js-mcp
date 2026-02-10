@@ -31,8 +31,6 @@ interface VariableReference {
   elementName?: string;
 }
 
-// ── Expression parsing ─────────────────────────────────────────────────────
-
 /**
  * Extract variable names referenced in a JUEL/UEL expression string.
  * Looks for `${...}` patterns and extracts identifier-like tokens.
@@ -123,249 +121,179 @@ const JUEL_KEYWORDS = new Set([
 
 // ── Variable extraction from elements ──────────────────────────────────────
 
-function extractFromElement(el: any): VariableReference[] {
+/** Context for extraction helpers. */
+interface ExtractionContext {
+  elementId: string;
+  elementName?: string;
+}
+
+/** Extract variables from camunda:FormData extension elements. */
+function extractFromFormData(ext: any, ctx: ExtractionContext): VariableReference[] {
   const refs: VariableReference[] = [];
-  const bo = el.businessObject;
-  if (!bo) return refs;
-
-  const elementId = el.id;
-  const elementName = bo.name || undefined;
-
-  // ── Form fields (camunda:FormData) ─────────────────────────────────────
-  const extensionElements = bo.extensionElements?.values || [];
-  for (const ext of extensionElements) {
-    if (ext.$type === 'camunda:FormData') {
-      for (const field of ext.fields || []) {
-        refs.push({
-          name: field.id,
-          access: 'write',
-          source: 'formField',
-          elementId,
-          elementName,
-        });
-        // Default value may reference variables
-        if (field.defaultValue) {
-          for (const v of extractExpressionVariables(field.defaultValue)) {
-            refs.push({
-              name: v,
-              access: 'read',
-              source: 'formField.defaultValue',
-              elementId,
-              elementName,
-            });
-          }
-        }
-      }
-    }
-
-    // ── Input/output mappings (camunda:InputOutput) ────────────────────────
-    if (ext.$type === 'camunda:InputOutput') {
-      for (const param of ext.inputParameters || []) {
-        refs.push({
-          name: param.name,
-          access: 'write',
-          source: 'inputParameter',
-          elementId,
-          elementName,
-        });
-        if (param.value) {
-          for (const v of extractExpressionVariables(param.value)) {
-            refs.push({
-              name: v,
-              access: 'read',
-              source: 'inputParameter.expression',
-              elementId,
-              elementName,
-            });
-          }
-        }
-      }
-      for (const param of ext.outputParameters || []) {
-        refs.push({
-          name: param.name,
-          access: 'write',
-          source: 'outputParameter',
-          elementId,
-          elementName,
-        });
-        if (param.value) {
-          for (const v of extractExpressionVariables(param.value)) {
-            refs.push({
-              name: v,
-              access: 'read',
-              source: 'outputParameter.expression',
-              elementId,
-              elementName,
-            });
-          }
-        }
-      }
-    }
-
-    // ── Call activity variable mappings (camunda:In / camunda:Out) ─────────
-    if (ext.$type === 'camunda:In') {
-      if (ext.target) {
-        refs.push({
-          name: ext.target,
-          access: 'write',
-          source: 'callActivity.in',
-          elementId,
-          elementName,
-        });
-      }
-      if (ext.source) {
-        refs.push({
-          name: ext.source,
-          access: 'read',
-          source: 'callActivity.in',
-          elementId,
-          elementName,
-        });
-      }
-      if (ext.sourceExpression) {
-        for (const v of extractExpressionVariables(ext.sourceExpression)) {
-          refs.push({
-            name: v,
-            access: 'read',
-            source: 'callActivity.in.expression',
-            elementId,
-            elementName,
-          });
-        }
-      }
-    }
-    if (ext.$type === 'camunda:Out') {
-      if (ext.target) {
-        refs.push({
-          name: ext.target,
-          access: 'write',
-          source: 'callActivity.out',
-          elementId,
-          elementName,
-        });
-      }
-      if (ext.source) {
-        refs.push({
-          name: ext.source,
-          access: 'read',
-          source: 'callActivity.out',
-          elementId,
-          elementName,
-        });
-      }
-      if (ext.sourceExpression) {
-        for (const v of extractExpressionVariables(ext.sourceExpression)) {
-          refs.push({
-            name: v,
-            access: 'read',
-            source: 'callActivity.out.expression',
-            elementId,
-            elementName,
-          });
-        }
+  for (const field of ext.fields || []) {
+    refs.push({ name: field.id, access: 'write', source: 'formField', ...ctx });
+    if (field.defaultValue) {
+      for (const v of extractExpressionVariables(field.defaultValue)) {
+        refs.push({ name: v, access: 'read', source: 'formField.defaultValue', ...ctx });
       }
     }
   }
+  return refs;
+}
 
-  // ── Camunda properties on tasks ────────────────────────────────────────
-  const camundaExprProps = [
-    { attr: 'camunda:assignee', source: 'assignee' },
-    { attr: 'camunda:candidateGroups', source: 'candidateGroups' },
-    { attr: 'camunda:candidateUsers', source: 'candidateUsers' },
-    { attr: 'camunda:dueDate', source: 'dueDate' },
-    { attr: 'camunda:followUpDate', source: 'followUpDate' },
-    { attr: 'camunda:priority', source: 'priority' },
-  ];
-  for (const { attr, source } of camundaExprProps) {
+/** Extract variables from camunda:InputOutput extension elements. */
+function extractFromInputOutput(ext: any, ctx: ExtractionContext): VariableReference[] {
+  const refs: VariableReference[] = [];
+  for (const param of ext.inputParameters || []) {
+    refs.push({ name: param.name, access: 'write', source: 'inputParameter', ...ctx });
+    if (param.value) {
+      for (const v of extractExpressionVariables(param.value)) {
+        refs.push({ name: v, access: 'read', source: 'inputParameter.expression', ...ctx });
+      }
+    }
+  }
+  for (const param of ext.outputParameters || []) {
+    refs.push({ name: param.name, access: 'write', source: 'outputParameter', ...ctx });
+    if (param.value) {
+      for (const v of extractExpressionVariables(param.value)) {
+        refs.push({ name: v, access: 'read', source: 'outputParameter.expression', ...ctx });
+      }
+    }
+  }
+  return refs;
+}
+
+/** Extract variables from camunda:In call activity mappings. */
+function extractFromCallActivityIn(ext: any, ctx: ExtractionContext): VariableReference[] {
+  const refs: VariableReference[] = [];
+  if (ext.target) {
+    refs.push({ name: ext.target, access: 'write', source: 'callActivity.in', ...ctx });
+  }
+  if (ext.source) {
+    refs.push({ name: ext.source, access: 'read', source: 'callActivity.in', ...ctx });
+  }
+  if (ext.sourceExpression) {
+    for (const v of extractExpressionVariables(ext.sourceExpression)) {
+      refs.push({ name: v, access: 'read', source: 'callActivity.in.expression', ...ctx });
+    }
+  }
+  return refs;
+}
+
+/** Extract variables from camunda:Out call activity mappings. */
+function extractFromCallActivityOut(ext: any, ctx: ExtractionContext): VariableReference[] {
+  const refs: VariableReference[] = [];
+  if (ext.target) {
+    refs.push({ name: ext.target, access: 'write', source: 'callActivity.out', ...ctx });
+  }
+  if (ext.source) {
+    refs.push({ name: ext.source, access: 'read', source: 'callActivity.out', ...ctx });
+  }
+  if (ext.sourceExpression) {
+    for (const v of extractExpressionVariables(ext.sourceExpression)) {
+      refs.push({ name: v, access: 'read', source: 'callActivity.out.expression', ...ctx });
+    }
+  }
+  return refs;
+}
+
+/** Extract variables from extension elements. */
+function extractFromExtensions(bo: any, ctx: ExtractionContext): VariableReference[] {
+  const refs: VariableReference[] = [];
+  const extensionElements = bo.extensionElements?.values || [];
+  for (const ext of extensionElements) {
+    if (ext.$type === 'camunda:FormData') refs.push(...extractFromFormData(ext, ctx));
+    else if (ext.$type === 'camunda:InputOutput') refs.push(...extractFromInputOutput(ext, ctx));
+    else if (ext.$type === 'camunda:In') refs.push(...extractFromCallActivityIn(ext, ctx));
+    else if (ext.$type === 'camunda:Out') refs.push(...extractFromCallActivityOut(ext, ctx));
+  }
+  return refs;
+}
+
+const CAMUNDA_EXPR_PROPS = [
+  { attr: 'camunda:assignee', source: 'assignee' },
+  { attr: 'camunda:candidateGroups', source: 'candidateGroups' },
+  { attr: 'camunda:candidateUsers', source: 'candidateUsers' },
+  { attr: 'camunda:dueDate', source: 'dueDate' },
+  { attr: 'camunda:followUpDate', source: 'followUpDate' },
+  { attr: 'camunda:priority', source: 'priority' },
+];
+
+/** Extract variables from Camunda expression properties on tasks. */
+function extractFromCamundaProps(bo: any, ctx: ExtractionContext): VariableReference[] {
+  const refs: VariableReference[] = [];
+  for (const { attr, source } of CAMUNDA_EXPR_PROPS) {
     const shortKey = attr.replace('camunda:', '');
     const val = bo.$attrs?.[attr] ?? bo[shortKey];
     if (val && typeof val === 'string') {
       for (const v of extractExpressionVariables(val)) {
-        refs.push({
-          name: v,
-          access: 'read',
-          source,
-          elementId,
-          elementName,
-        });
+        refs.push({ name: v, access: 'read', source, ...ctx });
       }
     }
   }
+  return refs;
+}
 
-  // ── Script tasks (camunda:resultVariable) ──────────────────────────────
+/** Extract variables from loop characteristics. */
+function extractFromLoopCharacteristics(
+  loopChars: any,
+  ctx: ExtractionContext
+): VariableReference[] {
+  const refs: VariableReference[] = [];
+  const collection =
+    loopChars.$attrs?.['camunda:collection'] ?? loopChars.collection ?? loopChars.campiCollection;
+  if (collection && typeof collection === 'string') {
+    if (collection.includes('${')) {
+      for (const v of extractExpressionVariables(collection)) {
+        refs.push({ name: v, access: 'read', source: 'loop.collection', ...ctx });
+      }
+    } else {
+      refs.push({ name: collection, access: 'read', source: 'loop.collection', ...ctx });
+    }
+  }
+  const elemVar = loopChars.$attrs?.['camunda:elementVariable'] ?? loopChars.elementVariable;
+  if (elemVar && typeof elemVar === 'string') {
+    refs.push({ name: elemVar, access: 'write', source: 'loop.elementVariable', ...ctx });
+  }
+  if (loopChars.completionCondition?.body) {
+    for (const v of extractExpressionVariables(loopChars.completionCondition.body)) {
+      refs.push({ name: v, access: 'read', source: 'loop.completionCondition', ...ctx });
+    }
+  }
+  return refs;
+}
+
+function extractFromElement(el: any): VariableReference[] {
+  const bo = el.businessObject;
+  if (!bo) return [];
+
+  const ctx: ExtractionContext = {
+    elementId: el.id,
+    elementName: bo.name || undefined,
+  };
+
+  const refs: VariableReference[] = [];
+
+  refs.push(...extractFromExtensions(bo, ctx));
+  refs.push(...extractFromCamundaProps(bo, ctx));
+
   const resultVar = bo.$attrs?.['camunda:resultVariable'] ?? bo.resultVariable;
   if (resultVar && typeof resultVar === 'string') {
-    refs.push({
-      name: resultVar,
-      access: 'write',
-      source: 'scriptTask.resultVariable',
-      elementId,
-      elementName,
-    });
+    refs.push({ name: resultVar, access: 'write', source: 'scriptTask.resultVariable', ...ctx });
   }
 
-  // ── Condition expressions on sequence flows ────────────────────────────
   if (bo.conditionExpression?.body) {
     for (const v of extractExpressionVariables(bo.conditionExpression.body)) {
-      refs.push({
-        name: v,
-        access: 'read',
-        source: 'conditionExpression',
-        elementId,
-        elementName,
-      });
+      refs.push({ name: v, access: 'read', source: 'conditionExpression', ...ctx });
     }
   }
 
-  // ── Loop characteristics ───────────────────────────────────────────────
-  const loopChars = bo.loopCharacteristics;
-  if (loopChars) {
-    const collection =
-      loopChars.$attrs?.['camunda:collection'] ?? loopChars.collection ?? loopChars.campiCollection;
-    if (collection && typeof collection === 'string') {
-      // Collection can be a variable name or expression
-      if (collection.includes('${')) {
-        for (const v of extractExpressionVariables(collection)) {
-          refs.push({ name: v, access: 'read', source: 'loop.collection', elementId, elementName });
-        }
-      } else {
-        refs.push({
-          name: collection,
-          access: 'read',
-          source: 'loop.collection',
-          elementId,
-          elementName,
-        });
-      }
-    }
-    const elemVar = loopChars.$attrs?.['camunda:elementVariable'] ?? loopChars.elementVariable;
-    if (elemVar && typeof elemVar === 'string') {
-      refs.push({
-        name: elemVar,
-        access: 'write',
-        source: 'loop.elementVariable',
-        elementId,
-        elementName,
-      });
-    }
-    // Completion condition
-    if (loopChars.completionCondition?.body) {
-      for (const v of extractExpressionVariables(loopChars.completionCondition.body)) {
-        refs.push({
-          name: v,
-          access: 'read',
-          source: 'loop.completionCondition',
-          elementId,
-          elementName,
-        });
-      }
-    }
+  if (bo.loopCharacteristics) {
+    refs.push(...extractFromLoopCharacteristics(bo.loopCharacteristics, ctx));
   }
 
   return refs;
 }
-
-// ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleListProcessVariables(
   args: ListProcessVariablesArgs
@@ -377,55 +305,35 @@ export async function handleListProcessVariables(
   const elementRegistry = diagram.modeler.get('elementRegistry');
   const allElements = getVisibleElements(elementRegistry);
 
-  // Collect all variable references
   const allRefs: VariableReference[] = [];
   for (const el of allElements) {
     allRefs.push(...extractFromElement(el));
   }
 
-  // Build a deduplicated summary grouped by variable name
-  const varMap = new Map<
-    string,
-    {
-      name: string;
-      readBy: Array<{ elementId: string; elementName?: string; source: string }>;
-      writtenBy: Array<{ elementId: string; elementName?: string; source: string }>;
-    }
-  >();
+  type VarEntry = {
+    name: string;
+    readBy: Array<{ elementId: string; elementName?: string; source: string }>;
+    writtenBy: Array<{ elementId: string; elementName?: string; source: string }>;
+  };
+  const varMap = new Map<string, VarEntry>();
 
   for (const ref of allRefs) {
     if (!varMap.has(ref.name)) {
       varMap.set(ref.name, { name: ref.name, readBy: [], writtenBy: [] });
     }
     const entry = varMap.get(ref.name)!;
-    const location = {
-      elementId: ref.elementId,
-      elementName: ref.elementName,
-      source: ref.source,
-    };
+    const loc = { elementId: ref.elementId, elementName: ref.elementName, source: ref.source };
+    const notIn = (arr: typeof entry.readBy) =>
+      !arr.some((r) => r.elementId === loc.elementId && r.source === loc.source);
 
     if (ref.access === 'read' || ref.access === 'read-write') {
-      // Avoid duplicates
-      if (
-        !entry.readBy.some(
-          (r) => r.elementId === location.elementId && r.source === location.source
-        )
-      ) {
-        entry.readBy.push(location);
-      }
+      if (notIn(entry.readBy)) entry.readBy.push(loc);
     }
     if (ref.access === 'write' || ref.access === 'read-write') {
-      if (
-        !entry.writtenBy.some(
-          (w) => w.elementId === location.elementId && w.source === location.source
-        )
-      ) {
-        entry.writtenBy.push(location);
-      }
+      if (notIn(entry.writtenBy)) entry.writtenBy.push(loc);
     }
   }
 
-  // Sort variables alphabetically
   const variables = Array.from(varMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   return jsonResult({

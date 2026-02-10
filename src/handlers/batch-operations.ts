@@ -20,6 +20,55 @@ export interface BatchOperationsArgs {
   stopOnError?: boolean;
 }
 
+/** Capture command-stack positions for all referenced diagrams (for rollback). */
+function captureCommandStackPositions(
+  operations: BatchOperationsArgs['operations']
+): Map<string, number> {
+  const positions = new Map<string, number>();
+  for (const op of operations) {
+    const id = op.args?.diagramId;
+    if (id && !positions.has(id)) {
+      const diagram = getDiagram(id);
+      if (diagram) {
+        const commandStack = diagram.modeler.get('commandStack');
+        positions.set(id, commandStack._stackIdx ?? 0);
+      }
+    }
+  }
+  return positions;
+}
+
+/** Rollback all diagrams to their pre-batch command-stack positions. */
+async function rollbackDiagrams(positions: Map<string, number>): Promise<void> {
+  for (const [id, startIdx] of positions) {
+    const diagram = getDiagram(id);
+    if (!diagram) continue;
+    const commandStack = diagram.modeler.get('commandStack');
+    while (commandStack._stackIdx > startIdx && commandStack.canUndo()) {
+      commandStack.undo();
+    }
+    await syncXml(diagram);
+  }
+}
+
+/** Run lint on all affected diagrams and append feedback. */
+async function appendBatchLintFeedback(
+  result: ToolResult,
+  operations: BatchOperationsArgs['operations']
+): Promise<ToolResult> {
+  const diagramIds = new Set<string>();
+  for (const op of operations) {
+    const id = op.args?.diagramId;
+    if (id) diagramIds.add(id);
+  }
+  let lintResult = result;
+  for (const id of diagramIds) {
+    const diagram = getDiagram(id);
+    if (diagram) lintResult = await appendLintFeedback(lintResult, diagram);
+  }
+  return lintResult;
+}
+
 export async function handleBatchOperations(args: BatchOperationsArgs): Promise<ToolResult> {
   validateArgs(args, ['operations']);
   const { operations, stopOnError = true } = args;
@@ -28,28 +77,14 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
     throw new McpError(ErrorCode.InvalidParams, 'operations must be a non-empty array');
   }
 
-  // Prevent recursive batch calls
   for (const op of operations) {
     if (op.tool === 'batch_bpmn_operations') {
       throw new McpError(ErrorCode.InvalidParams, 'Nested batch operations are not allowed');
     }
   }
 
-  // Suppress intermediate lint feedback during batch execution
   setBatchMode(true);
-
-  // Track command stack depth per diagram for rollback support
-  const commandStackDepths = new Map<string, number>();
-  for (const op of operations) {
-    const id = op.args?.diagramId;
-    if (id && !commandStackDepths.has(id)) {
-      const diagram = getDiagram(id);
-      if (diagram) {
-        const commandStack = diagram.modeler.get('commandStack');
-        commandStackDepths.set(id, commandStack._stackIdx ?? 0);
-      }
-    }
-  }
+  const commandStackDepths = captureCommandStackPositions(operations);
 
   const results: Array<{
     index: number;
@@ -58,7 +93,6 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
     result?: any;
     error?: string;
   }> = [];
-
   let rolledBack = false;
 
   try {
@@ -66,7 +100,6 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
       const op = operations[i];
       try {
         const result = await dispatchToolCall(op.tool, op.args);
-        // Try to parse the result text as JSON for cleaner output
         let parsed: any;
         try {
           parsed = JSON.parse(result.content[0]?.text || '{}');
@@ -75,21 +108,14 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
         }
         results.push({ index: i, tool: op.tool, success: true, result: parsed });
       } catch (err: any) {
-        const errorMsg = err?.message || String(err);
-        results.push({ index: i, tool: op.tool, success: false, error: errorMsg });
+        results.push({
+          index: i,
+          tool: op.tool,
+          success: false,
+          error: err?.message || String(err),
+        });
         if (stopOnError) {
-          // Rollback all diagrams to their pre-batch state
-          for (const [id, startIdx] of commandStackDepths) {
-            const diagram = getDiagram(id);
-            if (!diagram) continue;
-            const commandStack = diagram.modeler.get('commandStack');
-            // Undo compound commands until we're back at the saved position.
-            // Each undo() may decrement _stackIdx by more than 1 for compound ops.
-            while (commandStack._stackIdx > startIdx && commandStack.canUndo()) {
-              commandStack.undo();
-            }
-            await syncXml(diagram);
-          }
+          await rollbackDiagrams(commandStackDepths);
           rolledBack = true;
           break;
         }
@@ -102,7 +128,6 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
   const successCount = results.filter((r) => r.success).length;
   const failCount = results.filter((r) => !r.success).length;
 
-  // Run a single lint pass at the end for the affected diagram
   const batchResult = jsonResult({
     success: failCount === 0,
     totalOperations: operations.length,
@@ -119,22 +144,7 @@ export async function handleBatchOperations(args: BatchOperationsArgs): Promise<
           : `${failCount} operation(s) failed out of ${results.length} executed`,
   });
 
-  // Run lint pass for ALL affected diagrams, not just the first
-  const diagramIds = new Set<string>();
-  for (const op of operations) {
-    const id = op.args?.diagramId;
-    if (id) diagramIds.add(id);
-  }
-
-  let lintResult = batchResult;
-  for (const id of diagramIds) {
-    const diagram = getDiagram(id);
-    if (diagram) {
-      lintResult = await appendLintFeedback(lintResult, diagram);
-    }
-  }
-
-  return lintResult;
+  return appendBatchLintFeedback(batchResult, operations);
 }
 
 export const TOOL_DEFINITION = {

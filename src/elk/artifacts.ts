@@ -35,7 +35,7 @@ function findLinkedFlowElement(artifact: any, associations: any[]): any {
  * - Horizontal overlap between artifacts on different elements
  * - Unlinked artifacts positioned below the flow bounding box
  */
-// eslint-disable-next-line complexity, max-lines-per-function
+
 export function repositionArtifacts(elementRegistry: any, modeling: any): void {
   const artifacts = elementRegistry.filter((el: any) => isArtifact(el.type));
   if (artifacts.length === 0) return;

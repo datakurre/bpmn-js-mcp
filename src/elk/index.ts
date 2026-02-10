@@ -404,7 +404,7 @@ export async function elkLayout(
  * - Includes nearby artifacts (data objects, annotations) linked to
  *   selected elements via associations as pinned (fixed-position) context.
  */
-// eslint-disable-next-line complexity
+
 export async function elkLayoutSubset(
   diagram: DiagramState,
   elementIds: string[],

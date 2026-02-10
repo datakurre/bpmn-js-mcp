@@ -16,7 +16,69 @@ export interface ListElementsArgs {
   property?: { key: string; value?: string };
 }
 
-// eslint-disable-next-line max-lines-per-function
+/** Extract camunda:* attributes from a business object, if any. */
+function extractCamundaAttrs(bo: any): Record<string, any> | undefined {
+  if (!bo?.$attrs) return undefined;
+  const attrs: Record<string, any> = {};
+  for (const [key, value] of Object.entries(bo.$attrs)) {
+    if (key.startsWith('camunda:')) attrs[key] = value;
+  }
+  if (Object.keys(attrs).length === 0) return undefined;
+  return attrs;
+}
+
+/** Convert a registry element to a serialisable list entry. */
+function mapElementToEntry(el: any): Record<string, any> {
+  const entry: Record<string, any> = {
+    id: el.id,
+    type: el.type,
+    name: el.businessObject?.name || '(unnamed)',
+    x: el.x,
+    y: el.y,
+    width: el.width,
+    height: el.height,
+  };
+
+  if (el.type === 'bpmn:BoundaryEvent') {
+    const hostId = el.host?.id || el.businessObject?.attachedToRef?.id;
+    if (hostId) entry.attachedToRef = hostId;
+  }
+
+  if (el.incoming?.length) entry.incoming = el.incoming.map((c: any) => c.id);
+  if (el.outgoing?.length) entry.outgoing = el.outgoing.map((c: any) => c.id);
+
+  if (el.source) entry.sourceId = el.source.id;
+  if (el.target) entry.targetId = el.target.id;
+  if (el.waypoints && el.waypoints.length > 0) {
+    entry.waypoints = el.waypoints.map((wp: any) => ({ x: wp.x, y: wp.y }));
+  }
+
+  const camundaAttrs = extractCamundaAttrs(el.businessObject);
+  if (camundaAttrs) entry.camundaProperties = camundaAttrs;
+
+  return entry;
+}
+
+/** Filter elements by a property key/value constraint. */
+function filterByProperty(elements: any[], property: { key: string; value?: string }): any[] {
+  return elements.filter((el: any) => {
+    const bo = el.businessObject;
+    if (!bo) return false;
+
+    const key = property.key;
+    let val: any;
+    if (key.startsWith('camunda:')) {
+      val = bo.$attrs?.[key] ?? bo[key];
+    } else {
+      val = bo[key];
+    }
+
+    if (val === undefined) return false;
+    if (property.value === undefined) return true;
+    return String(val) === property.value;
+  });
+}
+
 export async function handleListElements(args: ListElementsArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
   const { diagramId, namePattern, elementType, property } = args;
@@ -35,83 +97,15 @@ export async function handleListElements(args: ListElementsArgs): Promise<ToolRe
   // Filter by name pattern (case-insensitive regex)
   if (namePattern) {
     const regex = new RegExp(namePattern, 'i');
-    elements = elements.filter((el: any) => {
-      const name = el.businessObject?.name || '';
-      return regex.test(name);
-    });
+    elements = elements.filter((el: any) => regex.test(el.businessObject?.name || ''));
   }
 
   // Filter by property key/value
   if (property) {
-    elements = elements.filter((el: any) => {
-      const bo = el.businessObject;
-      if (!bo) return false;
-
-      const key = property.key;
-      let val: any;
-
-      if (key.startsWith('camunda:')) {
-        val = bo.$attrs?.[key] ?? bo[key];
-      } else {
-        val = bo[key];
-      }
-
-      if (val === undefined) return false;
-      if (property.value === undefined) return true; // key-exists check
-      return String(val) === property.value;
-    });
+    elements = filterByProperty(elements, property);
   }
 
-  const elementList = elements.map((el: any) => {
-    const entry: Record<string, any> = {
-      id: el.id,
-      type: el.type,
-      name: el.businessObject?.name || '(unnamed)',
-      x: el.x,
-      y: el.y,
-      width: el.width,
-      height: el.height,
-    };
-
-    // For boundary events, include host element reference
-    if (el.type === 'bpmn:BoundaryEvent') {
-      const hostId = el.host?.id || el.businessObject?.attachedToRef?.id;
-      if (hostId) {
-        entry.attachedToRef = hostId;
-      }
-    }
-
-    // Add connection info
-    if (el.incoming?.length) {
-      entry.incoming = el.incoming.map((c: any) => c.id);
-    }
-    if (el.outgoing?.length) {
-      entry.outgoing = el.outgoing.map((c: any) => c.id);
-    }
-
-    // For connections, show source/target and waypoints
-    if (el.source) entry.sourceId = el.source.id;
-    if (el.target) entry.targetId = el.target.id;
-    if (el.waypoints && el.waypoints.length > 0) {
-      entry.waypoints = el.waypoints.map((wp: any) => ({ x: wp.x, y: wp.y }));
-    }
-
-    // Camunda extension attributes
-    const bo = el.businessObject;
-    if (bo?.$attrs) {
-      const camundaAttrs: Record<string, any> = {};
-      for (const [key, value] of Object.entries(bo.$attrs)) {
-        if (key.startsWith('camunda:')) {
-          camundaAttrs[key] = value;
-        }
-      }
-      if (Object.keys(camundaAttrs).length > 0) {
-        entry.camundaProperties = camundaAttrs;
-      }
-    }
-
-    return entry;
-  });
+  const elementList = elements.map(mapElementToEntry);
 
   return jsonResult({
     success: true,

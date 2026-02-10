@@ -27,6 +27,48 @@ interface ValidationIssue {
 }
 
 /**
+ * Lookup table mapping lint rule names to fix suggestion templates.
+ * `{elementRef}` is replaced with the element reference at runtime.
+ * `{diagramId}` is replaced with the diagram ID.
+ */
+const FIX_SUGGESTIONS: Record<string, string> = {
+  'label-required': 'Use set_bpmn_element_properties to set a descriptive name{elementRef}',
+  'bpmn-mcp/naming-convention':
+    'Use set_bpmn_element_properties to set a descriptive name{elementRef}',
+  'no-disconnected': 'Use connect_bpmn_elements to connect the disconnected element{elementRef}',
+  'start-event-required': 'Use add_bpmn_element to add a bpmn:StartEvent to diagram "{diagramId}"',
+  'end-event-required': 'Use add_bpmn_element to add a bpmn:EndEvent to diagram "{diagramId}"',
+  'bpmn-mcp/gateway-missing-default':
+    'Use connect_bpmn_elements with isDefault: true to set a default flow{elementRef}',
+  'bpmn-mcp/implicit-split':
+    'Replace conditional flows with an explicit gateway{elementRef} — add a bpmn:ExclusiveGateway after the task',
+  'bpmn-mcp/backward-sequence-flow':
+    'Use layout_bpmn_diagram to re-arrange elements left-to-right, or restructure the flow{elementRef}',
+  'bpmn-mcp/lane-usage':
+    'Consider using create_bpmn_collaboration with separate pools instead of lanes',
+  'bpmn-mcp/camunda-topic-without-external-type':
+    'Use set_bpmn_element_properties to set camunda:type to "external"{elementRef}',
+  'bpmn-mcp/loop-without-limit':
+    'Use set_bpmn_loop_characteristics to set a completionCondition or loopMaximum{elementRef}',
+  'bpmn-mcp/compensation-missing-association':
+    'Use connect_bpmn_elements to associate the compensation boundary event with a compensation handler{elementRef}',
+  'bpmn-mcp/multiple-expanded-pools':
+    'In Camunda 7 / Operaton, only one pool can be executed. Recreate non-executable pools with collapsed: true in create_bpmn_collaboration, or delete the extra expanded pool and use bpmn:ServiceTask (camunda:type="external") instead',
+  'no-implicit-start':
+    'Element{elementRef} has no incoming sequence flow. Connect it with connect_bpmn_elements or verify it should be a start event',
+  'no-implicit-end':
+    'Element{elementRef} has no outgoing sequence flow. Connect it with connect_bpmn_elements or verify it should be an end event',
+  'single-blank-start-event':
+    'Process should have exactly one blank start event. Remove extra start events with delete_bpmn_element or add event definitions with set_bpmn_event_definition',
+  'bpmn-mcp/exclusive-gateway-conditions':
+    'Exclusive gateway{elementRef} has outgoing flows without conditions. Use set_bpmn_element_properties with conditionExpression on the sequence flows, or mark one as default with isDefault: true',
+  'bpmn-mcp/parallel-gateway-merge-exclusive':
+    'A parallel gateway is merging mutually exclusive paths{elementRef}. Replace with an exclusive gateway using replace_bpmn_element',
+  'camunda-compat/history-time-to-live':
+    'Set historyTimeToLive on the process. Use set_bpmn_element_properties on the process element with camunda:historyTimeToLive',
+};
+
+/**
  * Generate a fix suggestion for a lint issue based on its rule name.
  * Returns a human-readable suggestion or undefined if no fix is applicable.
  */
@@ -34,49 +76,11 @@ function suggestFix(issue: FlatLintIssue, diagramId: string): string | undefined
   const { rule, elementId } = issue;
   if (!rule) return undefined;
 
-  const elementRef = elementId ? ` on element "${elementId}"` : '';
+  const template = FIX_SUGGESTIONS[rule];
+  if (!template) return undefined;
 
-  switch (rule) {
-    case 'label-required':
-    case 'bpmn-mcp/naming-convention':
-      return `Use set_bpmn_element_properties to set a descriptive name${elementRef}`;
-    case 'no-disconnected':
-      return `Use connect_bpmn_elements to connect the disconnected element${elementRef}`;
-    case 'start-event-required':
-      return `Use add_bpmn_element to add a bpmn:StartEvent to diagram "${diagramId}"`;
-    case 'end-event-required':
-      return `Use add_bpmn_element to add a bpmn:EndEvent to diagram "${diagramId}"`;
-    case 'bpmn-mcp/gateway-missing-default':
-      return `Use connect_bpmn_elements with isDefault: true to set a default flow${elementRef}`;
-    case 'bpmn-mcp/implicit-split':
-      return `Replace conditional flows with an explicit gateway${elementRef} — add a bpmn:ExclusiveGateway after the task`;
-    case 'bpmn-mcp/backward-sequence-flow':
-      return `Use layout_bpmn_diagram to re-arrange elements left-to-right, or restructure the flow${elementRef}`;
-    case 'bpmn-mcp/lane-usage':
-      return 'Consider using create_bpmn_collaboration with separate pools instead of lanes';
-    case 'bpmn-mcp/camunda-topic-without-external-type':
-      return `Use set_bpmn_element_properties to set camunda:type to "external"${elementRef}`;
-    case 'bpmn-mcp/loop-without-limit':
-      return `Use set_bpmn_loop_characteristics to set a completionCondition or loopMaximum${elementRef}`;
-    case 'bpmn-mcp/compensation-missing-association':
-      return `Use connect_bpmn_elements to associate the compensation boundary event with a compensation handler${elementRef}`;
-    case 'bpmn-mcp/multiple-expanded-pools':
-      return 'In Camunda 7 / Operaton, only one pool can be executed. Recreate non-executable pools with collapsed: true in create_bpmn_collaboration, or delete the extra expanded pool and use bpmn:ServiceTask (camunda:type="external") instead';
-    case 'no-implicit-start':
-      return `Element${elementRef} has no incoming sequence flow. Connect it with connect_bpmn_elements or verify it should be a start event`;
-    case 'no-implicit-end':
-      return `Element${elementRef} has no outgoing sequence flow. Connect it with connect_bpmn_elements or verify it should be an end event`;
-    case 'single-blank-start-event':
-      return `Process should have exactly one blank start event. Remove extra start events with delete_bpmn_element or add event definitions with set_bpmn_event_definition`;
-    case 'bpmn-mcp/exclusive-gateway-conditions':
-      return `Exclusive gateway${elementRef} has outgoing flows without conditions. Use set_bpmn_element_properties with conditionExpression on the sequence flows, or mark one as default with isDefault: true`;
-    case 'bpmn-mcp/parallel-gateway-merge-exclusive':
-      return `A parallel gateway is merging mutually exclusive paths${elementRef}. Replace with an exclusive gateway using replace_bpmn_element`;
-    case 'camunda-compat/history-time-to-live':
-      return `Set historyTimeToLive on the process. Use set_bpmn_element_properties on the process element with camunda:historyTimeToLive`;
-    default:
-      return undefined;
-  }
+  const elementRef = elementId ? ` on element "${elementId}"` : '';
+  return template.replace(/{elementRef}/g, elementRef).replace(/{diagramId}/g, diagramId);
 }
 
 /**

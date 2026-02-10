@@ -48,13 +48,13 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['error'] }],
 
       // Limit function complexity to keep handlers comprehensible
-      complexity: ['warn', 20],
+      complexity: ['error', 20],
 
       // Limit file length — signals when a module should be split
-      'max-lines': ['warn', { max: 300, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
 
       // Limit function length — keep handlers focused
-      'max-lines-per-function': ['warn', { max: 80, skipBlankLines: true, skipComments: true }],
+      'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],
 
       // Prefer const over let when variable is never reassigned
       'prefer-const': 'error',
@@ -63,7 +63,7 @@ export default tseslint.config(
       'no-var': 'error',
 
       // No parameter reassignment (helps reason about data flow)
-      'no-param-reassign': ['warn', { props: false }],
+      'no-param-reassign': ['error', { props: false }],
 
       // ── Style consistency ───────────────────────────────────────────────
       // Consistent brace style
@@ -71,6 +71,25 @@ export default tseslint.config(
 
       // No trailing spaces in template literals or elsewhere (handled by formatter)
       'no-trailing-spaces': 'off',
+    },
+  },
+
+  // ── ELK layout engine — algorithmic code with inherent complexity ────────
+  {
+    files: ['src/elk/**/*.ts'],
+    rules: {
+      complexity: ['error', 60],
+      'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 600, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
+  // ── bpmnlint plugin rules — lint rules are inherently branchy ───────────
+  {
+    files: ['src/bpmnlint-plugin-bpmn-mcp/**/*.ts'],
+    rules: {
+      complexity: ['error', 40],
+      'max-lines-per-function': ['error', { max: 120, skipBlankLines: true, skipComments: true }],
     },
   },
 

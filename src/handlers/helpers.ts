@@ -373,83 +373,14 @@ export function upsertExtensionElement(
   modeling.updateProperties(element, { extensionElements });
 }
 
-// ── Shared bpmn:Error root-element resolution ──────────────────────────────
+// ── Re-exports from split modules ──────────────────────────────────────────
 
-/**
- * Find or create a `bpmn:Error` root element on the definitions.
- *
- * Replaces the duplicated "find existing or create bpmn:Error" pattern in
- * set-event-definition and set-camunda-error handlers.
- */
-export function resolveOrCreateError(
-  moddle: any,
-  definitions: any,
-  errorRef: { id: string; name?: string; errorCode?: string }
-): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let errorElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Error' && re.id === errorRef.id
-  );
-  if (!errorElement) {
-    errorElement = moddle.create('bpmn:Error', {
-      id: errorRef.id,
-      name: errorRef.name || errorRef.id,
-      errorCode: errorRef.errorCode,
-    });
-    definitions.rootElements.push(errorElement);
-    errorElement.$parent = definitions;
-  }
-  return errorElement;
-}
-
-/**
- * Find or create a `bpmn:Message` root element on the definitions.
- */
-export function resolveOrCreateMessage(
-  moddle: any,
-  definitions: any,
-  messageRef: { id: string; name?: string }
-): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let messageElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Message' && re.id === messageRef.id
-  );
-  if (!messageElement) {
-    messageElement = moddle.create('bpmn:Message', {
-      id: messageRef.id,
-      name: messageRef.name || messageRef.id,
-    });
-    definitions.rootElements.push(messageElement);
-    messageElement.$parent = definitions;
-  }
-  return messageElement;
-}
-
-/**
- * Find or create a `bpmn:Signal` root element on the definitions.
- */
-export function resolveOrCreateSignal(
-  moddle: any,
-  definitions: any,
-  signalRef: { id: string; name?: string }
-): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let signalElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Signal' && re.id === signalRef.id
-  );
-  if (!signalElement) {
-    signalElement = moddle.create('bpmn:Signal', {
-      id: signalRef.id,
-      name: signalRef.name || signalRef.id,
-    });
-    definitions.rootElements.push(signalElement);
-    signalElement.$parent = definitions;
-  }
-  return signalElement;
-}
+export {
+  resolveOrCreateError,
+  resolveOrCreateMessage,
+  resolveOrCreateSignal,
+  resolveOrCreateEscalation,
+} from './root-element-helpers';
 
 // ── Business-object / ID alignment helpers ─────────────────────────────────
 
@@ -476,66 +407,4 @@ export function fixConnectionId(connection: any, desiredId: string): void {
   if (connection.businessObject && connection.businessObject.id !== desiredId) {
     connection.businessObject.id = desiredId;
   }
-}
-
-/**
- * Resize participant pools whose children have been shifted and now
- * extend beyond the pool boundary.
- */
-export function resizeParentContainers(elementRegistry: any, modeling: any): void {
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
-  for (const pool of participants) {
-    const children = elementRegistry.filter(
-      (el: any) =>
-        el.parent === pool &&
-        el.type !== 'bpmn:Lane' &&
-        !el.type.includes('SequenceFlow') &&
-        !el.type.includes('MessageFlow') &&
-        !el.type.includes('Association')
-    );
-    if (children.length === 0) continue;
-
-    let maxRight = 0;
-    for (const child of children) {
-      const right = child.x + (child.width || 0);
-      if (right > maxRight) maxRight = right;
-    }
-
-    const poolRight = pool.x + (pool.width || 0);
-    const padding = 50;
-    if (maxRight + padding > poolRight) {
-      const newWidth = maxRight - pool.x + padding;
-      modeling.resizeShape(pool, {
-        x: pool.x,
-        y: pool.y,
-        width: newWidth,
-        height: pool.height || 250,
-      });
-    }
-  }
-}
-
-/**
- * Find or create a `bpmn:Escalation` root element on the definitions.
- */
-export function resolveOrCreateEscalation(
-  moddle: any,
-  definitions: any,
-  escalationRef: { id: string; name?: string; escalationCode?: string }
-): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let escalationElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Escalation' && re.id === escalationRef.id
-  );
-  if (!escalationElement) {
-    escalationElement = moddle.create('bpmn:Escalation', {
-      id: escalationRef.id,
-      name: escalationRef.name || escalationRef.id,
-      escalationCode: escalationRef.escalationCode,
-    });
-    definitions.rootElements.push(escalationElement);
-    escalationElement.$parent = definitions;
-  }
-  return escalationElement;
 }

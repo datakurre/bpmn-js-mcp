@@ -20,89 +20,132 @@ import {
   getVisibleElements,
   createBusinessObject,
   fixConnectionId,
-  resizeParentContainers,
-  buildElementCounts,
 } from './helpers';
 import { STANDARD_BPMN_GAP, getElementSize } from '../constants';
 import { appendLintFeedback } from '../linter';
-
-// ── Overlap detection & resolution for post-insertion cleanup ─────────────
-
-/**
- * Detect elements that overlap with the newly inserted element.
- * Returns pairs [overlappingElement, insertedElement].
- */
-function detectOverlaps(elementRegistry: any, inserted: any): any[] {
-  const elements = elementRegistry.filter(
-    (el: any) =>
-      el.id !== inserted.id &&
-      el.type &&
-      !el.type.includes('SequenceFlow') &&
-      !el.type.includes('MessageFlow') &&
-      !el.type.includes('Association') &&
-      el.type !== 'bpmn:Participant' &&
-      el.type !== 'bpmn:Lane' &&
-      el.type !== 'bpmn:Process' &&
-      el.type !== 'bpmn:Collaboration' &&
-      el.type !== 'label' &&
-      !el.type.includes('BPMNDiagram') &&
-      !el.type.includes('BPMNPlane') &&
-      // Skip parent-child relationships
-      el.parent !== inserted &&
-      inserted.parent !== el
-  );
-
-  const ix = inserted.x ?? 0;
-  const iy = inserted.y ?? 0;
-  const iw = inserted.width ?? 0;
-  const ih = inserted.height ?? 0;
-
-  return elements.filter((el: any) => {
-    const ex = el.x ?? 0;
-    const ey = el.y ?? 0;
-    const ew = el.width ?? 0;
-    const eh = el.height ?? 0;
-    return ix < ex + ew && ix + iw > ex && iy < ey + eh && iy + ih > ey;
-  });
-}
-
-/**
- * Resolve overlaps by shifting the overlapping elements vertically.
- * Uses a simple heuristic: move the non-inserted element down by the
- * overlap amount plus a standard gap.
- */
-function resolveInsertionOverlaps(
-  modeling: any,
-  _elementRegistry: any,
-  inserted: any,
-  overlapping: any[]
-): void {
-  const iy = inserted.y ?? 0;
-  const ih = inserted.height ?? 0;
-  const insertedBottom = iy + ih;
-
-  for (const el of overlapping) {
-    const ey = el.y ?? 0;
-    // Calculate how much we need to shift to clear the overlap
-    const overlap = insertedBottom - ey + STANDARD_BPMN_GAP;
-    if (overlap > 0) {
-      // Collect the element and its connected downstream elements on same branch
-      modeling.moveElements([el], { x: 0, y: overlap });
-      // Also move boundary events attached to this element
-      if (el.attachers) {
-        for (const attacher of el.attachers) {
-          modeling.moveElements([attacher], { x: 0, y: overlap });
-        }
-      }
-    }
-  }
-}
+import { resizeParentContainers } from './add-element-helpers';
+import {
+  detectOverlaps,
+  resolveInsertionOverlaps,
+  buildInsertResult,
+} from './insert-element-helpers';
 
 export interface InsertElementArgs {
   diagramId: string;
   flowId: string;
   elementType: string;
   name?: string;
+}
+
+const NON_INSERTABLE_TYPES = new Set([
+  'bpmn:Participant',
+  'bpmn:Lane',
+  'bpmn:BoundaryEvent',
+  'bpmn:TextAnnotation',
+  'bpmn:DataObjectReference',
+  'bpmn:DataStoreReference',
+  'bpmn:Group',
+]);
+
+/** Validate the flow and element type, returning source/target info. */
+function validateInsertionArgs(
+  elementRegistry: any,
+  flowId: string,
+  elementType: string
+): { flow: any; source: any; target: any } {
+  const flow = requireElement(elementRegistry, flowId);
+  const flowType = flow.type || flow.businessObject?.$type || '';
+  if (!flowType.includes('SequenceFlow')) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Element ${flowId} is not a SequenceFlow (got: ${flowType}). ` +
+        'insert_bpmn_element only works with sequence flows.'
+    );
+  }
+  if (!flow.source || !flow.target) {
+    throw new McpError(ErrorCode.InvalidRequest, `Flow ${flowId} has no source or target element`);
+  }
+  if (NON_INSERTABLE_TYPES.has(elementType)) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Cannot insert ${elementType} into a sequence flow. ` +
+        'Only tasks, events, gateways, subprocesses, and call activities can be inserted.'
+    );
+  }
+  return { flow, source: flow.source, target: flow.target };
+}
+
+/** Shift downstream elements right when there isn't enough horizontal space. */
+function shiftIfNeeded(
+  elementRegistry: any,
+  modeling: any,
+  srcRight: number,
+  tgtLeft: number,
+  requiredSpace: number,
+  sourceId: string
+): number {
+  const availableSpace = tgtLeft - srcRight;
+  if (availableSpace >= requiredSpace) return 0;
+
+  const shiftAmount = requiredSpace - availableSpace;
+  const toShift = getVisibleElements(elementRegistry).filter(
+    (el: any) =>
+      !el.type.includes('SequenceFlow') &&
+      !el.type.includes('MessageFlow') &&
+      !el.type.includes('Association') &&
+      el.type !== 'bpmn:Participant' &&
+      el.type !== 'bpmn:Lane' &&
+      el.id !== sourceId &&
+      el.x >= tgtLeft
+  );
+  if (toShift.length > 0) modeling.moveElements(toShift, { x: shiftAmount, y: 0 });
+  resizeParentContainers(elementRegistry, modeling);
+  return shiftAmount;
+}
+
+/** Reconnect source→newElement→target with new sequence flows. */
+function reconnectThroughElement(
+  modeling: any,
+  elementRegistry: any,
+  source: any,
+  createdElement: any,
+  target: any,
+  elementName: string | undefined,
+  flowCondition: any
+): { conn1: any; conn2: any } {
+  const flowId1 = generateFlowId(elementRegistry, source?.businessObject?.name, elementName);
+  const conn1 = modeling.connect(source, createdElement, {
+    type: 'bpmn:SequenceFlow',
+    id: flowId1,
+  });
+  fixConnectionId(conn1, flowId1);
+  if (flowCondition) {
+    modeling.updateProperties(conn1, { conditionExpression: flowCondition });
+  }
+
+  const flowId2 = generateFlowId(elementRegistry, elementName, target?.businessObject?.name);
+  const conn2 = modeling.connect(createdElement, target, {
+    type: 'bpmn:SequenceFlow',
+    id: flowId2,
+  });
+  fixConnectionId(conn2, flowId2);
+  return { conn1, conn2 };
+}
+
+/** Compute the insertion midpoint between source right edge and target left edge. */
+function computeInsertionMidpoint(
+  source: any,
+  target: any,
+  newSize: { width: number; height: number }
+): { midX: number; midY: number } {
+  const srcRight = source.x + (source.width || 0);
+  const tgtLeft = target.x;
+  const srcCy = source.y + (source.height || 0) / 2;
+  const tgtCy = target.y + (target.height || 0) / 2;
+  return {
+    midX: Math.round((srcRight + tgtLeft) / 2) - newSize.width / 2,
+    midY: Math.round((srcCy + tgtCy) / 2) - newSize.height / 2,
+  };
 }
 
 export async function handleInsertElement(args: InsertElementArgs): Promise<ToolResult> {
@@ -114,139 +157,63 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
   const elementFactory = diagram.modeler.get('elementFactory');
   const elementRegistry = diagram.modeler.get('elementRegistry');
 
-  // Validate the flow exists and is a sequence flow
-  const flow = requireElement(elementRegistry, flowId);
-  const flowType = flow.type || flow.businessObject?.$type || '';
-  if (!flowType.includes('SequenceFlow')) {
-    throw new McpError(
-      ErrorCode.InvalidRequest,
-      `Element ${flowId} is not a SequenceFlow (got: ${flowType}). ` +
-        'insert_bpmn_element only works with sequence flows.'
-    );
-  }
-
-  const source = flow.source;
-  const target = flow.target;
-  if (!source || !target) {
-    throw new McpError(ErrorCode.InvalidRequest, `Flow ${flowId} has no source or target element`);
-  }
-
-  // Validate element type is insertable (not a participant, lane, etc.)
-  const nonInsertable = new Set([
-    'bpmn:Participant',
-    'bpmn:Lane',
-    'bpmn:BoundaryEvent',
-    'bpmn:TextAnnotation',
-    'bpmn:DataObjectReference',
-    'bpmn:DataStoreReference',
-    'bpmn:Group',
-  ]);
-  if (nonInsertable.has(elementType)) {
-    throw new McpError(
-      ErrorCode.InvalidRequest,
-      `Cannot insert ${elementType} into a sequence flow. ` +
-        'Only tasks, events, gateways, subprocesses, and call activities can be inserted.'
-    );
-  }
+  const { flow, source, target } = validateInsertionArgs(elementRegistry, flowId, elementType);
 
   // Capture flow properties before deletion
   const flowLabel = flow.businessObject?.name;
   const flowCondition = flow.businessObject?.conditionExpression;
   const sourceId = source.id;
   const targetId = target.id;
-
-  // Compute source/target geometry
   const newSize = getElementSize(elementType);
   const srcRight = source.x + (source.width || 0);
   const tgtLeft = target.x;
-
-  // Check horizontal space — shift downstream elements if needed
   const requiredSpace = STANDARD_BPMN_GAP + newSize.width + STANDARD_BPMN_GAP;
-  const availableSpace = tgtLeft - srcRight;
-  let shiftApplied = 0;
 
-  // Step 1: Delete the existing flow
+  // Step 1: Delete existing flow and shift if needed
   modeling.removeElements([flow]);
+  const shiftApplied = shiftIfNeeded(
+    elementRegistry,
+    modeling,
+    srcRight,
+    tgtLeft,
+    requiredSpace,
+    sourceId
+  );
 
-  // Step 1b: Shift downstream elements right when space is insufficient
-  if (availableSpace < requiredSpace) {
-    shiftApplied = requiredSpace - availableSpace;
-    const toShift = getVisibleElements(elementRegistry).filter(
-      (el: any) =>
-        !el.type.includes('SequenceFlow') &&
-        !el.type.includes('MessageFlow') &&
-        !el.type.includes('Association') &&
-        el.type !== 'bpmn:Participant' &&
-        el.type !== 'bpmn:Lane' &&
-        el.id !== sourceId &&
-        el.x >= tgtLeft
-    );
-    if (toShift.length > 0) {
-      modeling.moveElements(toShift, { x: shiftApplied, y: 0 });
-    }
-    resizeParentContainers(elementRegistry, modeling);
-  }
-
-  // Step 2: Calculate insertion position (center of the gap)
+  // Step 2: Calculate insertion position
   const updatedSource = elementRegistry.get(sourceId);
   const updatedTarget = elementRegistry.get(targetId);
-  const updSrcRight = updatedSource.x + (updatedSource.width || 0);
-  const updTgtLeft = updatedTarget.x;
-  const updSrcCy = updatedSource.y + (updatedSource.height || 0) / 2;
-  const updTgtCy = updatedTarget.y + (updatedTarget.height || 0) / 2;
-  const gapCenterX = Math.round((updSrcRight + updTgtLeft) / 2);
-  const flowCenterY = Math.round((updSrcCy + updTgtCy) / 2);
-  const midX = gapCenterX - newSize.width / 2;
-  const midY = flowCenterY - newSize.height / 2;
+  const { midX, midY } = computeInsertionMidpoint(updatedSource, updatedTarget, newSize);
 
-  // Step 3: Create the new element with a matching business-object ID
   const descriptiveId = generateDescriptiveId(elementRegistry, elementType, elementName);
   const businessObject = createBusinessObject(diagram.modeler, elementType, descriptiveId);
-  const shapeOpts: Record<string, any> = {
+  const shape = elementFactory.createShape({
     type: elementType,
     id: descriptiveId,
     businessObject,
-  };
-  const shape = elementFactory.createShape(shapeOpts);
+  });
 
-  // Find the parent container (same as the source element's parent)
   const parent = updatedSource.parent;
-  if (!parent) {
-    throw new McpError(ErrorCode.InternalError, 'Could not determine parent container');
-  }
+  if (!parent) throw new McpError(ErrorCode.InternalError, 'Could not determine parent container');
 
   const createdElement = modeling.createShape(
     shape,
     { x: midX + newSize.width / 2, y: midY + newSize.height / 2 },
     parent
   );
+  if (elementName) modeling.updateProperties(createdElement, { name: elementName });
 
-  if (elementName) {
-    modeling.updateProperties(createdElement, { name: elementName });
-  }
+  // Step 4: Reconnect
+  const { conn1, conn2 } = reconnectThroughElement(
+    modeling,
+    elementRegistry,
+    updatedSource,
+    createdElement,
+    updatedTarget,
+    elementName,
+    flowCondition
+  );
 
-  // Step 4: Connect source → new element
-  const flowId1 = generateFlowId(elementRegistry, updatedSource?.businessObject?.name, elementName);
-  const conn1 = modeling.connect(updatedSource, createdElement, {
-    type: 'bpmn:SequenceFlow',
-    id: flowId1,
-  });
-  fixConnectionId(conn1, flowId1);
-
-  // If the original flow had a condition, move it to the source→new flow
-  if (flowCondition) {
-    modeling.updateProperties(conn1, { conditionExpression: flowCondition });
-  }
-
-  // Step 5: Connect new element → target
-  const flowId2 = generateFlowId(elementRegistry, elementName, updatedTarget?.businessObject?.name);
-  const conn2 = modeling.connect(createdElement, updatedTarget, {
-    type: 'bpmn:SequenceFlow',
-    id: flowId2,
-  });
-  fixConnectionId(conn2, flowId2);
-
-  // Step 6: Detect and fix overlaps caused by insertion/shift
   const overlaps = detectOverlaps(elementRegistry, createdElement);
   if (overlaps.length > 0) {
     resolveInsertionOverlaps(modeling, elementRegistry, createdElement, overlaps);
@@ -254,29 +221,24 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
 
   await syncXml(diagram);
 
-  const result = jsonResult({
-    success: true,
-    elementId: createdElement.id,
-    elementType,
-    name: elementName,
-    position: { x: midX, y: midY },
-    replacedFlowId: flowId,
-    newFlows: [
-      { flowId: conn1.id, source: sourceId, target: createdElement.id },
-      { flowId: conn2.id, source: createdElement.id, target: targetId },
-    ],
-    ...(shiftApplied > 0
-      ? { shiftApplied, shiftNote: 'Downstream elements shifted right to make space' }
-      : {}),
-    diagramCounts: buildElementCounts(elementRegistry),
-    ...(overlaps.length > 0
-      ? {
-          overlapResolution: `Resolved ${overlaps.length} overlap(s) by shifting elements: ${overlaps.map((el: any) => el.id).join(', ')}`,
-        }
-      : {}),
-    message: `Inserted ${elementType}${elementName ? ` "${elementName}"` : ''} between ${sourceId} and ${targetId}`,
-    ...(flowLabel ? { note: `Original flow label "${flowLabel}" was removed` } : {}),
-  });
+  const result = jsonResult(
+    buildInsertResult({
+      createdElement,
+      elementType,
+      elementName,
+      midX,
+      midY,
+      flowId,
+      conn1,
+      conn2,
+      sourceId,
+      targetId,
+      shiftApplied,
+      overlaps,
+      flowLabel,
+      elementRegistry,
+    })
+  );
   return appendLintFeedback(result, diagram);
 }
 

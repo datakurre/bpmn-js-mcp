@@ -13,6 +13,38 @@ export interface SummarizeDiagramArgs {
   diagramId: string;
 }
 
+/** Classify a flow element as disconnected (missing expected connections). */
+function isDisconnected(el: any): boolean {
+  const hasIncoming = el.incoming && el.incoming.length > 0;
+  const hasOutgoing = el.outgoing && el.outgoing.length > 0;
+  if (el.type === 'bpmn:StartEvent') return !hasOutgoing;
+  if (el.type === 'bpmn:EndEvent') return !hasIncoming;
+  if (
+    el.type === 'bpmn:TextAnnotation' ||
+    el.type === 'bpmn:DataObjectReference' ||
+    el.type === 'bpmn:DataStoreReference' ||
+    el.type === 'bpmn:Group'
+  ) {
+    return false;
+  }
+  return !hasIncoming && !hasOutgoing;
+}
+
+const CONNECTION_TYPES = new Set([
+  'bpmn:SequenceFlow',
+  'bpmn:MessageFlow',
+  'bpmn:Association',
+  'bpmn:DataInputAssociation',
+  'bpmn:DataOutputAssociation',
+]);
+
+const CONTAINER_TYPES = new Set(['bpmn:Participant', 'bpmn:Lane']);
+
+/** Check if an element is a connection or container (not a flow element). */
+function isConnectionOrContainer(type: string): boolean {
+  return CONNECTION_TYPES.has(type) || CONTAINER_TYPES.has(type);
+}
+
 export async function handleSummarizeDiagram(args: SummarizeDiagramArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
   const { diagramId } = args;
@@ -47,43 +79,13 @@ export async function handleSummarizeDiagram(args: SummarizeDiagramArgs): Promis
   }));
 
   // Connections
-  const flows = allElements.filter(
-    (el: any) =>
-      el.type === 'bpmn:SequenceFlow' ||
-      el.type === 'bpmn:MessageFlow' ||
-      el.type === 'bpmn:Association' ||
-      el.type === 'bpmn:DataInputAssociation' ||
-      el.type === 'bpmn:DataOutputAssociation'
-  );
+  const flows = allElements.filter((el: any) => CONNECTION_TYPES.has(el.type));
 
   // Flow elements (tasks, events, gateways — excluding connections, pools, lanes)
-  const flowElements = allElements.filter(
-    (el: any) =>
-      !el.type.includes('SequenceFlow') &&
-      !el.type.includes('MessageFlow') &&
-      !el.type.includes('Association') &&
-      el.type !== 'bpmn:Participant' &&
-      el.type !== 'bpmn:Lane'
-  );
+  const flowElements = allElements.filter((el: any) => !isConnectionOrContainer(el.type));
 
   // Disconnected elements (no incoming or outgoing)
-  const disconnected = flowElements.filter((el: any) => {
-    const hasIncoming = el.incoming && el.incoming.length > 0;
-    const hasOutgoing = el.outgoing && el.outgoing.length > 0;
-    // Start events only need outgoing, end events only need incoming
-    if (el.type === 'bpmn:StartEvent') return !hasOutgoing;
-    if (el.type === 'bpmn:EndEvent') return !hasIncoming;
-    // Artifacts don't need connections
-    if (
-      el.type === 'bpmn:TextAnnotation' ||
-      el.type === 'bpmn:DataObjectReference' ||
-      el.type === 'bpmn:DataStoreReference' ||
-      el.type === 'bpmn:Group'
-    ) {
-      return false;
-    }
-    return !hasIncoming && !hasOutgoing;
-  });
+  const disconnected = flowElements.filter(isDisconnected);
 
   // Named elements
   const namedElements = flowElements

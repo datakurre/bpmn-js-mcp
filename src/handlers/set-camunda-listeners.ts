@@ -80,6 +80,34 @@ function createListenerElement(
   return el;
 }
 
+/** Create camunda:ErrorEventDefinition entries and add to extension elements. */
+function createErrorDefinitions(
+  diagram: any,
+  moddle: any,
+  extensionElements: any,
+  errorDefinitions: SetCamundaListenersArgs['errorDefinitions']
+): void {
+  if (!errorDefinitions || errorDefinitions.length === 0) return;
+
+  const canvas = diagram.modeler.get('canvas');
+  const rootElement = canvas.getRootElement();
+  const definitions = rootElement.businessObject.$parent;
+
+  for (const errDef of errorDefinitions) {
+    const errorElement = errDef.errorRef
+      ? resolveOrCreateError(moddle, definitions, errDef.errorRef)
+      : undefined;
+
+    const camundaErrDef = moddle.create('camunda:ErrorEventDefinition', {
+      id: errDef.id,
+      expression: errDef.expression,
+    });
+    if (errorElement) camundaErrDef.errorRef = errorElement;
+    camundaErrDef.$parent = extensionElements;
+    extensionElements.values.push(camundaErrDef);
+  }
+}
+
 export async function handleSetCamundaListeners(
   args: SetCamundaListenersArgs
 ): Promise<ToolResult> {
@@ -112,7 +140,6 @@ export async function handleSetCamundaListeners(
   const bo = element.businessObject;
   const elType = element.type || bo.$type || '';
 
-  // Validate: taskListeners only on UserTask
   if (taskListeners.length > 0 && !elType.includes('UserTask')) {
     throw new McpError(
       ErrorCode.InvalidRequest,
@@ -120,7 +147,6 @@ export async function handleSetCamundaListeners(
     );
   }
 
-  // Validate: errorDefinitions only on ServiceTask
   if (errorDefinitions.length > 0 && bo.$type !== 'bpmn:ServiceTask') {
     throw new McpError(
       ErrorCode.InvalidRequest,
@@ -140,50 +166,24 @@ export async function handleSetCamundaListeners(
   if (executionListeners.length > 0) typesToRemove.add('camunda:ExecutionListener');
   if (taskListeners.length > 0) typesToRemove.add('camunda:TaskListener');
   if (errorDefinitions.length > 0) typesToRemove.add('camunda:ErrorEventDefinition');
-
   extensionElements.values = (extensionElements.values || []).filter(
     (v: any) => !typesToRemove.has(v.$type)
   );
 
-  // Create execution listeners
+  // Create listeners
   for (const listener of executionListeners) {
     const el = createListenerElement(moddle, 'camunda:ExecutionListener', listener);
     el.$parent = extensionElements;
     extensionElements.values.push(el);
   }
-
-  // Create task listeners
   for (const listener of taskListeners) {
     const el = createListenerElement(moddle, 'camunda:TaskListener', listener);
     el.$parent = extensionElements;
     extensionElements.values.push(el);
   }
 
-  // Create camunda:ErrorEventDefinition entries
-  if (errorDefinitions.length > 0) {
-    const canvas = diagram.modeler.get('canvas');
-    const rootElement = canvas.getRootElement();
-    const definitions = rootElement.businessObject.$parent;
-
-    for (const errDef of errorDefinitions) {
-      const errorElement = errDef.errorRef
-        ? resolveOrCreateError(moddle, definitions, errDef.errorRef)
-        : undefined;
-
-      const camundaErrDef = moddle.create('camunda:ErrorEventDefinition', {
-        id: errDef.id,
-        expression: errDef.expression,
-      });
-      if (errorElement) {
-        camundaErrDef.errorRef = errorElement;
-      }
-      camundaErrDef.$parent = extensionElements;
-      extensionElements.values.push(camundaErrDef);
-    }
-  }
-
+  createErrorDefinitions(diagram, moddle, extensionElements, errorDefinitions);
   modeling.updateProperties(element, { extensionElements });
-
   await syncXml(diagram);
 
   const result = jsonResult({

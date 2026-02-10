@@ -13,6 +13,44 @@ import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { requireDiagram, requireElement, jsonResult, syncXml, validateArgs } from './helpers';
 import { appendLintFeedback } from '../linter';
 
+/** Apply absolute move, returning the final position. */
+function applyMove(
+  modeling: any,
+  element: any,
+  x: number | undefined,
+  y: number | undefined
+): { x: number; y: number } {
+  const targetX = x ?? element.x;
+  const targetY = y ?? element.y;
+  const deltaX = targetX - element.x;
+  const deltaY = targetY - element.y;
+  if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+    modeling.moveElements([element], { x: deltaX, y: deltaY });
+  }
+  return { x: targetX, y: targetY };
+}
+
+/** Apply resize, returning the final dimensions. */
+function applyResize(
+  modeling: any,
+  elementRegistry: any,
+  elementId: string,
+  element: any,
+  width: number | undefined,
+  height: number | undefined
+): { width: number; height: number } {
+  const newWidth = width ?? element.width;
+  const newHeight = height ?? element.height;
+  const current = elementRegistry.get(elementId);
+  modeling.resizeShape(current, {
+    x: current.x,
+    y: current.y,
+    width: newWidth,
+    height: newHeight,
+  });
+  return { width: newWidth, height: newHeight };
+}
+
 export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId']);
   const { diagramId, elementId } = args;
@@ -54,43 +92,28 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
 
   // Move to absolute coordinates
   if (hasMove) {
-    const targetX = x ?? element.x;
-    const targetY = y ?? element.y;
-    const deltaX = targetX - element.x;
-    const deltaY = targetY - element.y;
-    if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
-      modeling.moveElements([element], { x: deltaX, y: deltaY });
-    }
-    actions.push(`moved to (${targetX}, ${targetY})`);
+    const pos = applyMove(modeling, element, x, y);
+    actions.push(`moved to (${pos.x}, ${pos.y})`);
   }
 
   // Resize
   if (hasResize) {
-    const newWidth = width ?? element.width;
-    const newHeight = height ?? element.height;
-    // Re-fetch element in case it moved
-    const current = elementRegistry.get(elementId);
-    modeling.resizeShape(current, {
-      x: current.x,
-      y: current.y,
-      width: newWidth,
-      height: newHeight,
-    });
-    actions.push(`resized to ${newWidth}×${newHeight}`);
+    const size = applyResize(modeling, elementRegistry, elementId, element, width, height);
+    actions.push(`resized to ${size.width}×${size.height}`);
   }
 
   await syncXml(diagram);
 
-  const result = jsonResult({
+  const data: Record<string, any> = {
     success: true,
     elementId,
-    ...(hasMove ? { position: { x: x ?? element.x, y: y ?? element.y } } : {}),
-    ...(hasResize
-      ? { newSize: { width: width ?? element.width, height: height ?? element.height } }
-      : {}),
-    ...(hasLane ? { laneId } : {}),
     message: `Element ${elementId}: ${actions.join(', ')}`,
-  });
+  };
+  if (hasMove) data.position = { x: x ?? element.x, y: y ?? element.y };
+  if (hasResize) data.newSize = { width: width ?? element.width, height: height ?? element.height };
+  if (hasLane) data.laneId = laneId;
+
+  const result = jsonResult(data);
   return appendLintFeedback(result, diagram);
 }
 
@@ -135,10 +158,37 @@ async function performMoveToLane(diagram: any, element: any, laneId: string): Pr
   }
 }
 
+const NON_LANE_MOVABLE = new Set([
+  'bpmn:Participant',
+  'bpmn:Lane',
+  'bpmn:Process',
+  'bpmn:Collaboration',
+]);
+
+/** Compute the Y position to place an element within a lane. */
+function computeLaneTargetY(element: any, lane: any): number {
+  const laneCy = lane.y + (lane.height || 0) / 2;
+  const elCy = element.y + (element.height || 0) / 2;
+  const laneTop = lane.y;
+  const laneBottom = lane.y + (lane.height || 0);
+  const halfH = (element.height || 0) / 2;
+
+  if (elCy - halfH < laneTop || elCy + halfH > laneBottom) return laneCy;
+  return elCy;
+}
+
+/** Register an element's business object in the lane's flowNodeRef list. */
+function registerInLane(element: any, lane: any): void {
+  const laneBo = lane.businessObject;
+  if (!laneBo) return;
+  const flowNodeRefs = laneBo.flowNodeRef || (laneBo.flowNodeRef = []);
+  const elemBo = element.businessObject;
+  if (elemBo && !flowNodeRefs.includes(elemBo)) flowNodeRefs.push(elemBo);
+}
+
 /**
  * Move an element into a lane (former move_to_bpmn_lane).
  */
-// eslint-disable-next-line complexity
 async function handleMoveToLane(
   diagramId: string,
   elementId: string,
@@ -159,50 +209,26 @@ async function handleMoveToLane(
   }
 
   const elType = element.type || '';
-  if (
-    elType === 'bpmn:Participant' ||
-    elType === 'bpmn:Lane' ||
-    elType === 'bpmn:Process' ||
-    elType === 'bpmn:Collaboration'
-  ) {
+  if (NON_LANE_MOVABLE.has(elType)) {
     throw new McpError(ErrorCode.InvalidRequest, `Cannot move ${elType} into a lane`);
   }
 
-  const laneCy = lane.y + (lane.height || 0) / 2;
   const elCy = element.y + (element.height || 0) / 2;
-
-  const laneTop = lane.y;
-  const laneBottom = lane.y + (lane.height || 0);
-  const halfH = (element.height || 0) / 2;
-
-  let targetY = elCy;
-  if (elCy - halfH < laneTop || elCy + halfH > laneBottom) {
-    targetY = laneCy;
-  }
-
-  const dx = 0;
+  const targetY = computeLaneTargetY(element, lane);
   const dy = targetY - elCy;
 
-  if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-    modeling.moveElements([element], { x: dx, y: dy });
+  if (Math.abs(dy) > 0.5) {
+    modeling.moveElements([element], { x: 0, y: dy });
   }
 
-  const laneBo = lane.businessObject;
-  if (laneBo) {
-    const flowNodeRefs = laneBo.flowNodeRef || (laneBo.flowNodeRef = []);
-    const elemBo = element.businessObject;
-    if (elemBo && !flowNodeRefs.includes(elemBo)) {
-      flowNodeRefs.push(elemBo);
-    }
-  }
-
+  registerInLane(element, lane);
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     elementId,
     laneId,
-    message: `Moved ${elementId} into lane ${laneBo?.name || laneId}`,
+    message: `Moved ${elementId} into lane ${lane.businessObject?.name || laneId}`,
   });
   return appendLintFeedback(result, diagram);
 }
