@@ -62,4 +62,22 @@ describe('handleListElements', () => {
     expect(flow.sourceId).toBe(aId);
     expect(flow.targetId).toBe(bId);
   });
+
+  it('includes attachedToRef for boundary events', async () => {
+    const diagramId = await createDiagram();
+    const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
+      name: 'Call API',
+      x: 200,
+      y: 100,
+    });
+    const boundaryId = await addElement(diagramId, 'bpmn:BoundaryEvent', {
+      name: 'Timeout',
+      hostElementId: taskId,
+    });
+
+    const res = parseResult(await handleListElements({ diagramId }));
+    const boundary = res.elements.find((e: any) => e.id === boundaryId);
+    expect(boundary).toBeDefined();
+    expect(boundary.attachedToRef).toBe(taskId);
+  });
 });

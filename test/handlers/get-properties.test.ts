@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { handleGetProperties, handleSetProperties, handleConnect } from '../../src/handlers';
+import {
+  handleGetProperties,
+  handleSetProperties,
+  handleConnect,
+  handleAddElement,
+} from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
 describe('handleGetProperties', () => {
@@ -43,5 +48,27 @@ describe('handleGetProperties', () => {
     const res = parseResult(await handleGetProperties({ diagramId, elementId: bId }));
     expect(res.incoming).toBeDefined();
     expect(res.incoming.length).toBe(1);
+  });
+
+  it('includes attachedToRef for boundary events', async () => {
+    const diagramId = await createDiagram();
+    const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
+      name: 'Call API',
+      x: 200,
+      y: 100,
+    });
+    const boundaryRes = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:BoundaryEvent',
+        name: 'Error Handler',
+        hostElementId: taskId,
+      })
+    );
+    const boundaryId = boundaryRes.elementId;
+
+    const res = parseResult(await handleGetProperties({ diagramId, elementId: boundaryId }));
+    expect(res.type).toBe('bpmn:BoundaryEvent');
+    expect(res.attachedToRef).toBe(taskId);
   });
 });

@@ -190,6 +190,11 @@ export async function handleGetProperties(args: GetPropertiesArgs): Promise<Tool
     height: element.height,
   };
 
+  // For boundary events, include host element reference
+  if (element.type === 'bpmn:BoundaryEvent' && element.host) {
+    result.attachedToRef = element.host.id;
+  }
+
   const camunda = serializeCamundaAttrs(bo);
   if (camunda) result.camundaProperties = camunda;
 
