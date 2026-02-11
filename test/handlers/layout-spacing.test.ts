@@ -5,22 +5,22 @@
  * produce layouts closer to bpmn-js's built-in auto-place algorithm.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 import { ELK_LAYER_SPACING, ELK_NODE_SPACING, ELK_EDGE_NODE_SPACING } from '../../src/constants';
 
 describe('ELK spacing constants', () => {
-  it('layer spacing is 60px (matching bpmn-js ~58px average)', () => {
+  test('layer spacing is 60px (matching bpmn-js ~58px average)', () => {
     expect(ELK_LAYER_SPACING).toBe(60);
   });
 
-  it('node spacing is 50px (matching bpmn-js ~110px branch gap)', () => {
+  test('node spacing is 50px (matching bpmn-js ~110px branch gap)', () => {
     expect(ELK_NODE_SPACING).toBe(50);
   });
 
-  it('edge-node spacing is 15px', () => {
+  test('edge-node spacing is 15px', () => {
     expect(ELK_EDGE_NODE_SPACING).toBe(15);
   });
 });
@@ -30,7 +30,7 @@ describe('layout spacing regression', () => {
     clearDiagrams();
   });
 
-  it('sequential layout produces compact edge-to-edge gaps', async () => {
+  test('sequential layout produces compact edge-to-edge gaps', async () => {
     const diagramId = await createDiagram('Compact Spacing');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
@@ -62,7 +62,7 @@ describe('layout spacing regression', () => {
     }
   });
 
-  it('pool layout has sufficient vertical padding', async () => {
+  test('pool layout has sufficient vertical padding', async () => {
     const diagramId = await createDiagram('Pool Padding');
 
     // Create a collaboration with one participant

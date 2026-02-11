@@ -6,7 +6,7 @@
  * the 5–15 px wobble from ELK's gateway port placement offsets.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -20,7 +20,7 @@ describe('Happy-path vertical alignment', () => {
     clearDiagrams();
   });
 
-  it('sequential flow: all elements share the same Y-centre within 1px', async () => {
+  test('sequential flow: all elements share the same Y-centre within 1px', async () => {
     const diagramId = await createDiagram('HP Align Sequential');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
@@ -45,7 +45,7 @@ describe('Happy-path vertical alignment', () => {
     }
   });
 
-  it('exclusive gateway: main-chain elements aligned, branches on distinct rows', async () => {
+  test('exclusive gateway: main-chain elements aligned, branches on distinct rows', async () => {
     const diagramId = await createDiagram('HP Align Gateway');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Decide' });
@@ -95,7 +95,7 @@ describe('Happy-path vertical alignment', () => {
     expect(Math.abs(centreY(yesEl) - centreY(noEl))).toBeGreaterThan(10);
   });
 
-  it('parallel gateway: happy-path branch aligned, other branches on distinct rows', async () => {
+  test('parallel gateway: happy-path branch aligned, other branches on distinct rows', async () => {
     const diagramId = await createDiagram('HP Align Parallel');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetCamundaListeners, handleExportBpmn } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetCamundaListeners', () => {
     clearDiagrams();
   });
 
-  it('sets execution listeners on a service task', async () => {
+  test('sets execution listeners on a service task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process' });
 
@@ -32,7 +32,7 @@ describe('handleSetCamundaListeners', () => {
     expect(xml).toContain('${endListener}');
   });
 
-  it('sets task listeners on a user task', async () => {
+  test('sets task listeners on a user task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review' });
 
@@ -52,7 +52,7 @@ describe('handleSetCamundaListeners', () => {
     expect(xml).toContain('camunda:taskListener');
   });
 
-  it('rejects task listeners on non-UserTask', async () => {
+  test('rejects task listeners on non-UserTask', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Auto' });
 
@@ -65,7 +65,7 @@ describe('handleSetCamundaListeners', () => {
     ).rejects.toThrow(/UserTask/);
   });
 
-  it('requires at least one listener', async () => {
+  test('requires at least one listener', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'X' });
 

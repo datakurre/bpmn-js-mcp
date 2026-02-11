@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleBatchOperations } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('batch operations rollback', () => {
     clearDiagrams();
   });
 
-  it('rolls back all changes on failure when stopOnError is true', async () => {
+  test('rolls back all changes on failure when stopOnError is true', async () => {
     const diagramId = await createDiagram('Rollback Test');
 
     // Add a start event first (pre-batch baseline)
@@ -51,7 +51,7 @@ describe('batch operations rollback', () => {
     expect(registryAfter.get(startId)).toBeDefined();
   });
 
-  it('does NOT roll back when stopOnError is false', async () => {
+  test('does NOT roll back when stopOnError is false', async () => {
     const diagramId = await createDiagram('No Rollback');
 
     const res = parseResult(
@@ -84,7 +84,7 @@ describe('batch operations rollback', () => {
     expect(registry.get('EndEvent_AlsoKept')).toBeDefined();
   });
 
-  it('rollback message indicates all changes rolled back', async () => {
+  test('rollback message indicates all changes rolled back', async () => {
     const diagramId = await createDiagram('Rollback Msg');
 
     const res = parseResult(

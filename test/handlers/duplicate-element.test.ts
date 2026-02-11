@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleDuplicateElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('handleDuplicateElement', () => {
     clearDiagrams();
   });
 
-  it('duplicates a task with its name', async () => {
+  test('duplicates a task with its name', async () => {
     const diagramId = await createDiagram('Duplicate Test');
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Review Order',
@@ -33,7 +33,7 @@ describe('handleDuplicateElement', () => {
     expect(newEl.type).toBe('bpmn:UserTask');
   });
 
-  it('duplicates with custom offset', async () => {
+  test('duplicates with custom offset', async () => {
     const diagramId = await createDiagram('Offset Test');
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Process',
@@ -54,7 +54,7 @@ describe('handleDuplicateElement', () => {
     expect(res.position).toBeDefined();
   });
 
-  it('duplicates an element without a name', async () => {
+  test('duplicates an element without a name', async () => {
     const diagramId = await createDiagram('No Name');
     const eventId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
 
@@ -64,7 +64,7 @@ describe('handleDuplicateElement', () => {
     expect(res.elementType).toBe('bpmn:StartEvent');
   });
 
-  it('rejects duplicating a participant', async () => {
+  test('rejects duplicating a participant', async () => {
     const diagramId = await createDiagram('Participant');
     const partId = await addElement(diagramId, 'bpmn:Participant', {
       name: 'Pool',
@@ -77,7 +77,7 @@ describe('handleDuplicateElement', () => {
     );
   });
 
-  it('rejects non-existent element', async () => {
+  test('rejects non-existent element', async () => {
     const diagramId = await createDiagram('Missing');
 
     await expect(handleDuplicateElement({ diagramId, elementId: 'nonexistent' })).rejects.toThrow();

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleListProcessVariables,
   handleSetInputOutput,
@@ -14,7 +14,7 @@ describe('list_bpmn_process_variables', () => {
     clearDiagrams();
   });
 
-  it('returns empty variables for an empty diagram', async () => {
+  test('returns empty variables for an empty diagram', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleListProcessVariables({ diagramId }));
     expect(res.success).toBe(true);
@@ -22,7 +22,7 @@ describe('list_bpmn_process_variables', () => {
     expect(res.variables).toEqual([]);
   });
 
-  it('extracts form field variables from user tasks', async () => {
+  test('extracts form field variables from user tasks', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Data' });
 
@@ -46,7 +46,7 @@ describe('list_bpmn_process_variables', () => {
     expect(firstNameVar.writtenBy[0].source).toBe('formField');
   });
 
-  it('extracts input/output parameter variables', async () => {
+  test('extracts input/output parameter variables', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Call API' });
 
@@ -65,7 +65,7 @@ describe('list_bpmn_process_variables', () => {
     expect(names).toContain('response');
   });
 
-  it('extracts variables from condition expressions', async () => {
+  test('extracts variables from condition expressions', async () => {
     const diagramId = await createDiagram();
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check?' });
     const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Yes path' });
@@ -86,7 +86,7 @@ describe('list_bpmn_process_variables', () => {
     expect(approvedVar.readBy[0].source).toBe('conditionExpression');
   });
 
-  it('extracts loop collection and element variables', async () => {
+  test('extracts loop collection and element variables', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process Item' });
 
@@ -110,7 +110,7 @@ describe('list_bpmn_process_variables', () => {
     expect(currentItemVar.writtenBy[0].source).toBe('loop.elementVariable');
   });
 
-  it('extracts script result variable', async () => {
+  test('extracts script result variable', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ScriptTask', { name: 'Calculate' });
 
@@ -130,7 +130,7 @@ describe('list_bpmn_process_variables', () => {
     expect(calcVar.writtenBy[0].source).toBe('scriptTask.resultVariable');
   });
 
-  it('returns variables sorted alphabetically', async () => {
+  test('returns variables sorted alphabetically', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Data' });
 

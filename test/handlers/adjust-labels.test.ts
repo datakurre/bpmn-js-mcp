@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAdjustLabels } from '../../src/handlers/adjust-labels-handler';
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
@@ -8,7 +8,7 @@ describe('handleAdjustLabels', () => {
     clearDiagrams();
   });
 
-  it('returns success with no adjustments needed on empty diagram', async () => {
+  test('returns success with no adjustments needed on empty diagram', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleAdjustLabels({ diagramId }));
 
@@ -17,7 +17,7 @@ describe('handleAdjustLabels', () => {
     expect(res.message).toContain('No label adjustments needed');
   });
 
-  it('returns element and flow label counts', async () => {
+  test('returns element and flow label counts', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleAdjustLabels({ diagramId }));
 
@@ -28,7 +28,7 @@ describe('handleAdjustLabels', () => {
     expect(typeof res.flowLabelsMoved).toBe('number');
   });
 
-  it('handles diagram with named gateway', async () => {
+  test('handles diagram with named gateway', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
     const gwId = await addElement(diagramId, 'bpmn:ExclusiveGateway', {

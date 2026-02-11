@@ -7,7 +7,7 @@
  * the gateway diamond at its centre-X rather than from the right edge.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -70,7 +70,7 @@ describe('Channel routing for gateway branches', () => {
     clearDiagrams();
   });
 
-  it('exclusive gateway branch connections have vertical segments between columns', async () => {
+  test('exclusive gateway branch connections have vertical segments between columns', async () => {
     const diagramId = await createDiagram('Channel Routing Exclusive');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Decision?' });
@@ -137,7 +137,7 @@ describe('Channel routing for gateway branches', () => {
     }
   });
 
-  it('parallel gateway branch connections route through channel', async () => {
+  test('parallel gateway branch connections route through channel', async () => {
     const diagramId = await createDiagram('Channel Routing Parallel');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway');
@@ -180,7 +180,7 @@ describe('Channel routing for gateway branches', () => {
     }
   });
 
-  it('connections remain orthogonal after channel routing', async () => {
+  test('connections remain orthogonal after channel routing', async () => {
     const diagramId = await createDiagram('Orthogonal After Channel');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check?' });

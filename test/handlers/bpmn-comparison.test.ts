@@ -17,7 +17,7 @@
  * Run with: npx vitest run test/handlers/bpmn-comparison.test.ts
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import { handleLayoutDiagram, handleExportBpmn } from '../../src/handlers';
 import {
   clearDiagrams,
@@ -93,13 +93,13 @@ describe('BPMN position comparison (normalised)', () => {
 
   for (const config of DIAGRAMS) {
     describe(config.name, () => {
-      it('reference BPMN has parseable positions', () => {
+      test('reference BPMN has parseable positions', () => {
         const refXml = loadReferenceBpmn(config.name);
         const refPositions = extractBpmnPositions(refXml);
         expect(refPositions.size).toBeGreaterThan(0);
       });
 
-      it(`BPMN DI positions within ${config.tolerance}px tolerance`, async () => {
+      test(`BPMN DI positions within ${config.tolerance}px tolerance`, async () => {
         const refXml = loadReferenceBpmn(config.name);
 
         // Import and layout
@@ -118,7 +118,7 @@ describe('BPMN position comparison (normalised)', () => {
         ).toBeGreaterThanOrEqual(config.minMatchRate);
       });
 
-      it('process-level XML structure is preserved after layout', async () => {
+      test('process-level XML structure is preserved after layout', async () => {
         const refXml = loadReferenceBpmn(config.name);
 
         // Import and layout

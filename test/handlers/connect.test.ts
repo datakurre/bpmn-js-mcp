@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleConnect', () => {
     clearDiagrams();
   });
 
-  it('connects two elements', async () => {
+  test('connects two elements', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -30,7 +30,7 @@ describe('handleConnect', () => {
     expect(conn.connectionId).toBeDefined();
   });
 
-  it('defaults to SequenceFlow type', async () => {
+  test('defaults to SequenceFlow type', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -50,7 +50,7 @@ describe('handleConnect', () => {
     expect(conn.connectionType).toBe('bpmn:SequenceFlow');
   });
 
-  it('throws when source missing', async () => {
+  test('throws when source missing', async () => {
     const diagramId = await createDiagram();
     const bId = await addElement(diagramId, 'bpmn:EndEvent', {
       x: 300,
@@ -65,7 +65,7 @@ describe('handleConnect', () => {
     ).rejects.toThrow(/Source element not found/);
   });
 
-  it('throws when target missing', async () => {
+  test('throws when target missing', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -86,7 +86,7 @@ describe('descriptive flow IDs', () => {
     clearDiagrams();
   });
 
-  it('generates a flow ID from label', async () => {
+  test('generates a flow ID from label', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -110,7 +110,7 @@ describe('descriptive flow IDs', () => {
     expect(conn.connectionId).toBe('Flow_Done');
   });
 
-  it('generates a flow ID from source/target names when no label', async () => {
+  test('generates a flow ID from source/target names when no label', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Begin',

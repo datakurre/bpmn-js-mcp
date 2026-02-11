@@ -9,7 +9,7 @@
  * Run with: npx vitest run test/handlers/mcp-reproduction.test.ts
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import {
   handleLayoutDiagram,
   handleConnect,
@@ -107,7 +107,7 @@ describe('MCP Reproduction Tests', () => {
       return { diagramId, startId, validateId, paymentId, shipId, endId };
     }
 
-    it('all elements on same Y row after layout', async () => {
+    test('all elements on same Y row after layout', async () => {
       const { diagramId } = await buildLinearFlow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -131,7 +131,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('left-to-right X ordering matches name ordering', async () => {
+    test('left-to-right X ordering matches name ordering', async () => {
       const { diagramId } = await buildLinearFlow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -152,7 +152,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('all sequence flows are 2-waypoint horizontal lines', async () => {
+    test('all sequence flows are 2-waypoint horizontal lines', async () => {
       const { diagramId } = await buildLinearFlow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -170,7 +170,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('uniform edge-to-edge gaps between elements', async () => {
+    test('uniform edge-to-edge gaps between elements', async () => {
       const { diagramId } = await buildLinearFlow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -269,7 +269,7 @@ describe('MCP Reproduction Tests', () => {
       };
     }
 
-    it('happy path on same Y row', async () => {
+    test('happy path on same Y row', async () => {
       const { diagramId } = await buildExclusiveGateway();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -287,7 +287,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('"Send Rejection" below happy path', async () => {
+    test('"Send Rejection" below happy path', async () => {
       const { diagramId } = await buildExclusiveGateway();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -297,7 +297,7 @@ describe('MCP Reproduction Tests', () => {
       expect(centreY(rejection)).toBeGreaterThan(centreY(gateway) + 50);
     });
 
-    it('"Yes" and "No" labels exist', async () => {
+    test('"Yes" and "No" labels exist', async () => {
       const { diagramId } = await buildExclusiveGateway();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -308,7 +308,7 @@ describe('MCP Reproduction Tests', () => {
       expect(noFlow, '"No" flow should exist').toBeTruthy();
     });
 
-    it('"No" flow has L-bend (3 waypoints)', async () => {
+    test('"No" flow has L-bend (3 waypoints)', async () => {
       const { diagramId } = await buildExclusiveGateway();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -361,7 +361,7 @@ describe('MCP Reproduction Tests', () => {
       return { diagramId, startId, forkId, chargeId, checkId, notifyId, joinId, endId };
     }
 
-    it('three branches on distinct Y rows', async () => {
+    test('three branches on distinct Y rows', async () => {
       const { diagramId } = await buildParallelForkJoin();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -375,7 +375,7 @@ describe('MCP Reproduction Tests', () => {
       expect(new Set(ys.map((y) => Math.round(y / 20))).size).toBe(3);
     });
 
-    it('branches span a vertical range', async () => {
+    test('branches span a vertical range', async () => {
       const { diagramId } = await buildParallelForkJoin();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -391,7 +391,7 @@ describe('MCP Reproduction Tests', () => {
       expect(span, 'Branches should spread vertically').toBeGreaterThanOrEqual(60);
     });
 
-    it('fork gateway X is left of all branches', async () => {
+    test('fork gateway X is left of all branches', async () => {
       const { diagramId, forkId } = await buildParallelForkJoin();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -409,7 +409,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('fork and join gateways on same Y row', async () => {
+    test('fork and join gateways on same Y row', async () => {
       const { diagramId, forkId, joinId } = await buildParallelForkJoin();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -458,7 +458,7 @@ describe('MCP Reproduction Tests', () => {
       return { diagramId, startId, subId, endId, subStartId, reviewId, subEndId };
     }
 
-    it('inner elements within subprocess bounds', async () => {
+    test('inner elements within subprocess bounds', async () => {
       const { diagramId, subId } = await buildNestedSubprocess();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -494,7 +494,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('subprocess size accommodates inner flow', async () => {
+    test('subprocess size accommodates inner flow', async () => {
       const { diagramId, subId } = await buildNestedSubprocess();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -504,7 +504,7 @@ describe('MCP Reproduction Tests', () => {
       expect(sub.height, 'Subprocess should be tall enough').toBeGreaterThanOrEqual(150);
     });
 
-    it('outer elements on same Y row', async () => {
+    test('outer elements on same Y row', async () => {
       const { diagramId } = await buildNestedSubprocess();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -586,7 +586,7 @@ describe('MCP Reproduction Tests', () => {
       };
     }
 
-    it('pools stacked vertically with gap', async () => {
+    test('pools stacked vertically with gap', async () => {
       const { diagramId } = await buildCollaboration();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -603,7 +603,7 @@ describe('MCP Reproduction Tests', () => {
       expect(lowerPool.y - upperBottom, 'Pools should have gap ≥ 20px').toBeGreaterThanOrEqual(20);
     });
 
-    it('Customer pool above System pool', async () => {
+    test('Customer pool above System pool', async () => {
       const { diagramId } = await buildCollaboration();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -613,7 +613,7 @@ describe('MCP Reproduction Tests', () => {
       expect(customer.y, 'Customer should be above System').toBeLessThan(system.y);
     });
 
-    it('message flow crosses between pools', async () => {
+    test('message flow crosses between pools', async () => {
       const { diagramId } = await buildCollaboration();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -626,7 +626,7 @@ describe('MCP Reproduction Tests', () => {
       expect(wp[0].y).toBeLessThan(wp[wp.length - 1].y);
     });
 
-    it('each pool has internal chain (3 elements, 2 sequence flows)', async () => {
+    test('each pool has internal chain (3 elements, 2 sequence flows)', async () => {
       const { diagramId } = await buildCollaboration();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -701,7 +701,7 @@ describe('MCP Reproduction Tests', () => {
       };
     }
 
-    it('main flow on same Y row', async () => {
+    test('main flow on same Y row', async () => {
       const { diagramId } = await buildBoundaryEvents();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -719,7 +719,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('escalation path below main flow', async () => {
+    test('escalation path below main flow', async () => {
       const { diagramId } = await buildBoundaryEvents();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -729,7 +729,7 @@ describe('MCP Reproduction Tests', () => {
       expect(centreY(escalate)).toBeGreaterThan(centreY(review));
     });
 
-    it('boundary event near host bottom edge', async () => {
+    test('boundary event near host bottom edge', async () => {
       const { diagramId, reviewId, boundaryId } = await buildBoundaryEvents();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -743,7 +743,7 @@ describe('MCP Reproduction Tests', () => {
       ).toBeLessThan(50);
     });
 
-    it('boundary event is non-interrupting', async () => {
+    test('boundary event is non-interrupting', async () => {
       const { diagramId, boundaryId } = await buildBoundaryEvents();
       const reg = getRegistry(diagramId);
       const boundary = reg.get(boundaryId);
@@ -841,7 +841,7 @@ describe('MCP Reproduction Tests', () => {
       };
     }
 
-    it('happy path elements ordered left-to-right', async () => {
+    test('happy path elements ordered left-to-right', async () => {
       const { diagramId } = await buildComplexWorkflow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -866,7 +866,7 @@ describe('MCP Reproduction Tests', () => {
       }
     });
 
-    it('"Reserve Inventory" below happy path but above rejection', async () => {
+    test('"Reserve Inventory" below happy path but above rejection', async () => {
       const { diagramId } = await buildComplexWorkflow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -881,7 +881,7 @@ describe('MCP Reproduction Tests', () => {
       expect(centreY(rejection)).toBeGreaterThan(centreY(inventory));
     });
 
-    it('parallel branches between fork and join X-coordinates', async () => {
+    test('parallel branches between fork and join X-coordinates', async () => {
       const { diagramId, forkId, joinId } = await buildComplexWorkflow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -897,7 +897,7 @@ describe('MCP Reproduction Tests', () => {
       expect(centreX(inventory)).toBeLessThan(centreX(join));
     });
 
-    it('"Yes" and "No" labels exist', async () => {
+    test('"Yes" and "No" labels exist', async () => {
       const { diagramId } = await buildComplexWorkflow();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -952,7 +952,7 @@ describe('MCP Reproduction Tests', () => {
       return { diagramId, customerId, systemId, sendOrderId };
     }
 
-    it('collapsed pool below expanded pool', async () => {
+    test('collapsed pool below expanded pool', async () => {
       const { diagramId } = await buildCollaborationCollapsed();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -968,7 +968,7 @@ describe('MCP Reproduction Tests', () => {
       );
     });
 
-    it('collapsed pool is thin (height ≤ 80)', async () => {
+    test('collapsed pool is thin (height ≤ 80)', async () => {
       const { diagramId } = await buildCollaborationCollapsed();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -978,7 +978,7 @@ describe('MCP Reproduction Tests', () => {
       expect(system.height, 'Collapsed pool should be thin').toBeLessThanOrEqual(80);
     });
 
-    it('message flow reaches collapsed pool', async () => {
+    test('message flow reaches collapsed pool', async () => {
       const { diagramId } = await buildCollaborationCollapsed();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);
@@ -991,7 +991,7 @@ describe('MCP Reproduction Tests', () => {
       expect(lastWp.y, 'Message flow should reach collapsed pool').toBeGreaterThanOrEqual(system.y);
     });
 
-    it('customer pool has internal flow elements', async () => {
+    test('customer pool has internal flow elements', async () => {
       const { diagramId } = await buildCollaborationCollapsed();
       await handleLayoutDiagram({ diagramId });
       const reg = getRegistry(diagramId);

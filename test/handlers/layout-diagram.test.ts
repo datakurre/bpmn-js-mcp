@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleLayoutDiagram', () => {
     clearDiagrams();
   });
 
-  it('runs layout on a diagram', async () => {
+  test('runs layout on a diagram', async () => {
     const diagramId = await createDiagram('Composite Layout Test');
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',

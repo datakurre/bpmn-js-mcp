@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleMoveElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleMoveElement', () => {
     clearDiagrams();
   });
 
-  it('moves an element to new coordinates', async () => {
+  test('moves an element to new coordinates', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', {
       x: 100,

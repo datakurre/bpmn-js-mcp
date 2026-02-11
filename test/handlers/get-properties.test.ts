@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleGetProperties,
   handleSetProperties,
@@ -12,7 +12,7 @@ describe('handleGetProperties', () => {
     clearDiagrams();
   });
 
-  it('returns element properties', async () => {
+  test('returns element properties', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Review',
@@ -29,7 +29,7 @@ describe('handleGetProperties', () => {
     expect(res.camundaProperties['camunda:assignee']).toBe('alice');
   });
 
-  it('includes incoming/outgoing connections', async () => {
+  test('includes incoming/outgoing connections', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -50,7 +50,7 @@ describe('handleGetProperties', () => {
     expect(res.incoming.length).toBe(1);
   });
 
-  it('includes attachedToRef for boundary events', async () => {
+  test('includes attachedToRef for boundary events', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Call API',

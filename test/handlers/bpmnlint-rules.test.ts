@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleLintDiagram } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -8,7 +8,7 @@ describe('bpmnlint custom rules', () => {
   });
 
   describe('naming-convention', () => {
-    it('warns when activity does not start with a verb', async () => {
+    test('warns when activity does not start with a verb', async () => {
       const diagramId = await createDiagram('Naming Test');
       await addElement(diagramId, 'bpmn:UserTask', { name: 'Customer Notification' });
 
@@ -27,7 +27,7 @@ describe('bpmnlint custom rules', () => {
       expect(namingIssues[0].message).toContain('verb-object');
     });
 
-    it('does not warn when activity starts with a verb', async () => {
+    test('does not warn when activity starts with a verb', async () => {
       const diagramId = await createDiagram('Good Naming');
       await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Order' });
 
@@ -45,7 +45,7 @@ describe('bpmnlint custom rules', () => {
       expect(namingIssues.length).toBe(0);
     });
 
-    it('warns when gateway does not end with ?', async () => {
+    test('warns when gateway does not end with ?', async () => {
       const diagramId = await createDiagram('Gateway Naming');
       await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check order' });
 
@@ -66,7 +66,7 @@ describe('bpmnlint custom rules', () => {
   });
 
   describe('implicit-split', () => {
-    it('warns when activity has multiple conditional outgoing flows', async () => {
+    test('warns when activity has multiple conditional outgoing flows', async () => {
       const diagramId = await createDiagram('Implicit Split');
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Order' });
       const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Accept' });
@@ -102,7 +102,7 @@ describe('bpmnlint custom rules', () => {
   });
 
   describe('gateway-pair-mismatch', () => {
-    it('warns when split gateway has no matching join', async () => {
+    test('warns when split gateway has no matching join', async () => {
       const diagramId = await createDiagram('Unpaired Gateway');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -130,7 +130,7 @@ describe('bpmnlint custom rules', () => {
       expect(pairIssues.length).toBeGreaterThan(0);
     });
 
-    it('does not warn when split has matching join', async () => {
+    test('does not warn when split has matching join', async () => {
       const diagramId = await createDiagram('Paired Gateway');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });

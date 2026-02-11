@@ -2,7 +2,7 @@
  * Tests for import_bpmn_xml DI preservation and auto-detection.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleImportXml, handleListElements, handleExportBpmn } from '../../src/handlers';
 import { parseResult, clearDiagrams } from '../helpers';
 
@@ -58,7 +58,7 @@ describe('import_bpmn_xml DI handling', () => {
     clearDiagrams();
   });
 
-  it('preserves existing DI coordinates when autoLayout is false', async () => {
+  test('preserves existing DI coordinates when autoLayout is false', async () => {
     const importRes = parseResult(await handleImportXml({ xml: XML_WITH_DI, autoLayout: false }));
     expect(importRes.success).toBe(true);
 
@@ -73,13 +73,13 @@ describe('import_bpmn_xml DI handling', () => {
     expect(xml).toContain('y="200"');
   });
 
-  it('auto-detects DI presence and skips auto-layout when DI exists', async () => {
+  test('auto-detects DI presence and skips auto-layout when DI exists', async () => {
     const importRes = parseResult(await handleImportXml({ xml: XML_WITH_DI }));
     expect(importRes.success).toBe(true);
     expect(importRes.diagramId).toBeDefined();
   });
 
-  it('applies auto-layout when XML has no DI coordinates', async () => {
+  test('applies auto-layout when XML has no DI coordinates', async () => {
     const importRes = parseResult(await handleImportXml({ xml: XML_WITHOUT_DI }));
     expect(importRes.success).toBe(true);
 
@@ -88,7 +88,7 @@ describe('import_bpmn_xml DI handling', () => {
     expect(elements.elements.length).toBeGreaterThan(0);
   });
 
-  it('forces auto-layout when autoLayout is true even with existing DI', async () => {
+  test('forces auto-layout when autoLayout is true even with existing DI', async () => {
     const importRes = parseResult(await handleImportXml({ xml: XML_WITH_DI, autoLayout: true }));
     expect(importRes.success).toBe(true);
     expect(importRes.diagramId).toBeDefined();

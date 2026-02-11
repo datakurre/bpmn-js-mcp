@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleDeleteDiagram, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleDeleteDiagram', () => {
     clearDiagrams();
   });
 
-  it('deletes an existing diagram', async () => {
+  test('deletes an existing diagram', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleDeleteDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -18,7 +18,7 @@ describe('handleDeleteDiagram', () => {
     );
   });
 
-  it('throws for unknown diagram', async () => {
+  test('throws for unknown diagram', async () => {
     await expect(handleDeleteDiagram({ diagramId: 'nope' })).rejects.toThrow(/Diagram not found/);
   });
 });

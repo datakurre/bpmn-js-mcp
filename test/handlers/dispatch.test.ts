@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { dispatchToolCall } from '../../src/handlers';
 import { parseResult, clearDiagrams } from '../helpers';
 
@@ -7,12 +7,12 @@ describe('dispatchToolCall', () => {
     clearDiagrams();
   });
 
-  it('routes create_bpmn_diagram correctly', async () => {
+  test('routes create_bpmn_diagram correctly', async () => {
     const res = parseResult(await dispatchToolCall('create_bpmn_diagram', {}));
     expect(res.success).toBe(true);
   });
 
-  it('routes new tools correctly', async () => {
+  test('routes new tools correctly', async () => {
     const createRes = parseResult(await dispatchToolCall('create_bpmn_diagram', {}));
     const diagramId = createRes.diagramId;
 
@@ -29,7 +29,7 @@ describe('dispatchToolCall', () => {
     expect(deleteRes.success).toBe(true);
   });
 
-  it('throws for unknown tool', async () => {
+  test('throws for unknown tool', async () => {
     await expect(dispatchToolCall('no_such_tool', {})).rejects.toThrow(/Unknown tool/);
   });
 });

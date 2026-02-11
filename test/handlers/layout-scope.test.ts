@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('layout_bpmn_diagram — scope parameter', () => {
     clearDiagrams();
   });
 
-  it('rejects non-existent scope element', async () => {
+  test('rejects non-existent scope element', async () => {
     const diagramId = await createDiagram('Scope Test');
     await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
 
@@ -16,7 +16,7 @@ describe('layout_bpmn_diagram — scope parameter', () => {
     ).rejects.toThrow();
   });
 
-  it('rejects scope on a task (not Participant or SubProcess)', async () => {
+  test('rejects scope on a task (not Participant or SubProcess)', async () => {
     const diagramId = await createDiagram('Invalid Scope');
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task' });
 
@@ -31,7 +31,7 @@ describe('layout_bpmn_diagram — crossing flow detection', () => {
     clearDiagrams();
   });
 
-  it('reports crossing flows in result', async () => {
+  test('reports crossing flows in result', async () => {
     const diagramId = await createDiagram('Crossing Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });

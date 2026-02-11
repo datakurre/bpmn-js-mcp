@@ -198,8 +198,8 @@ async function performExport(diagram: any, format: string): Promise<ToolResult['
 
 /** Write primary export content to a file. */
 async function writeExportToFile(filePath: string, content: ToolResult['content']): Promise<void> {
-  const fs = await import('fs');
-  const path = await import('path');
+  const fs = await import('node:fs');
+  const path = await import('node:path');
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

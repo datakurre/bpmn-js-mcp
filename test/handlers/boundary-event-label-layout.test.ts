@@ -6,7 +6,7 @@
  * bottom border of their host (BPMN convention).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleLayoutDiagram, handleAddElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -16,7 +16,7 @@ describe('boundary event layout', () => {
     clearDiagrams();
   });
 
-  it('boundary event labels stay near their events after layout', async () => {
+  test('boundary event labels stay near their events after layout', async () => {
     const diagramId = await createDiagram('Boundary Label Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process' });
@@ -66,7 +66,7 @@ describe('boundary event layout', () => {
     }
   });
 
-  it('boundary event prefers bottom border of host', async () => {
+  test('boundary event prefers bottom border of host', async () => {
     const diagramId = await createDiagram('Boundary Bottom Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });

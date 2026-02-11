@@ -17,7 +17,7 @@
  * the gold-standard reference positions.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram } from '../../src/handlers';
 import { clearDiagrams, importReference, comparePositions } from '../helpers';
 
@@ -104,7 +104,7 @@ describe('Reference layout regression', () => {
     clearDiagrams();
   });
 
-  it('07-complex-workflow: layout produces correct left-to-right ordering', async () => {
+  test('07-complex-workflow: layout produces correct left-to-right ordering', async () => {
     const { diagramId, registry } = await importReference('07-complex-workflow');
     await handleLayoutDiagram({ diagramId });
 
@@ -155,7 +155,7 @@ describe('Reference layout regression', () => {
     expect(centreX(inventory)).toBeLessThan(centreX(join));
   });
 
-  it('07-complex-workflow: parallel branches on distinct Y rows', async () => {
+  test('07-complex-workflow: parallel branches on distinct Y rows', async () => {
     const { diagramId, registry } = await importReference('07-complex-workflow');
     await handleLayoutDiagram({ diagramId });
 
@@ -166,7 +166,7 @@ describe('Reference layout regression', () => {
     expect(Math.abs(centreY(payment) - centreY(inventory))).toBeGreaterThan(10);
   });
 
-  it('07-complex-workflow: all main-path connections are orthogonal', async () => {
+  test('07-complex-workflow: all main-path connections are orthogonal', async () => {
     const { diagramId, registry } = await importReference('07-complex-workflow');
     await handleLayoutDiagram({ diagramId });
 
@@ -193,7 +193,7 @@ describe('Reference layout regression', () => {
     }
   });
 
-  it('07-complex-workflow: no element overlaps', async () => {
+  test('07-complex-workflow: no element overlaps', async () => {
     const { diagramId, registry } = await importReference('07-complex-workflow');
     await handleLayoutDiagram({ diagramId });
 
@@ -223,7 +223,7 @@ describe('Reference layout regression', () => {
     }
   });
 
-  it('07-complex-workflow: rejection end event placed to the right of gateway', async () => {
+  test('07-complex-workflow: rejection end event placed to the right of gateway', async () => {
     const { diagramId, registry } = await importReference('07-complex-workflow');
     await handleLayoutDiagram({ diagramId });
 
@@ -235,7 +235,7 @@ describe('Reference layout regression', () => {
     expect(centreX(endReject)).toBeGreaterThan(centreX(gwValid));
   });
 
-  it('07-complex-workflow: positions match reference within tolerance', async () => {
+  test('07-complex-workflow: positions match reference within tolerance', async () => {
     const { diagramId, registry } = await importReference('07-complex-workflow');
     await handleLayoutDiagram({ diagramId });
 

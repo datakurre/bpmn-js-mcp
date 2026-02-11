@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLintDiagram } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -12,7 +12,7 @@ describe('naming-convention: technical name detection', () => {
     rules: { 'bpmn-mcp/naming-convention': 'warn' },
   };
 
-  it('warns on camelCase task names', async () => {
+  test('warns on camelCase task names', async () => {
     const diagramId = await createDiagram('Technical Names');
     await addElement(diagramId, 'bpmn:UserTask', { name: 'processOrder' });
 
@@ -22,7 +22,7 @@ describe('naming-convention: technical name detection', () => {
     expect(issues[0].message).toContain('technical identifier');
   });
 
-  it('warns on PascalCase task names', async () => {
+  test('warns on PascalCase task names', async () => {
     const diagramId = await createDiagram('Technical Names');
     await addElement(diagramId, 'bpmn:UserTask', { name: 'ProcessOrder' });
 
@@ -32,7 +32,7 @@ describe('naming-convention: technical name detection', () => {
     expect(issues[0].message).toContain('technical identifier');
   });
 
-  it('warns on snake_case task names', async () => {
+  test('warns on snake_case task names', async () => {
     const diagramId = await createDiagram('Technical Names');
     await addElement(diagramId, 'bpmn:UserTask', { name: 'process_order' });
 
@@ -42,7 +42,7 @@ describe('naming-convention: technical name detection', () => {
     expect(issues[0].message).toContain('technical identifier');
   });
 
-  it('warns on auto-generated ID-style names', async () => {
+  test('warns on auto-generated ID-style names', async () => {
     const diagramId = await createDiagram('Technical Names');
     await addElement(diagramId, 'bpmn:UserTask', { name: 'ServiceTask_0x1f3a' });
 
@@ -52,7 +52,7 @@ describe('naming-convention: technical name detection', () => {
     expect(issues[0].message).toContain('technical identifier');
   });
 
-  it('does not warn on proper human-readable names', async () => {
+  test('does not warn on proper human-readable names', async () => {
     const diagramId = await createDiagram('Good Names');
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Order' });
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Application' });
@@ -65,7 +65,7 @@ describe('naming-convention: technical name detection', () => {
     expect(issues.length).toBe(0);
   });
 
-  it('does not warn on single words', async () => {
+  test('does not warn on single words', async () => {
     const diagramId = await createDiagram('Single Words');
     await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });

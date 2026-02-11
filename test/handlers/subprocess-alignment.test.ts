@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('vertical alignment inside expanded subprocesses (AS-2)', () => {
     clearDiagrams();
   });
 
-  it('elements inside an expanded subprocess align vertically', async () => {
+  test('elements inside an expanded subprocess align vertically', async () => {
     const diagramId = await createDiagram('Subprocess Alignment');
 
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

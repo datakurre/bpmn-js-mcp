@@ -9,7 +9,7 @@
  * element by design.
  */
 
-import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
+import { isConnection, isInfrastructure, isArtifact, isLane, isLayoutableShape } from './helpers';
 
 /** Minimum gap (px) enforced between elements after overlap resolution. */
 const MIN_OVERLAP_GAP = 30;
@@ -133,14 +133,6 @@ function getLayoutableShapes(elementRegistry: any, container?: any): any[] {
   }
 
   return elementRegistry.filter(
-    (el: any) =>
-      !isInfrastructure(el.type) &&
-      !isConnection(el.type) &&
-      !isArtifact(el.type) &&
-      !isLane(el.type) &&
-      el.type !== 'label' &&
-      el.type !== 'bpmn:Participant' &&
-      el.type !== 'bpmn:BoundaryEvent' &&
-      (!parentFilter || el.parent === parentFilter)
+    (el: any) => isLayoutableShape(el) && (!parentFilter || el.parent === parentFilter)
   );
 }

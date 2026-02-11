@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -9,13 +9,13 @@ describe('handleExportBpmn', () => {
 
   // ── XML format ──────────────────────────────────────────────────────────
 
-  it('returns BPMN XML when format is xml', async () => {
+  test('returns BPMN XML when format is xml', async () => {
     const diagramId = await createDiagram();
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     expect(res.content[0].text).toContain('<bpmn:definitions');
   });
 
-  it('returns SVG when format is svg', async () => {
+  test('returns SVG when format is svg', async () => {
     const diagramId = await createDiagram();
     const res = await handleExportBpmn({ diagramId, format: 'svg', skipLint: true });
     expect(res.content[0].text).toContain('<svg');
@@ -23,7 +23,7 @@ describe('handleExportBpmn', () => {
 
   // ── Connectivity warnings ───────────────────────────────────────────────
 
-  it('warns when elements are disconnected', async () => {
+  test('warns when elements are disconnected', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
     await addElement(diagramId, 'bpmn:EndEvent', { x: 300, y: 100 });
@@ -36,7 +36,7 @@ describe('handleExportBpmn', () => {
 
   // ── Implicit lint (skipLint: false — default) ───────────────────────────
 
-  it('blocks export when lint errors exist', async () => {
+  test('blocks export when lint errors exist', async () => {
     const diagramId = await createDiagram();
     // Add a start event with no end event — "end-event-required" is an error
     await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
@@ -47,7 +47,7 @@ describe('handleExportBpmn', () => {
     expect(res.content[0].text).toContain('lint issue');
   });
 
-  it('exports successfully when diagram is valid', async () => {
+  test('exports successfully when diagram is valid', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -62,7 +62,7 @@ describe('handleExportBpmn', () => {
     expect(res.content[0].text).toContain('<bpmn:definitions');
   });
 
-  it('skipLint: true bypasses lint validation', async () => {
+  test('skipLint: true bypasses lint validation', async () => {
     const diagramId = await createDiagram();
     // Invalid diagram — no end event
     await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
@@ -74,7 +74,7 @@ describe('handleExportBpmn', () => {
 
   // ── Disconnected artifact warnings ──────────────────────────────────────
 
-  it('warns about disconnected TextAnnotation', async () => {
+  test('warns about disconnected TextAnnotation', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -92,7 +92,7 @@ describe('handleExportBpmn', () => {
     expect(hasArtifactWarning).toBe(true);
   });
 
-  it('warns about disconnected DataObjectReference', async () => {
+  test('warns about disconnected DataObjectReference', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -109,7 +109,7 @@ describe('handleExportBpmn', () => {
     expect(hasArtifactWarning).toBe(true);
   });
 
-  it('warns about disconnected DataStoreReference', async () => {
+  test('warns about disconnected DataStoreReference', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -126,7 +126,7 @@ describe('handleExportBpmn', () => {
     expect(hasArtifactWarning).toBe(true);
   });
 
-  it('no artifact warning when annotation is connected via Association', async () => {
+  test('no artifact warning when annotation is connected via Association', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',

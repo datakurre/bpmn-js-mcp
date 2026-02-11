@@ -3,7 +3,7 @@
  * for creating / retrieving / importing diagrams.
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 import { type DiagramState } from './types';
 import { createHeadlessCanvas, getBpmnModeler } from './headless-canvas';
 import camundaModdle from 'camunda-bpmn-moddle/resources/camunda.json';

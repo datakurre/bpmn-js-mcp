@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect, handleListElements } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('layout_bpmn_diagram — crossing flow pairs', () => {
     clearDiagrams();
   });
 
-  it('returns crossingFlowPairs as an array when crossings exist', async () => {
+  test('returns crossingFlowPairs as an array when crossings exist', async () => {
     const diagramId = await createDiagram('Crossing Pairs Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -42,7 +42,7 @@ describe('layout_bpmn_diagram — grid snapping', () => {
     clearDiagrams();
   });
 
-  it('snaps element positions to grid when gridSnap is set', async () => {
+  test('snaps element positions to grid when gridSnap is set', async () => {
     const diagramId = await createDiagram('Grid Snap Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Order' });
@@ -67,7 +67,7 @@ describe('layout_bpmn_diagram — grid snapping', () => {
     }
   });
 
-  it('does not affect positions when gridSnap is not set', async () => {
+  test('does not affect positions when gridSnap is not set', async () => {
     const diagramId = await createDiagram('No Grid Snap');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Order' });

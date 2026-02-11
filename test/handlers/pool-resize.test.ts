@@ -5,7 +5,7 @@
  * after layout — they should NOT stay at their default 600×250.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleLayoutDiagram,
   handleConnect,
@@ -20,7 +20,7 @@ describe('pool auto-resize after layout', () => {
     clearDiagrams();
   });
 
-  it('resizes participant pools to fit their children', async () => {
+  test('resizes participant pools to fit their children', async () => {
     const diagramId = await createDiagram();
 
     const collab = parseResult(
@@ -148,7 +148,7 @@ describe('pool auto-resize after layout', () => {
     }
   });
 
-  it('boundary events stay near their host after layout', async () => {
+  test('boundary events stay near their host after layout', async () => {
     const diagramId = await createDiagram();
 
     // Simple process with a task and boundary event

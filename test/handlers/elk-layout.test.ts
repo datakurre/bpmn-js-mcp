@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     clearDiagrams();
   });
 
-  it('runs ELK layout on a simple flow', async () => {
+  test('runs ELK layout on a simple flow', async () => {
     const diagramId = await createDiagram('Simple ELK Test');
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -31,7 +31,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     expect(res.elementCount).toBeGreaterThanOrEqual(2);
   });
 
-  it('produces left-to-right ordering for a sequential flow', async () => {
+  test('produces left-to-right ordering for a sequential flow', async () => {
     const diagramId = await createDiagram('Sequential Flow');
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -64,7 +64,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     expect(taskEl.x).toBeLessThan(endEl.x);
   });
 
-  it('handles parallel branches that reconverge', async () => {
+  test('handles parallel branches that reconverge', async () => {
     const diagramId = await createDiagram('Parallel Branches');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -101,7 +101,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     expect(taskAEl.y).not.toBe(taskBEl.y);
   });
 
-  it('handles exclusive gateway branches', async () => {
+  test('handles exclusive gateway branches', async () => {
     const diagramId = await createDiagram('Exclusive Branches');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Decision' });
@@ -139,7 +139,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     expect(reg.get(yesTask).x).toBeLessThan(reg.get(joinGw).x);
   });
 
-  it('handles diamond pattern with 5 branches', async () => {
+  test('handles diamond pattern with 5 branches', async () => {
     const diagramId = await createDiagram('Diamond 5');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -169,7 +169,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     expect(uniqueY.size).toBe(5);
   });
 
-  it('handles disconnected elements gracefully', async () => {
+  test('handles disconnected elements gracefully', async () => {
     const diagramId = await createDiagram('Disconnected');
     await addElement(diagramId, 'bpmn:StartEvent', { name: 'A', x: 50, y: 50 });
     await addElement(diagramId, 'bpmn:EndEvent', { name: 'B', x: 50, y: 50 });
@@ -180,7 +180,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     expect(res.elementCount).toBe(2);
   });
 
-  it('produces clean connection waypoints (no zigzag routing)', async () => {
+  test('produces clean connection waypoints (no zigzag routing)', async () => {
     const diagramId = await createDiagram('Clean Waypoints');
 
     // Build a simple sequential flow — all elements stacked at same position
@@ -245,7 +245,7 @@ describe('handleLayoutDiagram (ELK)', () => {
     }
   });
 
-  it('updates XML after layout', async () => {
+  test('updates XML after layout', async () => {
     const diagramId = await createDiagram('XML Sync');
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',

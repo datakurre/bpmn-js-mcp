@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetCallActivityVariables, handleExportBpmn } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetCallActivityVariables', () => {
     clearDiagrams();
   });
 
-  it('sets in/out variable mappings on a CallActivity', async () => {
+  test('sets in/out variable mappings on a CallActivity', async () => {
     const diagramId = await createDiagram();
     const callId = await addElement(diagramId, 'bpmn:CallActivity', { name: 'Subprocess' });
 
@@ -35,7 +35,7 @@ describe('handleSetCallActivityVariables', () => {
     expect(xml).toContain('subprocessResult');
   });
 
-  it('supports variables="all" shorthand', async () => {
+  test('supports variables="all" shorthand', async () => {
     const diagramId = await createDiagram();
     const callId = await addElement(diagramId, 'bpmn:CallActivity', { name: 'Sub' });
 
@@ -55,7 +55,7 @@ describe('handleSetCallActivityVariables', () => {
     expect(xml).toContain('variables="all"');
   });
 
-  it('rejects on non-CallActivity elements', async () => {
+  test('rejects on non-CallActivity elements', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task' });
 
@@ -68,7 +68,7 @@ describe('handleSetCallActivityVariables', () => {
     ).rejects.toThrow(/CallActivity/);
   });
 
-  it('requires at least one mapping', async () => {
+  test('requires at least one mapping', async () => {
     const diagramId = await createDiagram();
     const callId = await addElement(diagramId, 'bpmn:CallActivity', { name: 'Sub' });
 

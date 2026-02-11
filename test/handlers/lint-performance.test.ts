@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { lintDiagram, lintDiagramFlat, clearLintCache } from '../../src/linter';
@@ -9,8 +9,10 @@ import { getDiagram } from '../../src/diagram-manager';
  *
  * Quantifies lint time for diagrams of varying size to detect regressions
  * and assess whether the fresh-Linter-per-call strategy needs optimisation.
+ *
+ * These are benchmark tests, skipped in CI.
  */
-describe('linter performance benchmarks', () => {
+describe.skipIf(!!process.env.CI)('linter performance benchmarks', () => {
   beforeEach(() => {
     clearDiagrams();
     clearLintCache();
@@ -115,7 +117,7 @@ describe('linter performance benchmarks', () => {
 
   // ── Small diagram (3 tasks) ──────────────────────────────────────────
 
-  it('lint small diagram (3 tasks) completes under 5s', async () => {
+  test('lint small diagram (3 tasks) completes under 5s', async () => {
     const diagramId = await buildLinearChain(3);
     const { ms, issueCount } = await measureLintMs(diagramId);
 
@@ -125,7 +127,7 @@ describe('linter performance benchmarks', () => {
 
   // ── Medium diagram (10 tasks) ────────────────────────────────────────
 
-  it('lint medium diagram (10 tasks) completes under 10s', async () => {
+  test('lint medium diagram (10 tasks) completes under 10s', async () => {
     const diagramId = await buildLinearChain(10);
     const { ms, issueCount } = await measureLintMs(diagramId);
 
@@ -135,7 +137,7 @@ describe('linter performance benchmarks', () => {
 
   // ── Diamond diagram (5 branches) ────────────────────────────────────
 
-  it('lint diamond diagram (5 branches) completes under 10s', async () => {
+  test('lint diamond diagram (5 branches) completes under 10s', async () => {
     const diagramId = await buildDiamond(5);
     const { ms, issueCount } = await measureLintMs(diagramId);
 
@@ -145,7 +147,7 @@ describe('linter performance benchmarks', () => {
 
   // ── Lint cache effectiveness ─────────────────────────────────────────
 
-  it('second lint call is faster due to caching', async () => {
+  test('second lint call is faster due to caching', async () => {
     const diagramId = await buildLinearChain(5);
     const diagram = getDiagram(diagramId)!;
     clearLintCache();

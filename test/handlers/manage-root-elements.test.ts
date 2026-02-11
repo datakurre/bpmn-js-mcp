@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleManageRootElements, handleExportBpmn } from '../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleManageRootElements', () => {
     clearDiagrams();
   });
 
-  it('creates root-level message definitions', async () => {
+  test('creates root-level message definitions', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -29,7 +29,7 @@ describe('handleManageRootElements', () => {
     expect(xml).toContain('OrderPlaced');
   });
 
-  it('creates root-level signal definitions', async () => {
+  test('creates root-level signal definitions', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -48,7 +48,7 @@ describe('handleManageRootElements', () => {
     expect(xml).toContain('AlertTriggered');
   });
 
-  it('requires at least one definition', async () => {
+  test('requires at least one definition', async () => {
     const diagramId = await createDiagram();
 
     await expect(handleManageRootElements({ diagramId })).rejects.toThrow(/at least one/i);

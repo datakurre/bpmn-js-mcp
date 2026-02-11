@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleListDiagrams } from '../../src/handlers';
 import { parseResult, createDiagram, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleListDiagrams', () => {
     clearDiagrams();
   });
 
-  it('lists all diagrams', async () => {
+  test('lists all diagrams', async () => {
     await createDiagram('First');
     await createDiagram('Second');
 
@@ -16,7 +16,7 @@ describe('handleListDiagrams', () => {
     expect(res.diagrams[0].name).toBe('First');
   });
 
-  it('returns empty when no diagrams', async () => {
+  test('returns empty when no diagrams', async () => {
     const res = parseResult(await handleListDiagrams());
     expect(res.count).toBe(0);
   });

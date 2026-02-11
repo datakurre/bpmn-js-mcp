@@ -5,7 +5,7 @@
  * aligned with their immediate predecessor element.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect, handleSetEventDefinition } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -19,7 +19,7 @@ describe('Boundary sub-flow end event alignment', () => {
     clearDiagrams();
   });
 
-  it('end event after boundary handler aligns with handler Y', async () => {
+  test('end event after boundary handler aligns with handler Y', async () => {
     const diagramId = await createDiagram('Boundary EndEvent Align');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Call API' });
@@ -56,7 +56,7 @@ describe('Boundary sub-flow end event alignment', () => {
     ).toBeLessThanOrEqual(5);
   });
 
-  it('end event directly from boundary event aligns with boundary Y', async () => {
+  test('end event directly from boundary event aligns with boundary Y', async () => {
     const diagramId = await createDiagram('Boundary Direct End');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process' });

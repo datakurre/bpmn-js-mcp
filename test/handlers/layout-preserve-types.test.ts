@@ -6,7 +6,7 @@
  * which can lose their type in headless mode.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, test, expect, afterEach } from 'vitest';
 import { handleImportXml } from '../../src/handlers/import-xml';
 import { handleLayoutDiagram } from '../../src/handlers/layout-diagram';
 import { handleListElements } from '../../src/handlers/list-elements';
@@ -115,7 +115,7 @@ const MIXED_TYPES_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 describe('layout_bpmn_diagram preserves element types', () => {
-  it('should preserve all element types after full layout', async () => {
+  test('should preserve all element types after full layout', async () => {
     // Import diagram
     const importResult = parseResult(
       await handleImportXml({ xml: MIXED_TYPES_BPMN, autoLayout: false })
@@ -149,7 +149,7 @@ describe('layout_bpmn_diagram preserves element types', () => {
     }
   });
 
-  it('should preserve boundary event type specifically', async () => {
+  test('should preserve boundary event type specifically', async () => {
     const importResult = parseResult(
       await handleImportXml({ xml: MIXED_TYPES_BPMN, autoLayout: false })
     );
@@ -171,7 +171,7 @@ describe('layout_bpmn_diagram preserves element types', () => {
     expect(boundaryAfter.type).toBe('bpmn:BoundaryEvent');
   });
 
-  it('should keep boundary events near their host after layout', async () => {
+  test('should keep boundary events near their host after layout', async () => {
     const importResult = parseResult(
       await handleImportXml({ xml: MIXED_TYPES_BPMN, autoLayout: false })
     );

@@ -8,7 +8,7 @@
  * - Flow waypoints have minimal bend count
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import {
   createDiagram,
@@ -56,7 +56,7 @@ describe('Layout quality regression', () => {
     clearDiagrams();
   });
 
-  it('sequential flow: all connections orthogonal, elements on same Y', async () => {
+  test('sequential flow: all connections orthogonal, elements on same Y', async () => {
     const diagramId = await createDiagram('Sequential Quality');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
@@ -92,7 +92,7 @@ describe('Layout quality regression', () => {
     }
   });
 
-  it('exclusive branch with merge: orthogonal flows, branch elements on distinct rows', async () => {
+  test('exclusive branch with merge: orthogonal flows, branch elements on distinct rows', async () => {
     const diagramId = await createDiagram('Exclusive Merge Quality');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Decision' });
@@ -135,7 +135,7 @@ describe('Layout quality regression', () => {
     }
   });
 
-  it('parallel branch with merge: orthogonal flows', async () => {
+  test('parallel branch with merge: orthogonal flows', async () => {
     const diagramId = await createDiagram('Parallel Merge Quality');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -169,7 +169,7 @@ describe('Layout quality regression', () => {
     }
   });
 
-  it('2-branch exclusive split: happy-path branch at gateway Y, off-path below', async () => {
+  test('2-branch exclusive split: happy-path branch at gateway Y, off-path below', async () => {
     // Gateway → [Yes: Task → Merge, No: Task → Merge]
     // With no default flow, happy-path follows the first connected flow (Yes),
     // so "Yes Path" should be pinned at the gateway Y-centre and "No Path" below.
@@ -214,7 +214,7 @@ describe('Layout quality regression', () => {
     expect(centreY(noEl)).toBeGreaterThan(gwCy + 10);
   });
 
-  it('off-path end event aligns with its predecessor Y', async () => {
+  test('off-path end event aligns with its predecessor Y', async () => {
     // When an end event is a target of an off-path branch, it should
     // align vertically with its incoming source to avoid long vertical connectors
     const diagramId = await createDiagram('End Event Alignment');
@@ -252,7 +252,7 @@ describe('Layout quality regression', () => {
     }
   });
 
-  it('exclusive branch without merge gateway: flows to shared end event are orthogonal', async () => {
+  test('exclusive branch without merge gateway: flows to shared end event are orthogonal', async () => {
     // Reproduces the example.bpmn pattern where two branches merge at an EndEvent
     const diagramId = await createDiagram('Shared EndEvent Quality');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -304,7 +304,7 @@ describe('Layout quality regression', () => {
     expect(Math.abs(centreY(aEl) - centreY(bEl))).toBeGreaterThan(10);
   });
 
-  it('same-layer elements are vertically aligned after snap', async () => {
+  test('same-layer elements are vertically aligned after snap', async () => {
     // Build: Start → Task → Gateway → [Yes→End1, No→End2]
     // Gateway and the two end events should be in different layers,
     // but Start and Task should be on the same Y row
@@ -329,7 +329,7 @@ describe('Layout quality regression', () => {
     expect(Math.abs(centreY(endEl) - refY)).toBeLessThanOrEqual(1);
   });
 
-  it('left-to-right ordering preserved in complex patterns', async () => {
+  test('left-to-right ordering preserved in complex patterns', async () => {
     const diagramId = await createDiagram('L2R Complex');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'First' });
@@ -371,7 +371,7 @@ describe('Layout quality regression', () => {
 
   // ── Artifact layout ────────────────────────────────────────────────────
 
-  it('data objects and text annotations do not overlap flow elements after layout', async () => {
+  test('data objects and text annotations do not overlap flow elements after layout', async () => {
     const diagramId = await createDiagram('Artifacts Quality');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process' });
@@ -421,7 +421,7 @@ describe('Layout quality regression', () => {
     }
   });
 
-  it('boundary event recovery: orthogonal flows after layout', async () => {
+  test('boundary event recovery: orthogonal flows after layout', async () => {
     const diagramId = await createDiagram('Boundary Recovery');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Call Service' });
@@ -452,7 +452,7 @@ describe('Layout quality regression', () => {
   // ── Reference BPMN position tracking ─────────────────────────────────
 
   describe('reference position tracking', () => {
-    it('01-linear-flow: positions converge toward reference', async () => {
+    test('01-linear-flow: positions converge toward reference', async () => {
       const { diagramId, registry } = await importReference('01-linear-flow');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '01-linear-flow', 10);
@@ -460,21 +460,21 @@ describe('Layout quality regression', () => {
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('02-exclusive-gateway: positions converge toward reference', async () => {
+    test('02-exclusive-gateway: positions converge toward reference', async () => {
       const { diagramId, registry } = await importReference('02-exclusive-gateway');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '02-exclusive-gateway', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('03-parallel-fork-join: positions converge toward reference', async () => {
+    test('03-parallel-fork-join: positions converge toward reference', async () => {
       const { diagramId, registry } = await importReference('03-parallel-fork-join');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '03-parallel-fork-join', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('06-boundary-events: positions converge toward reference', async () => {
+    test('06-boundary-events: positions converge toward reference', async () => {
       const { diagramId, registry } = await importReference('06-boundary-events');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '06-boundary-events', 10);

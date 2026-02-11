@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleCreateCollaboration } from '../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleCreateCollaboration', () => {
     clearDiagrams();
   });
 
-  it('creates a collaboration with two participants', async () => {
+  test('creates a collaboration with two participants', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -22,7 +22,7 @@ describe('handleCreateCollaboration', () => {
     expect(res.participantIds).toHaveLength(2);
   });
 
-  it('creates participants with custom process IDs', async () => {
+  test('creates participants with custom process IDs', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -39,7 +39,7 @@ describe('handleCreateCollaboration', () => {
     expect(res.participantCount).toBe(2);
   });
 
-  it('rejects fewer than 2 participants', async () => {
+  test('rejects fewer than 2 participants', async () => {
     const diagramId = await createDiagram();
 
     await expect(
@@ -50,7 +50,7 @@ describe('handleCreateCollaboration', () => {
     ).rejects.toThrow(/At least 2/);
   });
 
-  it('generates descriptive IDs for participants', async () => {
+  test('generates descriptive IDs for participants', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(

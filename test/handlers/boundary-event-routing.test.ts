@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('Boundary event routing after layout', () => {
     clearDiagrams();
   });
 
-  it('routes boundary event outgoing flow around the host task', async () => {
+  test('routes boundary event outgoing flow around the host task', async () => {
     const diagramId = await createDiagram('Boundary Event Routing');
 
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -49,7 +49,7 @@ describe('Boundary event routing after layout', () => {
     expect(boundaryConn.waypoints.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('boundary event error path routes below the main flow', async () => {
+  test('boundary event error path routes below the main flow', async () => {
     const diagramId = await createDiagram('Error Path Routing');
 
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

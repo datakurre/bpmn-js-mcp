@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetScript } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('handleSetScript', () => {
     clearDiagrams();
   });
 
-  it('sets inline script on a ScriptTask', async () => {
+  test('sets inline script on a ScriptTask', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ScriptTask', { name: 'MyScript' });
 
@@ -33,7 +33,7 @@ describe('handleSetScript', () => {
     expect(bo.script).toBe('println "Hello"');
   });
 
-  it('sets resultVariable when provided', async () => {
+  test('sets resultVariable when provided', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ScriptTask');
 
@@ -51,7 +51,7 @@ describe('handleSetScript', () => {
     expect(res.resultVariable).toBe('myResult');
   });
 
-  it('throws for non-ScriptTask elements', async () => {
+  test('throws for non-ScriptTask elements', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask');
 
@@ -65,7 +65,7 @@ describe('handleSetScript', () => {
     ).rejects.toThrow(/not a ScriptTask/);
   });
 
-  it('includes script in exported XML', async () => {
+  test('includes script in exported XML', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ScriptTask');
 

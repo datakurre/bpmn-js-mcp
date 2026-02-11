@@ -3,7 +3,7 @@
  * summarize_bpmn_diagram, and bulk delete_bpmn_element.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, test, expect, afterEach } from 'vitest';
 import { handleInsertElement } from '../../src/handlers/insert-element';
 import { handleReplaceElement } from '../../src/handlers/replace-element';
 import { handleSummarizeDiagram } from '../../src/handlers/summarize-diagram';
@@ -17,7 +17,7 @@ import { parseResult, createDiagram, addElement } from '../helpers';
 afterEach(() => clearDiagrams());
 
 describe('insert_bpmn_element', () => {
-  it('should insert an element into a sequence flow', async () => {
+  test('should insert an element into a sequence flow', async () => {
     const diagramId = await createDiagram('insert-test');
 
     // Build a simple flow: Start → End
@@ -52,7 +52,7 @@ describe('insert_bpmn_element', () => {
     expect(insertResult.newFlows[1].target).toBe(endId);
   });
 
-  it('should reject non-SequenceFlow elements', async () => {
+  test('should reject non-SequenceFlow elements', async () => {
     const diagramId = await createDiagram('insert-test-2');
     const startId = await addElement(diagramId, 'bpmn:StartEvent');
 
@@ -65,7 +65,7 @@ describe('insert_bpmn_element', () => {
     ).rejects.toThrow(/not a SequenceFlow/);
   });
 
-  it('should reject non-insertable element types', async () => {
+  test('should reject non-insertable element types', async () => {
     const diagramId = await createDiagram('insert-test-3');
     const startId = await addElement(diagramId, 'bpmn:StartEvent');
     const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 400, y: 100 });
@@ -88,7 +88,7 @@ describe('insert_bpmn_element', () => {
 });
 
 describe('replace_bpmn_element', () => {
-  it('should replace element type preserving connections', async () => {
+  test('should replace element type preserving connections', async () => {
     const diagramId = await createDiagram('replace-test');
 
     const startId = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -126,7 +126,7 @@ describe('replace_bpmn_element', () => {
     expect(userTask.outgoing).toBeDefined();
   });
 
-  it('should no-op when replacing to same type', async () => {
+  test('should no-op when replacing to same type', async () => {
     const diagramId = await createDiagram('replace-noop');
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Test' });
 
@@ -143,7 +143,7 @@ describe('replace_bpmn_element', () => {
 });
 
 describe('summarize_bpmn_diagram', () => {
-  it('should return a summary of the diagram', async () => {
+  test('should return a summary of the diagram', async () => {
     const diagramId = await createDiagram('summary-test');
 
     await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -161,7 +161,7 @@ describe('summarize_bpmn_diagram', () => {
     expect(summary.elementCounts['bpmn:ServiceTask']).toBe(1);
   });
 
-  it('should report disconnected elements', async () => {
+  test('should report disconnected elements', async () => {
     const diagramId = await createDiagram('summary-disconnected');
 
     await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -173,7 +173,7 @@ describe('summarize_bpmn_diagram', () => {
 });
 
 describe('delete_bpmn_element bulk mode', () => {
-  it('should delete multiple elements at once', async () => {
+  test('should delete multiple elements at once', async () => {
     const diagramId = await createDiagram('bulk-delete');
 
     const id1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'T1' });
@@ -194,7 +194,7 @@ describe('delete_bpmn_element bulk mode', () => {
     expect(deleteResult.deletedIds).toContain(id3);
   });
 
-  it('should handle partial not-found in bulk delete', async () => {
+  test('should handle partial not-found in bulk delete', async () => {
     const diagramId = await createDiagram('bulk-partial');
 
     const id1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Exists' });
@@ -211,7 +211,7 @@ describe('delete_bpmn_element bulk mode', () => {
     expect(deleteResult.notFound).toContain('nonexistent_id');
   });
 
-  it('should reject when all elements not found', async () => {
+  test('should reject when all elements not found', async () => {
     const diagramId = await createDiagram('bulk-all-missing');
 
     await expect(
@@ -225,7 +225,7 @@ describe('delete_bpmn_element bulk mode', () => {
 });
 
 describe('add_bpmn_element with autoConnect', () => {
-  it('should auto-connect when using afterElementId', async () => {
+  test('should auto-connect when using afterElementId', async () => {
     const diagramId = await createDiagram('autoconnect-test');
 
     const startId = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -243,7 +243,7 @@ describe('add_bpmn_element with autoConnect', () => {
     expect(addResult.connectionId).toBeDefined();
   });
 
-  it('should skip auto-connect when autoConnect is false', async () => {
+  test('should skip auto-connect when autoConnect is false', async () => {
     const diagramId = await createDiagram('no-autoconnect');
 
     const startId = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

@@ -4,10 +4,10 @@
  * Tests enablePersistence, loadDiagrams, saveDiagram, and removePersisted.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import {
   enablePersistence,
   disablePersistence,
@@ -37,26 +37,26 @@ describe('persistence', () => {
     }
   });
 
-  it('isPersistenceEnabled returns false by default', () => {
+  test('isPersistenceEnabled returns false by default', () => {
     expect(isPersistenceEnabled()).toBe(false);
     expect(getPersistDir()).toBeNull();
   });
 
-  it('enablePersistence sets the directory and returns loaded count', async () => {
+  test('enablePersistence sets the directory and returns loaded count', async () => {
     const count = await enablePersistence(tmpDir);
     expect(isPersistenceEnabled()).toBe(true);
     expect(getPersistDir()).toBe(path.resolve(tmpDir));
     expect(count).toBe(0); // Empty dir
   });
 
-  it('enablePersistence creates directory if it does not exist', async () => {
+  test('enablePersistence creates directory if it does not exist', async () => {
     const newDir = path.join(tmpDir, 'sub', 'dir');
     expect(fs.existsSync(newDir)).toBe(false);
     await enablePersistence(newDir);
     expect(fs.existsSync(newDir)).toBe(true);
   });
 
-  it('disablePersistence clears the directory', async () => {
+  test('disablePersistence clears the directory', async () => {
     await enablePersistence(tmpDir);
     expect(isPersistenceEnabled()).toBe(true);
     disablePersistence();
@@ -64,7 +64,7 @@ describe('persistence', () => {
     expect(getPersistDir()).toBeNull();
   });
 
-  it('persistDiagram saves a .bpmn and .meta.json file', async () => {
+  test('persistDiagram saves a .bpmn and .meta.json file', async () => {
     await enablePersistence(tmpDir);
 
     const modeler = await createModeler();
@@ -87,7 +87,7 @@ describe('persistence', () => {
     expect(meta.name).toBe('Test Diagram');
   });
 
-  it('persistDiagram is a no-op when persistence is disabled', async () => {
+  test('persistDiagram is a no-op when persistence is disabled', async () => {
     const modeler = await createModeler();
     const { xml } = await modeler.saveXML({ format: true });
     storeDiagram('test-diagram-2', { modeler, xml: xml || '', name: 'No Persist' });
@@ -100,7 +100,7 @@ describe('persistence', () => {
     expect(files.length).toBe(0);
   });
 
-  it('persistAllDiagrams saves all in-memory diagrams', async () => {
+  test('persistAllDiagrams saves all in-memory diagrams', async () => {
     await enablePersistence(tmpDir);
 
     const modeler1 = await createModeler();
@@ -117,7 +117,7 @@ describe('persistence', () => {
     expect(fs.existsSync(path.join(tmpDir, 'd2.bpmn'))).toBe(true);
   });
 
-  it('removePersisted deletes .bpmn and .meta.json files', async () => {
+  test('removePersisted deletes .bpmn and .meta.json files', async () => {
     await enablePersistence(tmpDir);
 
     const modeler = await createModeler();
@@ -128,12 +128,12 @@ describe('persistence', () => {
     await persistDiagram('to-remove', diagram);
     expect(fs.existsSync(path.join(tmpDir, 'to-remove.bpmn'))).toBe(true);
 
-    removePersisted('to-remove');
+    await removePersisted('to-remove');
     expect(fs.existsSync(path.join(tmpDir, 'to-remove.bpmn'))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, 'to-remove.meta.json'))).toBe(false);
   });
 
-  it('enablePersistence loads existing .bpmn files', async () => {
+  test('enablePersistence loads existing .bpmn files', async () => {
     // Write a BPMN file manually to the tmp dir
     const bpmnXml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"

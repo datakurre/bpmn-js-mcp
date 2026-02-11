@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleUndoChange, handleRedoChange, handleSetProperties } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('undo/redo', () => {
     clearDiagrams();
   });
 
-  it('undo reverts the last change', async () => {
+  test('undo reverts the last change', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Original' });
 
@@ -33,7 +33,7 @@ describe('undo/redo', () => {
     expect(registry.get(taskId).businessObject.name).toBe('Original');
   });
 
-  it('redo re-applies an undone change', async () => {
+  test('redo re-applies an undone change', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Original' });
 
@@ -55,14 +55,14 @@ describe('undo/redo', () => {
     expect(registry.get(taskId).businessObject.name).toBe('Renamed');
   });
 
-  it('undo reports nothing to undo on fresh diagram', async () => {
+  test('undo reports nothing to undo on fresh diagram', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleUndoChange({ diagramId }));
     expect(res.success).toBe(false);
     expect(res.message).toContain('Nothing to undo');
   });
 
-  it('redo reports nothing to redo when no undo has been done', async () => {
+  test('redo reports nothing to redo when no undo has been done', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleRedoChange({ diagramId }));
     expect(res.success).toBe(false);

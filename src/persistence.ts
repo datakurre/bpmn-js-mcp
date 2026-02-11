@@ -6,8 +6,9 @@
  * and loaded on startup.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as fsSync from 'node:fs';
+import * as path from 'node:path';
 import { getAllDiagrams, storeDiagram, createModelerFromXml } from './diagram-manager';
 import { type DiagramState } from './types';
 
@@ -20,8 +21,8 @@ let persistDir: string | null = null;
  */
 export async function enablePersistence(dir: string): Promise<number> {
   persistDir = path.resolve(dir);
-  if (!fs.existsSync(persistDir)) {
-    fs.mkdirSync(persistDir, { recursive: true });
+  if (!fsSync.existsSync(persistDir)) {
+    await fs.mkdir(persistDir, { recursive: true });
   }
   return loadDiagrams();
 }
@@ -53,11 +54,11 @@ export async function persistDiagram(diagramId: string, diagram: DiagramState): 
     const filePath = path.join(persistDir, `${diagramId}.bpmn`);
     const meta = { name: diagram.name };
     const metaPath = path.join(persistDir, `${diagramId}.meta.json`);
-    fs.writeFileSync(filePath, xml || '', 'utf-8');
-    fs.writeFileSync(metaPath, JSON.stringify(meta), 'utf-8');
+    await fs.writeFile(filePath, xml || '', 'utf-8');
+    await fs.writeFile(metaPath, JSON.stringify(meta), 'utf-8');
 
     // Post-write validation: re-read and verify XML integrity
-    const written = fs.readFileSync(filePath, 'utf-8');
+    const written = await fs.readFile(filePath, 'utf-8');
     if (!written.includes('</bpmn:definitions>') && !written.includes('</definitions>')) {
       console.error(
         `[persistence] Post-write validation failed for ${diagramId}: ` +
@@ -88,18 +89,19 @@ export async function persistAllDiagrams(): Promise<number> {
 async function loadDiagrams(): Promise<number> {
   if (!persistDir) return 0;
   let count = 0;
-  const files = fs.readdirSync(persistDir).filter((f) => f.endsWith('.bpmn'));
+  const files = (await fs.readdir(persistDir)).filter((f) => f.endsWith('.bpmn'));
 
   for (const file of files) {
     try {
       const diagramId = file.replace('.bpmn', '');
       const filePath = path.join(persistDir, file);
-      const xml = fs.readFileSync(filePath, 'utf-8');
+      const xml = await fs.readFile(filePath, 'utf-8');
       const metaPath = path.join(persistDir, `${diagramId}.meta.json`);
       let name: string | undefined;
-      if (fs.existsSync(metaPath)) {
+      if (fsSync.existsSync(metaPath)) {
         try {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          const metaContent = await fs.readFile(metaPath, 'utf-8');
+          const meta = JSON.parse(metaContent);
           name = meta.name;
         } catch (err) {
           console.error(`[persistence] failed to load meta for ${diagramId}:`, err);
@@ -119,13 +121,13 @@ async function loadDiagrams(): Promise<number> {
 /**
  * Remove a diagram's persisted files from disk.
  */
-export function removePersisted(diagramId: string): void {
+export async function removePersisted(diagramId: string): Promise<void> {
   if (!persistDir) return;
   try {
     const filePath = path.join(persistDir, `${diagramId}.bpmn`);
     const metaPath = path.join(persistDir, `${diagramId}.meta.json`);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+    if (fsSync.existsSync(filePath)) await fs.unlink(filePath);
+    if (fsSync.existsSync(metaPath)) await fs.unlink(metaPath);
   } catch (err) {
     console.error(`[persistence] failed to remove persisted files for ${diagramId}:`, err);
   }

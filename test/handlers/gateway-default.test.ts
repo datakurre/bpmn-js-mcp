@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleSetProperties, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('gateway default flow', () => {
     clearDiagrams();
   });
 
-  it('set_element_properties supports default on exclusive gateways', async () => {
+  test('set_element_properties supports default on exclusive gateways', async () => {
     const diagramId = await createDiagram();
     const gwId = await addElement(diagramId, 'bpmn:ExclusiveGateway', {
       name: 'Check',
@@ -53,7 +53,7 @@ describe('gateway default flow', () => {
     expect(xml).toContain('default=');
   });
 
-  it('set_element_properties conditionExpression on sequence flow wraps in FormalExpression', async () => {
+  test('set_element_properties conditionExpression on sequence flow wraps in FormalExpression', async () => {
     const diagramId = await createDiagram();
     const gwId = await addElement(diagramId, 'bpmn:ExclusiveGateway', {
       name: 'Check',
@@ -84,7 +84,7 @@ describe('gateway default flow', () => {
     expect(xml).toContain('bpmn:conditionExpression');
   });
 
-  it('connect_bpmn_elements isDefault flag sets the default flow', async () => {
+  test('connect_bpmn_elements isDefault flag sets the default flow', async () => {
     const diagramId = await createDiagram();
     const gwId = await addElement(diagramId, 'bpmn:ExclusiveGateway', {
       name: 'Route',

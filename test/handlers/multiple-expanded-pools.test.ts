@@ -6,7 +6,7 @@
  * be deployed and executed).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleCreateCollaboration,
   handleAddElement,
@@ -22,7 +22,7 @@ describe('bpmnlint multiple-expanded-pools', () => {
     clearDiagrams();
   });
 
-  it('warns when multiple pools are expanded', async () => {
+  test('warns when multiple pools are expanded', async () => {
     const diagramId = await createDiagram();
 
     // Create a collaboration with two expanded pools (default)
@@ -47,7 +47,7 @@ describe('bpmnlint multiple-expanded-pools', () => {
     expect(issues[0].message).toContain('External System');
   });
 
-  it('does not warn when only one pool is expanded and the other is collapsed', async () => {
+  test('does not warn when only one pool is expanded and the other is collapsed', async () => {
     const diagramId = await createDiagram();
 
     // Create a collaboration with one expanded pool and one collapsed pool
@@ -75,7 +75,7 @@ describe('bpmnlint multiple-expanded-pools', () => {
     expect(issues.length).toBe(0);
   });
 
-  it('supports message flows to collapsed pools', async () => {
+  test('supports message flows to collapsed pools', async () => {
     const diagramId = await createDiagram();
 
     // Create collaboration: one expanded, one collapsed

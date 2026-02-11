@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('pool element centering (AP-2)', () => {
     clearDiagrams();
   });
 
-  it('elements are vertically centred within a pool', async () => {
+  test('elements are vertically centred within a pool', async () => {
     const diagramId = await createDiagram('Pool Centering');
 
     // Create a collaboration with a pool
@@ -68,7 +68,7 @@ describe('pool width scaling (AP-3)', () => {
     clearDiagrams();
   });
 
-  it('pool width adjusts to content after layout', async () => {
+  test('pool width adjusts to content after layout', async () => {
     const diagramId = await createDiagram('Pool Width');
 
     const collabResult = parseResult(

@@ -6,7 +6,7 @@
  * or vertical line where the middle point is unnecessary).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -28,7 +28,7 @@ describe('collinear waypoint simplification', () => {
     clearDiagrams();
   });
 
-  it('removes collinear middle points after layout', async () => {
+  test('removes collinear middle points after layout', async () => {
     // Build a diagram with XOR split and join — produces complex routes
     const diagramId = await createDiagram('Collinear Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -64,7 +64,7 @@ describe('collinear waypoint simplification', () => {
     }
   });
 
-  it('preserves necessary bend points in L-shaped routes', async () => {
+  test('preserves necessary bend points in L-shaped routes', async () => {
     // Linear flow — should produce straight routes with 2 waypoints each
     const diagramId = await createDiagram('Linear Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

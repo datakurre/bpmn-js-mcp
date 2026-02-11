@@ -2,7 +2,7 @@
  * Tests for layout_bpmn_diagram options: compactness, simplifyRoutes.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams, parseResult } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -12,7 +12,7 @@ describe('layout compactness option', () => {
     clearDiagrams();
   });
 
-  it('compact mode produces tighter spacing than default', async () => {
+  test('compact mode produces tighter spacing than default', async () => {
     // Build two identical diagrams, one with compact, one with default
     const compactId = await createDiagram('Compact');
     const defaultId = await createDiagram('Default');
@@ -41,7 +41,7 @@ describe('layout compactness option', () => {
     expect(compactEnd.x).toBeLessThan(defaultEnd.x);
   });
 
-  it('spacious mode produces wider spacing than default', async () => {
+  test('spacious mode produces wider spacing than default', async () => {
     const spaciousId = await createDiagram('Spacious');
     const defaultId = await createDiagram('Default');
 
@@ -66,7 +66,7 @@ describe('layout compactness option', () => {
     expect(spaciousEnd.x).toBeGreaterThan(defaultEnd.x);
   });
 
-  it('explicit nodeSpacing overrides compactness preset', async () => {
+  test('explicit nodeSpacing overrides compactness preset', async () => {
     const diagramId = await createDiagram('Override');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
@@ -90,7 +90,7 @@ describe('layout simplifyRoutes option', () => {
     clearDiagrams();
   });
 
-  it('simplifyRoutes=false preserves ELK routing', async () => {
+  test('simplifyRoutes=false preserves ELK routing', async () => {
     const diagramId = await createDiagram('NoSimplify');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Split?' });
@@ -111,7 +111,7 @@ describe('layout simplifyRoutes option', () => {
     expect(parsed.success).toBe(true);
   });
 
-  it('simplifyRoutes defaults to true', async () => {
+  test('simplifyRoutes defaults to true', async () => {
     const diagramId = await createDiagram('DefaultSimplify');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Split?' });
@@ -138,7 +138,7 @@ describe('pool vertical centering (AP-2)', () => {
     clearDiagrams();
   });
 
-  it('elements are vertically centred within their pool', async () => {
+  test('elements are vertically centred within their pool', async () => {
     const diagramId = await createDiagram('Pool Centering');
 
     await handleCreateCollaboration({

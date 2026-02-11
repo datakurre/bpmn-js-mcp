@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetFormData, handleExportBpmn, handleGetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetFormData', () => {
     clearDiagrams();
   });
 
-  it('creates form data on a user task with basic fields', async () => {
+  test('creates form data on a user task with basic fields', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Fill Form',
@@ -36,7 +36,7 @@ describe('handleSetFormData', () => {
     expect(xml).toContain('defaultValue="John"');
   });
 
-  it('supports enum fields with values', async () => {
+  test('supports enum fields with values', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Select',
@@ -66,7 +66,7 @@ describe('handleSetFormData', () => {
     expect(xml).toContain('camunda:value');
   });
 
-  it('supports validation constraints', async () => {
+  test('supports validation constraints', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Validated',
@@ -93,7 +93,7 @@ describe('handleSetFormData', () => {
     expect(xml).toContain('minlength');
   });
 
-  it('supports businessKey', async () => {
+  test('supports businessKey', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -115,7 +115,7 @@ describe('handleSetFormData', () => {
     expect(xml).toContain('camunda:formData');
   });
 
-  it('throws for non-UserTask/StartEvent elements', async () => {
+  test('throws for non-UserTask/StartEvent elements', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Service',
@@ -130,7 +130,7 @@ describe('handleSetFormData', () => {
     ).rejects.toThrow(/only supported on/);
   });
 
-  it('is visible via get_element_properties', async () => {
+  test('is visible via get_element_properties', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Props Test',

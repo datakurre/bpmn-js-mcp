@@ -2,7 +2,7 @@
  * Tests for cross-pool connection auto-detection and MessageFlow validation.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleCreateCollaboration, handleAddElement } from '../../src/handlers';
 import { parseResult, createDiagram, clearDiagrams } from '../helpers';
 
@@ -11,7 +11,7 @@ describe('cross-pool connection handling', () => {
     clearDiagrams();
   });
 
-  it('auto-corrects SequenceFlow to MessageFlow for cross-pool connections', async () => {
+  test('auto-corrects SequenceFlow to MessageFlow for cross-pool connections', async () => {
     const diagramId = await createDiagram();
 
     const collab = parseResult(
@@ -57,7 +57,7 @@ describe('cross-pool connection handling', () => {
     expect(conn.hint).toContain('MessageFlow');
   });
 
-  it('rejects MessageFlow for same-pool connections', async () => {
+  test('rejects MessageFlow for same-pool connections', async () => {
     const diagramId = await createDiagram();
 
     const collab = parseResult(

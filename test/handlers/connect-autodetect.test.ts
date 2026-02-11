@@ -9,7 +9,7 @@
  * - Task → Task → defaults to SequenceFlow
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -20,7 +20,7 @@ describe('connect_bpmn_elements auto-detection', () => {
 
   // ── TextAnnotation → Association ─────────────────────────────────────
 
-  it('auto-corrects TextAnnotation→Task to Association', async () => {
+  test('auto-corrects TextAnnotation→Task to Association', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'My Task',
@@ -46,7 +46,7 @@ describe('connect_bpmn_elements auto-detection', () => {
     expect(conn.hint).toContain('Association');
   });
 
-  it('auto-corrects Task→TextAnnotation to Association', async () => {
+  test('auto-corrects Task→TextAnnotation to Association', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Process',
@@ -70,7 +70,7 @@ describe('connect_bpmn_elements auto-detection', () => {
     expect(conn.connectionType).toBe('bpmn:Association');
   });
 
-  it('preserves explicit Association type for TextAnnotation', async () => {
+  test('preserves explicit Association type for TextAnnotation', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Task',
@@ -97,7 +97,7 @@ describe('connect_bpmn_elements auto-detection', () => {
 
   // ── DataObjectReference / DataStoreReference → error ─────────────────
 
-  it('auto-detects DataAssociation for Task→DataObjectReference', async () => {
+  test('auto-detects DataAssociation for Task→DataObjectReference', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Task',
@@ -121,7 +121,7 @@ describe('connect_bpmn_elements auto-detection', () => {
     expect(conn.connectionId).toBeDefined();
   });
 
-  it('auto-detects DataAssociation for DataObjectReference→Task', async () => {
+  test('auto-detects DataAssociation for DataObjectReference→Task', async () => {
     const diagramId = await createDiagram();
     const dataId = await addElement(diagramId, 'bpmn:DataObjectReference', {
       name: 'Data',
@@ -145,7 +145,7 @@ describe('connect_bpmn_elements auto-detection', () => {
     expect(conn.connectionId).toBeDefined();
   });
 
-  it('auto-detects DataAssociation for Task→DataStoreReference', async () => {
+  test('auto-detects DataAssociation for Task→DataStoreReference', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Service',
@@ -169,7 +169,7 @@ describe('connect_bpmn_elements auto-detection', () => {
     expect(conn.connectionId).toBeDefined();
   });
 
-  it('auto-detects DataAssociation for DataStoreReference→Task', async () => {
+  test('auto-detects DataAssociation for DataStoreReference→Task', async () => {
     const diagramId = await createDiagram();
     const storeId = await addElement(diagramId, 'bpmn:DataStoreReference', {
       name: 'DB',
@@ -195,7 +195,7 @@ describe('connect_bpmn_elements auto-detection', () => {
 
   // ── Normal flow ─────────────────────────────────────────────────────
 
-  it('defaults Task→Task to SequenceFlow', async () => {
+  test('defaults Task→Task to SequenceFlow', async () => {
     const diagramId = await createDiagram();
     const t1 = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Task A',

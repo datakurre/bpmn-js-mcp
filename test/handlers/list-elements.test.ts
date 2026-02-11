@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleListElements, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleListElements', () => {
     clearDiagrams();
   });
 
-  it('lists added elements', async () => {
+  test('lists added elements', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task', { name: 'Do stuff' });
 
@@ -18,7 +18,7 @@ describe('handleListElements', () => {
     expect(task.name).toBe('Do stuff');
   });
 
-  it('includes connection info for connected elements', async () => {
+  test('includes connection info for connected elements', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -40,7 +40,7 @@ describe('handleListElements', () => {
     expect(startEl.outgoing.length).toBe(1);
   });
 
-  it('includes connection source/target info', async () => {
+  test('includes connection source/target info', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -63,7 +63,7 @@ describe('handleListElements', () => {
     expect(flow.targetId).toBe(bId);
   });
 
-  it('includes attachedToRef for boundary events', async () => {
+  test('includes attachedToRef for boundary events', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Call API',

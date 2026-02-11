@@ -5,7 +5,7 @@
  * layers depending on the dominant element types in adjacent layers.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -24,7 +24,7 @@ describe('Element-type-aware gap variation (AI-8)', () => {
     clearDiagrams();
   });
 
-  it('event→task gap is larger than task→task gap', async () => {
+  test('event→task gap is larger than task→task gap', async () => {
     // Build: StartEvent → Task1 → Task2 → Task3 → EndEvent
     const diagramId = await createDiagram('Gap Variation');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -59,7 +59,7 @@ describe('Element-type-aware gap variation (AI-8)', () => {
     expect(taskToEventGap).toBeGreaterThan(taskToTaskGap);
   });
 
-  it('gateway→task gap uses baseline spacing', async () => {
+  test('gateway→task gap uses baseline spacing', async () => {
     // Build: Start → Gateway → Task → End
     const diagramId = await createDiagram('Gateway Gaps');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAddElement, handleGetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('boundary event shorthand (eventDefinitionType on add_bpmn_element)', (
     clearDiagrams();
   });
 
-  it('creates boundary event with error event definition in one call', async () => {
+  test('creates boundary event with error event definition in one call', async () => {
     const diagramId = await createDiagram('BEShorthand');
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Do Work' });
 
@@ -34,7 +34,7 @@ describe('boundary event shorthand (eventDefinitionType on add_bpmn_element)', (
     expect(props.eventDefinitions[0].type).toBe('bpmn:ErrorEventDefinition');
   });
 
-  it('creates boundary event with timer event definition in one call', async () => {
+  test('creates boundary event with timer event definition in one call', async () => {
     const diagramId = await createDiagram('TimerShorthand');
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Wait Task' });
 
@@ -53,7 +53,7 @@ describe('boundary event shorthand (eventDefinitionType on add_bpmn_element)', (
     expect(res.eventDefinitionType).toBe('bpmn:TimerEventDefinition');
   });
 
-  it('creates intermediate catch event with message definition', async () => {
+  test('creates intermediate catch event with message definition', async () => {
     const diagramId = await createDiagram('MsgShorthand');
 
     const res = parseResult(
@@ -70,7 +70,7 @@ describe('boundary event shorthand (eventDefinitionType on add_bpmn_element)', (
     expect(res.eventDefinitionType).toBe('bpmn:MessageEventDefinition');
   });
 
-  it('creates end event with terminate definition', async () => {
+  test('creates end event with terminate definition', async () => {
     const diagramId = await createDiagram('TermShorthand');
 
     const res = parseResult(
@@ -86,7 +86,7 @@ describe('boundary event shorthand (eventDefinitionType on add_bpmn_element)', (
     expect(res.eventDefinitionType).toBe('bpmn:TerminateEventDefinition');
   });
 
-  it('works without eventDefinitionType (no change to existing behavior)', async () => {
+  test('works without eventDefinitionType (no change to existing behavior)', async () => {
     const diagramId = await createDiagram('NoEvtDef');
 
     const res = parseResult(

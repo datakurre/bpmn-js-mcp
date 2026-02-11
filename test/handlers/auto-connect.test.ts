@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAutoConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('handleAutoConnect', () => {
     clearDiagrams();
   });
 
-  it('connects elements in sequence', async () => {
+  test('connects elements in sequence', async () => {
     const diagramId = await createDiagram('Auto Connect');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
@@ -28,7 +28,7 @@ describe('handleAutoConnect', () => {
     expect(res.connections[2].target).toBe(end);
   });
 
-  it('connects two elements', async () => {
+  test('connects two elements', async () => {
     const diagramId = await createDiagram('Two Elements');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
@@ -38,7 +38,7 @@ describe('handleAutoConnect', () => {
     expect(res.connectionsCreated).toBe(1);
   });
 
-  it('rejects less than 2 elements', async () => {
+  test('rejects less than 2 elements', async () => {
     const diagramId = await createDiagram('Too Few');
     const start = await addElement(diagramId, 'bpmn:StartEvent');
 
@@ -47,7 +47,7 @@ describe('handleAutoConnect', () => {
     );
   });
 
-  it('rejects non-existent element IDs', async () => {
+  test('rejects non-existent element IDs', async () => {
     const diagramId = await createDiagram('Bad IDs');
     const start = await addElement(diagramId, 'bpmn:StartEvent');
 
@@ -56,7 +56,7 @@ describe('handleAutoConnect', () => {
     ).rejects.toThrow(/not found/);
   });
 
-  it('creates sequence flows with descriptive IDs', async () => {
+  test('creates sequence flows with descriptive IDs', async () => {
     const diagramId = await createDiagram('Descriptive IDs');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Begin' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Do Work' });

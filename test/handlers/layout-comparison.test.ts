@@ -9,7 +9,7 @@
  * ELK engine produces visually spacious, regular layouts.
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import {
   handleLayoutDiagram,
   handleConnect,
@@ -101,7 +101,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     clearDiagrams();
   });
 
-  it('linear flow: uniform spacing, same Y, orthogonal connections', async () => {
+  test('linear flow: uniform spacing, same Y, orthogonal connections', async () => {
     const diagramId = await createDiagram('Linear Flow');
     const ids: string[] = [];
 
@@ -143,7 +143,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     }
   });
 
-  it('gateway split-join: spacious layout with zero crossings', async () => {
+  test('gateway split-join: spacious layout with zero crossings', async () => {
     const diagramId = await createDiagram('Split Join');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Decision' });
@@ -194,7 +194,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     }
   });
 
-  it('parallel fork-join: 4 branches, spacious vertical spacing', async () => {
+  test('parallel fork-join: 4 branches, spacious vertical spacing', async () => {
     const diagramId = await createDiagram('Fork Join');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Fork' });
@@ -235,7 +235,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     }
   });
 
-  it('nested subprocess: elements inside subprocess laid out correctly', async () => {
+  test('nested subprocess: elements inside subprocess laid out correctly', async () => {
     const diagramId = await createDiagram('Nested SubProcess');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const sub = await addElement(diagramId, 'bpmn:SubProcess', { name: 'SubProcess' });
@@ -286,7 +286,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     expect(centreX(reg.get(subTask))).toBeLessThan(centreX(reg.get(subEnd)));
   });
 
-  it('collaboration: two pools with message flow', async () => {
+  test('collaboration: two pools with message flow', async () => {
     const diagramId = await createDiagram('Collaboration');
 
     const collab = parseResult(
@@ -382,7 +382,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     expect(centreX(reg.get(custTask))).toBeLessThan(centreX(reg.get(custEnd)));
   });
 
-  it('boundary events: orthogonal routing with spacious layout', async () => {
+  test('boundary events: orthogonal routing with spacious layout', async () => {
     const diagramId = await createDiagram('Boundary Events');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process' });
@@ -416,7 +416,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     );
   });
 
-  it('gridSnap: false disables grid snap pass', async () => {
+  test('gridSnap: false disables grid snap pass', async () => {
     const diagramId = await createDiagram('No Grid Snap');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -442,7 +442,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     expect(centreX(reg.get(join))).toBeLessThan(centreX(reg.get(end)));
   });
 
-  it('happy path with grid snap: main path stays on same row', async () => {
+  test('happy path with grid snap: main path stays on same row', async () => {
     const diagramId = await createDiagram('Happy + Grid');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review' });
@@ -487,42 +487,42 @@ describe('Layout comparison: ELK quality metrics', () => {
   // ── Reference BPMN position tracking ─────────────────────────────────
 
   describe('reference position tracking', () => {
-    it('01-linear-flow: quality metrics vs reference', async () => {
+    test('01-linear-flow: quality metrics vs reference', async () => {
       const { diagramId, registry } = await importReference('01-linear-flow');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '01-linear-flow', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('02-exclusive-gateway: quality metrics vs reference', async () => {
+    test('02-exclusive-gateway: quality metrics vs reference', async () => {
       const { diagramId, registry } = await importReference('02-exclusive-gateway');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '02-exclusive-gateway', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('03-parallel-fork-join: quality metrics vs reference', async () => {
+    test('03-parallel-fork-join: quality metrics vs reference', async () => {
       const { diagramId, registry } = await importReference('03-parallel-fork-join');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '03-parallel-fork-join', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('04-nested-subprocess: quality metrics vs reference', async () => {
+    test('04-nested-subprocess: quality metrics vs reference', async () => {
       const { diagramId, registry } = await importReference('04-nested-subprocess');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '04-nested-subprocess', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('05-collaboration: quality metrics vs reference', async () => {
+    test('05-collaboration: quality metrics vs reference', async () => {
       const { diagramId, registry } = await importReference('05-collaboration');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '05-collaboration', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('06-boundary-events: quality metrics vs reference', async () => {
+    test('06-boundary-events: quality metrics vs reference', async () => {
       const { diagramId, registry } = await importReference('06-boundary-events');
       await handleLayoutDiagram({ diagramId });
       const { matchRate } = comparePositions(registry, '06-boundary-events', 10);

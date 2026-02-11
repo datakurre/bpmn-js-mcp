@@ -5,7 +5,7 @@
  * collaboration diagrams.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleLayoutDiagram,
   handleConnect,
@@ -20,7 +20,7 @@ describe('collaboration layout', () => {
     clearDiagrams();
   });
 
-  it('lays out a collaboration with two participants', async () => {
+  test('lays out a collaboration with two participants', async () => {
     const diagramId = await createDiagram();
 
     const collab = parseResult(
@@ -76,7 +76,7 @@ describe('collaboration layout', () => {
     expect(res.elementCount).toBeGreaterThanOrEqual(2);
   });
 
-  it('supports layout direction parameter', async () => {
+  test('supports layout direction parameter', async () => {
     const diagramId = await createDiagram('Direction Test');
     const startRes = parseResult(
       await handleAddElement({
@@ -112,7 +112,7 @@ describe('collaboration layout', () => {
     expect(startEl.y).toBeLessThan(endEl.y);
   });
 
-  it('supports node and layer spacing parameters', async () => {
+  test('supports node and layer spacing parameters', async () => {
     const diagramId = await createDiagram('Spacing Test');
     const startRes = parseResult(
       await handleAddElement({

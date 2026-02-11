@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetEventDefinition, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetEventDefinition', () => {
     clearDiagrams();
   });
 
-  it('adds an error event definition to a boundary event', async () => {
+  test('adds an error event definition to a boundary event', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'My Task',
@@ -40,7 +40,7 @@ describe('handleSetEventDefinition', () => {
     expect(xml).toContain('errorEventDefinition');
   });
 
-  it('adds a timer event definition', async () => {
+  test('adds a timer event definition', async () => {
     const diagramId = await createDiagram();
     const catchId = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 200, y: 200 });
 
@@ -59,7 +59,7 @@ describe('handleSetEventDefinition', () => {
     expect(xml).toContain('timerEventDefinition');
   });
 
-  it('throws for non-event element', async () => {
+  test('throws for non-event element', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', {
       name: 'Not event',

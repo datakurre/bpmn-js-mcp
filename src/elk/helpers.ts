@@ -33,3 +33,20 @@ export function isArtifact(type: string): boolean {
 export function isLane(type: string): boolean {
   return type === 'bpmn:Lane' || type === 'bpmn:LaneSet';
 }
+
+/**
+ * Check if an element should be included in ELK layout calculations.
+ * Returns true for flow nodes (tasks, events, gateways, subprocesses).
+ * Returns false for infrastructure, connections, artifacts, labels, participants, lanes, and boundary events.
+ */
+export function isLayoutableShape(el: any): boolean {
+  return (
+    !isInfrastructure(el.type) &&
+    !isConnection(el.type) &&
+    !isArtifact(el.type) &&
+    !isLane(el.type) &&
+    el.type !== 'label' &&
+    el.type !== 'bpmn:Participant' &&
+    el.type !== 'bpmn:BoundaryEvent'
+  );
+}

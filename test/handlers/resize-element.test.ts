@@ -2,7 +2,7 @@
  * Tests for resize_bpmn_element tool (merged into move_bpmn_element).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleMoveElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -12,7 +12,7 @@ describe('resize_bpmn_element', () => {
     clearDiagrams();
   });
 
-  it('resizes a subprocess', async () => {
+  test('resizes a subprocess', async () => {
     const diagramId = await createDiagram();
     const subId = await addElement(diagramId, 'bpmn:SubProcess', {
       name: 'My Sub',
@@ -40,7 +40,7 @@ describe('resize_bpmn_element', () => {
     expect(element.height).toBe(300);
   });
 
-  it('resizes a text annotation', async () => {
+  test('resizes a text annotation', async () => {
     const diagramId = await createDiagram();
     const annotId = await addElement(diagramId, 'bpmn:TextAnnotation', {
       name: 'Note',
@@ -60,7 +60,7 @@ describe('resize_bpmn_element', () => {
     expect(res.success).toBe(true);
   });
 
-  it('throws when element not found', async () => {
+  test('throws when element not found', async () => {
     const diagramId = await createDiagram();
 
     await expect(

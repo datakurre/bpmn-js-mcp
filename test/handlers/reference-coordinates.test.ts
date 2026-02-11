@@ -9,7 +9,7 @@
  * Run with: npx vitest run test/handlers/reference-coordinates.test.ts
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram } from '../../src/handlers';
 import { clearDiagrams, importReference, comparePositions } from '../helpers';
 
@@ -59,7 +59,7 @@ describe('Reference coordinate comparison', () => {
   //   Event_0bdlayk  = EndEvent "Order Complete"
 
   describe('01-linear-flow', () => {
-    it('all elements on same Y row', async () => {
+    test('all elements on same Y row', async () => {
       const { diagramId, registry } = await importReference('01-linear-flow');
       await handleLayoutDiagram({ diagramId });
 
@@ -85,7 +85,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('uniform horizontal gaps between elements', async () => {
+    test('uniform horizontal gaps between elements', async () => {
       const { diagramId, registry } = await importReference('01-linear-flow');
       await handleLayoutDiagram({ diagramId });
 
@@ -121,7 +121,7 @@ describe('Reference coordinate comparison', () => {
       );
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('01-linear-flow');
       await handleLayoutDiagram({ diagramId });
 
@@ -143,7 +143,7 @@ describe('Reference coordinate comparison', () => {
   //   Event_0a768vd  = EndEvent "Done"
 
   describe('02-exclusive-gateway', () => {
-    it('happy path elements on same Y row', async () => {
+    test('happy path elements on same Y row', async () => {
       const { diagramId, registry } = await importReference('02-exclusive-gateway');
       await handleLayoutDiagram({ diagramId });
 
@@ -169,7 +169,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('"Send Rejection" below happy path', async () => {
+    test('"Send Rejection" below happy path', async () => {
       const { diagramId, registry } = await importReference('02-exclusive-gateway');
       await handleLayoutDiagram({ diagramId });
 
@@ -180,7 +180,7 @@ describe('Reference coordinate comparison', () => {
       expect(centreY(rejection)).toBeGreaterThan(centreY(gateway) + 10);
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('02-exclusive-gateway');
       await handleLayoutDiagram({ diagramId });
 
@@ -201,7 +201,7 @@ describe('Reference coordinate comparison', () => {
   //   Event_183di0m  = EndEvent "Complete"
 
   describe('03-parallel-fork-join', () => {
-    it('three branches on distinct Y rows', async () => {
+    test('three branches on distinct Y rows', async () => {
       const { diagramId, registry } = await importReference('03-parallel-fork-join');
       await handleLayoutDiagram({ diagramId });
 
@@ -214,7 +214,7 @@ describe('Reference coordinate comparison', () => {
       expect(new Set(ys.map((y) => Math.round(y / 10))).size).toBe(3);
     });
 
-    it('branch ordering matches reference (top to bottom)', async () => {
+    test('branch ordering matches reference (top to bottom)', async () => {
       const { diagramId, registry } = await importReference('03-parallel-fork-join');
       await handleLayoutDiagram({ diagramId });
 
@@ -231,7 +231,7 @@ describe('Reference coordinate comparison', () => {
       );
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('03-parallel-fork-join');
       await handleLayoutDiagram({ diagramId });
 
@@ -251,7 +251,7 @@ describe('Reference coordinate comparison', () => {
   //   Event_0pnzs42  = EndEvent "End" (outer)
 
   describe('04-nested-subprocess', () => {
-    it('inner elements within subprocess bounds', async () => {
+    test('inner elements within subprocess bounds', async () => {
       const { diagramId, registry } = await importReference('04-nested-subprocess');
       await handleLayoutDiagram({ diagramId });
 
@@ -278,7 +278,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('04-nested-subprocess');
       await handleLayoutDiagram({ diagramId });
 
@@ -294,7 +294,7 @@ describe('Reference coordinate comparison', () => {
   //   Participant_0yixlru = "System" (expanded, with processRef)
 
   describe('05-collaboration', () => {
-    it('pools do not overlap', async () => {
+    test('pools do not overlap', async () => {
       const { diagramId, registry } = await importReference('05-collaboration');
       await handleLayoutDiagram({ diagramId });
 
@@ -307,7 +307,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('05-collaboration');
       await handleLayoutDiagram({ diagramId });
 
@@ -328,7 +328,7 @@ describe('Reference coordinate comparison', () => {
   //   Event_0tvw53g  = EndEvent "Escalated"
 
   describe('06-boundary-events', () => {
-    it('escalation path below main flow', async () => {
+    test('escalation path below main flow', async () => {
       const { diagramId, registry } = await importReference('06-boundary-events');
       await handleLayoutDiagram({ diagramId });
 
@@ -341,7 +341,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('boundary event attached to host', async () => {
+    test('boundary event attached to host', async () => {
       const { diagramId, registry } = await importReference('06-boundary-events');
       await handleLayoutDiagram({ diagramId });
 
@@ -358,7 +358,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('06-boundary-events');
       await handleLayoutDiagram({ diagramId });
 
@@ -383,7 +383,7 @@ describe('Reference coordinate comparison', () => {
   //   Event_01cpts6  = EndEvent "Order Rejected"
 
   describe('07-complex-workflow', () => {
-    it('rejection branch below parallel branches', async () => {
+    test('rejection branch below parallel branches', async () => {
       const { diagramId, registry } = await importReference('07-complex-workflow');
       await handleLayoutDiagram({ diagramId });
 
@@ -399,7 +399,7 @@ describe('Reference coordinate comparison', () => {
       ).toBeGreaterThan(maxParallelY);
     });
 
-    it('parallel branches between fork and join', async () => {
+    test('parallel branches between fork and join', async () => {
       const { diagramId, registry } = await importReference('07-complex-workflow');
       await handleLayoutDiagram({ diagramId });
 
@@ -414,7 +414,7 @@ describe('Reference coordinate comparison', () => {
       expect(centreX(inventory)).toBeLessThan(centreX(join));
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('07-complex-workflow');
       await handleLayoutDiagram({ diagramId });
 
@@ -430,7 +430,7 @@ describe('Reference coordinate comparison', () => {
   //   Participant_0yixlru = "System" (collapsed, no processRef)
 
   describe('08-collaboration-collapsed', () => {
-    it('collapsed pool is a thin bar', async () => {
+    test('collapsed pool is a thin bar', async () => {
       const { diagramId, registry } = await importReference('08-collaboration-collapsed');
       await handleLayoutDiagram({ diagramId });
 
@@ -446,7 +446,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('expanded pool above collapsed pool', async () => {
+    test('expanded pool above collapsed pool', async () => {
       const { diagramId, registry } = await importReference('08-collaboration-collapsed');
       await handleLayoutDiagram({ diagramId });
 
@@ -462,7 +462,7 @@ describe('Reference coordinate comparison', () => {
       }
     });
 
-    it('positions match reference', async () => {
+    test('positions match reference', async () => {
       const { diagramId, registry } = await importReference('08-collaboration-collapsed');
       await handleLayoutDiagram({ diagramId });
 

@@ -6,7 +6,7 @@
  * - linter: enriched error context for boundary events
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleReplaceElement,
   handleExportBpmn,
@@ -20,7 +20,7 @@ describe('replace_bpmn_element: boundary event guard', () => {
     clearDiagrams();
   });
 
-  it('rejects replacing an element TO bpmn:BoundaryEvent with helpful error', async () => {
+  test('rejects replacing an element TO bpmn:BoundaryEvent with helpful error', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'My Task' });
 
@@ -33,7 +33,7 @@ describe('replace_bpmn_element: boundary event guard', () => {
     ).rejects.toThrow(/Cannot replace an element to bpmn:BoundaryEvent/);
   });
 
-  it('error message suggests using add_bpmn_element with hostElementId', async () => {
+  test('error message suggests using add_bpmn_element with hostElementId', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'My Task' });
 
@@ -46,7 +46,7 @@ describe('replace_bpmn_element: boundary event guard', () => {
     ).rejects.toThrow(/add_bpmn_element.*hostElementId/);
   });
 
-  it('rejects replacing FROM a BoundaryEvent with helpful error', async () => {
+  test('rejects replacing FROM a BoundaryEvent with helpful error', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Host Task',
@@ -68,7 +68,7 @@ describe('replace_bpmn_element: boundary event guard', () => {
     ).rejects.toThrow(/Cannot replace a BoundaryEvent/);
   });
 
-  it('still allows normal type replacement (Task → UserTask)', async () => {
+  test('still allows normal type replacement (Task → UserTask)', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'My Task' });
 
@@ -89,7 +89,7 @@ describe('add_bpmn_element: visual boundary event feedback', () => {
     clearDiagrams();
   });
 
-  it('includes host element info when creating a boundary event', async () => {
+  test('includes host element info when creating a boundary event', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Process Payment',
@@ -114,7 +114,7 @@ describe('add_bpmn_element: visual boundary event feedback', () => {
     expect(result.attachedTo.hostElementName).toBe('Process Payment');
   });
 
-  it('message confirms boundary event attachment', async () => {
+  test('message confirms boundary event attachment', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Review',
@@ -136,7 +136,7 @@ describe('add_bpmn_element: visual boundary event feedback', () => {
     expect(result.message).toContain('Review');
   });
 
-  it('does NOT include attachedTo for regular elements', async () => {
+  test('does NOT include attachedTo for regular elements', async () => {
     const diagramId = await createDiagram();
     const result = parseResult(
       await handleAddElement({
@@ -155,7 +155,7 @@ describe('export_bpmn: skipLint abuse warning', () => {
     clearDiagrams();
   });
 
-  it('warns when skipLint bypasses error-level issues', async () => {
+  test('warns when skipLint bypasses error-level issues', async () => {
     const diagramId = await createDiagram();
     // Invalid diagram: start event with no end event → lint errors
     await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start', x: 100, y: 100 });
@@ -171,7 +171,7 @@ describe('export_bpmn: skipLint abuse warning', () => {
     expect(allText).toContain('error');
   });
 
-  it('no skipLint warning when diagram is valid', async () => {
+  test('no skipLint warning when diagram is valid', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',

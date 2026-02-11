@@ -7,8 +7,8 @@ import {
   handleLayoutDiagram,
 } from '../src/handlers';
 import { clearDiagrams, getDiagram } from '../src/diagram-manager';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 export function parseResult(result: any) {
   return JSON.parse(result.content[0].text);
@@ -261,7 +261,7 @@ export function parsePositionsFromSVG(svgContent: string): Map<string, SvgPositi
       height = 50;
     } else if (elementId.startsWith('Participant_')) {
       // Try to extract participant dimensions from the SVG
-      const afterMatch = svgContent.substring(match.index);
+      const afterMatch = svgContent.slice(Math.max(0, match.index));
       const rectMatch = afterMatch.match(
         /class="djs-hit[^"]*"[^>]*width="(\d+)"[^>]*height="(\d+)"/
       );

@@ -6,12 +6,12 @@
  * Regression test for AP-4 (file-path import stale data).
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import { handleImportXml, handleListElements } from '../../src/handlers';
 import { parseResult, clearDiagrams } from '../helpers';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 
 /** BPMN XML with a single task named "Task A" and shared Definitions_1 ID. */
 const XML_FILE_A = `<?xml version="1.0" encoding="UTF-8"?>
@@ -102,7 +102,7 @@ describe('file-path import produces distinct diagrams (AP-4)', () => {
     }
   });
 
-  it('imports two files with same Definitions ID and returns distinct elements', async () => {
+  test('imports two files with same Definitions ID and returns distinct elements', async () => {
     // Import file A
     const resA = parseResult(await handleImportXml({ filePath: fileA, autoLayout: false }));
     expect(resA.success).toBe(true);
@@ -131,7 +131,7 @@ describe('file-path import produces distinct diagrams (AP-4)', () => {
     expect(namesB).not.toContain('Task Alpha');
   });
 
-  it('file-path import returns correct element count', async () => {
+  test('file-path import returns correct element count', async () => {
     // File A: Start + Task + Flow = 3 flow elements
     const resA = parseResult(await handleImportXml({ filePath: fileA, autoLayout: false }));
     const elemsA = parseResult(await handleListElements({ diagramId: resA.diagramId }));

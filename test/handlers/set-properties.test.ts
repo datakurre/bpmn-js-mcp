@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetProperties, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetProperties', () => {
     clearDiagrams();
   });
 
-  it('sets camunda properties on an element', async () => {
+  test('sets camunda properties on an element', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Review',
@@ -28,7 +28,7 @@ describe('handleSetProperties', () => {
     expect(xml).toContain('camunda:assignee');
   });
 
-  it('throws for unknown element', async () => {
+  test('throws for unknown element', async () => {
     const diagramId = await createDiagram();
     await expect(
       handleSetProperties({

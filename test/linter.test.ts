@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   lintDiagram,
   lintDiagramFlat,
@@ -24,7 +24,7 @@ describe('linter', () => {
   });
 
   describe('getDefinitionsFromModeler', () => {
-    it('returns a moddle element with $type bpmn:Definitions', async () => {
+    test('returns a moddle element with $type bpmn:Definitions', async () => {
       const diagramId = await createDiagram();
       const diagram = getDiagram(diagramId);
       const definitions = getDefinitionsFromModeler(diagram!.modeler);
@@ -35,7 +35,7 @@ describe('linter', () => {
   });
 
   describe('lintDiagram', () => {
-    it('returns results keyed by rule name for empty process', async () => {
+    test('returns results keyed by rule name for empty process', async () => {
       const diagramId = await createDiagram();
       const diagram = getDiagram(diagramId);
       const results = await lintDiagram(diagram!);
@@ -47,7 +47,7 @@ describe('linter', () => {
       expect(results['end-event-required']).toBeDefined();
     });
 
-    it('returns no start/end event errors for valid complete process', async () => {
+    test('returns no start/end event errors for valid complete process', async () => {
       const diagramId = await createDiagram();
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
       const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'Work', x: 250, y: 100 });
@@ -65,7 +65,7 @@ describe('linter', () => {
   });
 
   describe('lintDiagramFlat', () => {
-    it("normalizes 'warn' category to 'warning' severity", async () => {
+    test("normalizes 'warn' category to 'warning' severity", async () => {
       const diagramId = await createDiagram();
       // Default config downgrades label-required and no-disconnected to 'warn'
       await addElement(diagramId, 'bpmn:Task');
@@ -79,7 +79,7 @@ describe('linter', () => {
       }
     });
 
-    it('maps fields correctly (rule, severity, message, elementId)', async () => {
+    test('maps fields correctly (rule, severity, message, elementId)', async () => {
       const diagramId = await createDiagram();
       await addElement(diagramId, 'bpmn:Task');
       const diagram = getDiagram(diagramId);
@@ -95,7 +95,7 @@ describe('linter', () => {
       }
     });
 
-    it('supports custom config overrides', async () => {
+    test('supports custom config overrides', async () => {
       const diagramId = await createDiagram();
       const diagram = getDiagram(diagramId);
 
@@ -115,7 +115,7 @@ describe('linter', () => {
   });
 
   describe('appendLintFeedback', () => {
-    it('appends feedback when errors exist', async () => {
+    test('appends feedback when errors exist', async () => {
       // Build a diagram with a real error: exclusive gateway with one
       // conditional and one unconditional flow but no default set
       // (triggers exclusive-gateway-conditions error, which is NOT
@@ -153,7 +153,7 @@ describe('linter', () => {
       expect(feedbackText).toContain('⚠ Lint issues');
     });
 
-    it('filters structural completeness rules from incremental feedback', async () => {
+    test('filters structural completeness rules from incremental feedback', async () => {
       // An empty process triggers start-event-required and end-event-required,
       // but these should be filtered from incremental feedback
       const diagramId = await createDiagram();
@@ -167,7 +167,7 @@ describe('linter', () => {
       expect(augmented.content).toHaveLength(1);
     });
 
-    it('does not append feedback when only warnings exist', async () => {
+    test('does not append feedback when only warnings exist', async () => {
       const diagramId = await createDiagram();
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
       const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'Work', x: 250, y: 100 });
@@ -188,7 +188,7 @@ describe('linter', () => {
       expect(augmented.content.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('does not throw when linting fails', async () => {
+    test('does not throw when linting fails', async () => {
       // Create a fake diagram with a broken modeler
       const fakeDiagram = {
         modeler: {
@@ -209,7 +209,7 @@ describe('linter', () => {
   });
 
   describe('exercises multiple bpmnlint rules', () => {
-    it('detects at least 5 different rules on a problematic diagram', async () => {
+    test('detects at least 5 different rules on a problematic diagram', async () => {
       const diagramId = await createDiagram();
       // Add two disconnected tasks with no names → triggers many rules
       await addElement(diagramId, 'bpmn:Task', { x: 100, y: 100 });
@@ -234,7 +234,7 @@ describe('linter', () => {
   });
 
   describe('DEFAULT_LINT_CONFIG', () => {
-    it('extends bpmnlint:recommended, camunda-compat, and bpmn-mcp plugins', () => {
+    test('extends bpmnlint:recommended, camunda-compat, and bpmn-mcp plugins', () => {
       expect(DEFAULT_LINT_CONFIG.extends).toEqual([
         'bpmnlint:recommended',
         'plugin:camunda-compat/camunda-platform-7-24',
@@ -242,7 +242,7 @@ describe('linter', () => {
       ]);
     });
 
-    it('has tuned rules for incremental AI usage', () => {
+    test('has tuned rules for incremental AI usage', () => {
       expect(DEFAULT_LINT_CONFIG.rules!['label-required']).toBe('warn');
       expect(DEFAULT_LINT_CONFIG.rules!['no-overlapping-elements']).toBe('off');
       expect(DEFAULT_LINT_CONFIG.rules!['no-disconnected']).toBe('warn');
@@ -250,7 +250,7 @@ describe('linter', () => {
   });
 
   describe('McpPluginResolver — custom bpmn-mcp rules', () => {
-    it('resolves bpmn-mcp/camunda-topic-without-external-type via plugin config', async () => {
+    test('resolves bpmn-mcp/camunda-topic-without-external-type via plugin config', async () => {
       const diagramId = await createDiagram();
       // Add a service task with topic but no external type
       const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
@@ -283,7 +283,7 @@ describe('linter', () => {
       expect(topicIssues[0].message).toContain('camunda:topic');
     });
 
-    it('resolves bpmn-mcp/gateway-missing-default via plugin config', async () => {
+    test('resolves bpmn-mcp/gateway-missing-default via plugin config', async () => {
       const diagramId = await createDiagram();
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 200 });
       const gwId = await addElement(diagramId, 'bpmn:ExclusiveGateway', {
@@ -323,7 +323,7 @@ describe('linter', () => {
   });
 
   describe('camunda-compat plugin integration', () => {
-    it('camunda-compat plugin rules are available through the default config', async () => {
+    test('camunda-compat plugin rules are available through the default config', async () => {
       const diagramId = await createDiagram();
       // Add a process with start and end events
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });

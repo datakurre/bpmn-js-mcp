@@ -5,7 +5,7 @@
  * businessKey, and date patterns.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetFormData, handleGetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -19,7 +19,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     clearDiagrams();
   });
 
-  it('creates form fields with validation constraints', async () => {
+  test('creates form fields with validation constraints', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review' });
 
@@ -54,7 +54,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     expect(constraints).toHaveLength(4);
   });
 
-  it('creates enum field type with values', async () => {
+  test('creates enum field type with values', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Select' });
 
@@ -85,7 +85,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     expect(formData.fields[0].values).toHaveLength(3);
   });
 
-  it('supports businessKey parameter', async () => {
+  test('supports businessKey parameter', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start Form' });
 
@@ -103,7 +103,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     expect(res.success).toBe(true);
   });
 
-  it('supports custom field properties', async () => {
+  test('supports custom field properties', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Custom Props' });
 
@@ -127,7 +127,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     expect(res.success).toBe(true);
   });
 
-  it('supports date field type with pattern', async () => {
+  test('supports date field type with pattern', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Date Task' });
 
@@ -148,7 +148,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     expect(res.success).toBe(true);
   });
 
-  it('supports boolean field type', async () => {
+  test('supports boolean field type', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Bool Task' });
 
@@ -175,7 +175,7 @@ describe('set_bpmn_form_data comprehensive', () => {
     expect(field?.defaultValue).toBe('false');
   });
 
-  it('supports multiple fields at once', async () => {
+  test('supports multiple fields at once', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', { name: 'Multi' });
 

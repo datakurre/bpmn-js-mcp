@@ -7,7 +7,7 @@
  */
 
 import { ARTIFACT_BELOW_OFFSET, ARTIFACT_ABOVE_OFFSET } from './constants';
-import { isConnection, isInfrastructure, isArtifact } from './helpers';
+import { isConnection, isInfrastructure, isArtifact, isLayoutableShape } from './helpers';
 
 /**
  * Find the flow element linked to an artifact via an association.
@@ -48,15 +48,7 @@ export function repositionArtifacts(elementRegistry: any, modeling: any): void {
   );
 
   // Compute flow bounding box (for unlinked artifact fallback)
-  const flowElements = elementRegistry.filter(
-    (el: any) =>
-      el.type &&
-      !isInfrastructure(el.type) &&
-      !isConnection(el.type) &&
-      !isArtifact(el.type) &&
-      el.type !== 'bpmn:BoundaryEvent' &&
-      el.type !== 'label'
-  );
+  const flowElements = elementRegistry.filter((el: any) => el.type && isLayoutableShape(el));
   let flowMaxY = 200;
   let flowMinY = Infinity;
   let flowMinX = Infinity;

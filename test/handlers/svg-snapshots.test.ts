@@ -10,9 +10,9 @@
  * Run with: npx vitest run test/handlers/svg-snapshots.test.ts
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { handleLayoutDiagram, handleExportBpmn } from '../../src/handlers';
 import { clearDiagrams, importReference } from '../helpers';
 
@@ -69,7 +69,7 @@ describe('SVG snapshot generation', () => {
   });
 
   for (const refName of REFERENCES) {
-    it(refName, async () => {
+    test(refName, async () => {
       const { diagramId } = await importReference(refName);
       await handleLayoutDiagram({ diagramId });
       const svg = await exportSvg(diagramId);

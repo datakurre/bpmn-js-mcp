@@ -3,7 +3,7 @@
  */
 
 import type { ElkNode } from 'elkjs';
-import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
+import { isConnection, isInfrastructure, isArtifact, isLane, isLayoutableShape } from './helpers';
 import { COLLAPSED_POOL_GAP } from './constants';
 
 /**
@@ -105,14 +105,7 @@ export function centreElementsInPools(elementRegistry: any, modeling: any): void
     // Collect flow elements that are direct children of this pool
     // (skip lanes, connections, boundary events, labels, infrastructure)
     const children = elementRegistry.filter(
-      (el: any) =>
-        el.parent === pool &&
-        !isConnection(el.type) &&
-        !isInfrastructure(el.type) &&
-        !isArtifact(el.type) &&
-        !isLane(el.type) &&
-        el.type !== 'bpmn:BoundaryEvent' &&
-        el.type !== 'label'
+      (el: any) => el.parent === pool && isLayoutableShape(el)
     );
 
     if (children.length === 0) continue;
@@ -164,16 +157,7 @@ export function reorderCollapsedPoolsBelow(elementRegistry: any, modeling: any):
 
   for (const pool of participants) {
     const hasFlowChildren =
-      elementRegistry.filter(
-        (el: any) =>
-          el.parent === pool &&
-          !isConnection(el.type) &&
-          !isInfrastructure(el.type) &&
-          !isArtifact(el.type) &&
-          !isLane(el.type) &&
-          el.type !== 'bpmn:BoundaryEvent' &&
-          el.type !== 'label'
-      ).length > 0;
+      elementRegistry.filter((el: any) => el.parent === pool && isLayoutableShape(el)).length > 0;
 
     if (hasFlowChildren) {
       expanded.push(pool);

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import {
   rectsOverlap,
   rectsNearby,
@@ -9,31 +9,31 @@ import {
 
 describe('label-utils', () => {
   describe('rectsOverlap', () => {
-    it('detects overlapping rectangles', () => {
+    test('detects overlapping rectangles', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 50, y: 40, width: 100, height: 80 };
       expect(rectsOverlap(a, b)).toBe(true);
     });
 
-    it('detects non-overlapping rectangles (side by side)', () => {
+    test('detects non-overlapping rectangles (side by side)', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 200, y: 0, width: 100, height: 80 };
       expect(rectsOverlap(a, b)).toBe(false);
     });
 
-    it('detects non-overlapping rectangles (above/below)', () => {
+    test('detects non-overlapping rectangles (above/below)', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 0, y: 100, width: 100, height: 80 };
       expect(rectsOverlap(a, b)).toBe(false);
     });
 
-    it('detects touching but not overlapping rectangles', () => {
+    test('detects touching but not overlapping rectangles', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 100, y: 0, width: 100, height: 80 }; // exactly touching
       expect(rectsOverlap(a, b)).toBe(false);
     });
 
-    it('detects contained rectangle', () => {
+    test('detects contained rectangle', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 10, y: 10, width: 20, height: 20 };
       expect(rectsOverlap(a, b)).toBe(true);
@@ -41,31 +41,31 @@ describe('label-utils', () => {
   });
 
   describe('rectsNearby', () => {
-    it('detects rects within margin distance', () => {
+    test('detects rects within margin distance', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 105, y: 0, width: 100, height: 80 }; // 5px gap
       expect(rectsNearby(a, b, 10)).toBe(true);
     });
 
-    it('returns false when rects are beyond margin', () => {
+    test('returns false when rects are beyond margin', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 200, y: 0, width: 100, height: 80 }; // 100px gap
       expect(rectsNearby(a, b, 10)).toBe(false);
     });
 
-    it('returns true for overlapping rects', () => {
+    test('returns true for overlapping rects', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 50, y: 40, width: 100, height: 80 };
       expect(rectsNearby(a, b, 10)).toBe(true);
     });
 
-    it('detects vertical proximity', () => {
+    test('detects vertical proximity', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 0, y: 85, width: 100, height: 80 }; // 5px vertical gap
       expect(rectsNearby(a, b, 10)).toBe(true);
     });
 
-    it('returns false for rects beyond margin diagonally', () => {
+    test('returns false for rects beyond margin diagonally', () => {
       const a = { x: 0, y: 0, width: 100, height: 80 };
       const b = { x: 120, y: 100, width: 100, height: 80 };
       expect(rectsNearby(a, b, 10)).toBe(false);
@@ -73,35 +73,35 @@ describe('label-utils', () => {
   });
 
   describe('segmentIntersectsRect', () => {
-    it('detects horizontal line crossing a rectangle', () => {
+    test('detects horizontal line crossing a rectangle', () => {
       const p1 = { x: 0, y: 40 };
       const p2 = { x: 200, y: 40 };
       const rect = { x: 50, y: 20, width: 100, height: 40 };
       expect(segmentIntersectsRect(p1, p2, rect)).toBe(true);
     });
 
-    it('detects vertical line crossing a rectangle', () => {
+    test('detects vertical line crossing a rectangle', () => {
       const p1 = { x: 100, y: 0 };
       const p2 = { x: 100, y: 200 };
       const rect = { x: 50, y: 50, width: 100, height: 80 };
       expect(segmentIntersectsRect(p1, p2, rect)).toBe(true);
     });
 
-    it('detects line that misses the rectangle', () => {
+    test('detects line that misses the rectangle', () => {
       const p1 = { x: 0, y: 0 };
       const p2 = { x: 100, y: 0 };
       const rect = { x: 50, y: 50, width: 100, height: 80 };
       expect(segmentIntersectsRect(p1, p2, rect)).toBe(false);
     });
 
-    it('detects line entirely inside rectangle', () => {
+    test('detects line entirely inside rectangle', () => {
       const p1 = { x: 60, y: 60 };
       const p2 = { x: 80, y: 70 };
       const rect = { x: 50, y: 50, width: 100, height: 80 };
       expect(segmentIntersectsRect(p1, p2, rect)).toBe(true);
     });
 
-    it('detects diagonal line crossing a rectangle', () => {
+    test('detects diagonal line crossing a rectangle', () => {
       const p1 = { x: 0, y: 0 };
       const p2 = { x: 200, y: 200 };
       const rect = { x: 50, y: 50, width: 100, height: 100 };
@@ -110,7 +110,7 @@ describe('label-utils', () => {
   });
 
   describe('getLabelCandidatePositions', () => {
-    it('returns 8 candidates (4 cardinal + 4 diagonal)', () => {
+    test('returns 8 candidates (4 cardinal + 4 diagonal)', () => {
       const element = { x: 100, y: 100, width: 50, height: 50 };
       const candidates = getLabelCandidatePositions(element);
       expect(candidates).toHaveLength(8);
@@ -121,7 +121,7 @@ describe('label-utils', () => {
       expect(orientations).toContain('right');
     });
 
-    it('positions are offset from the element edges', () => {
+    test('positions are offset from the element edges', () => {
       const element = { x: 100, y: 100, width: 50, height: 50 };
       const candidates = getLabelCandidatePositions(element);
       const top = candidates.find((c) => c.orientation === 'top')!;
@@ -133,7 +133,7 @@ describe('label-utils', () => {
       expect(bottom.rect.y).toBeGreaterThanOrEqual(element.y + element.height);
     });
 
-    it('bottom label includes ELEMENT_LABEL_BOTTOM_EXTRA spacing', () => {
+    test('bottom label includes ELEMENT_LABEL_BOTTOM_EXTRA spacing', () => {
       const element = { x: 100, y: 100, width: 36, height: 36 };
       const candidates = getLabelCandidatePositions(element);
       const bottom = candidates.find((c) => c.orientation === 'bottom')!;
@@ -143,7 +143,7 @@ describe('label-utils', () => {
       expect(actualGap).toBe(15); // 10 + 5
     });
 
-    it('candidates have proper width and height', () => {
+    test('candidates have proper width and height', () => {
       const element = { x: 100, y: 100, width: 50, height: 50 };
       const candidates = getLabelCandidatePositions(element);
       for (const c of candidates) {
@@ -154,7 +154,7 @@ describe('label-utils', () => {
   });
 
   describe('scoreLabelPosition', () => {
-    it('returns 0 for a position with no collisions', () => {
+    test('returns 0 for a position with no collisions', () => {
       const rect = { x: 0, y: 0, width: 90, height: 20 };
       const segments: [{ x: number; y: number }, { x: number; y: number }][] = [
         [
@@ -165,7 +165,7 @@ describe('label-utils', () => {
       expect(scoreLabelPosition(rect, segments, [])).toBe(0);
     });
 
-    it('scores higher for positions that intersect connections', () => {
+    test('scores higher for positions that intersect connections', () => {
       const rect = { x: 0, y: 0, width: 100, height: 40 };
       const segments: [{ x: number; y: number }, { x: number; y: number }][] = [
         [
@@ -177,21 +177,21 @@ describe('label-utils', () => {
       expect(score).toBeGreaterThan(0);
     });
 
-    it('scores higher for positions that overlap other labels', () => {
+    test('scores higher for positions that overlap other labels', () => {
       const rect = { x: 0, y: 0, width: 90, height: 20 };
       const otherLabels = [{ x: 10, y: 5, width: 90, height: 20 }];
       const score = scoreLabelPosition(rect, [], otherLabels);
       expect(score).toBeGreaterThan(0);
     });
 
-    it('penalizes host overlap heavily for boundary events', () => {
+    test('penalizes host overlap heavily for boundary events', () => {
       const rect = { x: 100, y: 100, width: 90, height: 20 };
       const hostRect = { x: 80, y: 80, width: 100, height: 80 };
       const score = scoreLabelPosition(rect, [], [], hostRect);
       expect(score).toBeGreaterThanOrEqual(10);
     });
 
-    it('penalizes labels too close to shapes (proximity)', () => {
+    test('penalizes labels too close to shapes (proximity)', () => {
       const rect = { x: 0, y: 0, width: 90, height: 20 };
       // Shape is 5px to the right of the label — close but not overlapping
       const shapeRects = [{ x: 95, y: 0, width: 100, height: 80 }];
@@ -199,7 +199,7 @@ describe('label-utils', () => {
       expect(score).toBeGreaterThan(0); // proximity penalty
     });
 
-    it('gives no proximity penalty when shapes are far away', () => {
+    test('gives no proximity penalty when shapes are far away', () => {
       const rect = { x: 0, y: 0, width: 90, height: 20 };
       // Shape is 100px away — well beyond proximity margin
       const shapeRects = [{ x: 200, y: 0, width: 100, height: 80 }];

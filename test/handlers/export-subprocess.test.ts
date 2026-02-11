@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn as handleExportSubprocess } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('handleExportSubprocess', () => {
     clearDiagrams();
   });
 
-  it('rejects non-subprocess elements', async () => {
+  test('rejects non-subprocess elements', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask');
 
@@ -16,7 +16,7 @@ describe('handleExportSubprocess', () => {
     expect(res.content[0].text).toContain('not a SubProcess or Participant');
   });
 
-  it('exports a subprocess as XML', async () => {
+  test('exports a subprocess as XML', async () => {
     const diagramId = await createDiagram();
 
     // Add a subprocess with content
@@ -42,7 +42,7 @@ describe('handleExportSubprocess', () => {
     expect(res.content[0].text).toContain('definitions');
   });
 
-  it('reports empty subprocess', async () => {
+  test('reports empty subprocess', async () => {
     const diagramId = await createDiagram();
     const subId = await addElement(diagramId, 'bpmn:SubProcess', { name: 'Empty' });
 

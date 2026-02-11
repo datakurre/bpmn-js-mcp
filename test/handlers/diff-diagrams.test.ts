@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleDiffDiagrams } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleDiffDiagrams', () => {
     clearDiagrams();
   });
 
-  it('reports identical for two empty diagrams', async () => {
+  test('reports identical for two empty diagrams', async () => {
     const idA = await createDiagram();
     const idB = await createDiagram();
 
@@ -19,7 +19,7 @@ describe('handleDiffDiagrams', () => {
     expect(res.summary.changedCount).toBe(0);
   });
 
-  it('detects added elements', async () => {
+  test('detects added elements', async () => {
     const idA = await createDiagram();
     const idB = await createDiagram();
     await addElement(idB, 'bpmn:StartEvent', { name: 'Begin' });
@@ -29,7 +29,7 @@ describe('handleDiffDiagrams', () => {
     expect(res.added[0].type).toBe('bpmn:StartEvent');
   });
 
-  it('detects removed elements', async () => {
+  test('detects removed elements', async () => {
     const idA = await createDiagram();
     await addElement(idA, 'bpmn:StartEvent', { name: 'Begin' });
     const idB = await createDiagram();
@@ -39,7 +39,7 @@ describe('handleDiffDiagrams', () => {
     expect(res.removed[0].type).toBe('bpmn:StartEvent');
   });
 
-  it('detects changed element properties', async () => {
+  test('detects changed element properties', async () => {
     const idA = await createDiagram();
     await addElement(idA, 'bpmn:UserTask', { name: 'OldName' });
 

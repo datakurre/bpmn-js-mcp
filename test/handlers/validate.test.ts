@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleValidate, handleConnect, handleSetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,14 +7,14 @@ describe('handleValidate', () => {
     clearDiagrams();
   });
 
-  it('warns about missing start/end events on empty diagram', async () => {
+  test('warns about missing start/end events on empty diagram', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleValidate({ diagramId }));
     expect(res.issues.some((i: any) => i.message.includes('start event'))).toBe(true);
     expect(res.issues.some((i: any) => i.message.includes('end event'))).toBe(true);
   });
 
-  it('warns about disconnected elements', async () => {
+  test('warns about disconnected elements', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task', { name: 'Lonely' });
     const res = parseResult(await handleValidate({ diagramId }));
@@ -25,7 +25,7 @@ describe('handleValidate', () => {
     ).toBe(true);
   });
 
-  it('warns about unnamed tasks', async () => {
+  test('warns about unnamed tasks', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task');
     const res = parseResult(await handleValidate({ diagramId }));
@@ -36,7 +36,7 @@ describe('handleValidate', () => {
     ).toBe(true);
   });
 
-  it('no start/end warnings when both present and connected', async () => {
+  test('no start/end warnings when both present and connected', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -63,7 +63,7 @@ describe('handleValidate — external task validation', () => {
     clearDiagrams();
   });
 
-  it('warns when camunda:topic is set without camunda:type=external', async () => {
+  test('warns when camunda:topic is set without camunda:type=external', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Bad External',
@@ -96,7 +96,7 @@ describe('handleValidate — gateway default flow warning', () => {
     clearDiagrams();
   });
 
-  it('warns when exclusive gateway has conditional flows but no default', async () => {
+  test('warns when exclusive gateway has conditional flows but no default', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,

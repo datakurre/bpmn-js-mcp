@@ -5,7 +5,7 @@
  * and target elements (no disconnected waypoints from gridSnap drift).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -29,7 +29,7 @@ describe('edge endpoint connectivity after layout', () => {
     clearDiagrams();
   });
 
-  it('all edges connect to their source and target after layout', async () => {
+  test('all edges connect to their source and target after layout', async () => {
     // Build a diagram with XOR split and join
     const diagramId = await createDiagram('Edge Connect Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
@@ -78,7 +78,7 @@ describe('edge endpoint connectivity after layout', () => {
     }
   });
 
-  it('straight sequential flows have 2-point waypoints', async () => {
+  test('straight sequential flows have 2-point waypoints', async () => {
     const diagramId = await createDiagram('Straight Flow Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task' });

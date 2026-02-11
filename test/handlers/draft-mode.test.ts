@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleCreateDiagram,
   handleAddElement,
@@ -13,7 +13,7 @@ describe('draft mode', () => {
     clearDiagrams();
   });
 
-  it('creates diagram with draftMode: false by default', async () => {
+  test('creates diagram with draftMode: false by default', async () => {
     const res = parseResult(await handleCreateDiagram({ name: 'Test' }));
     expect(res.success).toBe(true);
     expect(res.draftMode).toBe(false);
@@ -21,7 +21,7 @@ describe('draft mode', () => {
     expect(diagram.draftMode).toBe(false);
   });
 
-  it('creates diagram with draftMode: true', async () => {
+  test('creates diagram with draftMode: true', async () => {
     const res = parseResult(await handleCreateDiagram({ name: 'Draft Test', draftMode: true }));
     expect(res.success).toBe(true);
     expect(res.draftMode).toBe(true);
@@ -30,7 +30,7 @@ describe('draft mode', () => {
     expect(diagram.draftMode).toBe(true);
   });
 
-  it('suppresses lint feedback when draftMode is true', async () => {
+  test('suppresses lint feedback when draftMode is true', async () => {
     // Create a diagram in draft mode
     const draftRes = parseResult(await handleCreateDiagram({ name: 'Draft', draftMode: true }));
     const draftId = draftRes.diagramId;
@@ -47,7 +47,7 @@ describe('draft mode', () => {
     expect(addRes.content[0].text).not.toContain('Lint issues');
   });
 
-  it('shows lint feedback when draftMode is false', async () => {
+  test('shows lint feedback when draftMode is false', async () => {
     // Create a diagram NOT in draft mode
     const normalRes = parseResult(await handleCreateDiagram({ name: 'Normal' }));
     const normalId = normalRes.diagramId;
@@ -65,7 +65,7 @@ describe('draft mode', () => {
     expect(diagram.draftMode).toBe(false);
   });
 
-  it('shows draftMode in diagram listing', async () => {
+  test('shows draftMode in diagram listing', async () => {
     const res = parseResult(await handleCreateDiagram({ name: 'Listed', draftMode: true }));
 
     const listing = parseResult(await handleListDiagrams());
@@ -74,7 +74,7 @@ describe('draft mode', () => {
     expect(entry.draftMode).toBe(true);
   });
 
-  it('import_bpmn_xml supports draftMode', async () => {
+  test('import_bpmn_xml supports draftMode', async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"

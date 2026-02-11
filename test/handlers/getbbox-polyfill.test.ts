@@ -5,7 +5,7 @@
  * for text elements, proportional to text content length.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -14,7 +14,7 @@ describe('getBBox polyfill', () => {
     clearDiagrams();
   });
 
-  it('exports label bounds with height ≤ 30px for short single-line labels', async () => {
+  test('exports label bounds with height ≤ 30px for short single-line labels', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -42,7 +42,7 @@ describe('getBBox polyfill', () => {
     }
   });
 
-  it('exports label width proportional to text length', async () => {
+  test('exports label width proportional to text length', async () => {
     const diagramId = await createDiagram();
     const shortName = 'Go';
     const longName = 'Process the registration form';
@@ -78,7 +78,7 @@ describe('getBBox polyfill', () => {
     }
   });
 
-  it('text annotation does not get absurd height in DI', async () => {
+  test('text annotation does not get absurd height in DI', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Handle Order',
@@ -127,7 +127,7 @@ describe('getBBox polyfill', () => {
 });
 
 describe('getComputedTextLength polyfill', () => {
-  it('does not throw when creating elements with labels', async () => {
+  test('does not throw when creating elements with labels', async () => {
     // If getComputedTextLength were missing, bpmn-js text wrapping would throw
     const diagramId = await createDiagram();
     const id = await addElement(diagramId, 'bpmn:UserTask', {

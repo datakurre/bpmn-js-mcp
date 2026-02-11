@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAddElement, handleListElements } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleAddElement', () => {
     clearDiagrams();
   });
 
-  it('adds a start event and returns its id', async () => {
+  test('adds a start event and returns its id', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -23,13 +23,13 @@ describe('handleAddElement', () => {
     expect(res.elementType).toBe('bpmn:StartEvent');
   });
 
-  it('throws for unknown diagram', async () => {
+  test('throws for unknown diagram', async () => {
     await expect(handleAddElement({ diagramId: 'bad', elementType: 'bpmn:Task' })).rejects.toThrow(
       /Diagram not found/
     );
   });
 
-  it('auto-positions after another element', async () => {
+  test('auto-positions after another element', async () => {
     const diagramId = await createDiagram();
     const firstId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,
@@ -46,7 +46,7 @@ describe('handleAddElement', () => {
     expect(res.position.x).toBeGreaterThan(100);
   });
 
-  it('throws when adding BoundaryEvent without hostElementId', async () => {
+  test('throws when adding BoundaryEvent without hostElementId', async () => {
     const diagramId = await createDiagram();
     await expect(
       handleAddElement({
@@ -56,7 +56,7 @@ describe('handleAddElement', () => {
     ).rejects.toThrow(/hostElementId/);
   });
 
-  it('attaches BoundaryEvent to a host task', async () => {
+  test('attaches BoundaryEvent to a host task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'My Task',
@@ -82,7 +82,7 @@ describe('descriptive element IDs', () => {
     clearDiagrams();
   });
 
-  it('generates a descriptive ID when name is provided', async () => {
+  test('generates a descriptive ID when name is provided', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -95,7 +95,7 @@ describe('descriptive element IDs', () => {
     expect(res.elementId).toBe('UserTask_EnterName');
   });
 
-  it('generates a descriptive ID for gateways', async () => {
+  test('generates a descriptive ID for gateways', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -108,7 +108,7 @@ describe('descriptive element IDs', () => {
     expect(res.elementId).toBe('Gateway_HasSurname');
   });
 
-  it('generates random ID when no name is provided', async () => {
+  test('generates random ID when no name is provided', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -120,7 +120,7 @@ describe('descriptive element IDs', () => {
     expect(res.elementId).toMatch(/^Task_[a-z0-9]{7}$/);
   });
 
-  it('generates unique random IDs for unnamed elements', async () => {
+  test('generates unique random IDs for unnamed elements', async () => {
     const diagramId = await createDiagram();
     const res1 = parseResult(
       await handleAddElement({ diagramId, elementType: 'bpmn:ServiceTask' })
@@ -134,7 +134,7 @@ describe('descriptive element IDs', () => {
     expect(res1.elementId).not.toBe(res2.elementId);
   });
 
-  it('falls back to 3-part ID on name collision', async () => {
+  test('falls back to 3-part ID on name collision', async () => {
     const diagramId = await createDiagram();
     const res1 = parseResult(
       await handleAddElement({
@@ -162,7 +162,7 @@ describe('smart add_bpmn_element insertion', () => {
     clearDiagrams();
   });
 
-  it('shifts downstream elements when inserting via afterElementId', async () => {
+  test('shifts downstream elements when inserting via afterElementId', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', {
       x: 100,

@@ -6,7 +6,7 @@
  * spread evenly and do not overlap.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect, handleAddElement } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams, parseResult } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -16,7 +16,7 @@ describe('boundary event spreading', () => {
     clearDiagrams();
   });
 
-  it('spreads multiple boundary events on the same host border', async () => {
+  test('spreads multiple boundary events on the same host border', async () => {
     const diagramId = await createDiagram('Boundary Spread Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });

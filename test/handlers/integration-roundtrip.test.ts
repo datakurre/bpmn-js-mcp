@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleConnect,
   handleExportBpmn,
@@ -18,7 +18,7 @@ describe('integration: full round-trip', () => {
     clearDiagrams();
   });
 
-  it('create → export → re-import → lint with zero errors', async () => {
+  test('create → export → re-import → lint with zero errors', async () => {
     // ── Step 1: Build a non-trivial diagram ────────────────────────────
     const diagramId = await createDiagram('Round Trip Test');
 

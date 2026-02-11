@@ -2,7 +2,7 @@
  * Tests for export_bpmn lintMinSeverity parameter.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -11,7 +11,7 @@ describe('export lintMinSeverity', () => {
     clearDiagrams();
   });
 
-  it('blocks export on warnings when lintMinSeverity is warning', async () => {
+  test('blocks export on warnings when lintMinSeverity is warning', async () => {
     const diagramId = await createDiagram();
     // Create a minimal valid flow (start -> end) but without labels
     // label-required is downgraded to 'warn' by default config
@@ -29,7 +29,7 @@ describe('export lintMinSeverity', () => {
     expect(res.content[0].text).toContain('Export blocked');
   });
 
-  it('exports successfully at default error severity with warnings present', async () => {
+  test('exports successfully at default error severity with warnings present', async () => {
     const diagramId = await createDiagram();
     // Create minimal valid flow - no lint errors but has warnings (no labels)
     const start = await addElement(diagramId, 'bpmn:StartEvent', {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetInputOutput, handleExportBpmn, handleGetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetInputOutput', () => {
     clearDiagrams();
   });
 
-  it('sets input/output parameters on a task', async () => {
+  test('sets input/output parameters on a task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'External',
@@ -35,7 +35,7 @@ describe('handleSetInputOutput', () => {
     expect(xml).toContain('orderId');
   });
 
-  it('works with get_element_properties', async () => {
+  test('works with get_element_properties', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'IO Task',
@@ -60,7 +60,7 @@ describe('handleSetInputOutput — value expressions', () => {
     clearDiagrams();
   });
 
-  it('produces correct XML for expression values', async () => {
+  test('produces correct XML for expression values', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Expr Test',
@@ -79,7 +79,7 @@ describe('handleSetInputOutput — value expressions', () => {
     expect(xml).not.toMatch(/source="/);
   });
 
-  it('does not accept source or sourceExpression attributes', async () => {
+  test('does not accept source or sourceExpression attributes', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'No Source',

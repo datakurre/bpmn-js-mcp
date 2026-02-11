@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleListElements as handleSearchElements } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSearchElements', () => {
     clearDiagrams();
   });
 
-  it('searches by element type', async () => {
+  test('searches by element type', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Review' });
     await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process' });
@@ -25,7 +25,7 @@ describe('handleSearchElements', () => {
     expect(res.elements.every((e: any) => e.type === 'bpmn:UserTask')).toBe(true);
   });
 
-  it('searches by name pattern', async () => {
+  test('searches by name pattern', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Document' });
     await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Send Email' });
@@ -42,7 +42,7 @@ describe('handleSearchElements', () => {
     expect(res.count).toBe(2);
   });
 
-  it('combines type and name filters', async () => {
+  test('combines type and name filters', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Doc' });
     await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Review Auto' });
@@ -60,7 +60,7 @@ describe('handleSearchElements', () => {
     expect(res.elements[0].name).toBe('Review Doc');
   });
 
-  it('returns empty results for no matches', async () => {
+  test('returns empty results for no matches', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Task' });
 

@@ -7,7 +7,7 @@
  * Covers Root Cause 4: Cycles (Loops) Degrade ELK Layering Quality.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -43,7 +43,7 @@ describe('Loop-back layout (Root Cause 4)', () => {
     clearDiagrams();
   });
 
-  it('simple loop: maintains left-to-right directionality for the main path', async () => {
+  test('simple loop: maintains left-to-right directionality for the main path', async () => {
     // Pattern: Start → Task1 → Gateway → Task2 → End
     //                             ↑                ↓ (loop back: "No" branch)
     //                             └── Retry Task ──┘
@@ -94,7 +94,7 @@ describe('Loop-back layout (Root Cause 4)', () => {
     }
   });
 
-  it('review loop: approval with retry maintains left-to-right flow', async () => {
+  test('review loop: approval with retry maintains left-to-right flow', async () => {
     // Pattern: Start → Draft → Review → Approved? → Publish → End
     //                            ↑                     ↓ (loop: "Revise" branch)
     //                            └─── Revise ──────────┘
@@ -143,7 +143,7 @@ describe('Loop-back layout (Root Cause 4)', () => {
     expect(centreX(publishEl)).toBeLessThan(centreX(endEl));
   });
 
-  it('multi-step loop: iterative processing maintains ordering', async () => {
+  test('multi-step loop: iterative processing maintains ordering', async () => {
     // Pattern: Start → Init → Process → Check → End
     //                   ↑                  ↓ (loop back to Init)
     //                   └──────────────────┘

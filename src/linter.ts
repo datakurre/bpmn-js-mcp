@@ -24,9 +24,9 @@ import multipleExpandedPools from './bpmnlint-plugin-bpmn-mcp/rules/multiple-exp
 import exclusiveGatewayConditions from './bpmnlint-plugin-bpmn-mcp/rules/exclusive-gateway-conditions';
 import parallelGatewayMergeExclusive from './bpmnlint-plugin-bpmn-mcp/rules/parallel-gateway-merge-exclusive';
 import { getAllDiagrams } from './diagram-manager';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as crypto from 'crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as crypto from 'node:crypto';
 
 // ── Default configuration ──────────────────────────────────────────────────
 

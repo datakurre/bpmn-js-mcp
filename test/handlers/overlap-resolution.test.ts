@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('overlap resolution after layout', () => {
     clearDiagrams();
   });
 
-  it('resolves overlaps when grid snap creates them', async () => {
+  test('resolves overlaps when grid snap creates them', async () => {
     // Build a diagram where grid snap is likely to create overlaps:
     // many parallel branches with tight spacing
     const diagramId = await createDiagram('Overlap Test');
@@ -48,7 +48,7 @@ describe('overlap resolution after layout', () => {
     }
   });
 
-  it('does not move boundary events away from their host', async () => {
+  test('does not move boundary events away from their host', async () => {
     const diagramId = await createDiagram('Boundary Overlap');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });

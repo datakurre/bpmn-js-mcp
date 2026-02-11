@@ -16,7 +16,7 @@ import { storeDiagram, generateDiagramId, createModelerFromXml } from '../diagra
 import { jsonResult, syncXml } from './helpers';
 import { appendLintFeedback } from '../linter';
 import { elkLayout } from '../elk';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 
 export interface ImportXmlArgs {
   xml?: string;

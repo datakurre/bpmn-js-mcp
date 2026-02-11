@@ -9,7 +9,7 @@
  */
 
 import { JSDOM } from 'jsdom';
-import fs from 'fs';
+import fs from 'node:fs';
 import { applyPolyfills } from './headless-polyfills';
 
 let jsdomInstance: any;

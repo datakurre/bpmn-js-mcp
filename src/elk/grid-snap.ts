@@ -7,7 +7,7 @@
  */
 
 import { ELK_LAYER_SPACING, ELK_NODE_SPACING } from '../constants';
-import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
+import { isConnection, isInfrastructure, isArtifact, isLane, isLayoutableShape } from './helpers';
 import {
   EVENT_TASK_GAP_EXTRA,
   GATEWAY_EVENT_GAP_REDUCE,
@@ -41,29 +41,12 @@ export function detectLayers(elementRegistry: any, container?: any): GridLayer[]
 
   // If no root found (shouldn't happen), fall back to including all elements
   if (!parentFilter) {
-    const shapes = elementRegistry.filter(
-      (el: any) =>
-        !isInfrastructure(el.type) &&
-        !isConnection(el.type) &&
-        !isArtifact(el.type) &&
-        !isLane(el.type) &&
-        el.type !== 'bpmn:BoundaryEvent' &&
-        el.type !== 'label' &&
-        el.type !== 'bpmn:Participant'
-    );
+    const shapes = elementRegistry.filter((el: any) => isLayoutableShape(el));
     return shapes.length === 0 ? [] : clusterIntoLayers(shapes);
   }
 
   const shapes = elementRegistry.filter(
-    (el: any) =>
-      !isInfrastructure(el.type) &&
-      !isConnection(el.type) &&
-      !isArtifact(el.type) &&
-      !isLane(el.type) &&
-      el.type !== 'bpmn:BoundaryEvent' &&
-      el.type !== 'label' &&
-      el.type !== 'bpmn:Participant' &&
-      el.parent === parentFilter
+    (el: any) => isLayoutableShape(el) && el.parent === parentFilter
   );
 
   return shapes.length === 0 ? [] : clusterIntoLayers(shapes);
@@ -756,12 +739,7 @@ export function alignHappyPath(
   const nonHappyShapes = allElements.filter(
     (el: any) =>
       !happyPathNodeIds.has(el.id) &&
-      !isConnection(el.type) &&
-      !isInfrastructure(el.type) &&
-      !isArtifact(el.type) &&
-      el.type !== 'bpmn:BoundaryEvent' &&
-      el.type !== 'label' &&
-      el.type !== 'bpmn:Participant' &&
+      isLayoutableShape(el) &&
       (!parentFilter || el.parent === parentFilter)
   );
 

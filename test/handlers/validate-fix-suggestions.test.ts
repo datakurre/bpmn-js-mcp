@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleValidate, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('validate fix suggestions', () => {
     clearDiagrams();
   });
 
-  it('suggests fix for missing labels', async () => {
+  test('suggests fix for missing labels', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task');
 
@@ -17,7 +17,7 @@ describe('validate fix suggestions', () => {
     expect(labelIssue.fix).toContain('set_bpmn_element_properties');
   });
 
-  it('suggests fix for disconnected elements', async () => {
+  test('suggests fix for disconnected elements', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task', { name: 'Lonely' });
 
@@ -27,7 +27,7 @@ describe('validate fix suggestions', () => {
     expect(disconnectedIssue.fix).toContain('connect_bpmn_elements');
   });
 
-  it('suggests fix for missing start event', async () => {
+  test('suggests fix for missing start event', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task', { name: 'Do Something' });
 
@@ -38,7 +38,7 @@ describe('validate fix suggestions', () => {
     expect(startIssue.fix).toContain('StartEvent');
   });
 
-  it('suggests fix for missing end event', async () => {
+  test('suggests fix for missing end event', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task', { name: 'Do Something' });
 
@@ -49,7 +49,7 @@ describe('validate fix suggestions', () => {
     expect(endIssue.fix).toContain('EndEvent');
   });
 
-  it('suggests fix for naming convention issues', async () => {
+  test('suggests fix for naming convention issues', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:UserTask', { name: 'processOrder' });
 
@@ -59,7 +59,7 @@ describe('validate fix suggestions', () => {
     expect(namingIssue.fix).toContain('set_bpmn_element_properties');
   });
 
-  it('suggests fix for gateway missing default', async () => {
+  test('suggests fix for gateway missing default', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check?' });
@@ -87,7 +87,7 @@ describe('validate fix suggestions', () => {
     expect(defaultIssue.fix).toContain('isDefault');
   });
 
-  it('does not include fix for issues without a known remedy', async () => {
+  test('does not include fix for issues without a known remedy', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });

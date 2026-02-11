@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleSetProperties,
   handleSetInputOutput,
@@ -12,7 +12,7 @@ describe('Camunda 7 External Task workflow', () => {
     clearDiagrams();
   });
 
-  it('creates a full external task with topic, I/O mapping, and boundary error', async () => {
+  test('creates a full external task with topic, I/O mapping, and boundary error', async () => {
     const diagramId = await createDiagram('External Task Process');
 
     // 1. Create service task with external task type
@@ -65,7 +65,7 @@ describe('Camunda 7 External Task workflow', () => {
     expect(xml).toContain('errorEventDefinition');
   });
 
-  it('auto-sets camunda:type=external when only camunda:topic is provided', async () => {
+  test('auto-sets camunda:type=external when only camunda:topic is provided', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Auto External',

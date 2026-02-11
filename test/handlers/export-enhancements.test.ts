@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn, handleConnect, handleImportXml } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 describe('export_bpmn enhancements', () => {
   beforeEach(() => {
@@ -13,7 +13,7 @@ describe('export_bpmn enhancements', () => {
   // ── Both format ─────────────────────────────────────────────────────────
 
   describe('format: both', () => {
-    it('returns XML and SVG in a single call', async () => {
+    test('returns XML and SVG in a single call', async () => {
       const diagramId = await createDiagram();
       const start = await addElement(diagramId, 'bpmn:StartEvent', {
         name: 'Start',
@@ -30,7 +30,7 @@ describe('export_bpmn enhancements', () => {
       expect(res.content[1].text).toContain('<svg');
     });
 
-    it('both format works with skipLint', async () => {
+    test('both format works with skipLint', async () => {
       const diagramId = await createDiagram();
       await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
 
@@ -49,7 +49,7 @@ describe('export_bpmn enhancements', () => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bpmn-export-'));
     });
 
-    it('writes XML to file when filePath is specified', async () => {
+    test('writes XML to file when filePath is specified', async () => {
       const diagramId = await createDiagram();
       const start = await addElement(diagramId, 'bpmn:StartEvent', {
         name: 'Start',
@@ -76,7 +76,7 @@ describe('export_bpmn enhancements', () => {
       expect(texts).toContain('Written to');
     });
 
-    it('writes XML for both format', async () => {
+    test('writes XML for both format', async () => {
       const diagramId = await createDiagram();
       const start = await addElement(diagramId, 'bpmn:StartEvent', {
         name: 'Start',
@@ -102,7 +102,7 @@ describe('export_bpmn enhancements', () => {
       expect(res.content[1].text).toContain('<svg');
     });
 
-    it('creates directories automatically', async () => {
+    test('creates directories automatically', async () => {
       const diagramId = await createDiagram();
       const start = await addElement(diagramId, 'bpmn:StartEvent', {
         name: 'Start',
@@ -126,7 +126,7 @@ describe('export_bpmn enhancements', () => {
   // ── XML validation ──────────────────────────────────────────────────────
 
   describe('XML validation', () => {
-    it('exported XML contains well-formed structure', async () => {
+    test('exported XML contains well-formed structure', async () => {
       const diagramId = await createDiagram();
       const start = await addElement(diagramId, 'bpmn:StartEvent', {
         name: 'Start',
@@ -156,7 +156,7 @@ describe('import_bpmn_xml enhancements', () => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bpmn-import-'));
     });
 
-    it('imports from a file path', async () => {
+    test('imports from a file path', async () => {
       // Write a valid BPMN file
       const bpmnXml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -195,18 +195,18 @@ describe('import_bpmn_xml enhancements', () => {
       expect(data.message).toContain(filePath);
     });
 
-    it('returns error for non-existent file', async () => {
+    test('returns error for non-existent file', async () => {
       const filePath = path.join(tmpDir, 'nonexistent.bpmn');
       const res = await handleImportXml({ filePath });
       expect(res.content[0].text).toContain('File not found');
     });
 
-    it('returns error when neither xml nor filePath provided', async () => {
+    test('returns error when neither xml nor filePath provided', async () => {
       const res = await handleImportXml({});
       expect(res.content[0].text).toContain('Either xml or filePath must be provided');
     });
 
-    it('round-trip: import from file, export to file', async () => {
+    test('round-trip: import from file, export to file', async () => {
       // Create a diagram, export to file, then import from file
       const diagramId = await createDiagram();
       const start = await addElement(diagramId, 'bpmn:StartEvent', {

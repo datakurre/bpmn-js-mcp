@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleMoveToLane } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleMoveToLane', () => {
     clearDiagrams();
   });
 
-  it('rejects moving to a non-lane element', async () => {
+  test('rejects moving to a non-lane element', async () => {
     const diagramId = await createDiagram('Non-Lane');
     const task1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
     const task2 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 2' });
@@ -17,7 +17,7 @@ describe('handleMoveToLane', () => {
     );
   });
 
-  it('rejects moving a participant into a lane', async () => {
+  test('rejects moving a participant into a lane', async () => {
     const diagramId = await createDiagram('Participant to Lane');
     const part = await addElement(diagramId, 'bpmn:Participant', {
       name: 'Pool',
@@ -31,7 +31,7 @@ describe('handleMoveToLane', () => {
     );
   });
 
-  it('rejects non-existent element', async () => {
+  test('rejects non-existent element', async () => {
     const diagramId = await createDiagram('Missing');
 
     await expect(

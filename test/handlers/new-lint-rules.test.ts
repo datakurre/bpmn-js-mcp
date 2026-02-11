@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleConnect,
   handleLintDiagram,
@@ -13,7 +13,7 @@ describe('bpmnlint new rules', () => {
   });
 
   describe('compensation-missing-association', () => {
-    it('errors when compensation boundary event has no association to handler', async () => {
+    test('errors when compensation boundary event has no association to handler', async () => {
       const diagramId = await createDiagram('Compensation Test');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process Payment' });
@@ -62,7 +62,7 @@ describe('bpmnlint new rules', () => {
   });
 
   describe('boundary-event-scope', () => {
-    it('warns when message boundary event leads to cancellation path', async () => {
+    test('warns when message boundary event leads to cancellation path', async () => {
       const diagramId = await createDiagram('Scope Test');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Details' });
@@ -115,7 +115,7 @@ describe('bpmnlint new rules', () => {
       expect(issues[0].message).toContain('event subprocess');
     });
 
-    it('does not warn for timer boundary events', async () => {
+    test('does not warn for timer boundary events', async () => {
       const diagramId = await createDiagram('Timer Boundary');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Wait Task' });
@@ -157,7 +157,7 @@ describe('bpmnlint new rules', () => {
   });
 
   describe('loop-without-limit', () => {
-    it('warns when a loop has no limiting mechanism', async () => {
+    test('warns when a loop has no limiting mechanism', async () => {
       const diagramId = await createDiagram('Unlimited Loop');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Data' });
@@ -195,7 +195,7 @@ describe('bpmnlint new rules', () => {
       expect(issues[0].message).toContain('limiting mechanism');
     });
 
-    it('does not warn when loop has a timer boundary event', async () => {
+    test('does not warn when loop has a timer boundary event', async () => {
       const diagramId = await createDiagram('Limited Loop');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Data' });
@@ -250,7 +250,7 @@ describe('bpmnlint new rules', () => {
       expect(issues.length).toBe(0);
     });
 
-    it('does not warn when loop has a script task (counter)', async () => {
+    test('does not warn when loop has a script task (counter)', async () => {
       const diagramId = await createDiagram('Counter Loop');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Data' });
@@ -292,7 +292,7 @@ describe('bpmnlint new rules', () => {
   });
 
   describe('exclusive-gateway-conditions', () => {
-    it('errors when gateway has mixed conditional/unconditional flows with no default', async () => {
+    test('errors when gateway has mixed conditional/unconditional flows with no default', async () => {
       const diagramId = await createDiagram('Mixed Conditions');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Approved?' });
@@ -333,7 +333,7 @@ describe('bpmnlint new rules', () => {
       expect(issues[0].message).toContain('default');
     });
 
-    it('does not error when all flows have conditions', async () => {
+    test('does not error when all flows have conditions', async () => {
       const diagramId = await createDiagram('All Conditions');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Approved?' });
@@ -373,7 +373,7 @@ describe('bpmnlint new rules', () => {
       expect(issues.length).toBe(0);
     });
 
-    it('does not error when unconditional flow is set as default', async () => {
+    test('does not error when unconditional flow is set as default', async () => {
       const diagramId = await createDiagram('With Default');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Approved?' });
@@ -413,7 +413,7 @@ describe('bpmnlint new rules', () => {
       expect(issues.length).toBe(0);
     });
 
-    it('errors when multiple flows lack conditions', async () => {
+    test('errors when multiple flows lack conditions', async () => {
       const diagramId = await createDiagram('Multiple Uncond');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Route?' });
@@ -451,7 +451,7 @@ describe('bpmnlint new rules', () => {
   });
 
   describe('compensation-missing-association (orphaned handler)', () => {
-    it('errors when compensation handler has no association from boundary event', async () => {
+    test('errors when compensation handler has no association from boundary event', async () => {
       const diagramId = await createDiagram('Orphaned Handler');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Charge Card' });
@@ -486,7 +486,7 @@ describe('bpmnlint new rules', () => {
   });
 
   describe('parallel-gateway-merge-exclusive', () => {
-    it('warns when parallel gateway merges exclusive gateway branches', async () => {
+    test('warns when parallel gateway merges exclusive gateway branches', async () => {
       const diagramId = await createDiagram('Parallel Merges Exclusive');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const xgw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Approved?' });
@@ -519,7 +519,7 @@ describe('bpmnlint new rules', () => {
       expect(issues[0].message).toContain('deadlock');
     });
 
-    it('does not warn when parallel gateway merges parallel gateway branches', async () => {
+    test('does not warn when parallel gateway merges parallel gateway branches', async () => {
       const diagramId = await createDiagram('Parallel Merges Parallel');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const psplit = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
@@ -551,7 +551,7 @@ describe('bpmnlint new rules', () => {
       expect(issues.length).toBe(0);
     });
 
-    it('does not warn for exclusive merge after exclusive split', async () => {
+    test('does not warn for exclusive merge after exclusive split', async () => {
       const diagramId = await createDiagram('Exclusive Merges Exclusive');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const xsplit = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Route?' });

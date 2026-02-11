@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleBatchOperations } from '../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -8,7 +8,7 @@ describe('handleBatchOperations', () => {
     clearDiagrams();
   });
 
-  it('executes multiple operations sequentially', async () => {
+  test('executes multiple operations sequentially', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -37,7 +37,7 @@ describe('handleBatchOperations', () => {
     expect(registry.get('EndEvent_End')).toBeDefined();
   });
 
-  it('stops on first error by default', async () => {
+  test('stops on first error by default', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -65,7 +65,7 @@ describe('handleBatchOperations', () => {
     expect(res.executed).toBe(2); // Third operation was not executed
   });
 
-  it('continues on error when stopOnError is false', async () => {
+  test('continues on error when stopOnError is false', async () => {
     const diagramId = await createDiagram();
 
     const res = parseResult(
@@ -94,7 +94,7 @@ describe('handleBatchOperations', () => {
     expect(res.executed).toBe(3); // All operations executed
   });
 
-  it('rejects nested batch operations', async () => {
+  test('rejects nested batch operations', async () => {
     await expect(
       handleBatchOperations({
         operations: [
@@ -107,7 +107,7 @@ describe('handleBatchOperations', () => {
     ).rejects.toThrow(/Nested batch/);
   });
 
-  it('rejects empty operations array', async () => {
+  test('rejects empty operations array', async () => {
     await expect(handleBatchOperations({ operations: [] })).rejects.toThrow(/non-empty/);
   });
 });

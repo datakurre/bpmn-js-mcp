@@ -6,7 +6,7 @@
  * produces valid BPMN without corruption.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, test, expect, afterEach } from 'vitest';
 import { handleImportXml } from '../../src/handlers/import-xml';
 import { handleAddElement } from '../../src/handlers/add-element';
 import { handleExportBpmn } from '../../src/handlers/export';
@@ -83,7 +83,7 @@ const BOUNDARY_EVENT_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 describe('import → modify → export round-trip with boundary events', () => {
-  it('should preserve boundary events after import and modification', async () => {
+  test('should preserve boundary events after import and modification', async () => {
     // Step 1: Import
     const importResult = parseResult(
       await handleImportXml({ xml: BOUNDARY_EVENT_BPMN, autoLayout: false })
@@ -124,7 +124,7 @@ describe('import → modify → export round-trip with boundary events', () => {
     expect(xml).toContain('bpmn:errorEventDefinition');
   });
 
-  it('should preserve boundary events after inserting an element into a flow', async () => {
+  test('should preserve boundary events after inserting an element into a flow', async () => {
     // Import
     const importResult = parseResult(
       await handleImportXml({ xml: BOUNDARY_EVENT_BPMN, autoLayout: false })
@@ -158,7 +158,7 @@ describe('import → modify → export round-trip with boundary events', () => {
     expect(xml).toContain('attachedToRef="Task_1"');
   });
 
-  it('should maintain element connections after round-trip', async () => {
+  test('should maintain element connections after round-trip', async () => {
     // Import
     const importResult = parseResult(
       await handleImportXml({ xml: BOUNDARY_EVENT_BPMN, autoLayout: false })

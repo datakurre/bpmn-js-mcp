@@ -4,7 +4,7 @@
 
 import { ELK_LAYER_SPACING } from '../constants';
 import { SAME_ROW_THRESHOLD, ORTHO_SNAP_TOLERANCE } from './constants';
-import { isConnection, isInfrastructure, isArtifact } from './helpers';
+import { isConnection, isInfrastructure, isArtifact, isLayoutableShape } from './helpers';
 
 /**
  * After ELK positions nodes, elements in the same ELK layer can have small
@@ -36,14 +36,7 @@ export function snapSameLayerElements(
   }
 
   const shapes = elementRegistry.filter(
-    (el: any) =>
-      !isInfrastructure(el.type) &&
-      !isConnection(el.type) &&
-      !isArtifact(el.type) &&
-      el.type !== 'bpmn:BoundaryEvent' &&
-      el.type !== 'label' &&
-      el.type !== 'bpmn:Participant' &&
-      (!parentFilter || el.parent === parentFilter)
+    (el: any) => isLayoutableShape(el) && (!parentFilter || el.parent === parentFilter)
   );
 
   if (shapes.length < 2) return;

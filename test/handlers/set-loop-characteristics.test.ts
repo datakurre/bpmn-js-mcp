@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetLoopCharacteristics, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetLoopCharacteristics', () => {
     clearDiagrams();
   });
 
-  it('sets parallel multi-instance on a task', async () => {
+  test('sets parallel multi-instance on a task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'Review',
@@ -29,7 +29,7 @@ describe('handleSetLoopCharacteristics', () => {
     expect(xml).toContain('multiInstanceLoopCharacteristics');
   });
 
-  it('sets sequential multi-instance on a task', async () => {
+  test('sets sequential multi-instance on a task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'Batch',
@@ -51,7 +51,7 @@ describe('handleSetLoopCharacteristics', () => {
     expect(xml).toContain('isSequential="true"');
   });
 
-  it('sets standard loop on a task', async () => {
+  test('sets standard loop on a task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', {
       name: 'Retry',
@@ -72,7 +72,7 @@ describe('handleSetLoopCharacteristics', () => {
     expect(xml).toContain('standardLoopCharacteristics');
   });
 
-  it('removes loop characteristics with loopType none', async () => {
+  test('removes loop characteristics with loopType none', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', {
       name: 'Loop Then Remove',
@@ -97,7 +97,7 @@ describe('handleSetLoopCharacteristics', () => {
     expect(xml2).not.toContain('multiInstanceLoopCharacteristics');
   });
 
-  it('throws for non-task element', async () => {
+  test('throws for non-task element', async () => {
     const diagramId = await createDiagram();
     const eventId = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',

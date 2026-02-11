@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -37,7 +37,7 @@ describe('SVG export snapshots', () => {
 
   // ── Minimal diagram: just a start event ──────────────────────────────
 
-  it('empty process SVG has expected structure', async () => {
+  test('empty process SVG has expected structure', async () => {
     const diagramId = await createDiagram('Snapshot Empty');
     const res = await handleExportBpmn({ diagramId, format: 'svg', skipLint: true });
     const svg = normaliseSvg(res.content[0].text);
@@ -50,7 +50,7 @@ describe('SVG export snapshots', () => {
 
   // ── Simple flow: Start → Task → End ──────────────────────────────────
 
-  it('Start → Task → End SVG matches snapshot', async () => {
+  test('Start → Task → End SVG matches snapshot', async () => {
     const diagramId = await createDiagram('Snapshot Simple');
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Begin',
@@ -82,7 +82,7 @@ describe('SVG export snapshots', () => {
 
   // ── Gateway branch: Start → GW → [A, B] → Join → End ────────────────
 
-  it('exclusive gateway branch SVG matches snapshot', async () => {
+  test('exclusive gateway branch SVG matches snapshot', async () => {
     const diagramId = await createDiagram('Snapshot Gateway');
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
       name: 'Start',
@@ -145,7 +145,7 @@ describe('SVG export snapshots', () => {
 
   // ── SVG structure assertions (not snapshot, just invariants) ──────────
 
-  it('SVG contains expected BPMN visual markers', async () => {
+  test('SVG contains expected BPMN visual markers', async () => {
     const diagramId = await createDiagram('Markers');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 200 });
     const task = await addElement(diagramId, 'bpmn:ServiceTask', {

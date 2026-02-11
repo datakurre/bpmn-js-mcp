@@ -12,8 +12,8 @@
  * Run with: npx vitest run test/handlers/svg-comparison.test.ts
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { join } from 'path';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { join } from 'node:path';
 import { handleLayoutDiagram, handleExportBpmn } from '../../src/handlers';
 import {
   clearDiagrams,
@@ -99,13 +99,13 @@ describe('SVG position comparison (normalised)', () => {
 
   for (const config of DIAGRAMS) {
     describe(config.name, () => {
-      it('reference SVG has parseable positions', () => {
+      test('reference SVG has parseable positions', () => {
         const refPath = join(REFERENCE_DIR, `${config.name}.svg`);
         const refPositions = loadPositionsFromSVG(refPath);
         expect(refPositions.size).toBeGreaterThan(0);
       });
 
-      it(`normalised positions within ${config.tolerance}px tolerance`, async () => {
+      test(`normalised positions within ${config.tolerance}px tolerance`, async () => {
         // Import and layout
         const { diagramId } = await importReference(config.name);
         await handleLayoutDiagram({ diagramId });

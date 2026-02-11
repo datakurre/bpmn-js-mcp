@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleValidate as handleLintDiagram } from '../../src/handlers/validate';
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
@@ -8,7 +8,7 @@ describe('handleLintDiagram', () => {
     clearDiagrams();
   });
 
-  it('returns errors for empty process (no start/end events)', async () => {
+  test('returns errors for empty process (no start/end events)', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(await handleLintDiagram({ diagramId }));
 
@@ -19,7 +19,7 @@ describe('handleLintDiagram', () => {
     expect(res.issues.some((i: any) => i.rule === 'end-event-required')).toBe(true);
   });
 
-  it('returns no start/end event errors for valid start → task → end process', async () => {
+  test('returns no start/end event errors for valid start → task → end process', async () => {
     const diagramId = await createDiagram();
     const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
     const taskId = await addElement(diagramId, 'bpmn:Task', {
@@ -37,7 +37,7 @@ describe('handleLintDiagram', () => {
     expect(res.issues.filter((i: any) => i.rule === 'end-event-required')).toHaveLength(0);
   });
 
-  it('reports disconnected element', async () => {
+  test('reports disconnected element', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task', { name: 'Lonely' });
     const res = parseResult(await handleLintDiagram({ diagramId }));
@@ -52,7 +52,7 @@ describe('handleLintDiagram', () => {
     expect(hasDisconnected).toBe(true);
   });
 
-  it('supports custom config override to suppress rules', async () => {
+  test('supports custom config override to suppress rules', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleLintDiagram({
@@ -75,7 +75,7 @@ describe('handleLintDiagram', () => {
     expect(res.issues.filter((i: any) => i.rule === 'start-event-required')).toHaveLength(0);
   });
 
-  it('issues have proper structure (rule, severity, message)', async () => {
+  test('issues have proper structure (rule, severity, message)', async () => {
     const diagramId = await createDiagram();
     await addElement(diagramId, 'bpmn:Task');
     const res = parseResult(await handleLintDiagram({ diagramId }));

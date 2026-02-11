@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleLayoutDiagram } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -10,7 +10,7 @@ describe('adjustOverlappingLabels (dedicated)', () => {
     clearDiagrams();
   });
 
-  it('moves gateway label away from crossing connections', async () => {
+  test('moves gateway label away from crossing connections', async () => {
     const diagramId = await createDiagram('Label Overlap Test');
 
     // Build a flow with a gateway whose label sits on the connection path
@@ -60,7 +60,7 @@ describe('adjustOverlappingLabels (dedicated)', () => {
     expect(movedCount).toBeGreaterThanOrEqual(0);
   });
 
-  it('adjustFlowLabels moves labels away from shapes', async () => {
+  test('adjustFlowLabels moves labels away from shapes', async () => {
     const diagramId = await createDiagram('Flow Label Test');
 
     const start = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
@@ -84,7 +84,7 @@ describe('adjustOverlappingLabels (dedicated)', () => {
     expect(movedCount).toBeGreaterThanOrEqual(0);
   });
 
-  it('rectsOverlap correctly detects overlapping rectangles', () => {
+  test('rectsOverlap correctly detects overlapping rectangles', () => {
     expect(
       rectsOverlap(
         { x: 0, y: 0, width: 100, height: 100 },
@@ -108,7 +108,7 @@ describe('adjustOverlappingLabels (dedicated)', () => {
     ).toBe(false);
   });
 
-  it('handles diagram with no labels gracefully', async () => {
+  test('handles diagram with no labels gracefully', async () => {
     const diagramId = await createDiagram('No Labels');
 
     // Add elements without names — no external labels
@@ -120,7 +120,7 @@ describe('adjustOverlappingLabels (dedicated)', () => {
     expect(movedCount).toBe(0);
   });
 
-  it('label adjustment is integrated into layout pipeline', async () => {
+  test('label adjustment is integrated into layout pipeline', async () => {
     const diagramId = await createDiagram('Layout Integration');
 
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

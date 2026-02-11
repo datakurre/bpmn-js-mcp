@@ -5,7 +5,7 @@
  * at exclusive/inclusive gateways, not the default (fallback) flow.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleSetProperties, handleLayoutDiagram } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
@@ -16,7 +16,7 @@ describe('happy-path detection', () => {
     clearDiagrams();
   });
 
-  it('follows conditioned branch (not default) at exclusive gateway', async () => {
+  test('follows conditioned branch (not default) at exclusive gateway', async () => {
     const diagramId = await createDiagram('Happy Path Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Valid?' });
@@ -66,7 +66,7 @@ describe('happy-path detection', () => {
     expect(happyEdges.has(connNo.connectionId)).toBe(false);
   });
 
-  it('follows first outgoing when no default is set', async () => {
+  test('follows first outgoing when no default is set', async () => {
     const diagramId = await createDiagram('No Default Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Split' });
@@ -97,7 +97,7 @@ describe('happy-path detection', () => {
     expect(happyEdges.has(connA.connectionId)).toBe(true);
   });
 
-  it('parallel gateway follows first outgoing (no default concept)', async () => {
+  test('parallel gateway follows first outgoing (no default concept)', async () => {
     const diagramId = await createDiagram('Parallel Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const gw = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Fork' });
@@ -128,7 +128,7 @@ describe('happy-path detection', () => {
     expect(happyEdges.has(connA.connectionId)).toBe(true);
   });
 
-  it('layout uses corrected happy-path for exclusive gateway with default', async () => {
+  test('layout uses corrected happy-path for exclusive gateway with default', async () => {
     // Build a diagram where the default flow is the error path
     const diagramId = await createDiagram('Layout Happy Path');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleCloneDiagram, handleListElements } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleCloneDiagram', () => {
     clearDiagrams();
   });
 
-  it('creates a copy with a new ID', async () => {
+  test('creates a copy with a new ID', async () => {
     const diagramId = await createDiagram('Original');
     await addElement(diagramId, 'bpmn:Task', { name: 'My Task' });
 
@@ -22,7 +22,7 @@ describe('handleCloneDiagram', () => {
     expect(cloneList.count).toBe(origList.count);
   });
 
-  it('allows overriding the name', async () => {
+  test('allows overriding the name', async () => {
     const diagramId = await createDiagram('Original');
     const res = parseResult(await handleCloneDiagram({ diagramId, name: 'Clone' }));
     expect(res.name).toBe('Clone');

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleDistributeElements } from '../../src/handlers/align-elements';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleDistributeElements', () => {
     clearDiagrams();
   });
 
-  it('distributes elements horizontally (even)', async () => {
+  test('distributes elements horizontally (even)', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 100 });
     const bId = await addElement(diagramId, 'bpmn:Task', { x: 200, y: 100 });
@@ -24,7 +24,7 @@ describe('handleDistributeElements', () => {
     expect(res.distributedCount).toBe(3);
   });
 
-  it('distributes elements horizontally with fixed gap', async () => {
+  test('distributes elements horizontally with fixed gap', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 100 });
     const bId = await addElement(diagramId, 'bpmn:Task', { x: 200, y: 100 });
@@ -42,7 +42,7 @@ describe('handleDistributeElements', () => {
     expect(res.gap).toBe(50);
   });
 
-  it('distributes elements vertically (even)', async () => {
+  test('distributes elements vertically (even)', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 100 });
     const bId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 250 });
@@ -59,7 +59,7 @@ describe('handleDistributeElements', () => {
     expect(res.distributedCount).toBe(3);
   });
 
-  it('distributes elements vertically with fixed gap', async () => {
+  test('distributes elements vertically with fixed gap', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 100 });
     const bId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 250 });
@@ -77,7 +77,7 @@ describe('handleDistributeElements', () => {
     expect(res.gap).toBe(40);
   });
 
-  it('throws with fewer than 3 elements', async () => {
+  test('throws with fewer than 3 elements', async () => {
     const diagramId = await createDiagram();
     const aId = await addElement(diagramId, 'bpmn:Task', { x: 100, y: 100 });
     const bId = await addElement(diagramId, 'bpmn:Task', { x: 200, y: 100 });

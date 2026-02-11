@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetCamundaListeners, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
@@ -7,7 +7,7 @@ describe('handleSetCamundaErrorEventDefinition', () => {
     clearDiagrams();
   });
 
-  it('sets camunda:ErrorEventDefinition on a service task', async () => {
+  test('sets camunda:ErrorEventDefinition on a service task', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:ServiceTask', {
       name: 'External Task',
@@ -37,7 +37,7 @@ describe('handleSetCamundaErrorEventDefinition', () => {
     expect(xml).toContain('camunda:errorEventDefinition');
   });
 
-  it('throws for non-service-task element', async () => {
+  test('throws for non-service-task element', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:UserTask', {
       name: 'User Task',
