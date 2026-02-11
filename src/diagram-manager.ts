@@ -3,6 +3,7 @@
  * for creating / retrieving / importing diagrams.
  */
 
+import { randomBytes } from 'crypto';
 import { type DiagramState } from './types';
 import { createHeadlessCanvas, getBpmnModeler } from './headless-canvas';
 import camundaModdle from 'camunda-bpmn-moddle/resources/camunda.json';
@@ -45,7 +46,7 @@ export function getAllDiagrams(): Map<string, DiagramState> {
 }
 
 export function generateDiagramId(): string {
-  return `diagram_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  return `diagram_${Date.now()}_${randomBytes(6).toString('hex')}`;
 }
 
 /** Visible for testing – wipe all diagrams. */
