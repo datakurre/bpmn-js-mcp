@@ -13,18 +13,9 @@ import {
   rectsOverlap,
   rectsNearby,
   segmentIntersectsRect,
+  getLabelRect,
 } from './label-utils';
 import { getVisibleElements, syncXml } from './helpers';
-
-/** Get the bounding rect of a label shape. */
-function getLabelRect(label: any): Rect {
-  return {
-    x: label.x,
-    y: label.y,
-    width: label.width || 90,
-    height: label.height || 20,
-  };
-}
 
 /** Indexed shape rects: parallel arrays of Rects and their element IDs. */
 interface ShapeRectIndex {

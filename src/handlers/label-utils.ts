@@ -34,6 +34,18 @@ export interface LabelCandidate {
   rect: Rect;
 }
 
+// ── Label rect helpers ─────────────────────────────────────────────────────
+
+/** Get the bounding rect of a label shape (with default size fallbacks). */
+export function getLabelRect(label: any): Rect {
+  return {
+    x: label.x,
+    y: label.y,
+    width: label.width || 90,
+    height: label.height || 20,
+  };
+}
+
 // ── Bounding-box overlap ───────────────────────────────────────────────────
 
 /** Check if two axis-aligned rectangles overlap. */

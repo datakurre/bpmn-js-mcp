@@ -14,6 +14,7 @@ import {
   type LabelOrientation,
   getLabelCandidatePositions,
   scoreLabelPosition,
+  getLabelRect,
 } from './label-utils';
 import { getVisibleElements, syncXml } from './helpers';
 
@@ -48,16 +49,6 @@ function collectConnectionSegments(elements: any[]): [Point, Point][] {
     }
   }
   return segments;
-}
-
-/** Get the bounding rect of a label shape. */
-function getLabelRect(label: any): Rect {
-  return {
-    x: label.x,
-    y: label.y,
-    width: label.width || 90,
-    height: label.height || 20,
-  };
 }
 
 // ── Core adjustment logic ──────────────────────────────────────────────────
