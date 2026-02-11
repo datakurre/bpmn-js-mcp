@@ -83,14 +83,338 @@ function estimateTextBBox(textContent: string): { width: number; height: number 
   return { width: rawWidth, height: lines.length * LINE_HEIGHT };
 }
 
+// ── Transform parsing ──────────────────────────────────────────────────────
+
+/**
+ * Parse a CSS/SVG `transform` attribute and extract the translation offsets.
+ * Handles `translate(x, y)`, `translate(x)`, and `matrix(a,b,c,d,e,f)`.
+ * Returns `{ tx, ty }` — the effective translation components.
+ */
+function parseTransformTranslation(attr: string | null): { tx: number; ty: number } {
+  if (!attr) return { tx: 0, ty: 0 };
+
+  // Try translate(x, y) or translate(x)
+  const translateMatch = attr.match(/translate\(\s*([^,)]+)(?:[\s,]+([^)]*))?\)/);
+  if (translateMatch) {
+    const tx = parseFloat(translateMatch[1]) || 0;
+    const ty = parseFloat(translateMatch[2] || '0') || 0;
+    return { tx, ty };
+  }
+
+  // Try matrix(a, b, c, d, e, f) — e and f are translation
+  const matrixMatch = attr.match(
+    /matrix\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/
+  );
+  if (matrixMatch) {
+    const tx = parseFloat(matrixMatch[5]) || 0;
+    const ty = parseFloat(matrixMatch[6]) || 0;
+    return { tx, ty };
+  }
+
+  return { tx: 0, ty: 0 };
+}
+
+// ── Path d-attribute parsing ───────────────────────────────────────────────
+
+/** Mutable state carried through path command processing. */
+interface PathCursor {
+  curX: number;
+  curY: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Update path bounds with a point. */
+function trackPoint(c: PathCursor, x: number, y: number): void {
+  if (x < c.minX) c.minX = x;
+  if (y < c.minY) c.minY = y;
+  if (x > c.maxX) c.maxX = x;
+  if (y > c.maxY) c.maxY = y;
+}
+
+/** Check whether the next token is a number. */
+function hasNum(tokens: string[], i: number): boolean {
+  return i < tokens.length && !isNaN(Number(tokens[i]));
+}
+
+/** Process absolute M/L — pairs of (x, y). */
+function processAbsXY(c: PathCursor, tokens: string[], start: number): number {
+  let pos = start;
+  while (hasNum(tokens, pos)) {
+    c.curX = Number(tokens[pos]);
+    c.curY = Number(tokens[pos + 1]);
+    trackPoint(c, c.curX, c.curY);
+    pos += 2;
+  }
+  return pos;
+}
+
+/** Process relative m/l — pairs of (dx, dy). */
+function processRelXY(c: PathCursor, tokens: string[], start: number): number {
+  let pos = start;
+  while (hasNum(tokens, pos)) {
+    c.curX += Number(tokens[pos]);
+    c.curY += Number(tokens[pos + 1]);
+    trackPoint(c, c.curX, c.curY);
+    pos += 2;
+  }
+  return pos;
+}
+
+/** Process H/h, V/v — single-axis commands. */
+function processAxis(
+  c: PathCursor,
+  tokens: string[],
+  start: number,
+  axis: 'x' | 'y',
+  relative: boolean
+): number {
+  let pos = start;
+  while (hasNum(tokens, pos)) {
+    const val = Number(tokens[pos]);
+    if (axis === 'x') {
+      c.curX = relative ? c.curX + val : val;
+    } else {
+      c.curY = relative ? c.curY + val : val;
+    }
+    trackPoint(c, c.curX, c.curY);
+    pos += 1;
+  }
+  return pos;
+}
+
+/** Process absolute cubic bézier C (6 params per segment). */
+function processAbsCubic(c: PathCursor, tokens: string[], start: number): number {
+  let pos = start;
+  while (pos + 5 < tokens.length && hasNum(tokens, pos)) {
+    trackPoint(c, Number(tokens[pos]), Number(tokens[pos + 1]));
+    trackPoint(c, Number(tokens[pos + 2]), Number(tokens[pos + 3]));
+    c.curX = Number(tokens[pos + 4]);
+    c.curY = Number(tokens[pos + 5]);
+    trackPoint(c, c.curX, c.curY);
+    pos += 6;
+  }
+  return pos;
+}
+
+/** Process relative cubic bézier c (6 params per segment). */
+function processRelCubic(c: PathCursor, tokens: string[], start: number): number {
+  let pos = start;
+  while (pos + 5 < tokens.length && hasNum(tokens, pos)) {
+    trackPoint(c, c.curX + Number(tokens[pos]), c.curY + Number(tokens[pos + 1]));
+    trackPoint(c, c.curX + Number(tokens[pos + 2]), c.curY + Number(tokens[pos + 3]));
+    c.curX += Number(tokens[pos + 4]);
+    c.curY += Number(tokens[pos + 5]);
+    trackPoint(c, c.curX, c.curY);
+    pos += 6;
+  }
+  return pos;
+}
+
+/** Process absolute quadratic bézier Q (4 params per segment). */
+function processAbsQuad(c: PathCursor, tokens: string[], start: number): number {
+  let pos = start;
+  while (pos + 3 < tokens.length && hasNum(tokens, pos)) {
+    trackPoint(c, Number(tokens[pos]), Number(tokens[pos + 1]));
+    c.curX = Number(tokens[pos + 2]);
+    c.curY = Number(tokens[pos + 3]);
+    trackPoint(c, c.curX, c.curY);
+    pos += 4;
+  }
+  return pos;
+}
+
+/** Process relative quadratic bézier q (4 params per segment). */
+function processRelQuad(c: PathCursor, tokens: string[], start: number): number {
+  let pos = start;
+  while (pos + 3 < tokens.length && hasNum(tokens, pos)) {
+    trackPoint(c, c.curX + Number(tokens[pos]), c.curY + Number(tokens[pos + 1]));
+    c.curX += Number(tokens[pos + 2]);
+    c.curY += Number(tokens[pos + 3]);
+    trackPoint(c, c.curX, c.curY);
+    pos += 4;
+  }
+  return pos;
+}
+
+/** Dispatch table mapping SVG path commands to processors. */
+type CmdProcessor = (c: PathCursor, tokens: string[], i: number) => number;
+
+const PATH_COMMANDS: Record<string, CmdProcessor> = {
+  M: processAbsXY,
+  L: processAbsXY,
+  m: processRelXY,
+  l: processRelXY,
+  H: (c, t, i) => processAxis(c, t, i, 'x', false),
+  h: (c, t, i) => processAxis(c, t, i, 'x', true),
+  V: (c, t, i) => processAxis(c, t, i, 'y', false),
+  v: (c, t, i) => processAxis(c, t, i, 'y', true),
+  C: processAbsCubic,
+  c: processRelCubic,
+  Q: processAbsQuad,
+  q: processRelQuad,
+};
+
+/**
+ * Parse an SVG path `d` attribute and compute its bounding box.
+ * Handles M, L, H, V, C, Q, Z commands (absolute and relative).
+ */
+function parseSvgPathBBox(d: string): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  if (!d) return { x: 0, y: 0, width: 0, height: 0 };
+
+  const tokens = d.match(/[a-zA-Z]|-?\d+\.?\d*(?:e[+-]?\d+)?/g);
+  if (!tokens) return { x: 0, y: 0, width: 0, height: 0 };
+
+  const c: PathCursor = {
+    curX: 0,
+    curY: 0,
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+  };
+
+  let i = 0;
+  while (i < tokens.length) {
+    const cmd = tokens[i++];
+    const processor = PATH_COMMANDS[cmd];
+    if (processor) {
+      i = processor(c, tokens, i);
+    } else if (cmd !== 'Z' && cmd !== 'z') {
+      // Skip unknown commands and consume trailing numbers
+      while (hasNum(tokens, i)) i++;
+    }
+  }
+
+  if (c.minX === Infinity) return { x: 0, y: 0, width: 0, height: 0 };
+  return { x: c.minX, y: c.minY, width: c.maxX - c.minX || 1, height: c.maxY - c.minY || 1 };
+}
+
 // ── getBBox polyfill ───────────────────────────────────────────────────────
+
+/** Default fallback bbox when element type is unknown or empty. */
+const FALLBACK_BBOX = { x: 0, y: 0, width: 100, height: 80 };
+
+/** getBBox for text/tspan elements. */
+function bboxText(el: any): { x: number; y: number; width: number; height: number } {
+  const text: string = el.textContent || '';
+  const bbox = estimateTextBBox(text);
+  const x = parseFloat(el.getAttribute?.('x')) || 0;
+  const y = parseFloat(el.getAttribute?.('y')) || 0;
+  return { x, y: y - bbox.height, width: bbox.width, height: bbox.height };
+}
+
+/** getBBox for rect elements. */
+function bboxRect(el: any): { x: number; y: number; width: number; height: number } {
+  return {
+    x: parseFloat(el.getAttribute('x')) || 0,
+    y: parseFloat(el.getAttribute('y')) || 0,
+    width: parseFloat(el.getAttribute('width')) || 100,
+    height: parseFloat(el.getAttribute('height')) || 80,
+  };
+}
+
+/** getBBox for circle elements. */
+function bboxCircle(el: any): { x: number; y: number; width: number; height: number } {
+  const r = parseFloat(el.getAttribute('r')) || 18;
+  const cx = parseFloat(el.getAttribute('cx')) || r;
+  const cy = parseFloat(el.getAttribute('cy')) || r;
+  return { x: cx - r, y: cy - r, width: 2 * r, height: 2 * r };
+}
+
+/** getBBox for ellipse elements. */
+function bboxEllipse(el: any): { x: number; y: number; width: number; height: number } {
+  const rx = parseFloat(el.getAttribute('rx')) || 50;
+  const ry = parseFloat(el.getAttribute('ry')) || 30;
+  const cx = parseFloat(el.getAttribute('cx')) || rx;
+  const cy = parseFloat(el.getAttribute('cy')) || ry;
+  return { x: cx - rx, y: cy - ry, width: 2 * rx, height: 2 * ry };
+}
+
+/** getBBox for line elements. */
+function bboxLine(el: any): { x: number; y: number; width: number; height: number } {
+  const x1 = parseFloat(el.getAttribute('x1')) || 0;
+  const y1 = parseFloat(el.getAttribute('y1')) || 0;
+  const x2 = parseFloat(el.getAttribute('x2')) || 0;
+  const y2 = parseFloat(el.getAttribute('y2')) || 0;
+  return {
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    width: Math.abs(x2 - x1) || 1,
+    height: Math.abs(y2 - y1) || 1,
+  };
+}
+
+/** getBBox for path elements (parsed from d attribute). */
+function bboxPath(el: any): { x: number; y: number; width: number; height: number } {
+  const d: string = el.getAttribute?.('d') || '';
+  if (d) {
+    const pathBBox = parseSvgPathBBox(d);
+    if (pathBBox.width > 0 || pathBBox.height > 0) return pathBBox;
+  }
+  return FALLBACK_BBOX;
+}
+
+/** getBBox for container elements (g, svg) — union of children with transforms. */
+function bboxContainer(el: any): { x: number; y: number; width: number; height: number } {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  const children = el.childNodes || [];
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!child.getBBox) continue;
+    try {
+      const cb = child.getBBox();
+      if (cb.width <= 0 && cb.height <= 0) continue;
+      const { tx, ty } = parseTransformTranslation(child.getAttribute?.('transform') || null);
+      const cx = cb.x + tx;
+      const cy = cb.y + ty;
+      if (cx < minX) minX = cx;
+      if (cy < minY) minY = cy;
+      if (cx + cb.width > maxX) maxX = cx + cb.width;
+      if (cy + cb.height > maxY) maxY = cy + cb.height;
+    } catch {
+      // skip
+    }
+  }
+  if (minX !== Infinity) {
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+  return FALLBACK_BBOX;
+}
+
+/** Tag → bbox handler dispatch table. */
+const BBOX_HANDLERS: Record<
+  string,
+  (el: any) => { x: number; y: number; width: number; height: number }
+> = {
+  text: bboxText,
+  tspan: bboxText,
+  rect: bboxRect,
+  circle: bboxCircle,
+  ellipse: bboxEllipse,
+  polygon: (el) => parseSvgPointsBBox(el.getAttribute('points') || ''),
+  polyline: (el) => parseSvgPointsBBox(el.getAttribute('points') || ''),
+  line: bboxLine,
+  path: bboxPath,
+  g: bboxContainer,
+  svg: bboxContainer,
+};
 
 /**
  * Element-type-aware bounding box estimation.
- * Handles text/tspan, rect, circle, ellipse, polygon, polyline, line,
- * and container elements (g, svg).
+ * Handles text/tspan, rect, circle, ellipse, polygon/polyline, line,
+ * path, and container elements (g, svg).
  */
-// eslint-disable-next-line complexity
 export function polyfillGetBBox(element: any): {
   x: number;
   y: number;
@@ -98,79 +422,8 @@ export function polyfillGetBBox(element: any): {
   height: number;
 } {
   const tag = element.tagName?.toLowerCase();
-  if (tag === 'text' || tag === 'tspan') {
-    const text: string = element.textContent || '';
-    const bbox = estimateTextBBox(text);
-    return { x: 0, y: 0, width: bbox.width, height: bbox.height };
-  }
-  if (tag === 'rect') {
-    const w = parseFloat(element.getAttribute('width')) || 100;
-    const h = parseFloat(element.getAttribute('height')) || 80;
-    const x = parseFloat(element.getAttribute('x')) || 0;
-    const y = parseFloat(element.getAttribute('y')) || 0;
-    return { x, y, width: w, height: h };
-  }
-  if (tag === 'circle') {
-    const r = parseFloat(element.getAttribute('r')) || 18;
-    const cx = parseFloat(element.getAttribute('cx')) || r;
-    const cy = parseFloat(element.getAttribute('cy')) || r;
-    return { x: cx - r, y: cy - r, width: 2 * r, height: 2 * r };
-  }
-  if (tag === 'ellipse') {
-    const rx = parseFloat(element.getAttribute('rx')) || 50;
-    const ry = parseFloat(element.getAttribute('ry')) || 30;
-    const cx = parseFloat(element.getAttribute('cx')) || rx;
-    const cy = parseFloat(element.getAttribute('cy')) || ry;
-    return { x: cx - rx, y: cy - ry, width: 2 * rx, height: 2 * ry };
-  }
-  if (tag === 'polygon' || tag === 'polyline') {
-    const points: string = element.getAttribute('points') || '';
-    return parseSvgPointsBBox(points);
-  }
-  if (tag === 'line') {
-    const x1 = parseFloat(element.getAttribute('x1')) || 0;
-    const y1 = parseFloat(element.getAttribute('y1')) || 0;
-    const x2 = parseFloat(element.getAttribute('x2')) || 0;
-    const y2 = parseFloat(element.getAttribute('y2')) || 0;
-    const minX = Math.min(x1, x2);
-    const minY = Math.min(y1, y2);
-    return {
-      x: minX,
-      y: minY,
-      width: Math.abs(x2 - x1) || 1,
-      height: Math.abs(y2 - y1) || 1,
-    };
-  }
-  if (tag === 'g' || tag === 'svg') {
-    // Container elements: try to compute from children or fall back
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    const children = element.childNodes || [];
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      if (child.getBBox) {
-        try {
-          const cb = child.getBBox();
-          if (cb.width > 0 || cb.height > 0) {
-            if (cb.x < minX) minX = cb.x;
-            if (cb.y < minY) minY = cb.y;
-            if (cb.x + cb.width > maxX) maxX = cb.x + cb.width;
-            if (cb.y + cb.height > maxY) maxY = cb.y + cb.height;
-          }
-        } catch {
-          // skip
-        }
-      }
-    }
-    if (minX !== Infinity) {
-      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-    }
-    return { x: 0, y: 0, width: 100, height: 80 };
-  }
-  // Fallback for path and other elements
-  return { x: 0, y: 0, width: 100, height: 80 };
+  const handler = tag ? BBOX_HANDLERS[tag] : undefined;
+  return handler ? handler(element) : FALLBACK_BBOX;
 }
 
 /**

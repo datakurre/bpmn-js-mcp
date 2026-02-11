@@ -81,6 +81,27 @@ export function buildContainerGraph(
   );
   const backEdgeIds = detectBackEdges(internalConns, nodeIds);
 
+  // Count outgoing edges per source to identify split gateways (≥2 outgoing).
+  // Edges from split gateways are tagged with high shortness priority so
+  // ELK's NETWORK_SIMPLEX layering places all targets in the same column.
+  const outgoingCount = new Map<string, number>();
+  for (const conn of internalConns) {
+    const srcId = conn.source.id;
+    outgoingCount.set(srcId, (outgoingCount.get(srcId) || 0) + 1);
+  }
+
+  // Build a map of node IDs → element types for decision gateways.
+  // Exclusive and inclusive gateways benefit from shortness priority to
+  // keep their branch targets in the same ELK layer.  Parallel gateways
+  // are excluded — ELK already handles them well, and the shortness hint
+  // can interfere with crossing minimisation for many-branch fork-joins.
+  const decisionGatewayIds = new Set<string>();
+  for (const shape of childShapes) {
+    if (shape.type === 'bpmn:ExclusiveGateway' || shape.type === 'bpmn:InclusiveGateway') {
+      decisionGatewayIds.add(shape.id);
+    }
+  }
+
   for (const conn of internalConns) {
     const edge: ElkExtendedEdge = {
       id: conn.id,
@@ -91,6 +112,18 @@ export function buildContainerGraph(
       edge.layoutOptions = {
         'elk.priority': '0',
       };
+    } else {
+      const srcId = conn.source.id;
+      const isSplitDecisionGateway =
+        decisionGatewayIds.has(srcId) && (outgoingCount.get(srcId) || 0) >= 2;
+      if (isSplitDecisionGateway) {
+        // High shortness priority encourages NETWORK_SIMPLEX to place
+        // all targets of a split gateway in the same layer (column).
+        edge.layoutOptions = {
+          ...edge.layoutOptions,
+          'elk.priority.shortness': '10',
+        };
+      }
     }
     edges.push(edge);
   }

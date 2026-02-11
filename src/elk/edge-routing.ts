@@ -6,6 +6,12 @@ import type { ElkNode, ElkExtendedEdge, ElkEdgeSection } from 'elkjs';
 import { isConnection } from './helpers';
 
 /**
+ * Tolerance (px) for snapping edge endpoints to element boundaries.
+ * Covers gaps introduced by grid snap moving elements after ELK routing.
+ */
+const ENDPOINT_SNAP_TOLERANCE = 15;
+
+/**
  * Build a flat lookup of ELK edges (including nested containers) so we can
  * resolve edge sections by connection ID.
  */
@@ -157,6 +163,32 @@ export function applyElkEdgeRoutes(
         const prev = deduped[deduped.length - 1];
         if (prev.x !== waypoints[i].x || prev.y !== waypoints[i].y) {
           deduped.push(waypoints[i]);
+        }
+      }
+
+      // Snap endpoints to actual element boundaries.
+      // Grid snap (step 5) may have moved elements after ELK computed the
+      // edge routes, leaving small gaps (~10 px) between waypoints and
+      // element borders.  Correct by adjusting the first/last waypoints
+      // to touch the current element boundaries.
+      // Only snaps straight horizontal flows (2 waypoints, same Y) to
+      // avoid disturbing Z/L-shaped routes from gateways.
+      const src = conn.source;
+      const tgt = conn.target;
+      if (deduped.length === 2) {
+        const srcCy = Math.round(src.y + (src.height || 0) / 2);
+        const srcRight = src.x + (src.width || 0);
+        const tgtCy = Math.round(tgt.y + (tgt.height || 0) / 2);
+        const tgtLeft = tgt.x;
+
+        // Both waypoints on roughly the same Y = horizontal flow
+        if (
+          Math.abs(deduped[0].y - deduped[1].y) <= ENDPOINT_SNAP_TOLERANCE &&
+          Math.abs(deduped[0].y - srcCy) <= ENDPOINT_SNAP_TOLERANCE &&
+          Math.abs(deduped[1].y - tgtCy) <= ENDPOINT_SNAP_TOLERANCE
+        ) {
+          deduped[0] = { x: Math.round(srcRight), y: srcCy };
+          deduped[1] = { x: Math.round(tgtLeft), y: tgtCy };
         }
       }
 
