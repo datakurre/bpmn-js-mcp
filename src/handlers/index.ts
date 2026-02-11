@@ -38,11 +38,7 @@ import { handleDeleteDiagram, TOOL_DEFINITION as DELETE_DIAGRAM_DEF } from './de
 import { handleListDiagrams, TOOL_DEFINITION as LIST_DIAGRAMS_DEF } from './list-diagrams';
 import { handleCloneDiagram, TOOL_DEFINITION as CLONE_DIAGRAM_DEF } from './clone-diagram';
 import { handleValidate, TOOL_DEFINITION as VALIDATE_DEF } from './validate';
-import {
-  handleAlignElements,
-  handleDistributeElements,
-  TOOL_DEFINITION as ALIGN_ELEMENTS_DEF,
-} from './align-elements';
+import { handleAlignElements, TOOL_DEFINITION as ALIGN_ELEMENTS_DEF } from './align-elements';
 import { handleSetInputOutput, TOOL_DEFINITION as SET_INPUT_OUTPUT_DEF } from './set-input-output';
 import {
   handleSetEventDefinition,
@@ -65,7 +61,7 @@ import {
   handleUndoChange,
   handleRedoChange,
   TOOL_DEFINITION as BPMN_HISTORY_DEF,
-} from './undo';
+} from './bpmn-history';
 import { handleDiffDiagrams, TOOL_DEFINITION as DIFF_DIAGRAMS_DEF } from './diff-diagrams';
 import { handleBatchOperations, TOOL_DEFINITION as BATCH_OPERATIONS_DEF } from './batch-operations';
 import {
@@ -94,10 +90,6 @@ import {
   handleListProcessVariables,
   TOOL_DEFINITION as LIST_PROCESS_VARIABLES_DEF,
 } from './list-process-variables';
-
-// Backward-compat handler imports (no TOOL_DEFINITION — merged tools)
-import { handleSetCamundaErrorEventDefinition } from './set-camunda-error';
-import { handleResizeElement } from './resize-element';
 
 // ── Unified tool registry ──────────────────────────────────────────────────
 //
@@ -157,11 +149,6 @@ for (const { definition, handler } of TOOL_REGISTRY) {
   dispatchMap[definition.name] = handler;
 }
 
-// Backward-compat aliases for merged/removed tool names
-dispatchMap['distribute_bpmn_elements'] = handleDistributeElements;
-dispatchMap['resize_bpmn_element'] = handleResizeElement;
-dispatchMap['set_bpmn_camunda_error'] = handleSetCamundaErrorEventDefinition;
-
 /** Route a CallTool request to the correct handler. */
 export async function dispatchToolCall(name: string, args: any): Promise<ToolResult> {
   const handler = dispatchMap[name];
@@ -198,12 +185,10 @@ export {
   handleCloneDiagram,
   handleValidate,
   handleAlignElements,
-  handleDistributeElements,
   handleSetInputOutput,
   handleSetEventDefinition,
   handleSetFormData,
   handleLayoutDiagram,
-  handleSetCamundaErrorEventDefinition,
   handleSetLoopCharacteristics,
   handleAdjustLabels,
   handleSetScript,
@@ -213,7 +198,6 @@ export {
   handleRedoChange,
   handleDiffDiagrams,
   handleBatchOperations,
-  handleResizeElement,
   handleSetCamundaListeners,
   handleSetCallActivityVariables,
   handleManageRootElements,

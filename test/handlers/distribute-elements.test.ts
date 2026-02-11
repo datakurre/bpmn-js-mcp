@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { handleDistributeElements } from '../../src/handlers';
+import { handleDistributeElements } from '../../src/handlers/align-elements';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
 describe('handleDistributeElements', () => {

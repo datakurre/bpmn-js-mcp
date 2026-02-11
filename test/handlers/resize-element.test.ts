@@ -1,9 +1,9 @@
 /**
- * Tests for resize_bpmn_element tool.
+ * Tests for resize_bpmn_element tool (merged into move_bpmn_element).
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { handleResizeElement } from '../../src/handlers';
+import { handleMoveElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
@@ -21,7 +21,7 @@ describe('resize_bpmn_element', () => {
     });
 
     const res = parseResult(
-      await handleResizeElement({
+      await handleMoveElement({
         diagramId,
         elementId: subId,
         width: 500,
@@ -49,7 +49,7 @@ describe('resize_bpmn_element', () => {
     });
 
     const res = parseResult(
-      await handleResizeElement({
+      await handleMoveElement({
         diagramId,
         elementId: annotId,
         width: 200,
@@ -64,7 +64,7 @@ describe('resize_bpmn_element', () => {
     const diagramId = await createDiagram();
 
     await expect(
-      handleResizeElement({
+      handleMoveElement({
         diagramId,
         elementId: 'nonexistent',
         width: 100,

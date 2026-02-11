@@ -28,6 +28,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@types/bpmn-moddle": "^9.0.0",

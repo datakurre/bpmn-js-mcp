@@ -45,7 +45,7 @@ export function getAllDiagrams(): Map<string, DiagramState> {
 }
 
 export function generateDiagramId(): string {
-  return `diagram_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `diagram_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /** Visible for testing – wipe all diagrams. */

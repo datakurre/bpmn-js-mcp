@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { handleSetCamundaErrorEventDefinition, handleExportBpmn } from '../../src/handlers';
+import { handleSetCamundaListeners, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
 describe('handleSetCamundaErrorEventDefinition', () => {
@@ -14,7 +14,7 @@ describe('handleSetCamundaErrorEventDefinition', () => {
     });
 
     const res = parseResult(
-      await handleSetCamundaErrorEventDefinition({
+      await handleSetCamundaListeners({
         diagramId,
         elementId: taskId,
         errorDefinitions: [
@@ -31,7 +31,6 @@ describe('handleSetCamundaErrorEventDefinition', () => {
       })
     );
     expect(res.success).toBe(true);
-    expect(res.errorDefinitionCount).toBe(1);
 
     const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
       .text;
@@ -45,7 +44,7 @@ describe('handleSetCamundaErrorEventDefinition', () => {
     });
 
     await expect(
-      handleSetCamundaErrorEventDefinition({
+      handleSetCamundaListeners({
         diagramId,
         elementId: taskId,
         errorDefinitions: [{ id: 'err1' }],

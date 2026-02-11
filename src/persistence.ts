@@ -64,8 +64,8 @@ export async function persistDiagram(diagramId: string, diagram: DiagramState): 
           'written file is missing closing </bpmn:definitions> tag'
       );
     }
-  } catch {
-    // Persistence failures are non-fatal
+  } catch (err) {
+    console.error(`[persistence] failed to save diagram ${diagramId}:`, err);
   }
 }
 
@@ -101,16 +101,16 @@ async function loadDiagrams(): Promise<number> {
         try {
           const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
           name = meta.name;
-        } catch {
-          // ignore malformed meta
+        } catch (err) {
+          console.error(`[persistence] failed to load meta for ${diagramId}:`, err);
         }
       }
 
       const modeler = await createModelerFromXml(xml);
       storeDiagram(diagramId, { modeler, xml, name });
       count++;
-    } catch {
-      // Skip files that fail to load
+    } catch (err) {
+      console.error(`[persistence] failed to load diagram ${file}:`, err);
     }
   }
   return count;
@@ -126,7 +126,7 @@ export function removePersisted(diagramId: string): void {
     const metaPath = path.join(persistDir, `${diagramId}.meta.json`);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-  } catch {
-    // Non-fatal
+  } catch (err) {
+    console.error(`[persistence] failed to remove persisted files for ${diagramId}:`, err);
   }
 }

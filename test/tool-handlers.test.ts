@@ -15,15 +15,15 @@ import {
   handleCloneDiagram,
   handleValidate,
   handleAlignElements,
-  handleDistributeElements,
   handleSetInputOutput,
   handleSetEventDefinition,
   handleSetFormData,
   handleLayoutDiagram,
-  handleSetCamundaErrorEventDefinition,
+  handleSetCamundaListeners,
   handleSetLoopCharacteristics,
   dispatchToolCall,
 } from '../src/handlers';
+import { handleDistributeElements } from '../src/handlers/align-elements';
 import { clearDiagrams, INITIAL_XML } from '../src/diagram-manager';
 
 // Helper to parse JSON text from the first content item
@@ -1435,7 +1435,7 @@ describe('tool-handlers', () => {
       });
 
       const res = parseResult(
-        await handleSetCamundaErrorEventDefinition({
+        await handleSetCamundaListeners({
           diagramId,
           elementId: taskId,
           errorDefinitions: [
@@ -1452,7 +1452,6 @@ describe('tool-handlers', () => {
         })
       );
       expect(res.success).toBe(true);
-      expect(res.errorDefinitionCount).toBe(1);
 
       const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
         .text;
@@ -1466,7 +1465,7 @@ describe('tool-handlers', () => {
       });
 
       await expect(
-        handleSetCamundaErrorEventDefinition({
+        handleSetCamundaListeners({
           diagramId,
           elementId: taskId,
           errorDefinitions: [{ id: 'err1' }],
