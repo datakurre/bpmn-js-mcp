@@ -5,6 +5,39 @@
  * Extracted from helpers.ts to keep module sizes under the max-lines limit.
  */
 
+// ── Generic root-element resolution ────────────────────────────────────────
+
+/**
+ * Find or create a BPMN root element (Error, Message, Signal, Escalation).
+ * Replaces the duplicated "find existing or create" pattern across 4 specialized functions.
+ *
+ * @param moddle - bpmn-moddle instance
+ * @param definitions - bpmn:Definitions element
+ * @param type - BPMN type string (e.g. 'bpmn:Error', 'bpmn:Message')
+ * @param ref - Object with id (required) and optional properties (name, errorCode, escalationCode, etc.)
+ * @returns The found or newly created root element
+ */
+function resolveOrCreate<T = any>(
+  moddle: any,
+  definitions: any,
+  type: string,
+  ref: { id: string; [key: string]: any }
+): T {
+  if (!definitions.rootElements) definitions.rootElements = [];
+
+  let element = definitions.rootElements.find((re: any) => re.$type === type && re.id === ref.id);
+  if (!element) {
+    // Create with all properties from ref, defaulting name to id if not provided
+    const props = { ...ref };
+    if (!props.name) props.name = ref.id;
+
+    element = moddle.create(type, props);
+    definitions.rootElements.push(element);
+    element.$parent = definitions;
+  }
+  return element as T;
+}
+
 // ── Shared bpmn:Error root-element resolution ──────────────────────────────
 
 /**
@@ -18,21 +51,7 @@ export function resolveOrCreateError(
   definitions: any,
   errorRef: { id: string; name?: string; errorCode?: string }
 ): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let errorElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Error' && re.id === errorRef.id
-  );
-  if (!errorElement) {
-    errorElement = moddle.create('bpmn:Error', {
-      id: errorRef.id,
-      name: errorRef.name || errorRef.id,
-      errorCode: errorRef.errorCode,
-    });
-    definitions.rootElements.push(errorElement);
-    errorElement.$parent = definitions;
-  }
-  return errorElement;
+  return resolveOrCreate(moddle, definitions, 'bpmn:Error', errorRef);
 }
 
 /**
@@ -43,20 +62,7 @@ export function resolveOrCreateMessage(
   definitions: any,
   messageRef: { id: string; name?: string }
 ): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let messageElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Message' && re.id === messageRef.id
-  );
-  if (!messageElement) {
-    messageElement = moddle.create('bpmn:Message', {
-      id: messageRef.id,
-      name: messageRef.name || messageRef.id,
-    });
-    definitions.rootElements.push(messageElement);
-    messageElement.$parent = definitions;
-  }
-  return messageElement;
+  return resolveOrCreate(moddle, definitions, 'bpmn:Message', messageRef);
 }
 
 /**
@@ -67,20 +73,7 @@ export function resolveOrCreateSignal(
   definitions: any,
   signalRef: { id: string; name?: string }
 ): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let signalElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Signal' && re.id === signalRef.id
-  );
-  if (!signalElement) {
-    signalElement = moddle.create('bpmn:Signal', {
-      id: signalRef.id,
-      name: signalRef.name || signalRef.id,
-    });
-    definitions.rootElements.push(signalElement);
-    signalElement.$parent = definitions;
-  }
-  return signalElement;
+  return resolveOrCreate(moddle, definitions, 'bpmn:Signal', signalRef);
 }
 
 /**
@@ -91,19 +84,5 @@ export function resolveOrCreateEscalation(
   definitions: any,
   escalationRef: { id: string; name?: string; escalationCode?: string }
 ): any {
-  if (!definitions.rootElements) definitions.rootElements = [];
-
-  let escalationElement = definitions.rootElements.find(
-    (re: any) => re.$type === 'bpmn:Escalation' && re.id === escalationRef.id
-  );
-  if (!escalationElement) {
-    escalationElement = moddle.create('bpmn:Escalation', {
-      id: escalationRef.id,
-      name: escalationRef.name || escalationRef.id,
-      escalationCode: escalationRef.escalationCode,
-    });
-    definitions.rootElements.push(escalationElement);
-    escalationElement.$parent = definitions;
-  }
-  return escalationElement;
+  return resolveOrCreate(moddle, definitions, 'bpmn:Escalation', escalationRef);
 }
