@@ -31,33 +31,34 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 
 Modular `src/` layout, communicates over **stdio** using the MCP SDK.
 
-| File / Directory                | Responsibility                                                                                                                                                                          |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                                                                                                             |
-| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends (BPMN, DMN, Forms, …)                                                                                                     |
-| `src/bpmn-module.ts`            | BPMN tool module — registers BPMN tools and dispatch with the generic server                                                                                                            |
-| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                                        |
-| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                                        |
-| `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                                                                                                        |
-| `src/headless-canvas.ts`        | jsdom setup, SVG/CSS polyfills, lazy `BpmnModeler` init                                                                                                                                 |
-| `src/elk-layout.ts`             | ELK-based layout engine — Sugiyama layered algorithm via `elkjs` for automatic diagram arrangement, plus post-ELK grid snap pass and inter-column channel routing for visual regularity |
-| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                                   |
-| `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                                                               |
-| `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router                                                                                                                                              |
-| `src/handlers/helpers.ts`       | Shared utilities: `validateArgs`, `requireDiagram`, `requireElement`, `getVisibleElements`, `upsertExtensionElement`, `resolveOrCreateError`, etc.                                      |
-| `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                                                 |
-| `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                                                                |
-| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                                                         |
-| `src/persistence.ts`            | Optional file-backed diagram persistence — auto-save to `.bpmn` files, load on startup                                                                                                  |
-| `src/handlers/label-utils.ts`   | Pure geometry helpers for label-overlap detection (rect intersection, scoring)                                                                                                          |
-| `src/handlers/adjust-labels.ts` | Post-processing label adjustment to avoid connection/label overlaps                                                                                                                     |
-| `src/handlers/<name>.ts`        | One handler file per tool — exports `handleXxx` + `TOOL_DEFINITION`                                                                                                                     |
+| File / Directory                | Responsibility                                                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                                                                                          |
+| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends (BPMN, DMN, Forms, …)                                                                                  |
+| `src/bpmn-module.ts`            | BPMN tool module — registers BPMN tools and dispatch with the generic server                                                                                         |
+| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                     |
+| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                     |
+| `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                                                                                     |
+| `src/headless-canvas.ts`        | jsdom setup, lazy `BpmnModeler` init                                                                                                                                 |
+| `src/headless-polyfills.ts`     | SVG/CSS polyfills for headless bpmn-js (SVGMatrix, getBBox, transform with DOM sync, etc.)                                                                           |
+| `src/elk/`                      | ELK-based layout engine — Sugiyama layered algorithm via `elkjs` for automatic diagram arrangement, plus post-ELK grid snap, overlap resolution, and channel routing |
+| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                |
+| `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                                            |
+| `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router                                                                                                                           |
+| `src/handlers/helpers.ts`       | Shared utilities: `validateArgs`, `requireDiagram`, `requireElement`, `getVisibleElements`, `upsertExtensionElement`, `resolveOrCreateError`, etc.                   |
+| `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                              |
+| `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                                             |
+| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                                      |
+| `src/persistence.ts`            | Optional file-backed diagram persistence — auto-save to `.bpmn` files, load on startup                                                                               |
+| `src/handlers/label-utils.ts`   | Pure geometry helpers for label-overlap detection (rect intersection, scoring)                                                                                       |
+| `src/handlers/adjust-labels.ts` | Post-processing label adjustment to avoid connection/label overlaps                                                                                                  |
+| `src/handlers/<name>.ts`        | One handler file per tool — exports `handleXxx` + `TOOL_DEFINITION`                                                                                                  |
 
 **Core pattern:**
 
 1. A shared `jsdom` instance polyfills browser APIs (SVG, CSS, structuredClone) so `bpmn-js` can run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
-3. **31 MCP tools** are exposed (see "Tool Naming" below).
+3. **34 MCP tools** are exposed (see "Tool Naming" below).
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
 5. `camunda-bpmn-moddle` is registered as a moddle extension, enabling Camunda-specific attributes (e.g. `camunda:assignee`, `camunda:class`, `camunda:formKey`) on elements.
 6. Each handler file **co-locates** its MCP tool definition (`TOOL_DEFINITION`) alongside the handler function, preventing definition drift.
@@ -68,12 +69,12 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK.
 
 **Every tool name includes `bpmn`** to avoid collisions with other MCPs.
 
-- **Core structural tools:** `create_bpmn_diagram`, `add_bpmn_element` (includes insert-into-flow via `flowId`), `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element` (includes resize via `width`/`height`), `list_bpmn_elements`, `validate_bpmn_diagram`, `align_bpmn_elements` (includes distribute via `orientation`), `export_bpmn`, `import_bpmn_xml`
-- **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties`, `set_bpmn_input_output_mapping`, `set_bpmn_event_definition`, `set_bpmn_form_data`, `set_bpmn_camunda_listeners` (includes error definitions), `set_bpmn_loop_characteristics`, `set_bpmn_script`
-- **Collaboration & data tools:** `create_bpmn_collaboration`, `create_bpmn_data_association`
+- **Core structural tools:** `create_bpmn_diagram`, `add_bpmn_element` (includes insert-into-flow via `flowId`), `insert_bpmn_element`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element` (includes resize via `width`/`height`), `replace_bpmn_element`, `duplicate_bpmn_element`, `list_bpmn_elements`, `validate_bpmn_diagram`, `align_bpmn_elements` (includes distribute via `orientation`), `export_bpmn`, `import_bpmn_xml`
+- **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties`, `set_bpmn_input_output_mapping`, `set_bpmn_event_definition`, `set_bpmn_form_data`, `set_bpmn_camunda_listeners` (includes error definitions), `set_bpmn_loop_characteristics`, `set_bpmn_script`, `set_bpmn_call_activity_variables`
+- **Collaboration & data tools:** `create_bpmn_collaboration`, `manage_bpmn_root_elements`
 - **History tools:** `bpmn_history`, `diff_bpmn_diagrams`
 - **Batch tools:** `batch_bpmn_operations`
-- **Utility tools:** `delete_bpmn_diagram`, `list_bpmn_diagrams` (includes diagram summary via `diagramId`), `clone_bpmn_diagram`, `layout_bpmn_diagram`, `adjust_bpmn_labels`
+- **Utility tools:** `delete_bpmn_diagram`, `list_bpmn_diagrams` (includes diagram summary via `diagramId`), `summarize_bpmn_diagram`, `list_bpmn_process_variables`, `clone_bpmn_diagram`, `layout_bpmn_diagram`, `adjust_bpmn_labels`
 
 ## Build & Run
 

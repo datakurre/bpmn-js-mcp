@@ -62,7 +62,7 @@ For best results, follow this recommended workflow after structural changes:
 
 No separate "repair layout" tool is needed — chain these existing tools for fine-grained control.
 
-## Available Tools (31)
+## Available Tools (34)
 
 ### Core BPMN Tools
 
@@ -70,9 +70,11 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 | ----------------------------- | -------------------------------------------------------------------- |
 | `create_bpmn_diagram`         | Create a new BPMN diagram                                            |
 | `add_bpmn_element`            | Add elements (with `flowId` to insert into existing flows)           |
+| `insert_bpmn_element`         | Insert an element into an existing sequence flow                     |
 | `connect_bpmn_elements`       | Connect elements with sequence/message flows or associations         |
 | `delete_bpmn_element`         | Remove an element or connection                                      |
 | `move_bpmn_element`           | Move, resize, or reassign an element to a lane                       |
+| `replace_bpmn_element`        | Replace an element's type preserving connections and position        |
 | `duplicate_bpmn_element`      | Duplicate an existing element within the same diagram                |
 | `list_bpmn_elements`          | List elements with filters (name pattern, type, property)            |
 | `get_bpmn_element_properties` | Inspect all properties of an element                                 |
@@ -105,14 +107,16 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 
 ### Utility Tools
 
-| Tool                    | Description                                     |
-| ----------------------- | ----------------------------------------------- |
-| `delete_bpmn_diagram`   | Remove a diagram from memory                    |
-| `list_bpmn_diagrams`    | List all diagrams or get a detailed summary     |
-| `clone_bpmn_diagram`    | Duplicate a diagram for experimentation         |
-| `bpmn_history`          | Undo or redo changes (supports multiple steps)  |
-| `diff_bpmn_diagrams`    | Compare two diagrams and return structured diff |
-| `batch_bpmn_operations` | Execute multiple operations in a single call    |
+| Tool                          | Description                                        |
+| ----------------------------- | -------------------------------------------------- |
+| `delete_bpmn_diagram`         | Remove a diagram from memory                       |
+| `list_bpmn_diagrams`          | List all diagrams or get a detailed summary        |
+| `summarize_bpmn_diagram`      | Get a lightweight summary of a diagram             |
+| `list_bpmn_process_variables` | List all process variables referenced in a diagram |
+| `clone_bpmn_diagram`          | Duplicate a diagram for experimentation            |
+| `bpmn_history`                | Undo or redo changes (supports multiple steps)     |
+| `diff_bpmn_diagrams`          | Compare two diagrams and return structured diff    |
+| `batch_bpmn_operations`       | Execute multiple operations in a single call       |
 
 ### Automatic Lint Feedback
 
