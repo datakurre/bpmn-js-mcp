@@ -7,6 +7,9 @@ import { getDiagram, getAllDiagrams } from '../diagram-manager';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { isPersistenceEnabled, persistDiagram } from '../persistence';
 
+// Re-export getService for convenient typed access from handlers
+export { getService } from '../bpmn-types';
+
 // ── Runtime argument validation ────────────────────────────────────────────
 
 /**

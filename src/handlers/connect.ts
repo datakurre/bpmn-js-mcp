@@ -19,6 +19,7 @@ import {
   validateArgs,
   fixConnectionId,
   buildElementCounts,
+  getService,
 } from './helpers';
 import { appendLintFeedback } from '../linter';
 
@@ -42,10 +43,45 @@ function findParentParticipant(element: any): any {
 }
 
 /**
+ * Check whether source and target are in different pools (cross-pool).
+ * Returns the resolved type + hint, or undefined to keep resolving.
+ */
+function resolveCrossPool(
+  source: any,
+  target: any,
+  requestedType: string | undefined
+): { connectionType: string; autoHint?: string } | undefined {
+  const sourceParticipant = findParentParticipant(source);
+  const targetParticipant = findParentParticipant(target);
+  const crossPool =
+    sourceParticipant && targetParticipant && sourceParticipant.id !== targetParticipant.id;
+
+  if (crossPool && (!requestedType || requestedType === 'bpmn:SequenceFlow')) {
+    return {
+      connectionType: 'bpmn:MessageFlow',
+      autoHint:
+        `Connection type auto-corrected to bpmn:MessageFlow ` +
+        `(source and target are in different participants: ` +
+        `${sourceParticipant.businessObject?.name || sourceParticipant.id} / ` +
+        `${targetParticipant.businessObject?.name || targetParticipant.id}).`,
+    };
+  }
+
+  if (requestedType === 'bpmn:MessageFlow' && !crossPool) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `bpmn:MessageFlow requires source and target to be in different participants (pools). ` +
+        `Both elements are in the same participant. Use bpmn:SequenceFlow for intra-pool connections.`
+    );
+  }
+
+  return undefined;
+}
+
+/**
  * Validate source/target types and auto-detect or correct connectionType.
  * Returns the resolved connectionType and an optional auto-correction hint.
  */
-// eslint-disable-next-line complexity
 function resolveConnectionType(
   sourceType: string,
   targetType: string,
@@ -55,7 +91,6 @@ function resolveConnectionType(
 ): { connectionType: string; autoHint?: string } {
   // Data objects/stores → auto-detect DataInputAssociation / DataOutputAssociation
   if (DATA_TYPES.has(sourceType) || DATA_TYPES.has(targetType)) {
-    // Let bpmn-js handle data association type detection
     return {
       connectionType: '__data_association__',
       autoHint:
@@ -77,34 +112,10 @@ function resolveConnectionType(
     }
   }
 
-  // Cross-pool detection: auto-correct SequenceFlow → MessageFlow
+  // Cross-pool detection
   if (source && target) {
-    const sourceParticipant = findParentParticipant(source);
-    const targetParticipant = findParentParticipant(target);
-    const crossPool =
-      sourceParticipant && targetParticipant && sourceParticipant.id !== targetParticipant.id;
-
-    if (crossPool && (!requestedType || requestedType === 'bpmn:SequenceFlow')) {
-      return {
-        connectionType: 'bpmn:MessageFlow',
-        autoHint:
-          `Connection type auto-corrected to bpmn:MessageFlow ` +
-          `(source and target are in different participants: ` +
-          `${sourceParticipant.businessObject?.name || sourceParticipant.id} / ` +
-          `${targetParticipant.businessObject?.name || targetParticipant.id}).`,
-      };
-    }
-
-    // Validate: MessageFlow must connect elements in different pools
-    if (requestedType === 'bpmn:MessageFlow') {
-      if (!crossPool) {
-        throw new McpError(
-          ErrorCode.InvalidRequest,
-          `bpmn:MessageFlow requires source and target to be in different participants (pools). ` +
-            `Both elements are in the same participant. Use bpmn:SequenceFlow for intra-pool connections.`
-        );
-      }
-    }
+    const crossPoolResult = resolveCrossPool(source, target, requestedType);
+    if (crossPoolResult) return crossPoolResult;
   }
 
   return { connectionType: requestedType || 'bpmn:SequenceFlow' };
@@ -123,14 +134,14 @@ function applyConnectionProperties(
   conditionExpression?: string,
   isDefault?: boolean
 ): void {
-  const modeling = diagram.modeler.get('modeling');
+  const modeling = getService(diagram.modeler, 'modeling');
 
   if (label) {
     modeling.updateProperties(connection, { name: label });
   }
 
   if (conditionExpression && connectionType === 'bpmn:SequenceFlow') {
-    const moddle = diagram.modeler.get('moddle');
+    const moddle = getService(diagram.modeler, 'moddle');
     const condExpr = moddle.create('bpmn:FormalExpression', { body: conditionExpression });
     modeling.updateProperties(connection, { conditionExpression: condExpr });
   }
@@ -158,8 +169,8 @@ function connectPair(
     isDefault?: boolean;
   }
 ): { connection: any; connectionType: string; autoHint?: string } {
-  const modeling = diagram.modeler.get('modeling');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   const sourceType: string = source.type || source.businessObject?.$type || '';
   const targetType: string = target.type || target.businessObject?.$type || '';
@@ -229,7 +240,7 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'sourceElementId', 'targetElementId']);
   const diagram = requireDiagram(diagramId);
 
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   const source = elementRegistry.get(sourceElementId);
   const target = elementRegistry.get(targetElementId);
@@ -273,7 +284,7 @@ async function handleChainConnect(diagramId: string, elementIds: string[]): Prom
   }
 
   const diagram = requireDiagram(diagramId);
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   const connections: Array<{ connectionId: string; source: string; target: string }> = [];
 

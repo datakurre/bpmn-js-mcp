@@ -50,8 +50,10 @@ export default tseslint.config(
       // Limit function complexity to keep handlers comprehensible
       complexity: ['error', 20],
 
-      // Limit file length — signals when a module should be split
-      'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
+      // Limit file length — signals when a module should be split.
+      // Handler files include a ~40-line TOOL_DEFINITION schema (static data),
+      // so the limit is slightly higher than typical application code.
+      'max-lines': ['error', { max: 350, skipBlankLines: true, skipComments: true }],
 
       // Limit function length — keep handlers focused
       'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],

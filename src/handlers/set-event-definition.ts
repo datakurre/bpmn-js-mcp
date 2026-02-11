@@ -14,10 +14,69 @@ import {
   resolveOrCreateSignal,
   resolveOrCreateEscalation,
   validateArgs,
+  getService,
 } from './helpers';
 import { appendLintFeedback } from '../linter';
 
-// eslint-disable-next-line complexity, max-lines-per-function
+// ── Type-specific attribute builders ───────────────────────────────────────
+
+/** Build timer attributes (exactly one of timeDuration/timeDate/timeCycle). */
+function buildTimerAttrs(moddle: any, defProps: Record<string, any>): Record<string, any> {
+  const timerKeys = ['timeDuration', 'timeDate', 'timeCycle'].filter((k) => defProps[k]);
+  if (timerKeys.length > 1) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `Timer events accept only one of timeDuration, timeDate, or timeCycle — got: ${timerKeys.join(', ')}`
+    );
+  }
+  if (timerKeys.length === 0) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      'TimerEventDefinition requires one of: timeDuration (ISO 8601 duration, e.g. PT15M), timeDate (ISO 8601 date, e.g. 2025-12-31T23:59:00Z), or timeCycle (ISO 8601 repeating interval, e.g. R3/PT10M)'
+    );
+  }
+  const attrs: Record<string, any> = {};
+  for (const key of timerKeys) {
+    attrs[key] = moddle.create('bpmn:FormalExpression', { body: defProps[key] });
+  }
+  return attrs;
+}
+
+/** Resolve root-level definitions element from the diagram. */
+function getDefinitions(diagram: ReturnType<typeof requireDiagram>): any {
+  const canvas = getService(diagram.modeler, 'canvas');
+  return canvas.getRootElement().businessObject.$parent;
+}
+
+/** Ref-type → resolver function + arg key mapping. */
+const REF_RESOLVERS: Record<
+  string,
+  { argKey: string; attrKey: string; resolver: (...a: any[]) => any }
+> = {
+  'bpmn:ErrorEventDefinition': {
+    argKey: 'errorRef',
+    attrKey: 'errorRef',
+    resolver: resolveOrCreateError,
+  },
+  'bpmn:MessageEventDefinition': {
+    argKey: 'messageRef',
+    attrKey: 'messageRef',
+    resolver: resolveOrCreateMessage,
+  },
+  'bpmn:SignalEventDefinition': {
+    argKey: 'signalRef',
+    attrKey: 'signalRef',
+    resolver: resolveOrCreateSignal,
+  },
+  'bpmn:EscalationEventDefinition': {
+    argKey: 'escalationRef',
+    attrKey: 'escalationRef',
+    resolver: resolveOrCreateEscalation,
+  },
+};
+
+// ── Main handler ───────────────────────────────────────────────────────────
+
 export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
   const {
@@ -32,9 +91,9 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   } = args;
   const diagram = requireDiagram(diagramId);
 
-  const elementRegistry = diagram.modeler.get('elementRegistry');
-  const modeling = diagram.modeler.get('modeling');
-  const moddle = diagram.modeler.get('moddle');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const moddle = getService(diagram.modeler, 'moddle');
 
   const element = requireElement(elementRegistry, elementId);
   const bo = element.businessObject;
@@ -47,87 +106,27 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
     );
   }
 
-  // Create the event definition
-  const eventDefAttrs: Record<string, any> = {};
+  // Build event definition attributes based on type
+  let eventDefAttrs: Record<string, any> = {};
 
-  // Handle timer-specific properties with validation
   if (eventDefinitionType === 'bpmn:TimerEventDefinition') {
-    const timerKeys = ['timeDuration', 'timeDate', 'timeCycle'].filter((k) => defProps[k]);
-    if (timerKeys.length > 1) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `Timer events accept only one of timeDuration, timeDate, or timeCycle — got: ${timerKeys.join(', ')}`
-      );
-    }
-    if (timerKeys.length === 0) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        'TimerEventDefinition requires one of: timeDuration (ISO 8601 duration, e.g. PT15M), timeDate (ISO 8601 date, e.g. 2025-12-31T23:59:00Z), or timeCycle (ISO 8601 repeating interval, e.g. R3/PT10M)'
-      );
-    }
-    if (defProps.timeDuration) {
-      eventDefAttrs.timeDuration = moddle.create('bpmn:FormalExpression', {
-        body: defProps.timeDuration,
-      });
-    }
-    if (defProps.timeDate) {
-      eventDefAttrs.timeDate = moddle.create('bpmn:FormalExpression', {
-        body: defProps.timeDate,
-      });
-    }
-    if (defProps.timeCycle) {
-      eventDefAttrs.timeCycle = moddle.create('bpmn:FormalExpression', {
-        body: defProps.timeCycle,
-      });
-    }
+    eventDefAttrs = buildTimerAttrs(moddle, defProps);
+  } else if (eventDefinitionType === 'bpmn:ConditionalEventDefinition' && defProps.condition) {
+    eventDefAttrs.condition = moddle.create('bpmn:FormalExpression', { body: defProps.condition });
+  } else if (eventDefinitionType === 'bpmn:LinkEventDefinition' && defProps.name) {
+    eventDefAttrs.name = defProps.name;
   }
 
-  // Handle conditional-specific properties
-  if (eventDefinitionType === 'bpmn:ConditionalEventDefinition') {
-    if (defProps.condition) {
-      eventDefAttrs.condition = moddle.create('bpmn:FormalExpression', {
-        body: defProps.condition,
-      });
-    }
-  }
-
-  // Handle link-specific properties
-  if (eventDefinitionType === 'bpmn:LinkEventDefinition') {
-    if (defProps.name) {
-      eventDefAttrs.name = defProps.name;
-    }
-  }
-
-  // Handle error reference
-  if (eventDefinitionType === 'bpmn:ErrorEventDefinition' && errorRef) {
-    const canvas = diagram.modeler.get('canvas');
-    const rootElement = canvas.getRootElement();
-    const definitions = rootElement.businessObject.$parent;
-    eventDefAttrs.errorRef = resolveOrCreateError(moddle, definitions, errorRef);
-  }
-
-  // Handle message reference
-  if (eventDefinitionType === 'bpmn:MessageEventDefinition' && messageRef) {
-    const canvas = diagram.modeler.get('canvas');
-    const rootElement = canvas.getRootElement();
-    const definitions = rootElement.businessObject.$parent;
-    eventDefAttrs.messageRef = resolveOrCreateMessage(moddle, definitions, messageRef);
-  }
-
-  // Handle signal reference
-  if (eventDefinitionType === 'bpmn:SignalEventDefinition' && signalRef) {
-    const canvas = diagram.modeler.get('canvas');
-    const rootElement = canvas.getRootElement();
-    const definitions = rootElement.businessObject.$parent;
-    eventDefAttrs.signalRef = resolveOrCreateSignal(moddle, definitions, signalRef);
-  }
-
-  // Handle escalation reference
-  if (eventDefinitionType === 'bpmn:EscalationEventDefinition' && escalationRef) {
-    const canvas = diagram.modeler.get('canvas');
-    const rootElement = canvas.getRootElement();
-    const definitions = rootElement.businessObject.$parent;
-    eventDefAttrs.escalationRef = resolveOrCreateEscalation(moddle, definitions, escalationRef);
+  // Resolve root-level references (error, message, signal, escalation)
+  const refArgs: Record<string, any> = { errorRef, messageRef, signalRef, escalationRef };
+  const refEntry = REF_RESOLVERS[eventDefinitionType];
+  if (refEntry && refArgs[refEntry.argKey]) {
+    const definitions = getDefinitions(diagram);
+    eventDefAttrs[refEntry.attrKey] = refEntry.resolver(
+      moddle,
+      definitions,
+      refArgs[refEntry.argKey]
+    );
   }
 
   const eventDef = moddle.create(eventDefinitionType, eventDefAttrs);

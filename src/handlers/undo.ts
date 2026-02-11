@@ -6,7 +6,7 @@
  */
 
 import { type ToolResult } from '../types';
-import { requireDiagram, jsonResult, syncXml, validateArgs } from './helpers';
+import { requireDiagram, jsonResult, syncXml, validateArgs, getService } from './helpers';
 
 export interface BpmnHistoryArgs {
   diagramId: string;
@@ -19,7 +19,7 @@ export async function handleBpmnHistory(args: BpmnHistoryArgs): Promise<ToolResu
   const { diagramId, action, steps = 1 } = args;
   const diagram = requireDiagram(diagramId);
 
-  const commandStack = diagram.modeler.get('commandStack');
+  const commandStack = getService(diagram.modeler, 'commandStack');
   const isUndo = action === 'undo';
   const canDo = isUndo ? () => commandStack.canUndo() : () => commandStack.canRedo();
   const doAction = isUndo ? () => commandStack.undo() : () => commandStack.redo();

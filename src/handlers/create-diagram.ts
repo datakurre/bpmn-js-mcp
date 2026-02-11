@@ -4,7 +4,7 @@
 
 import { type CreateDiagramArgs, type ToolResult } from '../types';
 import { storeDiagram, generateDiagramId, createModeler } from '../diagram-manager';
-import { jsonResult } from './helpers';
+import { jsonResult, getService } from './helpers';
 
 /** Convert a human name into a valid BPMN process id (XML NCName). */
 function toProcessId(name: string): string {
@@ -22,8 +22,8 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
 
   // If a name was provided, set it on the process along with a meaningful id
   if (args.name) {
-    const elementRegistry = modeler.get('elementRegistry');
-    const modeling = modeler.get('modeling');
+    const elementRegistry = getService(modeler, 'elementRegistry');
+    const modeling = getService(modeler, 'modeling');
     const process = elementRegistry.filter((el: any) => el.type === 'bpmn:Process')[0];
     if (process) {
       modeling.updateProperties(process, {

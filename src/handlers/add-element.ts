@@ -13,6 +13,7 @@ import {
   createBusinessObject,
   fixConnectionId,
   buildElementCounts,
+  getService,
 } from './helpers';
 import { STANDARD_BPMN_GAP, getElementSize } from '../constants';
 import { appendLintFeedback } from '../linter';
@@ -48,8 +49,8 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
   let { x = 100, y = 100 } = args;
   const diagram = requireDiagram(diagramId);
 
-  const modeling = diagram.modeler.get('modeling');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   // Auto-position after another element if requested
   if (afterElementId) {

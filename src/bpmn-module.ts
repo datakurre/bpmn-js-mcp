@@ -7,8 +7,7 @@
 
 import { type ToolResult } from './types';
 import { type ToolModule } from './module';
-import { TOOL_DEFINITIONS } from './tool-definitions';
-import { dispatchToolCall } from './handlers';
+import { TOOL_DEFINITIONS, dispatchToolCall } from './handlers';
 
 /** Set of tool names owned by this module, for fast lookup. */
 const toolNames: Set<string> = new Set(TOOL_DEFINITIONS.map((td) => td.name));

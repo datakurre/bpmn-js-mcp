@@ -11,7 +11,14 @@
 
 import { type ToolResult } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { requireDiagram, requireElement, jsonResult, syncXml, validateArgs } from './helpers';
+import {
+  requireDiagram,
+  requireElement,
+  jsonResult,
+  syncXml,
+  validateArgs,
+  getService,
+} from './helpers';
 import { appendLintFeedback } from '../linter';
 
 export interface SetCallActivityVariablesArgs {
@@ -33,7 +40,35 @@ export interface SetCallActivityVariablesArgs {
   }>;
 }
 
-// eslint-disable-next-line complexity
+interface MappingSpec {
+  source?: string;
+  sourceExpression?: string;
+  target?: string;
+  variables?: 'all';
+  local?: boolean;
+}
+
+/** Create a camunda:In or camunda:Out moddle element from a mapping spec. */
+function createMappingElement(
+  moddle: any,
+  type: 'camunda:In' | 'camunda:Out',
+  mapping: MappingSpec,
+  parent: any
+): any {
+  const attrs: Record<string, any> = {};
+  if (mapping.variables === 'all') {
+    attrs.variables = 'all';
+  } else {
+    if (mapping.source) attrs.source = mapping.source;
+    if (mapping.sourceExpression) attrs.sourceExpression = mapping.sourceExpression;
+    if (mapping.target) attrs.target = mapping.target;
+  }
+  if (mapping.local) attrs.local = true;
+  const el = moddle.create(type, attrs);
+  el.$parent = parent;
+  return el;
+}
+
 export async function handleSetCallActivityVariables(
   args: SetCallActivityVariablesArgs
 ): Promise<ToolResult> {
@@ -48,9 +83,9 @@ export async function handleSetCallActivityVariables(
   }
 
   const diagram = requireDiagram(diagramId);
-  const elementRegistry = diagram.modeler.get('elementRegistry');
-  const modeling = diagram.modeler.get('modeling');
-  const moddle = diagram.modeler.get('moddle');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const moddle = getService(diagram.modeler, 'moddle');
 
   const element = requireElement(elementRegistry, elementId);
   const bo = element.businessObject;
@@ -75,36 +110,16 @@ export async function handleSetCallActivityVariables(
     (v: any) => v.$type !== 'camunda:In' && v.$type !== 'camunda:Out'
   );
 
-  // Create camunda:in elements
+  // Create camunda:in and camunda:out elements
   for (const mapping of inMappings) {
-    const attrs: Record<string, any> = {};
-    if (mapping.variables === 'all') {
-      attrs.variables = 'all';
-    } else {
-      if (mapping.source) attrs.source = mapping.source;
-      if (mapping.sourceExpression) attrs.sourceExpression = mapping.sourceExpression;
-      if (mapping.target) attrs.target = mapping.target;
-    }
-    if (mapping.local) attrs.local = true;
-    const el = moddle.create('camunda:In', attrs);
-    el.$parent = extensionElements;
-    extensionElements.values.push(el);
+    extensionElements.values.push(
+      createMappingElement(moddle, 'camunda:In', mapping, extensionElements)
+    );
   }
-
-  // Create camunda:out elements
   for (const mapping of outMappings) {
-    const attrs: Record<string, any> = {};
-    if (mapping.variables === 'all') {
-      attrs.variables = 'all';
-    } else {
-      if (mapping.source) attrs.source = mapping.source;
-      if (mapping.sourceExpression) attrs.sourceExpression = mapping.sourceExpression;
-      if (mapping.target) attrs.target = mapping.target;
-    }
-    if (mapping.local) attrs.local = true;
-    const el = moddle.create('camunda:Out', attrs);
-    el.$parent = extensionElements;
-    extensionElements.values.push(el);
+    extensionElements.values.push(
+      createMappingElement(moddle, 'camunda:Out', mapping, extensionElements)
+    );
   }
 
   modeling.updateProperties(element, { extensionElements });

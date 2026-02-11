@@ -7,7 +7,14 @@
 
 import { type DeleteElementArgs, type ToolResult } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { requireDiagram, requireElement, jsonResult, syncXml, buildElementCounts } from './helpers';
+import {
+  requireDiagram,
+  requireElement,
+  jsonResult,
+  syncXml,
+  buildElementCounts,
+  getService,
+} from './helpers';
 import { appendLintFeedback } from '../linter';
 
 export async function handleDeleteElement(args: DeleteElementArgs): Promise<ToolResult> {
@@ -15,8 +22,8 @@ export async function handleDeleteElement(args: DeleteElementArgs): Promise<Tool
   const elementIds = (args as any).elementIds as string[] | undefined;
   const diagram = requireDiagram(diagramId);
 
-  const modeling = diagram.modeler.get('modeling');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   // Bulk deletion mode
   if (elementIds && Array.isArray(elementIds) && elementIds.length > 0) {

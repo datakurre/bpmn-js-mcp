@@ -13,50 +13,55 @@ import {
   syncXml,
   generateDescriptiveId,
   validateArgs,
+  getService,
 } from './helpers';
 import { appendLintFeedback } from '../linter';
 
 /** Default offset from the original element when duplicating. */
 const DUPLICATE_OFFSET = { x: 50, y: 50 };
 
-// eslint-disable-next-line complexity
+/** Types that cannot be duplicated via this tool. */
+const NON_DUPLICATABLE = new Set(['bpmn:Process', 'bpmn:Collaboration', 'bpmn:Participant']);
+
+/** Copy name and camunda:* extension attributes from an original business object. */
+function buildCopyProperties(bo: any, copyName: string): Record<string, any> {
+  const props: Record<string, any> = {};
+  if (copyName) props.name = copyName;
+  if (bo?.$attrs) {
+    for (const [key, value] of Object.entries(bo.$attrs)) {
+      if (key.startsWith('camunda:')) props[key] = value;
+    }
+  }
+  return props;
+}
+
 export async function handleDuplicateElement(args: DuplicateElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId']);
   const { diagramId, elementId, offsetX = DUPLICATE_OFFSET.x, offsetY = DUPLICATE_OFFSET.y } = args;
   const diagram = requireDiagram(diagramId);
 
-  const modeling = diagram.modeler.get('modeling');
-  const elementFactory = diagram.modeler.get('elementFactory');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementFactory = getService(diagram.modeler, 'elementFactory');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const original = requireElement(elementRegistry, elementId);
 
   const originalType: string = original.type || original.businessObject?.$type;
   const originalName: string = original.businessObject?.name || '';
 
-  // Don't allow duplicating infrastructure elements
-  if (
-    originalType === 'bpmn:Process' ||
-    originalType === 'bpmn:Collaboration' ||
-    originalType === 'bpmn:Participant'
-  ) {
+  if (NON_DUPLICATABLE.has(originalType)) {
     throw new McpError(
       ErrorCode.InvalidRequest,
       `Cannot duplicate ${originalType} — use create_bpmn_collaboration for pools`
     );
   }
 
-  // Generate a descriptive ID for the copy
   const copyName = originalName ? `${originalName} (copy)` : '';
   const descriptiveId = generateDescriptiveId(elementRegistry, originalType, copyName || undefined);
-
-  // Create the new shape
   const shape = elementFactory.createShape({ type: originalType, id: descriptiveId });
 
-  // Position relative to original
   const newX = original.x + (original.width || 0) / 2 + offsetX;
   const newY = original.y + (original.height || 0) / 2 + offsetY;
 
-  // Find the parent container
   const parent = original.parent;
   if (!parent) {
     throw new McpError(ErrorCode.InternalError, 'Original element has no parent');
@@ -64,20 +69,7 @@ export async function handleDuplicateElement(args: DuplicateElementArgs): Promis
 
   const createdElement = modeling.createShape(shape, { x: newX, y: newY }, parent);
 
-  // Copy common properties from the original business object
-  const propsToSet: Record<string, any> = {};
-  if (originalName) {
-    propsToSet.name = copyName;
-  }
-  // Copy camunda extension attributes
-  const bo = original.businessObject;
-  if (bo?.$attrs) {
-    const camundaAttrs = Object.entries(bo.$attrs).filter(([key]) => key.startsWith('camunda:'));
-    for (const [key, value] of camundaAttrs) {
-      propsToSet[key] = value;
-    }
-  }
-
+  const propsToSet = buildCopyProperties(original.businessObject, copyName);
   if (Object.keys(propsToSet).length > 0) {
     modeling.updateProperties(createdElement, propsToSet);
   }

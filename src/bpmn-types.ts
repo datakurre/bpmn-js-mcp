@@ -89,7 +89,16 @@ export interface Modeling {
   ): void;
   connect(source: BpmnElement, target: BpmnElement, attrs?: Record<string, unknown>): BpmnElement;
   updateProperties(element: BpmnElement, properties: Record<string, unknown>): void;
+  updateModdleProperties(
+    element: BpmnElement,
+    moddleElement: Record<string, unknown>,
+    properties: Record<string, unknown>
+  ): void;
   removeElements(elements: BpmnElement[]): void;
+  resizeShape(
+    shape: BpmnElement,
+    newBounds: { x: number; y: number; width: number; height: number }
+  ): void;
 }
 
 /** The ElementFactory service — creates new shapes / connections. */
@@ -114,4 +123,56 @@ export interface Canvas {
 /** The Moddle service — create BPMN model instances. */
 export interface Moddle {
   create(type: string, attrs?: Record<string, unknown>): BusinessObject;
+}
+
+/** The BpmnFactory service — create BPMN business objects with auto-IDs. */
+export interface BpmnFactory {
+  create(type: string, attrs?: Record<string, unknown>): BusinessObject;
+}
+
+/** The CommandStack service — undo/redo support. */
+export interface CommandStack {
+  canUndo(): boolean;
+  canRedo(): boolean;
+  undo(): void;
+  redo(): void;
+  execute(command: string, context: Record<string, unknown>): void;
+}
+
+/** The BpmnReplace service — replace element types. */
+export interface BpmnReplace {
+  replaceElement(element: BpmnElement, target: Record<string, unknown>): BpmnElement;
+}
+
+// ── Typed service access ───────────────────────────────────────────────────
+
+/**
+ * Map of known bpmn-js service names to their typed interfaces.
+ *
+ * Used by `getService()` to provide type-safe access to modeler services
+ * instead of raw `any` from `modeler.get()`.
+ */
+export interface ServiceMap {
+  modeling: Modeling;
+  elementFactory: ElementFactory;
+  elementRegistry: ElementRegistry;
+  canvas: Canvas;
+  moddle: Moddle;
+  bpmnFactory: BpmnFactory;
+  commandStack: CommandStack;
+  bpmnReplace: BpmnReplace;
+}
+
+/**
+ * Type-safe accessor for bpmn-js modeler services.
+ *
+ * Usage:
+ *   const modeling = getService(modeler, 'modeling');
+ *   // modeling is typed as Modeling, not any
+ */
+export function getService<K extends keyof ServiceMap>(
+  modeler: { get(name: string): unknown },
+  name: K
+): ServiceMap[K] {
+  return modeler.get(name) as ServiceMap[K];
 }
