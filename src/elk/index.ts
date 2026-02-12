@@ -30,7 +30,7 @@ import type { DiagramState } from '../types';
 import type { ElkNode, ElkExtendedEdge, LayoutOptions } from 'elkjs';
 
 import { isConnection, isInfrastructure, isArtifact } from './helpers';
-import type { BpmnElement, ElementRegistry } from '../bpmn-types';
+import type { BpmnElement, ElementRegistry, Modeling, Canvas } from '../bpmn-types';
 import {
   ELK_LAYOUT_OPTIONS,
   ORIGIN_OFFSET_X,
@@ -164,6 +164,169 @@ function resolveLayoutOptions(options?: ElkLayoutOptions): {
   return { layoutOptions, effectiveLayerSpacing };
 }
 
+// ── Layout pipeline context ─────────────────────────────────────────────────
+
+/** Shared context threaded through the layout pipeline steps. */
+interface LayoutContext {
+  elementRegistry: ElementRegistry;
+  modeling: Modeling;
+  result: ElkNode;
+  offsetX: number;
+  offsetY: number;
+  options: ElkLayoutOptions | undefined;
+  happyPathEdgeIds: Set<string> | undefined;
+  effectiveLayerSpacing: number | undefined;
+  hasDiverseY: boolean;
+  boundaryLeafTargetIds: Set<string>;
+  laneSnapshots: ReturnType<typeof saveLaneNodeAssignments>;
+  boundarySnapshots: ReturnType<typeof saveBoundaryEventData>;
+}
+
+// ── Pipeline step functions ─────────────────────────────────────────────────
+
+/** Apply ELK-computed node positions and resize compound nodes. */
+function applyNodePositions(ctx: LayoutContext): void {
+  applyElkPositions(ctx.elementRegistry, ctx.modeling, ctx.result, ctx.offsetX, ctx.offsetY);
+  resizeCompoundNodes(ctx.elementRegistry, ctx.modeling, ctx.result);
+}
+
+/** Restore boundary event data and reposition boundary events. */
+function fixBoundaryEvents(ctx: LayoutContext): void {
+  restoreBoundaryEventData(ctx.elementRegistry, ctx.boundarySnapshots);
+  repositionBoundaryEvents(ctx.elementRegistry, ctx.modeling, ctx.boundarySnapshots);
+}
+
+/**
+ * Snap same-layer elements to common Y (fixes 5–10 px offsets).
+ * Scoped per-participant for collaborations, and recursively for
+ * expanded subprocesses to avoid cross-nesting-level mixing.
+ */
+function snapAndAlignLayers(ctx: LayoutContext): void {
+  forEachScope(ctx.elementRegistry, (scope) => {
+    snapSameLayerElements(ctx.elementRegistry, ctx.modeling, scope);
+    snapExpandedSubprocesses(ctx.elementRegistry, ctx.modeling, scope);
+  });
+}
+
+/**
+ * Post-ELK grid snap pass — quantises node positions to a virtual grid
+ * for visual regularity.  Also resolves overlaps created by grid snap.
+ */
+function gridSnapAndResolveOverlaps(ctx: LayoutContext): void {
+  const shouldGridSnap = ctx.options?.gridSnap !== false;
+  if (!shouldGridSnap) return;
+
+  forEachScope(ctx.elementRegistry, (scope) => {
+    gridSnapPass(
+      ctx.elementRegistry,
+      ctx.modeling,
+      ctx.happyPathEdgeIds,
+      scope,
+      ctx.effectiveLayerSpacing
+    );
+    gridSnapExpandedSubprocesses(
+      ctx.elementRegistry,
+      ctx.modeling,
+      ctx.happyPathEdgeIds,
+      scope,
+      ctx.effectiveLayerSpacing
+    );
+  });
+
+  // Resolve overlaps created by grid quantisation
+  forEachScope(ctx.elementRegistry, (scope) => {
+    resolveOverlaps(ctx.elementRegistry, ctx.modeling, scope);
+  });
+}
+
+/**
+ * Align happy-path elements to a single Y-centre and align off-path
+ * end events with their predecessor.  Only applies for horizontal layouts.
+ */
+function alignHappyPathAndOffPathEvents(ctx: LayoutContext): void {
+  const shouldPreserveHappyPath = ctx.options?.preserveHappyPath !== false;
+  const effectiveDirection = ctx.options?.direction || 'RIGHT';
+
+  if (
+    !shouldPreserveHappyPath ||
+    !ctx.happyPathEdgeIds ||
+    ctx.happyPathEdgeIds.size === 0 ||
+    (effectiveDirection !== 'RIGHT' && effectiveDirection !== 'LEFT')
+  ) {
+    return;
+  }
+
+  forEachScope(ctx.elementRegistry, (scope) => {
+    alignHappyPath(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope, ctx.hasDiverseY);
+  });
+
+  forEachScope(ctx.elementRegistry, (scope) => {
+    alignOffPathEndEvents(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
+  });
+}
+
+/**
+ * Centre elements in pools, reposition lanes, and reorder collapsed
+ * pools below expanded pools.
+ */
+function finalisePoolsAndLanes(ctx: LayoutContext): void {
+  centreElementsInPools(ctx.elementRegistry, ctx.modeling);
+  repositionLanes(ctx.elementRegistry, ctx.modeling, ctx.laneSnapshots);
+  reorderCollapsedPoolsBelow(ctx.elementRegistry, ctx.modeling);
+}
+
+/**
+ * Final boundary event restore/reposition, then position boundary-only
+ * leaf targets and align off-path end events to the boundary target row.
+ */
+function finaliseBoundaryTargets(ctx: LayoutContext): void {
+  // Re-restore after snap/grid passes may have moved host tasks
+  restoreBoundaryEventData(ctx.elementRegistry, ctx.boundarySnapshots);
+  repositionBoundaryEvents(ctx.elementRegistry, ctx.modeling, ctx.boundarySnapshots);
+
+  repositionBoundaryEventTargets(ctx.elementRegistry, ctx.modeling, ctx.boundaryLeafTargetIds);
+
+  alignOffPathEndEventsToSecondRow(
+    ctx.elementRegistry,
+    ctx.modeling,
+    ctx.boundaryLeafTargetIds,
+    ctx.happyPathEdgeIds
+  );
+}
+
+/**
+ * Apply ELK edge routes, simplify gateway branch routes, and route
+ * branch connections through inter-column channels.
+ */
+function applyEdgeRoutes(ctx: LayoutContext): void {
+  applyElkEdgeRoutes(ctx.elementRegistry, ctx.modeling, ctx.result, ctx.offsetX, ctx.offsetY);
+
+  const shouldGridSnap = ctx.options?.gridSnap !== false;
+  if (shouldGridSnap) {
+    const shouldSimplifyRoutes = ctx.options?.simplifyRoutes !== false;
+    if (shouldSimplifyRoutes) {
+      simplifyGatewayBranchRoutes(ctx.elementRegistry, ctx.modeling);
+    }
+
+    forEachScope(ctx.elementRegistry, (scope) => {
+      routeBranchConnectionsThroughChannels(ctx.elementRegistry, ctx.modeling, scope);
+    });
+  }
+}
+
+/**
+ * Repair disconnected edge endpoints, snap to element centres,
+ * rebuild off-row gateway routes, simplify collinear waypoints,
+ * and final orthogonal snap.
+ */
+function repairAndSimplifyEdges(ctx: LayoutContext): void {
+  fixDisconnectedEdges(ctx.elementRegistry, ctx.modeling);
+  snapEndpointsToElementCentres(ctx.elementRegistry, ctx.modeling);
+  rebuildOffRowGatewayRoutes(ctx.elementRegistry, ctx.modeling);
+  simplifyCollinearWaypoints(ctx.elementRegistry, ctx.modeling);
+  snapAllConnectionsOrthogonal(ctx.elementRegistry, ctx.modeling);
+}
+
 // ── Main layout ─────────────────────────────────────────────────────────────
 
 /**
@@ -174,17 +337,18 @@ function resolveLayoutOptions(options?: ElkLayoutOptions): {
  * reconverging gateways, and nested containers.
  *
  * Pipeline:
- * 1. Build ELK graph from bpmn-js element registry
- * 2. Run ELK layout (node positions + edge routes)
- * 3. Apply node positions via `modeling.moveElements`
- * 4. Snap same-layer elements to common Y (vertical alignment)
- * 5. Post-ELK grid snap pass (uniform columns + vertical spacing)
- * 6. Apply ELK edge sections as connection waypoints (bypasses
- *    bpmn-js ManhattanLayout entirely for ELK-routed edges)
- * 7. Route branch connections through inter-column channels
- * 8. Repair disconnected edge endpoints after gridSnap moves
- * 8.5. Simplify collinear waypoints (remove redundant bends)
- * 9. Detect crossing flows and report count
+ * 1. Build ELK graph → run ELK layout
+ * 2. Apply node positions + resize compound nodes
+ * 3. Fix boundary events
+ * 4. Snap/align same-layer elements
+ * 5. Grid snap + resolve overlaps
+ * 6. Reposition artifacts
+ * 7. Align happy path + off-path end events
+ * 8. Finalise pools, lanes, collapsed pools
+ * 9. Finalise boundary targets + off-path alignment
+ * 10. Apply edge routes + channel routing
+ * 11. Repair + simplify edges
+ * 12. Detect crossing flows
  */
 export async function elkLayout(
   diagram: DiagramState,
@@ -199,26 +363,12 @@ export async function elkLayout(
   const canvas = diagram.modeler.get('canvas');
 
   // Determine the layout root: scoped to a specific element, or the whole diagram
-  let rootElement: BpmnElement;
-  if (options?.scopeElementId) {
-    const scopeEl = elementRegistry.get(options.scopeElementId);
-    if (!scopeEl) {
-      throw new Error(`Scope element not found: ${options.scopeElementId}`);
-    }
-    if (scopeEl.type !== 'bpmn:Participant' && scopeEl.type !== 'bpmn:SubProcess') {
-      throw new Error(`Scope element must be a Participant or SubProcess, got: ${scopeEl.type}`);
-    }
-    rootElement = scopeEl;
-  } else {
-    rootElement = canvas.getRootElement();
-  }
+  const rootElement = resolveRootElement(elementRegistry, canvas, options);
 
   const allElements: BpmnElement[] = elementRegistry.getAll();
 
-  // Identify boundary-only leaf targets (end events reached only from
-  // boundary events).  These are excluded from the ELK graph to prevent
+  // Identify boundary-only leaf targets — excluded from ELK graph to prevent
   // proxy edges from creating extra layers that distort horizontal spacing.
-  // They are positioned manually after boundary events are placed.
   const boundaryLeafTargetIds = identifyBoundaryLeafTargets(allElements, rootElement);
 
   const { children, edges, hasDiverseY } = buildContainerGraph(
@@ -229,251 +379,120 @@ export async function elkLayout(
 
   if (children.length === 0) return {};
 
-  // Merge user-provided options with defaults
   const { layoutOptions, effectiveLayerSpacing } = resolveLayoutOptions(options);
 
-  // When the imported BPMN has DI coordinates with diverse Y positions,
-  // force node model order so crossing minimisation preserves the DI-based
-  // Y-position sort applied in graph-builder.ts.  For programmatically
-  // created diagrams (all at same Y), let ELK freely optimise.
   if (hasDiverseY) {
     layoutOptions['elk.layered.crossingMinimization.forceNodeModelOrder'] = 'true';
   }
 
-  // When preserveHappyPath is enabled (default: true), detect the main path
-  // and tag its edges with high straightness priority so ELK keeps them in
-  // a single row.
-  const shouldPreserveHappyPath = options?.preserveHappyPath !== false;
-  let happyPathEdgeIds: Set<string> | undefined;
-  if (shouldPreserveHappyPath) {
-    happyPathEdgeIds = detectHappyPath(allElements);
-    if (happyPathEdgeIds.size > 0) {
-      for (const edge of edges) {
-        if (happyPathEdgeIds.has(edge.id)) {
-          edge.layoutOptions = {
-            'elk.priority.straightness': ELK_HIGH_PRIORITY,
-            'elk.priority.direction': ELK_HIGH_PRIORITY,
-          };
-        }
-      }
-    }
-  }
+  const happyPathEdgeIds = tagHappyPathEdges(allElements, edges, options);
 
-  const elkGraph: ElkNode = {
+  const result = await elk.layout({
     id: 'root',
     layoutOptions,
     children,
     edges,
-  };
-
-  const result = await elk.layout(elkGraph);
-
-  // For scoped layout, compute the offset from the scope element's position
-  let offsetX: number;
-  let offsetY: number;
-  if (options?.scopeElementId) {
-    const scopeEl = elementRegistry.get(options.scopeElementId);
-    offsetX = scopeEl.x;
-    offsetY = scopeEl.y;
-  } else {
-    offsetX = ORIGIN_OFFSET_X;
-    offsetY = ORIGIN_OFFSET_Y;
-  }
-
-  // Save lane → flow-node assignments before any moves — bpmn-js's
-  // modeling.moveElements mutates lane.businessObject.flowNodeRef when
-  // nodes cross lane boundaries during layout passes.
-  const laneSnapshots = saveLaneNodeAssignments(elementRegistry);
-
-  // Save boundary event data before any moves — headless mode can
-  // corrupt boundary event types during modeling.moveElements.
-  const boundarySnapshots = saveBoundaryEventData(elementRegistry);
-
-  // Step 1: Apply ELK-computed node positions
-  applyElkPositions(elementRegistry, modeling, result, offsetX, offsetY);
-
-  // Step 2: Resize compound nodes (participants, expanded subprocesses)
-  // to match ELK-computed dimensions.  Must be AFTER applyElkPositions
-  // so that x/y are already correct.
-  resizeCompoundNodes(elementRegistry, modeling, result);
-
-  // Step 2.5: Restore boundary event types and host references.
-  // Must run before snap/grid passes so they correctly exclude boundary
-  // events (they filter by type === 'bpmn:BoundaryEvent').
-  restoreBoundaryEventData(elementRegistry, boundarySnapshots);
-
-  // Step 3: Fix boundary event positions.  They are excluded from the
-  // ELK graph and should follow their host via moveElements, but
-  // headless mode may leave them stranded.
-  repositionBoundaryEvents(elementRegistry, modeling, boundarySnapshots);
-
-  // Step 4: Snap same-layer elements to common Y (fixes 5–10 px offsets)
-  // Scoped per-participant for collaborations, and recursively for
-  // expanded subprocesses to avoid cross-nesting-level mixing.
-  forEachScope(elementRegistry, (scope) => {
-    snapSameLayerElements(elementRegistry, modeling, scope);
-    snapExpandedSubprocesses(elementRegistry, modeling, scope);
   });
 
-  // Step 5: Post-ELK grid snap pass — quantises node positions to a
-  // virtual grid for visual regularity.  Runs independently within each
-  // participant for collaboration diagrams, and recursively for expanded
-  // subprocesses.
-  const shouldGridSnap = options?.gridSnap !== false;
+  const { offsetX, offsetY } = computeLayoutOffset(elementRegistry, options);
 
-  if (shouldGridSnap) {
-    forEachScope(elementRegistry, (scope) => {
-      gridSnapPass(elementRegistry, modeling, happyPathEdgeIds, scope, effectiveLayerSpacing);
-      gridSnapExpandedSubprocesses(
-        elementRegistry,
-        modeling,
-        happyPathEdgeIds,
-        scope,
-        effectiveLayerSpacing
-      );
-    });
-  }
-
-  // Step 6: Reposition artifacts (data objects, data stores, annotations)
-  // outside the main flow — they were excluded from the ELK graph.
-  repositionArtifacts(elementRegistry, modeling);
-
-  // Step 5.6: Resolve overlaps created by grid snap.
-  // Grid quantisation can push elements into overlapping positions.
-  // This pass detects overlapping pairs and pushes them apart vertically.
-  if (shouldGridSnap) {
-    forEachScope(elementRegistry, (scope) => {
-      resolveOverlaps(elementRegistry, modeling, scope);
-    });
-  }
-
-  // Step 5.5: Align happy-path elements to a single Y-centre.
-  // GridSnapPass can introduce small Y-centre wobbles (5–15 px) due to
-  // ELK's gateway port placement.  This pass snaps all happy-path elements
-  // to the median Y-centre for a perfectly straight main flow line.
-  // Only applies for horizontal (RIGHT/LEFT) layouts.
-  const effectiveDirection = options?.direction || 'RIGHT';
-  if (
-    shouldPreserveHappyPath &&
-    happyPathEdgeIds &&
-    happyPathEdgeIds.size > 0 &&
-    (effectiveDirection === 'RIGHT' || effectiveDirection === 'LEFT')
-  ) {
-    forEachScope(elementRegistry, (scope) => {
-      alignHappyPath(elementRegistry, modeling, happyPathEdgeIds, scope, hasDiverseY);
-    });
-
-    // Step 5.55: Align off-path end events with their predecessor.
-    // After happy-path alignment moves happy-path elements (and their
-    // column-mates), off-path end events may be stranded at the wrong Y.
-    // This pass aligns them to their incoming source element's Y-centre.
-    forEachScope(elementRegistry, (scope) => {
-      alignOffPathEndEvents(elementRegistry, modeling, happyPathEdgeIds, scope);
-    });
-  }
-
-  // Step 5.7: Centre elements vertically within participant pools.
-  // After grid snap and happy-path alignment, content inside pools may
-  // not be vertically centred.  This pass shifts elements to be centred
-  // within each pool's usable area.
-  centreElementsInPools(elementRegistry, modeling);
-
-  // Step 5.75: Reposition lanes inside participant pools.
-  // Lanes are excluded from ELK layout — they are structural containers.
-  // After flow nodes are positioned, resize each lane to encompass its
-  // assigned flow nodes (from bpmn:Lane.flowNodeRef).
-  repositionLanes(elementRegistry, modeling, laneSnapshots);
-
-  // Step 5.8: Ensure collapsed pools are below expanded pools.
-  // ELK may place collapsed participants above expanded ones; this pass
-  // moves them below the bottommost expanded pool with a consistent gap.
-  reorderCollapsedPoolsBelow(elementRegistry, modeling);
-
-  // Step 6.5: Final boundary event restore + reposition.
-  // Snap/grid passes (steps 4-5) may have moved host tasks, which can
-  // re-corrupt boundary events in headless mode.  Restore and reposition
-  // once more before edge routing.
-  restoreBoundaryEventData(elementRegistry, boundarySnapshots);
-  repositionBoundaryEvents(elementRegistry, modeling, boundarySnapshots);
-
-  // Step 6.6: Reposition boundary-only leaf targets below their hosts.
-  // These elements were excluded from the ELK graph and need manual
-  // positioning after boundary events are at their final positions.
-  repositionBoundaryEventTargets(elementRegistry, modeling, boundaryLeafTargetIds);
-
-  // Step 6.7: Align off-path end events to the boundary target row.
-  // Gateway "No" branch end events that sit between the happy path and
-  // the boundary target row are pushed down for consistent alignment.
-  alignOffPathEndEventsToSecondRow(
+  // Build pipeline context
+  const ctx: LayoutContext = {
     elementRegistry,
     modeling,
+    result,
+    offsetX,
+    offsetY,
+    options,
+    happyPathEdgeIds,
+    effectiveLayerSpacing,
+    hasDiverseY,
     boundaryLeafTargetIds,
-    happyPathEdgeIds
-  );
+    laneSnapshots: saveLaneNodeAssignments(elementRegistry),
+    boundarySnapshots: saveBoundaryEventData(elementRegistry),
+  };
 
-  // Step 7: Apply ELK edge routes as waypoints (orthogonal, no diagonals).
-  // Uses ELK's own edge sections instead of bpmn-js ManhattanLayout,
-  // eliminating diagonals, S-curves, and gateway routing interference.
-  applyElkEdgeRoutes(elementRegistry, modeling, result, offsetX, offsetY);
+  // Execute layout pipeline
+  applyNodePositions(ctx);
+  fixBoundaryEvents(ctx);
+  snapAndAlignLayers(ctx);
+  gridSnapAndResolveOverlaps(ctx);
+  repositionArtifacts(elementRegistry, modeling);
+  alignHappyPathAndOffPathEvents(ctx);
+  finalisePoolsAndLanes(ctx);
+  finaliseBoundaryTargets(ctx);
+  applyEdgeRoutes(ctx);
+  repairAndSimplifyEdges(ctx);
 
-  // Step 7.5: Route gateway branch connections through inter-column channels.
-  // Shifts vertical segments to the midpoint between columns rather than
-  // hugging the gateway edge, matching bpmn-auto-layout's channel routing.
-  if (shouldGridSnap) {
-    // Step 7.3: Simplify gateway branch routes to clean L-shapes.
-    // For split-gateway → branch-target and branch-target → join-gateway
-    // connections, replace multi-bend ELK routes with clean 4-waypoint
-    // Z-shaped routes (horizontal → vertical → horizontal).
-    // Configurable via options.simplifyRoutes (default: true).
-    const shouldSimplifyRoutes = options?.simplifyRoutes !== false;
-    if (shouldSimplifyRoutes) {
-      simplifyGatewayBranchRoutes(elementRegistry, modeling);
-    }
-
-    forEachScope(elementRegistry, (scope) => {
-      routeBranchConnectionsThroughChannels(elementRegistry, modeling, scope);
-    });
-  }
-
-  // Step 8: Repair disconnected edge endpoints.
-  // GridSnap (step 5) may have moved elements after ELK computed edge
-  // routes (step 7), leaving waypoints that no longer connect to their
-  // source/target elements.  This pass snaps endpoints back.
-  fixDisconnectedEdges(elementRegistry, modeling);
-
-  // Step 8.3: Snap flow endpoints to element centres.
-  // ELK uses port positions that may be offset from element geometric
-  // centres, causing subtle Y-wobble on horizontal flows.  This pass
-  // adjusts endpoints so they connect at element centre lines.
-  snapEndpointsToElementCentres(elementRegistry, modeling);
-
-  // Step 8.4: Rebuild off-row gateway routes.
-  // ELK may route gateway branches as flat horizontal lines when it
-  // places elements on the same row.  Post-ELK grid snap and happy-path
-  // alignment can separate elements vertically, leaving flat routes that
-  // should be L-bends.  This pass detects such routes and rebuilds them
-  // with proper L-bend routing matching bpmn-js conventions:
-  // - Split gateway → off-row target: exit bottom/top of diamond
-  // - Off-row source → join gateway: enter bottom/top of diamond
-  rebuildOffRowGatewayRoutes(elementRegistry, modeling);
-
-  // Step 8.5: Simplify collinear waypoints.
-  // Remove redundant middle points where three consecutive waypoints
-  // lie on the same horizontal or vertical line, producing cleaner
-  // routes with fewer bend points.
-  simplifyCollinearWaypoints(elementRegistry, modeling);
-
-  // Step 9: Final orthogonal snap pass on ALL connections.
-  // Catches residual near-diagonal segments from ELK rounding or fallback routing.
-  snapAllConnectionsOrthogonal(elementRegistry, modeling);
-
-  // Step 10: Detect crossing sequence flows for diagnostics
   const crossingFlowsResult = detectCrossingFlows(elementRegistry);
-
   return {
     crossingFlows: crossingFlowsResult.count,
     crossingFlowPairs: crossingFlowsResult.pairs,
   };
+}
+
+/**
+ * Resolve the layout root element: scoped to a specific element, or the
+ * whole diagram canvas root.
+ */
+function resolveRootElement(
+  elementRegistry: ElementRegistry,
+  canvas: Canvas,
+  options?: ElkLayoutOptions
+): BpmnElement {
+  if (options?.scopeElementId) {
+    const scopeEl = elementRegistry.get(options.scopeElementId);
+    if (!scopeEl) {
+      throw new Error(`Scope element not found: ${options.scopeElementId}`);
+    }
+    if (scopeEl.type !== 'bpmn:Participant' && scopeEl.type !== 'bpmn:SubProcess') {
+      throw new Error(`Scope element must be a Participant or SubProcess, got: ${scopeEl.type}`);
+    }
+    return scopeEl;
+  }
+  return canvas.getRootElement();
+}
+
+/**
+ * Detect and tag happy-path edges with high straightness priority so ELK
+ * keeps them in a single row.  Returns the set of happy-path edge IDs,
+ * or undefined if happy-path preservation is disabled.
+ */
+function tagHappyPathEdges(
+  allElements: BpmnElement[],
+  edges: ElkExtendedEdge[],
+  options?: ElkLayoutOptions
+): Set<string> | undefined {
+  if (options?.preserveHappyPath === false) return undefined;
+
+  const happyPathEdgeIds = detectHappyPath(allElements);
+  if (happyPathEdgeIds.size > 0) {
+    for (const edge of edges) {
+      if (happyPathEdgeIds.has(edge.id)) {
+        edge.layoutOptions = {
+          'elk.priority.straightness': ELK_HIGH_PRIORITY,
+          'elk.priority.direction': ELK_HIGH_PRIORITY,
+        };
+      }
+    }
+  }
+  return happyPathEdgeIds;
+}
+
+/**
+ * Compute the position offset for applying ELK results back to the diagram.
+ * For scoped layout, uses the scope element's position; otherwise uses
+ * the global origin offset.
+ */
+function computeLayoutOffset(
+  elementRegistry: ElementRegistry,
+  options?: ElkLayoutOptions
+): { offsetX: number; offsetY: number } {
+  if (options?.scopeElementId) {
+    const scopeEl = elementRegistry.get(options.scopeElementId);
+    return { offsetX: scopeEl?.x ?? ORIGIN_OFFSET_X, offsetY: scopeEl?.y ?? ORIGIN_OFFSET_Y };
+  }
+  return { offsetX: ORIGIN_OFFSET_X, offsetY: ORIGIN_OFFSET_Y };
 }
 
 // ── Partial (subset) layout ────────────────────────────────────────────────

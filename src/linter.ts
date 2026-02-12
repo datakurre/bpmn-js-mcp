@@ -15,7 +15,6 @@ import {
 import { getDiagramId } from './diagram-manager';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as crypto from 'node:crypto';
 
 // ── Default configuration ──────────────────────────────────────────────────
 
@@ -169,7 +168,7 @@ export function getDefinitionsFromModeler(modeler: any): any {
 // ── Lint result caching ────────────────────────────────────────────────────
 
 interface LintCacheEntry {
-  hash: string;
+  version: number;
   configKey: string;
   results: LintResults;
 }
@@ -177,23 +176,19 @@ interface LintCacheEntry {
 const lintCache = new Map<string, LintCacheEntry>();
 
 /**
- * Compute a content hash for a diagram by serialising the moddle definitions.
- * This is faster than a full saveXML round-trip.
+ * Get the current version of a diagram.
+ * Returns the version counter from DiagramState (bumped on each mutation).
  */
-function computeDiagramHash(definitions: any): string {
-  // Use JSON of root elements as a fingerprint — fast and deterministic.
-  // Track seen objects to break ALL circular references (not just $parent —
-  // bpmn-moddle also has sourceRef/targetRef/default cycles).
-  const seen = new WeakSet();
-  const fingerprint = JSON.stringify(definitions, (_key, value) => {
-    if (_key === '$parent') return undefined;
-    if (typeof value === 'object' && value !== null) {
-      if (seen.has(value)) return '[Circular]';
-      seen.add(value);
-    }
-    return value;
-  });
-  return crypto.createHash('sha256').update(fingerprint).digest('hex').slice(0, 16);
+function getDiagramVersion(diagram: DiagramState): number {
+  return diagram.version ?? 0;
+}
+
+/**
+ * Bump the version counter on a diagram state.
+ * Called after mutations to signal that lint cache is stale.
+ */
+export function bumpDiagramVersion(diagram: DiagramState): void {
+  diagram.version = (diagram.version ?? 0) + 1;
 }
 
 function configCacheKey(config: LintConfig): string {
@@ -221,27 +216,26 @@ export async function lintDiagram(
   config?: LintConfig
 ): Promise<LintResults> {
   const effectiveConfig = getEffectiveConfig(config);
-  const definitions = getDefinitionsFromModeler(diagram.modeler);
 
   // Check cache
   const diagramId = getDiagramId(diagram);
+  const currentVersion = getDiagramVersion(diagram);
   if (diagramId) {
-    const hash = computeDiagramHash(definitions);
     const ck = configCacheKey(effectiveConfig);
     const cached = lintCache.get(diagramId);
-    if (cached && cached.hash === hash && cached.configKey === ck) {
+    if (cached && cached.version === currentVersion && cached.configKey === ck) {
       return cached.results;
     }
   }
 
+  const definitions = getDefinitionsFromModeler(diagram.modeler);
   const linter = createLinter(effectiveConfig);
   const results: LintResults = await linter.lint(definitions);
 
   // Store in cache
   if (diagramId) {
-    const hash = computeDiagramHash(definitions);
     const ck = configCacheKey(effectiveConfig);
-    lintCache.set(diagramId, { hash, configKey: ck, results });
+    lintCache.set(diagramId, { version: currentVersion, configKey: ck, results });
   }
 
   return results;
@@ -322,7 +316,8 @@ export async function appendLintFeedback(
   // In draft mode, skip lint feedback — user explicitly opted out
   if (diagram.draftMode) return result;
 
-  // Invalidate cache since a mutation just occurred
+  // Bump version since a mutation just occurred, and invalidate stale cache
+  bumpDiagramVersion(diagram);
   const diagramId = getDiagramId(diagram);
   if (diagramId) invalidateLintCache(diagramId);
 

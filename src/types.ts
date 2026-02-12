@@ -19,6 +19,8 @@ export interface DiagramState {
   name?: string;
   /** When true, suppress implicit lint feedback on mutating operations. */
   draftMode?: boolean;
+  /** Monotonically increasing version counter, bumped on each mutation. */
+  version?: number;
 }
 
 /** Shape of the JSON returned by tool handlers that wrap results. */
