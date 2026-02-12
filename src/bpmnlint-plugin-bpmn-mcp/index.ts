@@ -24,6 +24,8 @@ import loopWithoutLimit from './rules/loop-without-limit';
 import multipleExpandedPools from './rules/multiple-expanded-pools';
 import exclusiveGatewayConditions from './rules/exclusive-gateway-conditions';
 import parallelGatewayMergeExclusive from './rules/parallel-gateway-merge-exclusive';
+import userTaskMissingAssignee from './rules/user-task-missing-assignee';
+import implicitMerge from './rules/implicit-merge';
 
 /**
  * All custom lint rules keyed by rule name (without plugin prefix).
@@ -46,6 +48,8 @@ export const rules: Record<string, any> = {
   'multiple-expanded-pools': multipleExpandedPools,
   'exclusive-gateway-conditions': exclusiveGatewayConditions,
   'parallel-gateway-merge-exclusive': parallelGatewayMergeExclusive,
+  'user-task-missing-assignee': userTaskMissingAssignee,
+  'implicit-merge': implicitMerge,
 };
 
 export const configs = {
@@ -65,6 +69,8 @@ export const configs = {
       'bpmn-mcp/multiple-expanded-pools': 'warn',
       'bpmn-mcp/exclusive-gateway-conditions': 'error',
       'bpmn-mcp/parallel-gateway-merge-exclusive': 'warn',
+      'bpmn-mcp/user-task-missing-assignee': 'warn',
+      'bpmn-mcp/implicit-merge': 'error',
     },
   },
 };

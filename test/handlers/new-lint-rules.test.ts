@@ -5,7 +5,7 @@ import {
   handleSetProperties,
   handleSetEventDefinition,
 } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('bpmnlint new rules', () => {
   beforeEach(() => {
@@ -580,6 +580,227 @@ describe('bpmnlint new rules', () => {
       const issues = res.issues.filter(
         (i: any) => i.rule === 'bpmn-mcp/parallel-gateway-merge-exclusive'
       );
+      expect(issues.length).toBe(0);
+    });
+  });
+
+  describe('user-task-missing-assignee', () => {
+    test('warns when user task has no assignee or candidates', async () => {
+      const diagramId = await createDiagram('No Assignee');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Order' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, task);
+      await connect(diagramId, task, end);
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/user-task-missing-assignee': 'warn' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter(
+        (i: any) => i.rule === 'bpmn-mcp/user-task-missing-assignee'
+      );
+      expect(issues.length).toBeGreaterThan(0);
+      expect(issues[0].message).toContain('assignee');
+    });
+
+    test('does not warn when user task has camunda:assignee', async () => {
+      const diagramId = await createDiagram('Has Assignee');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Order' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, task);
+      await connect(diagramId, task, end);
+
+      await handleSetProperties({
+        diagramId,
+        elementId: task,
+        properties: { 'camunda:assignee': 'john' },
+      });
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/user-task-missing-assignee': 'warn' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter(
+        (i: any) => i.rule === 'bpmn-mcp/user-task-missing-assignee'
+      );
+      expect(issues.length).toBe(0);
+    });
+
+    test('does not warn when user task has camunda:candidateGroups', async () => {
+      const diagramId = await createDiagram('Has Candidates');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Order' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, task);
+      await connect(diagramId, task, end);
+
+      await handleSetProperties({
+        diagramId,
+        elementId: task,
+        properties: { 'camunda:candidateGroups': 'managers' },
+      });
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/user-task-missing-assignee': 'warn' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter(
+        (i: any) => i.rule === 'bpmn-mcp/user-task-missing-assignee'
+      );
+      expect(issues.length).toBe(0);
+    });
+
+    test('does not warn for non-user tasks', async () => {
+      const diagramId = await createDiagram('Service Task');
+      await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process Payment' });
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/user-task-missing-assignee': 'warn' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter(
+        (i: any) => i.rule === 'bpmn-mcp/user-task-missing-assignee'
+      );
+      expect(issues.length).toBe(0);
+    });
+  });
+
+  describe('implicit-merge', () => {
+    test('errors when activity has multiple incoming flows without merge gateway', async () => {
+      const diagramId = await createDiagram('Implicit Merge');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Do A' });
+      const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Do B' });
+      const target = await addElement(diagramId, 'bpmn:Task', { name: 'Process' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, taskA);
+      await connect(diagramId, start, taskB);
+      await connect(diagramId, taskA, target);
+      await connect(diagramId, taskB, target);
+      await connect(diagramId, target, end);
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/implicit-merge': 'error' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/implicit-merge');
+      expect(issues.length).toBeGreaterThan(0);
+      expect(issues[0].message).toContain('merge gateway');
+    });
+
+    test('errors when end event has multiple incoming flows', async () => {
+      const diagramId = await createDiagram('Implicit Merge End');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Do A' });
+      const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Do B' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, taskA);
+      await connect(diagramId, start, taskB);
+      await connect(diagramId, taskA, end);
+      await connect(diagramId, taskB, end);
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/implicit-merge': 'error' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/implicit-merge');
+      expect(issues.length).toBeGreaterThan(0);
+      expect(issues[0].message).toContain('End event');
+    });
+
+    test('does not error when using explicit merge gateway', async () => {
+      const diagramId = await createDiagram('Explicit Merge');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const split = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Split' });
+      const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Do A' });
+      const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Do B' });
+      const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, split);
+      await connect(diagramId, split, taskA);
+      await connect(diagramId, split, taskB);
+      await connect(diagramId, taskA, join);
+      await connect(diagramId, taskB, join);
+      await connect(diagramId, join, end);
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/implicit-merge': 'error' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/implicit-merge');
+      expect(issues.length).toBe(0);
+    });
+
+    test('does not error for single incoming flow', async () => {
+      const diagramId = await createDiagram('Single Incoming');
+      const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+      const task = await addElement(diagramId, 'bpmn:Task', { name: 'Process' });
+      const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+
+      await connect(diagramId, start, task);
+      await connect(diagramId, task, end);
+
+      const res = parseResult(
+        await handleLintDiagram({
+          diagramId,
+          config: {
+            extends: 'plugin:bpmn-mcp/recommended',
+            rules: { 'bpmn-mcp/implicit-merge': 'error' },
+          },
+        })
+      );
+
+      const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/implicit-merge');
       expect(issues.length).toBe(0);
     });
   });
