@@ -147,9 +147,6 @@ export const ARTIFACT_BELOW_MIN = 80;
 /** Minimum Y-distance (px) above flow elements for text annotations. */
 export const ARTIFACT_ABOVE_MIN = 150;
 
-/** Maximum X-offset range (px) when scanning for horizontal space. */
-export const ARTIFACT_SCAN_RANGE = 100;
-
 /** Padding (px) around artifacts when checking for overlaps. */
 export const ARTIFACT_PADDING = 20;
 
@@ -184,15 +181,6 @@ export const CONTAINER_DEFAULT_HEIGHT = 200;
 /** Factor for calculating element center X/Y (0.5 = middle). */
 export const CENTER_FACTOR = 0.5;
 
-/** Margin (px) when resizing pools to fit content. */
-export const POOL_RESIZE_MARGIN = 5;
-
-/** Height expansion (px) when extending lane to fit moved elements. */
-export const LANE_HEIGHT_EXPAND = 60;
-
-/** Minimum padding (px) inside lanes. */
-export const LANE_MIN_PADDING = 5;
-
 /** Start position X-offset (px) from ELK origin. */
 export const START_OFFSET_X = 20;
 
@@ -207,49 +195,7 @@ export const START_OFFSET_Y = 50;
  */
 export const GATEWAY_UPPER_SPLIT_FACTOR = 0.67;
 
-/**
- * Gateway mid-point factor (0.5 = center).
- */
-export const GATEWAY_MID_FACTOR = 0.5;
-
 // ── Proximity and tolerance thresholds ──────────────────────────────────
-
-/**
- * Maximum hop distance for short rejection branch detection.
- * Short branches (≤3 hops from gateway default to end event) are flagged.
- */
-export const SHORT_BRANCH_MAX_HOPS = 3;
-
-/**
- * Minimum snap delta (px) to avoid sub-pixel movement thrash.
- */
-export const MIN_SNAP_DELTA = 0.1;
-
-/**
- * Maximum X-distance (px) for waypoint proximity to element boundary.
- */
-export const WAYPOINT_BOUNDARY_PROXIMITY = 5;
-
-/**
- * Snap tolerance for waypoint-to-element-edge alignment (px).
- */
-export const WAYPOINT_EDGE_SNAP_TOLERANCE = 40;
-
-/**
- * Vertical proximity threshold (px) for grouping elements in same layer.
- */
-export const LAYER_Y_PROXIMITY = 30;
-
-/**
- * Collinearity tolerance for simplifying waypoint sequences.
- * Points within this angular tolerance (radians) are considered collinear.
- */
-export const COLLINEARITY_TOLERANCE = 0.2;
-
-/**
- * Orthogonal routing snap tolerance (px) for near-orthogonal segments.
- */
-export const ROUTING_ORTHO_SNAP = 8;
 
 /** Minimum movement threshold (px) to trigger element repositioning. */
 export const MOVEMENT_THRESHOLD = 0.5;

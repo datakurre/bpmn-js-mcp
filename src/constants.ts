@@ -19,14 +19,10 @@ export const STANDARD_BPMN_GAP = 50;
 export const ELK_LAYER_SPACING = 60;
 export const ELK_NODE_SPACING = 50;
 export const ELK_EDGE_NODE_SPACING = 15;
-export const ELK_DEFAULT_LAYER_SPACING = 60;
 export const ELK_COMPACT_NODE_SPACING = 40;
 export const ELK_SPACIOUS_NODE_SPACING = 80;
-export const ELK_DEFAULT_NODE_SPACING = 50;
 export const ELK_COMPACT_LAYER_SPACING = 50;
 export const ELK_SPACIOUS_LAYER_SPACING = 100;
-export const ELK_START_OFFSET_X = 20;
-export const ELK_START_OFFSET_Y = 50;
 
 /**
  * Default element sizes used for layout calculations.

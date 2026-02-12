@@ -187,7 +187,7 @@ function getDiagramVersion(diagram: DiagramState): number {
  * Bump the version counter on a diagram state.
  * Called after mutations to signal that lint cache is stale.
  */
-export function bumpDiagramVersion(diagram: DiagramState): void {
+function bumpDiagramVersion(diagram: DiagramState): void {
   diagram.version = (diagram.version ?? 0) + 1;
   diagram.mutationsSinceLayout = (diagram.mutationsSinceLayout ?? 0) + 1;
 }
@@ -204,7 +204,7 @@ function configCacheKey(config: LintConfig): string {
 }
 
 /** Invalidate lint cache for a specific diagram (called after mutations). */
-export function invalidateLintCache(diagramId: string): void {
+function invalidateLintCache(diagramId: string): void {
   lintCache.delete(diagramId);
 }
 
@@ -368,71 +368,4 @@ export async function appendLintFeedback(
   }
 
   return result;
-}
-
-// ── Pre-modification lint guard ────────────────────────────────────────────
-
-/**
- * Check for specific lint violations that would result from a pending operation.
- *
- * Currently checks:
- * - Duplicate sequence flows (before connect)
- * - Missing host for boundary events (before add)
- * - Setting camunda:topic without camunda:type=external (before set-properties)
- *
- * Returns an array of warning strings. Empty array means no issues predicted.
- */
-// eslint-disable-next-line sonarjs/cognitive-complexity
-export function predictLintViolations(
-  diagram: DiagramState,
-  operation: 'connect' | 'add' | 'set-properties',
-  params: {
-    sourceElementId?: string;
-    targetElementId?: string;
-    elementType?: string;
-    hostElementId?: string;
-    properties?: Record<string, any>;
-    elementId?: string;
-  }
-): string[] {
-  const warnings: string[] = [];
-
-  if (operation === 'connect' && params.sourceElementId && params.targetElementId) {
-    const elementRegistry = diagram.modeler.get('elementRegistry');
-    const source = elementRegistry.get(params.sourceElementId);
-    if (source?.outgoing) {
-      const duplicate = source.outgoing.some(
-        (flow: any) => flow.target?.id === params.targetElementId
-      );
-      if (duplicate) {
-        warnings.push(
-          `⚠ A sequence flow from ${params.sourceElementId} to ${params.targetElementId} already exists (no-duplicate-sequence-flows rule).`
-        );
-      }
-    }
-  }
-
-  if (operation === 'add' && params.elementType === 'bpmn:BoundaryEvent' && !params.hostElementId) {
-    warnings.push('⚠ BoundaryEvent requires hostElementId to specify the element to attach to.');
-  }
-
-  if (operation === 'set-properties' && params.properties && params.elementId) {
-    const props = params.properties;
-    if (props['camunda:topic'] && !props['camunda:type']) {
-      // Check if the element already has camunda:type=external
-      const elementRegistry = diagram.modeler.get('elementRegistry');
-      const element = elementRegistry.get(params.elementId);
-      if (element) {
-        const bo = element.businessObject;
-        const currentType = bo?.$attrs?.['camunda:type'];
-        if (currentType && currentType !== 'external') {
-          warnings.push(
-            `⚠ Setting camunda:topic on element with camunda:type='${currentType}' — should be 'external' (camunda-topic-without-external-type rule).`
-          );
-        }
-      }
-    }
-  }
-
-  return warnings;
 }

@@ -327,14 +327,6 @@ export function isConnectionElement(type: string): boolean {
 }
 
 /**
- * Check if an element is a container or structural element (pool, lane, group).
- * These are not flow elements and should be excluded from most counts.
- */
-export function isContainerElement(type: string): boolean {
-  return CONTAINER_TYPES.has(type);
-}
-
-/**
  * Check if an element is "infrastructure" — a connection, container, or
  * structural element that is not a flow node (task, event, gateway, etc.).
  *
