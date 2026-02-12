@@ -92,7 +92,7 @@ export const ELK_HIGH_PRIORITY = '10';
 // ── Spacing helpers ─────────────────────────────────────────────────────
 
 /** Extra gap (px) added between event↔task layers for breathing room. */
-export const EVENT_TASK_GAP_EXTRA = 10;
+export const EVENT_TASK_GAP_EXTRA = 0;
 
 /** Gap reduction (px) between gateway↔event layers (both compact shapes). */
 export const GATEWAY_EVENT_GAP_REDUCE = 5;
@@ -101,15 +101,14 @@ export const GATEWAY_EVENT_GAP_REDUCE = 5;
  * Gap (px) between the bottom of the last expanded pool and the first
  * collapsed pool.
  */
-export const COLLAPSED_POOL_GAP = 60;
+export const COLLAPSED_POOL_GAP = 50;
 
 /**
  * Extra vertical spacing (px) added between participant pools in
  * collaboration diagrams.  ELK's default nodeNode spacing is too tight
- * for pools — the reference uses ≈120 px edge-to-edge between pools
- * vs the default ~50 px.
+ * for pools — the reference uses ≈60 px edge-to-edge between pools.
  */
-export const INTER_POOL_GAP_EXTRA = 70;
+export const INTER_POOL_GAP_EXTRA = 60;
 
 // ── Edge routing ────────────────────────────────────────────────────────
 

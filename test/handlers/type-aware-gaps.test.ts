@@ -54,9 +54,11 @@ describe('Element-type-aware gap variation (AI-8)', () => {
     // Gap between task3 and end event (task→event)
     const taskToEventGap = endEl.x - rightEdge(task3El);
 
-    // Event↔Task gaps should be larger than Task→Task gaps
-    expect(eventToTaskGap).toBeGreaterThan(taskToTaskGap);
-    expect(taskToEventGap).toBeGreaterThan(taskToTaskGap);
+    // Event↔Task gaps should be at least as large as Task→Task gaps
+    // (EVENT_TASK_GAP_EXTRA=0 means they match the baseline — reference
+    // layouts use the same or slightly smaller gaps for events)
+    expect(eventToTaskGap).toBeGreaterThanOrEqual(taskToTaskGap);
+    expect(taskToEventGap).toBeGreaterThanOrEqual(taskToTaskGap);
   });
 
   test('gateway→task gap uses baseline spacing', async () => {
