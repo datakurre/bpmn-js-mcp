@@ -7,7 +7,7 @@ import {
 } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleGetProperties', () => {
+describe('get_bpmn_element_properties', () => {
   beforeEach(() => {
     clearDiagrams();
   });

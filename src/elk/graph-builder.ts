@@ -3,6 +3,7 @@
  */
 
 import type { ElkNode, ElkExtendedEdge } from 'elkjs';
+import type { BpmnElement } from '../bpmn-types';
 import {
   ELK_LAYOUT_OPTIONS,
   CONTAINER_PADDING,
@@ -28,8 +29,8 @@ import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
  * the root canvas element, a Participant (pool), or an expanded SubProcess.
  */
 export function buildContainerGraph(
-  allElements: any[],
-  container: any,
+  allElements: BpmnElement[],
+  container: BpmnElement,
   excludeIds?: Set<string>
 ): { children: ElkNode[]; edges: ElkExtendedEdge[]; hasDiverseY: boolean } {
   const children: ElkNode[] = [];
@@ -39,7 +40,7 @@ export function buildContainerGraph(
   // Direct child shapes (skip connections, boundary events, infrastructure, artifacts, lanes,
   // and boundary-only leaf targets that are excluded from the ELK graph)
   const childShapes = allElements.filter(
-    (el: any) =>
+    (el) =>
       el.parent === container &&
       !isInfrastructure(el.type) &&
       !isConnection(el.type) &&
@@ -55,7 +56,7 @@ export function buildContainerGraph(
   // NODES_AND_EDGES model order strategy to preserve the imported diagram's
   // vertical arrangement.  For newly created diagrams without DI, all
   // elements start at similar Y positions, so the sort is a no-op.
-  childShapes.sort((a: any, b: any) => {
+  childShapes.sort((a, b) => {
     const ay = a.y + (a.height || 0) / 2;
     const by = b.y + (b.height || 0) / 2;
     return ay - by;
@@ -69,7 +70,7 @@ export function buildContainerGraph(
   // Threshold of 100px distinguishes genuine imported DI layouts
   // (which typically span hundreds of pixels) from auto-positioned
   // elements (which cluster within ~80-100px of each other).
-  const yCentres = childShapes.map((s: any) => s.y + (s.height || 0) / 2);
+  const yCentres = childShapes.map((s) => s.y + (s.height || 0) / 2);
   const minY = Math.min(...yCentres);
   const maxY = Math.max(...yCentres);
   const hasDiverseY = maxY - minY > DIVERSE_Y_THRESHOLD;
@@ -79,7 +80,7 @@ export function buildContainerGraph(
 
     // Check if this shape is a container with layoutable children
     const hasChildren = allElements.some(
-      (el: any) =>
+      (el) =>
         el.parent === shape &&
         !isInfrastructure(el.type) &&
         !isConnection(el.type) &&
@@ -96,7 +97,7 @@ export function buildContainerGraph(
       // label band (~30px).
       let padding: string;
       if (isParticipant) {
-        const hasLanes = allElements.some((el: any) => el.parent === shape && isLane(el.type));
+        const hasLanes = allElements.some((el) => el.parent === shape && isLane(el.type));
         padding = hasLanes ? PARTICIPANT_WITH_LANES_PADDING : PARTICIPANT_PADDING;
       } else {
         padding = CONTAINER_PADDING;
@@ -124,7 +125,7 @@ export function buildContainerGraph(
 
   // Connections whose source AND target are both in this container
   const childConnections = allElements.filter(
-    (el: any) => el.parent === container && isConnection(el.type) && el.source && el.target
+    (el) => el.parent === container && isConnection(el.type) && !!el.source && !!el.target
   );
 
   // Detect back-edges (loop-back flows) using DFS so we can tag them
@@ -132,7 +133,7 @@ export function buildContainerGraph(
   // correct edges, preserving left-to-right directionality for the main
   // path.
   const internalConns = childConnections.filter(
-    (c: any) => nodeIds.has(c.source.id) && nodeIds.has(c.target.id)
+    (c) => nodeIds.has(c.source!.id) && nodeIds.has(c.target!.id)
   );
 
   // Sort edges from split gateways by target's current Y-position (DI order).
@@ -142,10 +143,10 @@ export function buildContainerGraph(
   // order as the imported diagram's DI coordinates.
   // For newly created diagrams (no DI), all targets start at the same Y,
   // so the sort is a no-op — original behaviour preserved.
-  internalConns.sort((a: any, b: any) => {
-    if (a.source.id !== b.source.id) return 0;
-    const aTargetY = a.target.y + (a.target.height || 0) * CENTER_FACTOR;
-    const bTargetY = b.target.y + (b.target.height || 0) * CENTER_FACTOR;
+  internalConns.sort((a, b) => {
+    if (a.source!.id !== b.source!.id) return 0;
+    const aTargetY = a.target!.y + (a.target!.height || 0) * CENTER_FACTOR;
+    const bTargetY = b.target!.y + (b.target!.height || 0) * CENTER_FACTOR;
     return aTargetY - bTargetY;
   });
 
@@ -156,7 +157,7 @@ export function buildContainerGraph(
   // ELK's NETWORK_SIMPLEX layering places all targets in the same column.
   const outgoingCount = new Map<string, number>();
   for (const conn of internalConns) {
-    const srcId = conn.source.id;
+    const srcId = conn.source!.id;
     outgoingCount.set(srcId, (outgoingCount.get(srcId) || 0) + 1);
   }
 
@@ -178,11 +179,11 @@ export function buildContainerGraph(
   }
 
   // Build outgoing adjacency for short-branch detection.
-  const outgoingAdj = new Map<string, any[]>();
+  const outgoingAdj = new Map<string, BpmnElement[]>();
   for (const conn of internalConns) {
-    const list = outgoingAdj.get(conn.source.id) || [];
+    const list = outgoingAdj.get(conn.source!.id) || [];
     list.push(conn);
-    outgoingAdj.set(conn.source.id, list);
+    outgoingAdj.set(conn.source!.id, list);
   }
 
   const shortBranchEdgeIds = detectShortBranches(
@@ -195,15 +196,15 @@ export function buildContainerGraph(
   for (const conn of internalConns) {
     const edge: ElkExtendedEdge = {
       id: conn.id,
-      sources: [conn.source.id],
-      targets: [conn.target.id],
+      sources: [conn.source!.id],
+      targets: [conn.target!.id],
     };
     if (backEdgeIds.has(conn.id)) {
       edge.layoutOptions = {
         'elk.priority': '0',
       };
     } else {
-      const srcId = conn.source.id;
+      const srcId = conn.source!.id;
       const isSplitDecisionGateway =
         decisionGatewayIds.has(srcId) && (outgoingCount.get(srcId) || 0) >= 2;
       if (isSplitDecisionGateway && !shortBranchEdgeIds.has(conn.id)) {
@@ -239,21 +240,21 @@ export function buildContainerGraph(
   // as the proxy source, with a synthetic edge ID to avoid conflicts with
   // the actual connection's edge routing.
   const boundaryEvents = allElements.filter(
-    (el: any) => el.parent === container && el.type === 'bpmn:BoundaryEvent' && el.host
+    (el) => el.parent === container && el.type === 'bpmn:BoundaryEvent' && el.host
   );
   for (const be of boundaryEvents) {
-    const hostId = be.host.id;
+    const hostId = be.host!.id;
     if (!nodeIds.has(hostId)) continue;
 
     // Find outgoing flows from this boundary event
     const beOutgoing = childConnections.filter(
-      (conn: any) => conn.source.id === be.id && nodeIds.has(conn.target.id)
+      (conn) => conn.source!.id === be.id && nodeIds.has(conn.target!.id)
     );
     for (const conn of beOutgoing) {
       edges.push({
         id: `__boundary_proxy__${conn.id}`,
         sources: [hostId],
-        targets: [conn.target.id],
+        targets: [conn.target!.id],
       });
     }
   }
@@ -270,14 +271,14 @@ export function buildContainerGraph(
 function detectShortBranches(
   gatewayDefaults: Map<string, string>,
   decisionGatewayIds: Set<string>,
-  internalConns: any[],
-  outgoingAdj: Map<string, any[]>
+  internalConns: BpmnElement[],
+  outgoingAdj: Map<string, BpmnElement[]>
 ): Set<string> {
   const BPMN_END_EVENT = 'bpmn:EndEvent';
   const shortBranchEdgeIds = new Set<string>();
   for (const [gwId, defaultFlowId] of gatewayDefaults) {
     if (!decisionGatewayIds.has(gwId)) continue;
-    const defaultConn = internalConns.find((c: any) => c.id === defaultFlowId);
+    const defaultConn = internalConns.find((c) => c.id === defaultFlowId);
     if (!defaultConn) continue;
     let current = defaultConn.target;
     let hops = 1;
@@ -307,25 +308,25 @@ function detectShortBranches(
 function addSyntheticOrderingEdges(
   gatewayDefaults: Map<string, string>,
   shortBranchEdgeIds: Set<string>,
-  internalConns: any[],
+  internalConns: BpmnElement[],
   backEdgeIds: Set<string>,
   nodeIds: Set<string>,
-  childShapes: any[],
-  outgoingAdj: Map<string, any[]>,
+  childShapes: BpmnElement[],
+  outgoingAdj: Map<string, BpmnElement[]>,
   edges: ElkExtendedEdge[]
 ): void {
   for (const [gwId, defaultFlowId] of gatewayDefaults) {
     if (!shortBranchEdgeIds.has(defaultFlowId)) continue;
 
-    const defaultConn = internalConns.find((c: any) => c.id === defaultFlowId);
+    const defaultConn = internalConns.find((c) => c.id === defaultFlowId);
     if (!defaultConn?.target) continue;
     const rejTargetId = defaultConn.target.id;
     if (!nodeIds.has(rejTargetId)) continue;
 
     // Find a non-default (happy-path) outgoing edge that leads to a gateway
     const happyEdge = internalConns.find(
-      (c: any) =>
-        c.source.id === gwId &&
+      (c) =>
+        c.source!.id === gwId &&
         c.id !== defaultFlowId &&
         !backEdgeIds.has(c.id) &&
         c.target &&
@@ -335,7 +336,7 @@ function addSyntheticOrderingEdges(
     const forkId = happyEdge.target.id;
 
     // Only add synthetic edges if the happy-path target is a gateway
-    const forkShape = childShapes.find((s: any) => s.id === forkId);
+    const forkShape = childShapes.find((s) => s.id === forkId);
     if (!forkShape?.type?.includes('Gateway')) continue;
 
     // Synthetic edge 1: Fork → rejection target
@@ -366,17 +367,17 @@ function addSyntheticOrderingEdges(
     for (let step = 0; step < 15; step++) {
       traceVisited.add(traceId);
       const nextConns = (outgoingAdj.get(traceId) || []).filter(
-        (c: any) => c.target && !traceVisited.has(c.target.id) && nodeIds.has(c.target.id)
+        (c) => c.target && !traceVisited.has(c.target.id) && nodeIds.has(c.target.id)
       );
       if (nextConns.length === 0) break;
 
-      const endConn = nextConns.find((c: any) => c.target.type === 'bpmn:EndEvent');
+      const endConn = nextConns.find((c) => c.target!.type === 'bpmn:EndEvent');
       if (endConn) {
         predecessorOfEnd = traceId;
         break;
       }
 
-      traceId = nextConns[0].target.id;
+      traceId = nextConns[0].target!.id;
     }
 
     if (predecessorOfEnd && predecessorOfEnd !== rejEndEventId) {
@@ -406,7 +407,7 @@ function addSyntheticOrderingEdges(
  *
  * @returns Set of connection IDs that are back-edges.
  */
-function detectBackEdges(connections: any[], nodeIds: Set<string>): Set<string> {
+function detectBackEdges(connections: BpmnElement[], nodeIds: Set<string>): Set<string> {
   const backEdges = new Set<string>();
   if (connections.length === 0) return backEdges;
 
@@ -415,8 +416,8 @@ function detectBackEdges(connections: any[], nodeIds: Set<string>): Set<string> 
   const hasIncoming = new Set<string>();
 
   for (const conn of connections) {
-    const srcId = conn.source.id;
-    const tgtId = conn.target.id;
+    const srcId = conn.source!.id;
+    const tgtId = conn.target!.id;
     if (!adjacency.has(srcId)) adjacency.set(srcId, []);
     adjacency.get(srcId)!.push({ target: tgtId, connId: conn.id });
     hasIncoming.add(tgtId);

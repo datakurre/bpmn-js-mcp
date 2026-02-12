@@ -6,6 +6,7 @@
  */
 
 import { isConnection } from './helpers';
+import type { ElementRegistry, Modeling } from '../bpmn-types';
 import { buildZShapeRoute } from './edge-routing-helpers';
 import { DIFFERENT_ROW_THRESHOLD } from './constants';
 
@@ -27,11 +28,14 @@ import { DIFFERENT_ROW_THRESHOLD } from './constants';
  * Gateways with 3+ branches are left to ELK routing + channel routing
  * which handles them better to avoid crossing flows.
  */
-export function simplifyGatewayBranchRoutes(elementRegistry: any, modeling: any): void {
+export function simplifyGatewayBranchRoutes(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
   const BPMN_SEQUENCE_FLOW = 'bpmn:SequenceFlow';
   // Build a count of outgoing/incoming flows per gateway
   const allConns = elementRegistry.filter(
-    (el: any) => el.type === BPMN_SEQUENCE_FLOW && el.source && el.target
+    (el) => el.type === BPMN_SEQUENCE_FLOW && !!el.source && !!el.target
   );
   const gwOutCount = new Map<string, number>();
   const gwInCount = new Map<string, number>();
@@ -45,17 +49,17 @@ export function simplifyGatewayBranchRoutes(elementRegistry: any, modeling: any)
   }
 
   const connections = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === BPMN_SEQUENCE_FLOW &&
-      el.source &&
-      el.target &&
-      el.waypoints &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
       el.waypoints.length >= 5
   );
 
   for (const conn of connections) {
-    const src = conn.source;
-    const tgt = conn.target;
+    const src = conn.source!;
+    const tgt = conn.target!;
 
     // Only process split-gateway → branch-target connections
     if (!src.type?.includes('Gateway')) continue;
@@ -81,18 +85,18 @@ export function simplifyGatewayBranchRoutes(elementRegistry: any, modeling: any)
   // Also simplify join-gateway incoming connections (branch-target → join)
   // but only for binary joins (2 incoming branch flows)
   const joinConnections = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === BPMN_SEQUENCE_FLOW &&
-      el.source &&
-      el.target &&
-      el.waypoints &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
       el.waypoints.length >= 5 &&
-      el.target.type?.includes('Gateway')
+      !!el.target.type?.includes('Gateway')
   );
 
   for (const conn of joinConnections) {
-    const src = conn.source;
-    const tgt = conn.target;
+    const src = conn.source!;
+    const tgt = conn.target!;
 
     // Only apply to binary joins
     if ((gwInCount.get(tgt.id) || 0) > 2) continue;
@@ -122,13 +126,16 @@ export function simplifyGatewayBranchRoutes(elementRegistry: any, modeling: any)
  *
  * Example:  (100,200) → (200,200) → (300,200)  →  simplifies to (100,200) → (300,200)
  */
-export function simplifyCollinearWaypoints(elementRegistry: any, modeling: any): void {
+export function simplifyCollinearWaypoints(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
   const connections = elementRegistry.filter(
-    (el: any) => isConnection(el.type) && el.waypoints && el.waypoints.length >= 3
+    (el) => isConnection(el.type) && !!el.waypoints && el.waypoints.length >= 3
   );
 
   for (const conn of connections) {
-    const wps: Array<{ x: number; y: number }> = conn.waypoints.map((wp: any) => ({
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!.map((wp: any) => ({
       x: wp.x,
       y: wp.y,
     }));

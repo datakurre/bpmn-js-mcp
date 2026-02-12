@@ -8,22 +8,36 @@
  * Multiple operations can be combined in a single call.
  */
 
-import { type ToolResult } from '../types';
+import { type ToolResult, type DiagramState } from '../types';
+import type { BpmnElement, Modeling, ElementRegistry } from '../bpmn-types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { requireDiagram, requireElement, jsonResult, syncXml, validateArgs } from './helpers';
+import {
+  requireDiagram,
+  requireElement,
+  jsonResult,
+  syncXml,
+  validateArgs,
+  getService,
+} from './helpers';
 import { appendLintFeedback } from '../linter';
 
 export interface MoveElementArgs {
   diagramId: string;
   elementId: string;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
+  /** ID of the target lane to move the element into. */
+  laneId?: string;
+  /** New width in pixels for resize. */
+  width?: number;
+  /** New height in pixels for resize. */
+  height?: number;
 }
 
 /** Apply absolute move, returning the final position. */
 function applyMove(
-  modeling: any,
-  element: any,
+  modeling: Modeling,
+  element: BpmnElement,
   x: number | undefined,
   y: number | undefined
 ): { x: number; y: number } {
@@ -39,16 +53,16 @@ function applyMove(
 
 /** Apply resize, returning the final dimensions. */
 function applyResize(
-  modeling: any,
-  elementRegistry: any,
+  modeling: Modeling,
+  elementRegistry: ElementRegistry,
   elementId: string,
-  element: any,
+  element: BpmnElement,
   width: number | undefined,
   height: number | undefined
 ): { width: number; height: number } {
   const newWidth = width ?? element.width;
   const newHeight = height ?? element.height;
-  const current = elementRegistry.get(elementId);
+  const current = elementRegistry.get(elementId)!;
   modeling.resizeShape(current, {
     x: current.x,
     y: current.y,
@@ -61,11 +75,7 @@ function applyResize(
 export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId']);
   const { diagramId, elementId } = args;
-  const laneId = (args as any).laneId as string | undefined;
-  const width = (args as any).width as number | undefined;
-  const height = (args as any).height as number | undefined;
-  const x = args.x;
-  const y = args.y;
+  const { x, y, laneId, width, height } = args;
 
   // Must provide at least one operation
   const hasMove = x !== undefined || y !== undefined;
@@ -85,8 +95,8 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
   }
 
   const diagram = requireDiagram(diagramId);
-  const modeling = diagram.modeler.get('modeling');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const element = requireElement(elementRegistry, elementId);
 
   const actions: string[] = [];
@@ -111,7 +121,7 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
 
   await syncXml(diagram);
 
-  const data: Record<string, any> = {
+  const data: Record<string, unknown> = {
     success: true,
     elementId,
     message: `Element ${elementId}: ${actions.join(', ')}`,
@@ -127,9 +137,13 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
 /**
  * Internal helper: move an element into a lane (modifies element position).
  */
-async function performMoveToLane(diagram: any, element: any, laneId: string): Promise<void> {
-  const modeling = diagram.modeler.get('modeling');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+async function performMoveToLane(
+  diagram: DiagramState,
+  element: BpmnElement,
+  laneId: string
+): Promise<void> {
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const lane = requireElement(elementRegistry, laneId);
 
   if (lane.type !== 'bpmn:Lane') {
@@ -173,7 +187,7 @@ const NON_LANE_MOVABLE = new Set([
 ]);
 
 /** Compute the Y position to place an element within a lane. */
-function computeLaneTargetY(element: any, lane: any): number {
+function computeLaneTargetY(element: BpmnElement, lane: BpmnElement): number {
   const laneCy = lane.y + (lane.height || 0) / 2;
   const elCy = element.y + (element.height || 0) / 2;
   const laneTop = lane.y;
@@ -185,12 +199,13 @@ function computeLaneTargetY(element: any, lane: any): number {
 }
 
 /** Register an element's business object in the lane's flowNodeRef list. */
-function registerInLane(element: any, lane: any): void {
+function registerInLane(element: BpmnElement, lane: BpmnElement): void {
   const laneBo = lane.businessObject;
   if (!laneBo) return;
-  const flowNodeRefs = laneBo.flowNodeRef || (laneBo.flowNodeRef = []);
+  const refs = (laneBo.flowNodeRef as unknown[] | undefined) || [];
+  if (!laneBo.flowNodeRef) laneBo.flowNodeRef = refs;
   const elemBo = element.businessObject;
-  if (elemBo && !flowNodeRefs.includes(elemBo)) flowNodeRefs.push(elemBo);
+  if (elemBo && !refs.includes(elemBo)) refs.push(elemBo);
 }
 
 /**
@@ -202,8 +217,8 @@ async function handleMoveToLane(
   laneId: string
 ): Promise<ToolResult> {
   const diagram = requireDiagram(diagramId);
-  const modeling = diagram.modeler.get('modeling');
-  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   const element = requireElement(elementRegistry, elementId);
   const lane = requireElement(elementRegistry, laneId);

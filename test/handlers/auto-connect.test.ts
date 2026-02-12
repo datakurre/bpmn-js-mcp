@@ -3,7 +3,7 @@ import { handleAutoConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('handleAutoConnect', () => {
+describe('add_bpmn_element — autoConnect', () => {
   beforeEach(() => {
     clearDiagrams();
   });

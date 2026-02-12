@@ -7,6 +7,7 @@
  */
 
 import { ELK_LAYER_SPACING, ELK_NODE_SPACING } from '../constants';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { isConnection, isLayoutableShape } from './helpers';
 import { EVENT_TASK_GAP_EXTRA, GATEWAY_EVENT_GAP_REDUCE } from './constants';
 import type { GridLayer } from './types';
@@ -28,41 +29,42 @@ import {
  * from different nesting levels (e.g. subprocess internals with top-level
  * elements), which would cause cascading moves via modeling.moveElements.
  */
-export function detectLayers(elementRegistry: any, container?: any): GridLayer[] {
+export function detectLayers(
+  elementRegistry: ElementRegistry,
+  container?: BpmnElement
+): GridLayer[] {
   // When no container is specified, find the root process element so we
   // only include its direct children — not children of subprocesses.
-  let parentFilter: any = container;
+  let parentFilter: BpmnElement | undefined = container;
   if (!parentFilter) {
     parentFilter = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   }
 
   // If no root found (shouldn't happen), fall back to including all elements
   if (!parentFilter) {
-    const shapes = elementRegistry.filter((el: any) => isLayoutableShape(el));
+    const shapes = elementRegistry.filter((el) => isLayoutableShape(el));
     return shapes.length === 0 ? [] : clusterIntoLayers(shapes);
   }
 
   const shapes = elementRegistry.filter(
-    (el: any) => isLayoutableShape(el) && el.parent === parentFilter
+    (el) => isLayoutableShape(el) && el.parent === parentFilter
   );
 
   return shapes.length === 0 ? [] : clusterIntoLayers(shapes);
 }
 
 /** Cluster shapes into layers by x-centre proximity. */
-function clusterIntoLayers(shapes: any[]): GridLayer[] {
+function clusterIntoLayers(shapes: BpmnElement[]): GridLayer[] {
   // Sort by x-centre
-  const sorted = [...shapes].sort(
-    (a: any, b: any) => a.x + (a.width || 0) / 2 - (b.x + (b.width || 0) / 2)
-  );
+  const sorted = [...shapes].sort((a, b) => a.x + (a.width || 0) / 2 - (b.x + (b.width || 0) / 2));
 
   // Cluster into layers: elements within layerThreshold of the first
   // element in the current cluster are in the same layer.
   const layerThreshold = ELK_LAYER_SPACING / 2;
   const layers: GridLayer[] = [];
-  let currentGroup: any[] = [sorted[0]];
+  let currentGroup: BpmnElement[] = [sorted[0]];
 
   for (let i = 1; i < sorted.length; i++) {
     const prevCx = currentGroup[0].x + (currentGroup[0].width || 0) / 2;
@@ -79,7 +81,7 @@ function clusterIntoLayers(shapes: any[]): GridLayer[] {
   return layers;
 }
 
-function buildLayer(elements: any[]): GridLayer {
+function buildLayer(elements: BpmnElement[]): GridLayer {
   let minX = Infinity;
   let maxRight = -Infinity;
   let maxWidth = 0;
@@ -170,10 +172,10 @@ function computeInterLayerGap(
  * 5. Preserve happy-path row (pin happy-path elements, distribute others).
  */
 export function gridSnapPass(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   happyPathEdgeIds?: Set<string>,
-  container?: any,
+  container?: BpmnElement,
   baseLayerSpacing?: number
 ): void {
   const layers = detectLayers(elementRegistry, container);
@@ -182,7 +184,7 @@ export function gridSnapPass(
   // Determine happy-path element IDs from the happy-path edges
   const happyPathNodeIds = new Set<string>();
   if (happyPathEdgeIds && happyPathEdgeIds.size > 0) {
-    const allElements: any[] = elementRegistry.getAll();
+    const allElements: BpmnElement[] = elementRegistry.getAll();
     for (const el of allElements) {
       if (isConnection(el.type) && happyPathEdgeIds.has(el.id)) {
         if (el.source) happyPathNodeIds.add(el.source.id);
@@ -219,7 +221,7 @@ export function gridSnapPass(
     let newMinX = Infinity;
     let newMaxRight = -Infinity;
     for (const el of layer.elements) {
-      const updated = elementRegistry.get(el.id);
+      const updated = elementRegistry.get(el.id)!;
       if (updated.x < newMinX) newMinX = updated.x;
       const right = updated.x + (updated.width || 0);
       if (right > newMaxRight) newMaxRight = right;
@@ -234,11 +236,11 @@ export function gridSnapPass(
     if (layer.elements.length < 2) continue;
 
     // Sort by current Y
-    const sorted = [...layer.elements].sort((a: any, b: any) => a.y - b.y);
+    const sorted = [...layer.elements].sort((a, b) => a.y - b.y);
 
     // Identify happy-path elements in this layer
-    const happyEls = sorted.filter((el: any) => happyPathNodeIds.has(el.id));
-    const nonHappyEls = sorted.filter((el: any) => !happyPathNodeIds.has(el.id));
+    const happyEls = sorted.filter((el) => happyPathNodeIds.has(el.id));
+    const nonHappyEls = sorted.filter((el) => !happyPathNodeIds.has(el.id));
 
     // If there's a happy-path element, pin it and distribute others around it
     if (happyEls.length > 0 && nonHappyEls.length > 0) {
@@ -246,8 +248,8 @@ export function gridSnapPass(
       const pinnedY = happyEls[0].y + (happyEls[0].height || 0) / 2;
 
       // Sort non-happy elements into above and below the pinned element
-      const above = nonHappyEls.filter((el: any) => el.y + (el.height || 0) / 2 < pinnedY);
-      const below = nonHappyEls.filter((el: any) => el.y + (el.height || 0) / 2 >= pinnedY);
+      const above = nonHappyEls.filter((el) => el.y + (el.height || 0) / 2 < pinnedY);
+      const below = nonHappyEls.filter((el) => el.y + (el.height || 0) / 2 >= pinnedY);
 
       // Distribute above elements upward from the pinned position
       let nextY = pinnedY - (happyEls[0].height || 0) / 2 - nodeSpacing;
@@ -275,7 +277,7 @@ export function gridSnapPass(
     } else {
       // No happy path — just distribute uniformly
       // Compute the vertical centre of the group
-      const totalHeight = sorted.reduce((sum: number, el: any) => sum + (el.height || 0), 0);
+      const totalHeight = sorted.reduce((sum, el) => sum + (el.height || 0), 0);
       const totalGaps = (sorted.length - 1) * nodeSpacing;
       const groupHeight = totalHeight + totalGaps;
       const currentCentreY =

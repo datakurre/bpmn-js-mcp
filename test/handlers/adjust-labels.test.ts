@@ -3,7 +3,7 @@ import { handleAdjustLabels } from '../../src/handlers/adjust-labels-handler';
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleAdjustLabels', () => {
+describe('adjust_bpmn_labels', () => {
   beforeEach(() => {
     clearDiagrams();
   });

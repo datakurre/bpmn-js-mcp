@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleCreateDataAssociation } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
-describe('handleCreateDataAssociation', () => {
+describe('connect_bpmn_elements — data association', () => {
   beforeEach(() => {
     clearDiagrams();
   });

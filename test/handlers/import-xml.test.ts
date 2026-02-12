@@ -3,7 +3,7 @@ import { handleImportXml } from '../../src/handlers';
 import { INITIAL_XML } from '../../src/diagram-manager';
 import { parseResult, clearDiagrams } from '../helpers';
 
-describe('handleImportXml', () => {
+describe('import_bpmn_xml', () => {
   beforeEach(() => {
     clearDiagrams();
   });

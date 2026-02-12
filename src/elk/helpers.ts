@@ -2,6 +2,8 @@
  * Element type classification helpers for the ELK layout engine.
  */
 
+import type { BpmnElement } from '../bpmn-types';
+
 export function isConnection(type: string): boolean {
   return (
     type.includes('SequenceFlow') || type.includes('MessageFlow') || type.includes('Association')
@@ -39,7 +41,7 @@ export function isLane(type: string): boolean {
  * Returns true for flow nodes (tasks, events, gateways, subprocesses).
  * Returns false for infrastructure, connections, artifacts, labels, participants, lanes, and boundary events.
  */
-export function isLayoutableShape(el: any): boolean {
+export function isLayoutableShape(el: BpmnElement): boolean {
   return (
     !isInfrastructure(el.type) &&
     !isConnection(el.type) &&

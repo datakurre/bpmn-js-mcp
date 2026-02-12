@@ -2,6 +2,8 @@
  * Shared types for the ELK layout engine.
  */
 
+import type { BpmnElement } from '../bpmn-types';
+
 /** Optional parameters for ELK layout. */
 export interface ElkLayoutOptions {
   direction?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
@@ -44,7 +46,7 @@ export interface CrossingFlowsResult {
  */
 export interface GridLayer {
   /** Elements in this layer. */
-  elements: any[];
+  elements: BpmnElement[];
   /** Leftmost x of any element in the layer. */
   minX: number;
   /** Rightmost edge (x + width) of any element in the layer. */

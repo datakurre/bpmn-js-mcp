@@ -10,6 +10,7 @@
  */
 
 import { type ToolResult } from '../types';
+import type { BpmnElement } from '../bpmn-types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import {
   requireDiagram,
@@ -31,8 +32,10 @@ const BPMN_FORMAL_EXPRESSION_TYPE = 'bpmn:FormalExpression';
 
 export interface ConnectArgs {
   diagramId: string;
-  sourceElementId: string;
-  targetElementId: string;
+  sourceElementId?: string;
+  targetElementId?: string;
+  /** Ordered list of element IDs to connect sequentially (chain mode). */
+  elementIds?: string[];
   label?: string;
   connectionType?: string;
   conditionExpression?: string;
@@ -49,8 +52,8 @@ const DATA_TYPES = new Set(['bpmn:DataObjectReference', 'bpmn:DataStoreReference
  * Walk up the parent chain to find the owning Participant (pool).
  * Returns undefined if the element is not inside a Participant.
  */
-function findParentParticipant(element: any): any {
-  let current = element;
+function findParentParticipant(element: BpmnElement): BpmnElement | undefined {
+  let current: BpmnElement | undefined = element;
   while (current) {
     if (current.type === 'bpmn:Participant') return current;
     current = current.parent;
@@ -237,9 +240,7 @@ function connectPair(
 
 export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
   const { diagramId, label, conditionExpression, isDefault } = args;
-  const elementIds = (args as any).elementIds as string[] | undefined;
-  const sourceElementId = args.sourceElementId;
-  const targetElementId = args.targetElementId;
+  const { elementIds, sourceElementId, targetElementId } = args;
 
   // Determine mode: chain or pair
   if (elementIds && Array.isArray(elementIds)) {
@@ -258,8 +259,8 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
-  const source = elementRegistry.get(sourceElementId);
-  const target = elementRegistry.get(targetElementId);
+  const source = elementRegistry.get(sourceElementId!);
+  const target = elementRegistry.get(targetElementId!);
   if (!source) {
     throw new McpError(ErrorCode.InvalidRequest, `Source element not found: ${sourceElementId}`);
   }

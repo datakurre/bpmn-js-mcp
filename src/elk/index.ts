@@ -30,6 +30,7 @@ import type { DiagramState } from '../types';
 import type { ElkNode, ElkExtendedEdge, LayoutOptions } from 'elkjs';
 
 import { isConnection, isInfrastructure, isArtifact } from './helpers';
+import type { BpmnElement, ElementRegistry } from '../bpmn-types';
 import {
   ELK_LAYOUT_OPTIONS,
   ORIGIN_OFFSET_X,
@@ -107,8 +108,11 @@ export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer } from './types';
  * }
  * ```
  */
-function forEachScope(elementRegistry: any, callback: (scope?: any) => void): void {
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
+function forEachScope(
+  elementRegistry: ElementRegistry,
+  callback: (scope?: BpmnElement) => void
+): void {
+  const participants = elementRegistry.filter((el) => el.type === 'bpmn:Participant');
   if (participants.length > 0) {
     for (const participant of participants) {
       callback(participant);
@@ -195,7 +199,7 @@ export async function elkLayout(
   const canvas = diagram.modeler.get('canvas');
 
   // Determine the layout root: scoped to a specific element, or the whole diagram
-  let rootElement: any;
+  let rootElement: BpmnElement;
   if (options?.scopeElementId) {
     const scopeEl = elementRegistry.get(options.scopeElementId);
     if (!scopeEl) {
@@ -209,7 +213,7 @@ export async function elkLayout(
     rootElement = canvas.getRootElement();
   }
 
-  const allElements: any[] = elementRegistry.getAll();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
 
   // Identify boundary-only leaf targets (end events reached only from
   // boundary events).  These are excluded from the ELK graph to prevent
@@ -502,7 +506,7 @@ export async function elkLayoutSubset(
   const idSet = new Set(elementIds);
 
   // Collect shapes from the element registry
-  const shapes: any[] = [];
+  const shapes: BpmnElement[] = [];
   for (const id of elementIds) {
     const el = elementRegistry.get(id);
     if (el && !isConnection(el.type) && !isInfrastructure(el.type)) {
@@ -515,14 +519,17 @@ export async function elkLayoutSubset(
   // Detect if all selected elements share a common container (participant
   // or subprocess).  If so, constrain the layout offset to that container's
   // boundaries so elements don't escape their pool.
-  let sharedContainer: any = null;
+  let sharedContainer: BpmnElement | null = null;
   if (shapes.length > 1) {
     const parents = shapes
-      .map((s: any) => s.parent)
-      .filter((p: any) => p && (p.type === 'bpmn:Participant' || p.type === 'bpmn:SubProcess'));
+      .map((s) => s.parent)
+      .filter(
+        (p): p is BpmnElement =>
+          !!p && (p.type === 'bpmn:Participant' || p.type === 'bpmn:SubProcess')
+      );
     if (parents.length === shapes.length) {
       const firstParentId = parents[0].id;
-      if (parents.every((p: any) => p.id === firstParentId)) {
+      if (parents.every((p) => p.id === firstParentId)) {
         sharedContainer = parents[0];
       }
     }
@@ -530,28 +537,28 @@ export async function elkLayoutSubset(
 
   // Include artifacts linked to selected elements via associations.
   // These are added as fixed-position nodes so ELK routes around them.
-  const allElements: any[] = elementRegistry.getAll();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
   const associations = allElements.filter(
-    (el: any) =>
+    (el) =>
       (el.type === 'bpmn:Association' ||
         el.type === 'bpmn:DataInputAssociation' ||
         el.type === 'bpmn:DataOutputAssociation') &&
-      el.source &&
-      el.target
+      !!el.source &&
+      !!el.target
   );
 
   const linkedArtifactIds = new Set<string>();
   for (const assoc of associations) {
-    if (idSet.has(assoc.source.id) && isArtifact(assoc.target.type)) {
-      linkedArtifactIds.add(assoc.target.id);
+    if (idSet.has(assoc.source!.id) && isArtifact(assoc.target!.type)) {
+      linkedArtifactIds.add(assoc.target!.id);
     }
-    if (idSet.has(assoc.target.id) && isArtifact(assoc.source.type)) {
-      linkedArtifactIds.add(assoc.source.id);
+    if (idSet.has(assoc.target!.id) && isArtifact(assoc.source!.type)) {
+      linkedArtifactIds.add(assoc.source!.id);
     }
   }
 
   // Build ELK children nodes
-  const children: ElkNode[] = shapes.map((s: any) => ({
+  const children: ElkNode[] = shapes.map((s) => ({
     id: s.id,
     width: s.width || BPMN_TASK_WIDTH,
     height: s.height || BPMN_TASK_HEIGHT,

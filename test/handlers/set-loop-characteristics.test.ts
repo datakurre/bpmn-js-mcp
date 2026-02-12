@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetLoopCharacteristics, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleSetLoopCharacteristics', () => {
+describe('set_bpmn_loop_characteristics', () => {
   beforeEach(() => {
     clearDiagrams();
   });

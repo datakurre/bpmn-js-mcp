@@ -6,6 +6,7 @@
  */
 
 import { isConnection, isInfrastructure } from './helpers';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { gridSnapPass } from './grid-snap-core';
 
 /**
@@ -17,27 +18,27 @@ import { gridSnapPass } from './grid-snap-core';
  * nesting levels.
  */
 export function gridSnapExpandedSubprocesses(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   happyPathEdgeIds?: Set<string>,
-  container?: any,
+  container?: BpmnElement,
   baseLayerSpacing?: number
 ): void {
   // Find expanded subprocesses that are direct children of the given container
   const parentFilter =
     container ||
     elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   if (!parentFilter) return;
 
   const expandedSubs = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === 'bpmn:SubProcess' &&
       el.parent === parentFilter &&
       // Only expanded subprocesses (those with layoutable children)
       elementRegistry.filter(
-        (child: any) =>
+        (child) =>
           child.parent === el &&
           !isInfrastructure(child.type) &&
           !isConnection(child.type) &&

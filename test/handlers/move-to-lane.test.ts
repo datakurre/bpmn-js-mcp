@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleMoveToLane } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleMoveToLane', () => {
+describe('move_bpmn_element — lane assignment', () => {
   beforeEach(() => {
     clearDiagrams();
   });

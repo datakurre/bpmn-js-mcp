@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAddElement, handleListElements } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleAddElement', () => {
+describe('add_bpmn_element', () => {
   beforeEach(() => {
     clearDiagrams();
   });

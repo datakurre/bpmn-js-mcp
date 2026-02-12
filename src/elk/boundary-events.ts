@@ -21,6 +21,7 @@ import {
   BOUNDARY_TARGET_ROW_BUFFER,
   BOUNDARY_MIN_MOVE_DELTA,
 } from './constants';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 
 /** BPMN type string for boundary events. */
 const BPMN_BOUNDARY_EVENT_TYPE = 'bpmn:BoundaryEvent';
@@ -37,12 +38,12 @@ export interface BoundaryEventSnapshot {
  * Records each boundary event's ID and host ID so we can restore
  * the relationship after moves that may corrupt it in headless mode.
  */
-export function saveBoundaryEventData(elementRegistry: any): BoundaryEventSnapshot[] {
+export function saveBoundaryEventData(elementRegistry: ElementRegistry): BoundaryEventSnapshot[] {
   return elementRegistry
-    .filter((el: any) => el.type === BPMN_BOUNDARY_EVENT_TYPE && el.host)
-    .map((be: any) => ({
+    .filter((el) => el.type === BPMN_BOUNDARY_EVENT_TYPE && !!el.host)
+    .map((be) => ({
       elementId: be.id,
-      hostId: be.host.id,
+      hostId: be.host!.id,
     }));
 }
 
@@ -55,7 +56,7 @@ export function saveBoundaryEventData(elementRegistry: any): BoundaryEventSnapsh
  * to repair the damage.
  */
 export function restoreBoundaryEventData(
-  elementRegistry: any,
+  elementRegistry: ElementRegistry,
   snapshots: BoundaryEventSnapshot[]
 ): void {
   for (const snap of snapshots) {
@@ -109,8 +110,11 @@ export function restoreBoundaryEventData(
  *
  * Returns 'bottom' (default), 'top', 'left', or 'right'.
  */
-function chooseBoundaryBorder(be: any, host: any): 'top' | 'bottom' | 'left' | 'right' {
-  const outgoing: any[] = be.outgoing || [];
+function chooseBoundaryBorder(
+  be: BpmnElement,
+  host: BpmnElement
+): 'top' | 'bottom' | 'left' | 'right' {
+  const outgoing: BpmnElement[] = be.outgoing || [];
   if (outgoing.length === 0) return 'bottom'; // default: no outgoing flows
 
   // Find the first target element with a valid position
@@ -154,7 +158,7 @@ function chooseBoundaryBorder(be: any, host: any): 'top' | 'bottom' | 'left' | '
  * border of its host element.
  */
 function computeBoundaryPosition(
-  host: any,
+  host: BpmnElement,
   border: 'top' | 'bottom' | 'left' | 'right'
 ): { cx: number; cy: number } {
   const hostW = host.width || BPMN_TASK_WIDTH;
@@ -192,8 +196,8 @@ function computeBoundaryPosition(
  * elements so boundary events need recalculation regardless of proximity.
  */
 export function repositionBoundaryEvents(
-  elementRegistry: any,
-  _modeling: any,
+  elementRegistry: ElementRegistry,
+  _modeling: Modeling,
   snapshots?: BoundaryEventSnapshot[]
 ): void {
   // When snapshots are provided, we're running after a full layout and
@@ -202,9 +206,9 @@ export function repositionBoundaryEvents(
 
   // Find boundary events: prefer type-based filter, but also check
   // snapshots for elements whose type was corrupted.
-  const byType = elementRegistry.filter((el: any) => el.type === BPMN_BOUNDARY_EVENT_TYPE);
-  const foundIds = new Set(byType.map((el: any) => el.id));
-  const boundaryEvents: any[] = [...byType];
+  const byType = elementRegistry.filter((el) => el.type === BPMN_BOUNDARY_EVENT_TYPE);
+  const foundIds = new Set(byType.map((el) => el.id));
+  const boundaryEvents: BpmnElement[] = [...byType];
 
   // Also find boundary events from snapshots that weren't found by type
   if (snapshots) {
@@ -323,19 +327,22 @@ const BOUNDARY_TARGET_X_OFFSET = 90;
  * horizontal spacing.  They are positioned manually after boundary events
  * are placed.
  */
-export function identifyBoundaryLeafTargets(allElements: any[], container: any): Set<string> {
+export function identifyBoundaryLeafTargets(
+  allElements: BpmnElement[],
+  container: BpmnElement
+): Set<string> {
   const result = new Set<string>();
 
   const boundaryEventIds = new Set(
     allElements
-      .filter((el: any) => el.parent === container && el.type === BPMN_BOUNDARY_EVENT_TYPE)
-      .map((el: any) => el.id)
+      .filter((el) => el.parent === container && el.type === BPMN_BOUNDARY_EVENT_TYPE)
+      .map((el) => el.id)
   );
 
   if (boundaryEventIds.size === 0) return result;
 
   const containerConnections = allElements.filter(
-    (el: any) =>
+    (el) =>
       el.parent === container &&
       (el.type === 'bpmn:SequenceFlow' || el.type === 'bpmn:MessageFlow') &&
       el.source &&
@@ -343,13 +350,13 @@ export function identifyBoundaryLeafTargets(allElements: any[], container: any):
   );
 
   for (const conn of containerConnections) {
-    if (!boundaryEventIds.has(conn.source.id)) continue;
+    if (!boundaryEventIds.has(conn.source!.id)) continue;
     const target = conn.target;
     if (!target || target.type !== 'bpmn:EndEvent') continue;
 
     // Check if this end event has any incoming from a non-boundary source
     const hasNonBoundaryIncoming = containerConnections.some(
-      (c: any) => c.target.id === target.id && !boundaryEventIds.has(c.source.id)
+      (c) => c.target!.id === target.id && !boundaryEventIds.has(c.source!.id)
     );
     if (!hasNonBoundaryIncoming) {
       result.add(target.id);
@@ -383,19 +390,19 @@ export function identifyBoundaryLeafTargets(allElements: any[], container: any):
  * were excluded from the ELK graph).
  */
 export function repositionBoundaryEventTargets(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   excludedIds: Set<string>
 ): void {
   if (excludedIds.size === 0) return;
 
   const boundaryEvents = elementRegistry.filter(
-    (el: any) => el.type === BPMN_BOUNDARY_EVENT_TYPE && el.host
+    (el) => el.type === BPMN_BOUNDARY_EVENT_TYPE && !!el.host
   );
 
   for (const be of boundaryEvents) {
-    const host = be.host;
-    const outgoing: any[] = be.outgoing || [];
+    const host = be.host!;
+    const outgoing: BpmnElement[] = be.outgoing || [];
 
     for (const flow of outgoing) {
       const target = flow.target;
@@ -437,8 +444,8 @@ export function repositionBoundaryEventTargets(
  * - Are below the happy-path median Y but above the boundary target row
  */
 export function alignOffPathEndEventsToSecondRow(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   excludedIds: Set<string>,
   happyPathEdgeIds?: Set<string>
 ): void {
@@ -456,7 +463,7 @@ export function alignOffPathEndEventsToSecondRow(
 
   // Compute happy-path node IDs
   const happyPathNodeIds = new Set<string>();
-  const allElements: any[] = elementRegistry.getAll();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
   if (happyPathEdgeIds && happyPathEdgeIds.size > 0) {
     for (const el of allElements) {
       if (
@@ -471,10 +478,10 @@ export function alignOffPathEndEventsToSecondRow(
 
   // Compute happy-path median Y-centre
   const happyShapes = allElements.filter(
-    (el: any) => happyPathNodeIds.has(el.id) && el.width !== undefined
+    (el) => happyPathNodeIds.has(el.id) && el.width !== undefined
   );
   if (happyShapes.length === 0) return;
-  const happyCentres = happyShapes.map((el: any) => el.y + (el.height || 0) / 2);
+  const happyCentres = happyShapes.map((el) => el.y + (el.height || 0) / 2);
   happyCentres.sort((a: number, b: number) => a - b);
   const happyMedianCy = happyCentres[Math.floor(happyCentres.length / 2)];
 
@@ -503,7 +510,10 @@ export function alignOffPathEndEventsToSecondRow(
  * Detect which border a boundary event currently sits on relative to its host.
  * Returns 'top', 'bottom', 'left', or 'right' based on proximity.
  */
-function detectCurrentBorder(be: any, host: any): 'top' | 'bottom' | 'left' | 'right' {
+function detectCurrentBorder(
+  be: BpmnElement,
+  host: BpmnElement
+): 'top' | 'bottom' | 'left' | 'right' {
   const beW = be.width || BPMN_EVENT_SIZE;
   const beH = be.height || BPMN_EVENT_SIZE;
   const beCy = be.y + beH / 2;
@@ -535,13 +545,13 @@ function detectCurrentBorder(be: any, host: any): 'top' | 'bottom' | 'left' | 'r
  * Events are distributed evenly within the middle 80% of the border
  * to avoid crowding the corners.
  */
-function spreadBoundaryEventsOnSameBorder(boundaryEvents: any[]): void {
+function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[]): void {
   // Group by (host ID, border)
-  const groups = new Map<string, any[]>();
+  const groups = new Map<string, BpmnElement[]>();
   for (const be of boundaryEvents) {
     if (!be.host) continue;
     const border = detectCurrentBorder(be, be.host);
-    const key = `${be.host.id}:${border}`;
+    const key = `${be.host!.id}:${border}`;
     const group = groups.get(key) || [];
     group.push(be);
     groups.set(key, group);
@@ -551,7 +561,7 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: any[]): void {
     if (group.length < 2) continue;
 
     const border = key.split(':').pop() as 'top' | 'bottom' | 'left' | 'right';
-    const host = group[0].host;
+    const host = group[0].host!;
     const hostW = host.width || BPMN_TASK_WIDTH;
     const hostH = host.height || BPMN_TASK_HEIGHT;
 
@@ -562,7 +572,7 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: any[]): void {
       const step = group.length > 1 ? availableWidth / (group.length - 1) : 0;
 
       // Sort by current X to maintain relative order
-      group.sort((a: any, b: any) => a.x - b.x);
+      group.sort((a, b) => a.x - b.x);
 
       for (let i = 0; i < group.length; i++) {
         const be = group[i];
@@ -584,7 +594,7 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: any[]): void {
       const step = group.length > 1 ? availableHeight / (group.length - 1) : 0;
 
       // Sort by current Y to maintain relative order
-      group.sort((a: any, b: any) => a.y - b.y);
+      group.sort((a, b) => a.y - b.y);
 
       for (let i = 0; i < group.length; i++) {
         const be = group[i];

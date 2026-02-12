@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetInputOutput, handleExportBpmn, handleGetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleSetInputOutput', () => {
+describe('set_bpmn_input_output_mapping', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -55,7 +55,7 @@ describe('handleSetInputOutput', () => {
   });
 });
 
-describe('handleSetInputOutput — value expressions', () => {
+describe('set_bpmn_input_output_mapping — value expressions', () => {
   beforeEach(() => {
     clearDiagrams();
   });

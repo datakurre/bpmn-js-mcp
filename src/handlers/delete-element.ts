@@ -6,6 +6,7 @@
  */
 
 import { type ToolResult } from '../types';
+import type { BpmnElement } from '../bpmn-types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import {
   requireDiagram,
@@ -19,12 +20,14 @@ import { appendLintFeedback } from '../linter';
 
 export interface DeleteElementArgs {
   diagramId: string;
-  elementId: string;
+  elementId?: string;
+  /** Array of element/connection IDs to remove in a single call (bulk mode). */
+  elementIds?: string[];
 }
 
 export async function handleDeleteElement(args: DeleteElementArgs): Promise<ToolResult> {
   const { diagramId, elementId } = args;
-  const elementIds = (args as any).elementIds as string[] | undefined;
+  const { elementIds } = args;
   const diagram = requireDiagram(diagramId);
 
   const modeling = getService(diagram.modeler, 'modeling');
@@ -32,7 +35,7 @@ export async function handleDeleteElement(args: DeleteElementArgs): Promise<Tool
 
   // Bulk deletion mode
   if (elementIds && Array.isArray(elementIds) && elementIds.length > 0) {
-    const elements: any[] = [];
+    const elements: BpmnElement[] = [];
     const notFound: string[] = [];
     for (const id of elementIds) {
       const el = elementRegistry.get(id);

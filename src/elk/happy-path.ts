@@ -12,6 +12,7 @@
  */
 
 import { isConnection, isInfrastructure } from './helpers';
+import type { BpmnElement } from '../bpmn-types';
 
 /**
  * Detect the "happy path" — the main flow from a start event to an end
@@ -20,17 +21,17 @@ import { isConnection, isInfrastructure } from './helpers';
  *
  * Returns a Set of connection (edge) IDs that form the happy path.
  */
-export function detectHappyPath(allElements: any[]): Set<string> {
+export function detectHappyPath(allElements: BpmnElement[]): Set<string> {
   const happyEdgeIds = new Set<string>();
 
   // Find start events (entry points)
   const startEvents = allElements.filter(
-    (el: any) => el.type === 'bpmn:StartEvent' && !isInfrastructure(el.type)
+    (el) => el.type === 'bpmn:StartEvent' && !isInfrastructure(el.type)
   );
   if (startEvents.length === 0) return happyEdgeIds;
 
   // Build adjacency: node → outgoing connections
-  const outgoing = new Map<string, any[]>();
+  const outgoing = new Map<string, BpmnElement[]>();
   for (const el of allElements) {
     if (isConnection(el.type) && el.source && el.target) {
       const list = outgoing.get(el.source.id) || [];
@@ -68,18 +69,18 @@ export function detectHappyPath(allElements: any[]): Set<string> {
       //
       // At parallel gateways or nodes without a default:
       //   → Follow the first outgoing flow (preserves model order).
-      let chosen: any;
+      let chosen: BpmnElement | undefined;
       const defaultFlowId = gatewayDefaults.get(current.id);
       if (defaultFlowId && connections.length > 1) {
         // Prefer the first non-default flow (the conditioned branch)
-        chosen = connections.find((c: any) => c.id !== defaultFlowId);
+        chosen = connections.find((c) => c.id !== defaultFlowId);
       }
       if (!chosen) {
         chosen = connections[0];
       }
 
-      happyEdgeIds.add(chosen.id);
-      current = chosen.target;
+      happyEdgeIds.add(chosen!.id);
+      current = chosen!.target!;
     }
   }
 

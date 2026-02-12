@@ -22,6 +22,8 @@ export interface ImportXmlArgs {
   xml?: string;
   filePath?: string;
   autoLayout?: boolean;
+  /** When true, suppress implicit lint feedback on every operation. */
+  draftMode?: boolean;
 }
 
 /** Check whether BPMN XML contains diagram interchange (DI) coordinates. */
@@ -30,8 +32,7 @@ function xmlHasDiagramDI(xml: string): boolean {
 }
 
 export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> {
-  const { autoLayout, filePath } = args as ImportXmlArgs & { filePath?: string };
-  const draftMode = (args as any).draftMode as boolean | undefined;
+  const { autoLayout, filePath, draftMode } = args;
 
   // Resolve XML content from either args.xml or args.filePath
   let xml: string;

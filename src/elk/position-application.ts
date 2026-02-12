@@ -3,6 +3,7 @@
  */
 
 import type { ElkNode } from 'elkjs';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import {
   isConnection as _isConnection,
   isInfrastructure as _isInfrastructure,
@@ -20,8 +21,8 @@ import { COLLAPSED_POOL_GAP } from './constants';
  * the parent, so we accumulate offsets as we recurse.
  */
 export function applyElkPositions(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   elkNode: ElkNode,
   parentAbsX: number,
   parentAbsY: number
@@ -62,7 +63,11 @@ export function applyElkPositions(
  * separate pass applies the size.  Must run AFTER applyElkPositions so
  * that the element's current x/y is already correct.
  */
-export function resizeCompoundNodes(elementRegistry: any, modeling: any, elkNode: ElkNode): void {
+export function resizeCompoundNodes(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  elkNode: ElkNode
+): void {
   if (!elkNode.children) return;
 
   for (const child of elkNode.children) {
@@ -103,16 +108,14 @@ export function resizeCompoundNodes(elementRegistry: any, modeling: any, elkNode
  * Only applies when the vertical offset exceeds a minimum threshold
  * to avoid unnecessary micro-adjustments.
  */
-export function centreElementsInPools(elementRegistry: any, modeling: any): void {
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
+export function centreElementsInPools(elementRegistry: ElementRegistry, modeling: Modeling): void {
+  const participants = elementRegistry.filter((el) => el.type === 'bpmn:Participant');
   if (participants.length === 0) return;
 
   for (const pool of participants) {
     // Collect flow elements that are direct children of this pool
     // (skip lanes, connections, boundary events, labels, infrastructure)
-    const children = elementRegistry.filter(
-      (el: any) => el.parent === pool && isLayoutableShape(el)
-    );
+    const children = elementRegistry.filter((el) => el.parent === pool && isLayoutableShape(el));
 
     if (children.length === 0) continue;
 
@@ -153,17 +156,20 @@ export function centreElementsInPools(elementRegistry: any, modeling: any): void
  * consistent gap, matching the standard Camunda 7 collaboration pattern
  * where only the executable (expanded) pool is on top.
  */
-export function reorderCollapsedPoolsBelow(elementRegistry: any, modeling: any): void {
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
+export function reorderCollapsedPoolsBelow(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
+  const participants = elementRegistry.filter((el) => el.type === 'bpmn:Participant');
   if (participants.length < 2) return;
 
   // Classify pools: expanded have flow-element children, collapsed do not
-  const expanded: any[] = [];
-  const collapsed: any[] = [];
+  const expanded: BpmnElement[] = [];
+  const collapsed: BpmnElement[] = [];
 
   for (const pool of participants) {
     const hasFlowChildren =
-      elementRegistry.filter((el: any) => el.parent === pool && isLayoutableShape(el)).length > 0;
+      elementRegistry.filter((el) => el.parent === pool && isLayoutableShape(el)).length > 0;
 
     if (hasFlowChildren) {
       expanded.push(pool);
@@ -198,7 +204,7 @@ export function reorderCollapsedPoolsBelow(elementRegistry: any, modeling: any):
   const expandedWidth = expandedMaxRight - expandedMinX;
 
   // Sort collapsed pools by current Y for stable ordering
-  collapsed.sort((a: any, b: any) => a.y - b.y);
+  collapsed.sort((a, b) => a.y - b.y);
 
   for (const pool of collapsed) {
     // Snap x/width to match expanded pool edges
@@ -214,7 +220,7 @@ export function reorderCollapsedPoolsBelow(elementRegistry: any, modeling: any):
     }
 
     // Resize width to match expanded pool span
-    const currentPool = elementRegistry.get(pool.id);
+    const currentPool = elementRegistry.get(pool.id)!;
     if (Math.abs((currentPool.width || 0) - expandedWidth) > 5) {
       modeling.resizeShape(currentPool, {
         x: currentPool.x,
@@ -225,7 +231,7 @@ export function reorderCollapsedPoolsBelow(elementRegistry: any, modeling: any):
     }
 
     // Advance nextY for multiple collapsed pools
-    const updatedPool = elementRegistry.get(pool.id);
+    const updatedPool = elementRegistry.get(pool.id)!;
     nextY = updatedPool.y + (updatedPool.height || 0) + POOL_GAP;
   }
 }

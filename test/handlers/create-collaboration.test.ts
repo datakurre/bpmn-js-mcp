@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleCreateCollaboration } from '../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../helpers';
 
-describe('handleCreateCollaboration', () => {
+describe('create_bpmn_collaboration', () => {
   beforeEach(() => {
     clearDiagrams();
   });

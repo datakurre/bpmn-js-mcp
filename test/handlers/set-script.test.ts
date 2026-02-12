@@ -3,7 +3,7 @@ import { handleSetScript } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('handleSetScript', () => {
+describe('set_bpmn_script', () => {
   beforeEach(() => {
     clearDiagrams();
   });

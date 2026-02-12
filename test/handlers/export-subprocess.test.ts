@@ -3,7 +3,7 @@ import { handleExportBpmn as handleExportSubprocess } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('handleExportSubprocess', () => {
+describe('export_bpmn — subprocess scope', () => {
   beforeEach(() => {
     clearDiagrams();
   });

@@ -6,6 +6,7 @@
  */
 
 import type { ElkNode, ElkExtendedEdge, ElkEdgeSection } from 'elkjs';
+import type { ElementRegistry, Modeling } from '../bpmn-types';
 import { isConnection } from './helpers';
 import { deduplicateWaypoints } from './edge-routing-helpers';
 import { ENDPOINT_SNAP_TOLERANCE, BPMN_EVENT_SIZE, SEGMENT_ORTHO_SNAP } from './constants';
@@ -106,8 +107,8 @@ function buildOrthogonalWaypoints(
  * message flows), we fall back to `modeling.layoutConnection()`.
  */
 export function applyElkEdgeRoutes(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   elkResult: ElkNode,
   offsetX: number,
   offsetY: number
@@ -116,7 +117,7 @@ export function applyElkEdgeRoutes(
   const edgeLookup = collectElkEdges(elkResult, offsetX, offsetY);
 
   const allConnections = elementRegistry.filter(
-    (el: any) => isConnection(el.type) && el.source && el.target
+    (el) => isConnection(el.type) && !!el.source && !!el.target
   );
 
   for (const conn of allConnections) {
@@ -167,8 +168,8 @@ export function applyElkEdgeRoutes(
       // to touch the current element boundaries.
       // Only snaps straight horizontal flows (2 waypoints, same Y) to
       // avoid disturbing Z/L-shaped routes from gateways.
-      const src = conn.source;
-      const tgt = conn.target;
+      const src = conn.source!;
+      const tgt = conn.target!;
       if (deduped.length === 2) {
         const srcCy = Math.round(src.y + (src.height || 0) / 2);
         const srcRight = src.x + (src.width || 0);
@@ -192,8 +193,8 @@ export function applyElkEdgeRoutes(
       // that ELK didn't route (boundary events, cross-container flows).
       // This delegates to bpmn-js ManhattanLayout which produces clean
       // orthogonal paths that respect element boundaries.
-      const src = conn.source;
-      const tgt = conn.target;
+      const src = conn.source!;
+      const tgt = conn.target!;
 
       if (src.type === BPMN_BOUNDARY_EVENT || conn.type === 'bpmn:MessageFlow') {
         // For boundary events, build a clean route from the boundary event

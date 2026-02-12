@@ -68,6 +68,25 @@ export interface BpmnElement {
   source?: BpmnElement;
   target?: BpmnElement;
   parent?: BpmnElement;
+  /** For boundary events: the host element this event is attached to. */
+  host?: BpmnElement;
+  /** Child elements (shapes inside a container like subprocess/participant). */
+  children?: BpmnElement[];
+  /** Waypoints for connections. */
+  waypoints?: Array<{ x: number; y: number }>;
+  /** Label shape for connections and events. */
+  label?: { x: number; y: number; width: number; height: number };
+  /** Whether this is a collapsed sub-process. */
+  collapsed?: boolean;
+  /** Whether the element is hidden. */
+  hidden?: boolean;
+  /** Whether the element is expanded (for subprocesses). */
+  isExpanded?: boolean;
+  /** BPMN DI (diagram interchange) information. */
+  di?: {
+    bounds?: { x: number; y: number; width: number; height: number };
+    label?: { bounds?: { x: number; y: number; width: number; height: number } };
+  };
 }
 
 // ── bpmn-js service interfaces ─────────────────────────────────────────────

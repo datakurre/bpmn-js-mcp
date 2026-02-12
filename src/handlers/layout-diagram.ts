@@ -25,6 +25,10 @@ export interface LayoutDiagramArgs {
   preserveHappyPath?: boolean;
   compactness?: 'compact' | 'spacious';
   simplifyRoutes?: boolean;
+  /** Optional list of element IDs for partial re-layout. */
+  elementIds?: string[];
+  /** Grid snap: boolean to enable/disable ELK grid snap, or number for pixel-level snapping. */
+  gridSnap?: boolean | number;
 }
 
 export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
@@ -38,8 +42,8 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
     compactness,
     simplifyRoutes,
   } = args;
-  const elementIds = (args as any).elementIds as string[] | undefined;
-  const rawGridSnap = (args as any).gridSnap;
+  const { elementIds } = args;
+  const rawGridSnap = args.gridSnap;
   // gridSnap can be a boolean (enable/disable ELK grid snap pass)
   // or a number (pixel-level snapping after layout)
   const elkGridSnap = typeof rawGridSnap === 'boolean' ? rawGridSnap : undefined;

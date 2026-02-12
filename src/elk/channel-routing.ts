@@ -7,6 +7,7 @@
  */
 
 import { detectLayers } from './grid-snap';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 
 /**
  * Re-route vertical segments of gateway branch connections through the
@@ -26,9 +27,9 @@ import { detectLayers } from './grid-snap';
  * different layer, with at most 2 off-row branches.
  */
 export function routeBranchConnectionsThroughChannels(
-  elementRegistry: any,
-  modeling: any,
-  container?: any
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  container?: BpmnElement
 ): void {
   const layers = detectLayers(elementRegistry, container);
   if (layers.length < 2) return;
@@ -42,11 +43,11 @@ export function routeBranchConnectionsThroughChannels(
   }
 
   const allConnections = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === 'bpmn:SequenceFlow' &&
-      el.source &&
-      el.target &&
-      el.waypoints &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
       el.waypoints.length >= 3
   );
 
@@ -64,12 +65,12 @@ export function routeBranchConnectionsThroughChannels(
   // For larger fan-outs, ELK already handles routing well.
   const gwOffRowCount = new Map<string, number>();
   for (const conn of allConnections) {
-    const src = conn.source;
+    const src = conn.source!;
     if (!src.type?.includes('Gateway')) continue;
     if ((gwOutgoingCount.get(src.id) || 0) < 2) continue;
 
     const srcLayer = elementToLayer.get(src.id);
-    const tgtLayer = elementToLayer.get(conn.target?.id);
+    const tgtLayer = elementToLayer.get(conn.target!.id);
     if (srcLayer === undefined || tgtLayer === undefined) continue;
     if (srcLayer === tgtLayer) continue;
 
@@ -83,15 +84,15 @@ export function routeBranchConnectionsThroughChannels(
   const gwGroups = new Map<
     string,
     Array<{
-      conn: any;
+      conn: BpmnElement;
       channelAfterLayer: number;
       vertSegIndex: number;
     }>
   >();
 
   for (const conn of allConnections) {
-    const src = conn.source;
-    const tgt = conn.target;
+    const src = conn.source!;
+    const tgt = conn.target!;
 
     // Only process connections where source is a gateway going to a different row
     const srcIsGw = src.type?.includes('Gateway');
@@ -115,7 +116,7 @@ export function routeBranchConnectionsThroughChannels(
     if (channelAfterLayer < 0 || channelAfterLayer >= layers.length - 1) continue;
 
     // Find the first vertical segment near the gateway
-    const wps: Array<{ x: number; y: number }> = conn.waypoints;
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!;
     const gwCx = src.x + (src.width || 0) / 2;
     let vertSegIdx = -1;
     for (let i = 0; i < wps.length - 1; i++) {
@@ -163,8 +164,8 @@ export function routeBranchConnectionsThroughChannels(
 
     // Sort group by target Y so vertical segments don't cross each other
     group.sort((a, b) => {
-      const aY = a.conn.target.y + (a.conn.target.height || 0) / 2;
-      const bY = b.conn.target.y + (b.conn.target.height || 0) / 2;
+      const aY = a.conn.target!.y + (a.conn.target!.height || 0) / 2;
+      const bY = b.conn.target!.y + (b.conn.target!.height || 0) / 2;
       return aY - bY;
     });
 
@@ -179,14 +180,14 @@ export function routeBranchConnectionsThroughChannels(
       }
       channelX = Math.round(channelX);
 
-      const wps: Array<{ x: number; y: number }> = conn.waypoints;
+      const wps: Array<{ x: number; y: number }> = conn.waypoints!;
       const currX = wps[vertSegIndex].x;
       if (Math.abs(currX - channelX) <= 5) continue;
 
       // Verify the move doesn't place the vertical segment outside the
       // channel (between the source right edge and target left edge)
-      const srcRight = conn.source.x + (conn.source.width || 0);
-      const tgtLeft = conn.target.x;
+      const srcRight = conn.source!.x + (conn.source!.width || 0);
+      const tgtLeft = conn.target!.x;
       if (channelX <= srcRight || channelX >= tgtLeft) continue;
 
       const newWps = wps.map((wp: { x: number; y: number }) => ({ x: wp.x, y: wp.y }));

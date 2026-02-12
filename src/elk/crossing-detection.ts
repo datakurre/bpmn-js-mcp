@@ -6,6 +6,7 @@
  */
 
 import type { CrossingFlowsResult } from './types';
+import type { ElementRegistry } from '../bpmn-types';
 import { isConnection } from './helpers';
 
 /**
@@ -44,17 +45,17 @@ function segmentsIntersect(
  * Checks all pairs of connections for segment intersections and returns
  * the count of crossing pairs along with their IDs.
  */
-export function detectCrossingFlows(elementRegistry: any): CrossingFlowsResult {
+export function detectCrossingFlows(elementRegistry: ElementRegistry): CrossingFlowsResult {
   const connections = elementRegistry.filter(
-    (el: any) => isConnection(el.type) && el.waypoints && el.waypoints.length >= 2
+    (el) => isConnection(el.type) && !!el.waypoints && el.waypoints.length >= 2
   );
 
   const pairs: Array<[string, string]> = [];
 
   for (let i = 0; i < connections.length; i++) {
     for (let j = i + 1; j < connections.length; j++) {
-      const wpsA = connections[i].waypoints;
-      const wpsB = connections[j].waypoints;
+      const wpsA = connections[i].waypoints!;
+      const wpsB = connections[j].waypoints!;
 
       let found = false;
       for (let a = 0; a < wpsA.length - 1 && !found; a++) {

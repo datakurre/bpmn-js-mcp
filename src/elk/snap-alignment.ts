@@ -3,6 +3,7 @@
  */
 
 import { ELK_LAYER_SPACING } from '../constants';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { SAME_ROW_THRESHOLD, ORTHO_SNAP_TOLERANCE } from './constants';
 import {
   isConnection,
@@ -28,20 +29,20 @@ import {
  *                   elements should be more aggressively aligned.
  */
 export function snapSameLayerElements(
-  elementRegistry: any,
-  modeling: any,
-  container?: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  container?: BpmnElement,
   threshold?: number
 ): void {
-  let parentFilter: any = container;
+  let parentFilter: BpmnElement | undefined = container;
   if (!parentFilter) {
     parentFilter = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   }
 
   const shapes = elementRegistry.filter(
-    (el: any) => isLayoutableShape(el) && (!parentFilter || el.parent === parentFilter)
+    (el) => isLayoutableShape(el) && (!parentFilter || el.parent === parentFilter)
   );
 
   if (shapes.length < 2) return;
@@ -49,12 +50,10 @@ export function snapSameLayerElements(
   // Group by approximate x-centre (same ELK layer = same x column).
   // Elements within ELK_LAYER_SPACING/2 of each other are in the same layer.
   const layerThreshold = ELK_LAYER_SPACING / 2;
-  const sorted = [...shapes].sort(
-    (a: any, b: any) => a.x + (a.width || 0) / 2 - (b.x + (b.width || 0) / 2)
-  );
+  const sorted = [...shapes].sort((a, b) => a.x + (a.width || 0) / 2 - (b.x + (b.width || 0) / 2));
 
-  const layers: any[][] = [];
-  let currentLayer: any[] = [sorted[0]];
+  const layers: BpmnElement[][] = [];
+  let currentLayer: BpmnElement[] = [sorted[0]];
 
   for (let i = 1; i < sorted.length; i++) {
     const prevCx = currentLayer[0].x + (currentLayer[0].width || 0) / 2;
@@ -74,13 +73,11 @@ export function snapSameLayerElements(
   for (const layer of layers) {
     if (layer.length < 2) continue;
 
-    const byY = [...layer].sort(
-      (a: any, b: any) => a.y + (a.height || 0) / 2 - (b.y + (b.height || 0) / 2)
-    );
+    const byY = [...layer].sort((a, b) => a.y + (a.height || 0) / 2 - (b.y + (b.height || 0) / 2));
 
     // Greedy grouping by Y-centre proximity
-    const groups: any[][] = [];
-    let group: any[] = [byY[0]];
+    const groups: BpmnElement[][] = [];
+    let group: BpmnElement[] = [byY[0]];
 
     for (let i = 1; i < byY.length; i++) {
       const prevCy = group[group.length - 1].y + (group[group.length - 1].height || 0) / 2;
@@ -98,7 +95,7 @@ export function snapSameLayerElements(
       if (g.length < 2) continue;
 
       // Snap to median centre-Y
-      const centres = g.map((el: any) => el.y + (el.height || 0) / 2);
+      const centres = g.map((el) => el.y + (el.height || 0) / 2);
       centres.sort((a: number, b: number) => a - b);
       const medianCy = centres[Math.floor(centres.length / 2)];
 
@@ -123,13 +120,16 @@ export function snapSameLayerElements(
  *
  * Uses `modeling.updateWaypoints` to record changes on the command stack.
  */
-export function snapAllConnectionsOrthogonal(elementRegistry: any, modeling: any): void {
+export function snapAllConnectionsOrthogonal(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
   const allConnections = elementRegistry.filter(
-    (el: any) => isConnection(el.type) && el.waypoints && el.waypoints.length >= 2
+    (el) => isConnection(el.type) && !!el.waypoints && el.waypoints.length >= 2
   );
 
   for (const conn of allConnections) {
-    const wps: Array<{ x: number; y: number }> = conn.waypoints;
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!;
     let changed = false;
 
     // Build snapped copy of waypoints
@@ -177,23 +177,23 @@ export function snapAllConnectionsOrthogonal(elementRegistry: any, modeling: any
 const SUBPROCESS_ROW_THRESHOLD = 40;
 
 export function snapExpandedSubprocesses(
-  elementRegistry: any,
-  modeling: any,
-  container?: any
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  container?: BpmnElement
 ): void {
   const parentFilter =
     container ||
     elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   if (!parentFilter) return;
 
   const expandedSubs = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === 'bpmn:SubProcess' &&
       el.parent === parentFilter &&
       elementRegistry.filter(
-        (child: any) =>
+        (child) =>
           child.parent === el &&
           !isInfrastructure(child.type) &&
           !isConnection(child.type) &&

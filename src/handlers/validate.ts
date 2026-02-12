@@ -13,14 +13,11 @@
 import { type ToolResult } from '../types';
 import { requireDiagram, jsonResult, validateArgs } from './helpers';
 import { lintDiagramFlat, getEffectiveConfig } from '../linter';
-import type { FlatLintIssue } from '../bpmnlint-types';
+import type { FlatLintIssue, LintConfig } from '../bpmnlint-types';
 
 export interface ValidateArgs {
   diagramId: string;
-  config?: {
-    extends?: string | string[];
-    rules?: Record<string, string | number | [string | number, any]>;
-  };
+  config?: LintConfig;
   lintMinSeverity?: 'error' | 'warning';
 }
 
@@ -150,7 +147,7 @@ export async function handleValidate(args: ValidateArgs): Promise<ToolResult> {
   const diagram = requireDiagram(args.diagramId);
 
   // Resolve the effective bpmnlint config (user override > .bpmnlintrc > default)
-  const effectiveConfig = config ? (config as any) : getEffectiveConfig();
+  const effectiveConfig = config ? getEffectiveConfig(config) : getEffectiveConfig();
 
   // Run bpmnlint — the default config extends bpmnlint:recommended,
   // plugin:camunda-compat/camunda-platform-7-24, and plugin:bpmn-mcp/recommended

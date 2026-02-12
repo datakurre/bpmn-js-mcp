@@ -6,6 +6,7 @@
  */
 
 import { isConnection } from './helpers';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { deduplicateWaypoints, buildZShapeRoute } from './edge-routing-helpers';
 import {
   DISCONNECT_THRESHOLD,
@@ -15,7 +16,7 @@ import {
 } from './constants';
 
 /** Get the centre point of an element. */
-function elementCentre(el: any): { x: number; y: number } {
+function elementCentre(el: BpmnElement): { x: number; y: number } {
   return {
     x: el.x + (el.width || 0) / 2,
     y: el.y + (el.height || 0) / 2,
@@ -23,7 +24,10 @@ function elementCentre(el: any): { x: number; y: number } {
 }
 
 /** Get the nearest attachment point on an element's boundary for a given external point. */
-function nearestBorderPoint(el: any, point: { x: number; y: number }): { x: number; y: number } {
+function nearestBorderPoint(
+  el: BpmnElement,
+  point: { x: number; y: number }
+): { x: number; y: number } {
   const cx = el.x + (el.width || 0) / 2;
   const cy = el.y + (el.height || 0) / 2;
   const hw = (el.width || 0) / 2;
@@ -70,15 +74,20 @@ function dist(a: { x: number; y: number }, b: { x: number; y: number }): number 
  * a simple 2-point connection.  For L-shaped and Z-shaped routes,
  * adjusts only the disconnected endpoint(s) and maintains orthogonality.
  */
-export function fixDisconnectedEdges(elementRegistry: any, modeling: any): void {
+export function fixDisconnectedEdges(elementRegistry: ElementRegistry, modeling: Modeling): void {
   const connections = elementRegistry.filter(
-    (el: any) => isConnection(el.type) && el.source && el.target && el.waypoints?.length >= 2
+    (el) =>
+      isConnection(el.type) &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
+      el.waypoints.length >= 2
   );
 
   for (const conn of connections) {
-    const src = conn.source;
-    const tgt = conn.target;
-    const wps: Array<{ x: number; y: number }> = conn.waypoints.map((wp: any) => ({
+    const src = conn.source!;
+    const tgt = conn.target!;
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!.map((wp: any) => ({
       x: wp.x,
       y: wp.y,
     }));
@@ -198,22 +207,26 @@ export function fixDisconnectedEdges(elementRegistry: any, modeling: any): void 
  *
  * Should run after fixDisconnectedEdges and before snapAllConnectionsOrthogonal.
  */
-export function snapEndpointsToElementCentres(elementRegistry: any, modeling: any): void {
+export function snapEndpointsToElementCentres(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
   const BPMN_SEQUENCE_FLOW = 'bpmn:SequenceFlow';
   const BPMN_BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
   const connections = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === BPMN_SEQUENCE_FLOW &&
-      el.source &&
-      el.target &&
-      el.waypoints?.length >= 2 &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
+      el.waypoints.length >= 2 &&
       el.source.type !== BPMN_BOUNDARY_EVENT
   );
 
   for (const conn of connections) {
-    const src = conn.source;
-    const tgt = conn.target;
-    const wps: Array<{ x: number; y: number }> = conn.waypoints.map((wp: any) => ({
+    const src = conn.source!;
+    const tgt = conn.target!;
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!.map((wp: any) => ({
       x: wp.x,
       y: wp.y,
     }));
@@ -316,23 +329,27 @@ export function snapEndpointsToElementCentres(elementRegistry: any, modeling: an
  * as a gateway outgoing in the topology) using a Z-shape through the
  * midpoint.
  */
-export function rebuildOffRowGatewayRoutes(elementRegistry: any, modeling: any): void {
+export function rebuildOffRowGatewayRoutes(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
   const BPMN_SEQUENCE_FLOW = 'bpmn:SequenceFlow';
   const BPMN_BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
 
   const connections = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === BPMN_SEQUENCE_FLOW &&
-      el.source &&
-      el.target &&
-      el.waypoints?.length >= 2 &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
+      el.waypoints.length >= 2 &&
       el.source.type !== BPMN_BOUNDARY_EVENT
   );
 
   for (const conn of connections) {
-    const src = conn.source;
-    const tgt = conn.target;
-    const wps: Array<{ x: number; y: number }> = conn.waypoints;
+    const src = conn.source!;
+    const tgt = conn.target!;
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!;
 
     const srcCx = Math.round(src.x + (src.width || 0) / 2);
     const srcCy = Math.round(src.y + (src.height || 0) / 2);

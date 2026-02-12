@@ -16,6 +16,7 @@ import {
   isLane as _isLane,
   isLayoutableShape,
 } from './helpers';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 
 /** Minimum gap (px) enforced between elements after overlap resolution. */
 const MIN_OVERLAP_GAP = 30;
@@ -43,7 +44,11 @@ function rectsOverlap(a: Rect, b: Rect): boolean {
  * the lower element is pushed down.  Runs up to 5 iterations to
  * handle cascading overlaps.
  */
-export function resolveOverlaps(elementRegistry: any, modeling: any, container?: any): void {
+export function resolveOverlaps(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  container?: BpmnElement
+): void {
   const MAX_ITERATIONS = 5;
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
@@ -79,7 +84,7 @@ export function resolveOverlaps(elementRegistry: any, modeling: any, container?:
         const aCy = a.y + (a.height || 0) / 2;
         const bCy = b.y + (b.height || 0) / 2;
 
-        let upper: any, lower: any;
+        let upper: BpmnElement, lower: BpmnElement;
         if (aCy <= bCy) {
           upper = a;
           lower = b;
@@ -104,7 +109,7 @@ export function resolveOverlaps(elementRegistry: any, modeling: any, container?:
 }
 
 /** Check if two elements form a boundary-event / host pair. */
-function isBoundaryHostPair(a: any, b: any): boolean {
+function isBoundaryHostPair(a: BpmnElement, b: BpmnElement): boolean {
   if (a.type === 'bpmn:BoundaryEvent' && a.host?.id === b.id) return true;
   if (b.type === 'bpmn:BoundaryEvent' && b.host?.id === a.id) return true;
   return false;
@@ -130,15 +135,18 @@ function verticallyTooClose(a: Rect, b: Rect, minGap: number): boolean {
 }
 
 /** Get all shapes eligible for overlap resolution (excludes connections, infrastructure, etc.). */
-function getLayoutableShapes(elementRegistry: any, container?: any): any[] {
-  let parentFilter: any = container;
+function getLayoutableShapes(
+  elementRegistry: ElementRegistry,
+  container?: BpmnElement
+): BpmnElement[] {
+  let parentFilter: BpmnElement | undefined = container;
   if (!parentFilter) {
     parentFilter = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   }
 
   return elementRegistry.filter(
-    (el: any) => isLayoutableShape(el) && (!parentFilter || el.parent === parentFilter)
+    (el) => isLayoutableShape(el) && (!parentFilter || el.parent === parentFilter)
   );
 }

@@ -25,11 +25,15 @@ import {
   isArtifact,
   isLayoutableShape,
 } from './helpers';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 
 /**
  * Find the flow element linked to an artifact via an association.
  */
-function findLinkedFlowElement(artifact: any, associations: any[]): any {
+function findLinkedFlowElement(
+  artifact: BpmnElement,
+  associations: BpmnElement[]
+): BpmnElement | null {
   for (const assoc of associations) {
     if (assoc.source?.id === artifact.id && assoc.target && !isArtifact(assoc.target.type)) {
       return assoc.target;
@@ -67,7 +71,7 @@ interface OccupiedRect {
   h: number;
 }
 
-function computeFlowBounds(flowElements: any[]): FlowBounds {
+function computeFlowBounds(flowElements: BpmnElement[]): FlowBounds {
   let flowMaxY = ARTIFACT_SEARCH_HEIGHT;
   let flowMinY = Infinity;
   let flowMinX = Infinity;
@@ -89,11 +93,11 @@ function computeFlowBounds(flowElements: any[]): FlowBounds {
 }
 
 function groupArtifactsByLinkedElement(
-  artifacts: any[],
-  associations: any[]
-): { linked: Map<string, any[]>; unlinked: any[] } {
-  const artifactsByLinkedElement = new Map<string, any[]>();
-  const unlinkedArtifacts: any[] = [];
+  artifacts: BpmnElement[],
+  associations: BpmnElement[]
+): { linked: Map<string, BpmnElement[]>; unlinked: BpmnElement[] } {
+  const artifactsByLinkedElement = new Map<string, BpmnElement[]>();
+  const unlinkedArtifacts: BpmnElement[] = [];
 
   for (const artifact of artifacts) {
     const linkedElement = findLinkedFlowElement(artifact, associations);
@@ -138,7 +142,11 @@ function resolveOverlap(
   }
 }
 
-function moveArtifactIfNeeded(artifact: any, pos: { x: number; y: number }, modeling: any): void {
+function moveArtifactIfNeeded(
+  artifact: BpmnElement,
+  pos: { x: number; y: number },
+  modeling: Modeling
+): void {
   const dx = pos.x - artifact.x;
   const dy = pos.y - artifact.y;
   if (Math.abs(dx) > MOVEMENT_THRESHOLD || Math.abs(dy) > MOVEMENT_THRESHOLD) {
@@ -147,9 +155,9 @@ function moveArtifactIfNeeded(artifact: any, pos: { x: number; y: number }, mode
 }
 
 function positionLinkedArtifacts(
-  artifactsByLinkedElement: Map<string, any[]>,
-  elementRegistry: any,
-  modeling: any,
+  artifactsByLinkedElement: Map<string, BpmnElement[]>,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   occupiedRects: OccupiedRect[],
   flowMaxX: number
 ): void {
@@ -159,7 +167,7 @@ function positionLinkedArtifacts(
 
     const linkCx = linkedElement.x + (linkedElement.width || 0) * CENTER_FACTOR;
     const totalWidth = group.reduce(
-      (sum: number, a: any) => sum + (a.width || BPMN_TASK_WIDTH) + ARTIFACT_PADDING,
+      (sum, a) => sum + (a.width || BPMN_TASK_WIDTH) + ARTIFACT_PADDING,
       ARTIFACT_NEGATIVE_PADDING
     );
     let startX = linkCx - totalWidth * CENTER_FACTOR;
@@ -185,9 +193,9 @@ function positionLinkedArtifacts(
 }
 
 function positionUnlinkedArtifacts(
-  unlinkedArtifacts: any[],
+  unlinkedArtifacts: BpmnElement[],
   bounds: FlowBounds,
-  modeling: any,
+  modeling: Modeling,
   occupiedRects: OccupiedRect[]
 ): void {
   let unlinkedX = bounds.minX;
@@ -221,18 +229,18 @@ function positionUnlinkedArtifacts(
   }
 }
 
-export function repositionArtifacts(elementRegistry: any, modeling: any): void {
-  const artifacts = elementRegistry.filter((el: any) => isArtifact(el.type));
+export function repositionArtifacts(elementRegistry: ElementRegistry, modeling: Modeling): void {
+  const artifacts = elementRegistry.filter((el) => isArtifact(el.type));
   if (artifacts.length === 0) return;
 
   const associations = elementRegistry.filter(
-    (el: any) =>
+    (el) =>
       el.type === 'bpmn:Association' ||
       el.type === 'bpmn:DataInputAssociation' ||
       el.type === 'bpmn:DataOutputAssociation'
   );
 
-  const flowElements = elementRegistry.filter((el: any) => el.type && isLayoutableShape(el));
+  const flowElements = elementRegistry.filter((el) => !!el.type && isLayoutableShape(el));
   const bounds = computeFlowBounds(flowElements);
   const { linked, unlinked } = groupArtifactsByLinkedElement(artifacts, associations);
   const occupiedRects: OccupiedRect[] = [];

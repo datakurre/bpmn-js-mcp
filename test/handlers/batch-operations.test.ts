@@ -3,7 +3,7 @@ import { handleBatchOperations } from '../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('handleBatchOperations', () => {
+describe('batch_bpmn_operations', () => {
   beforeEach(() => {
     clearDiagrams();
   });

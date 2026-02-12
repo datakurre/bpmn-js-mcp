@@ -3,7 +3,7 @@ import { handleDuplicateElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('handleDuplicateElement', () => {
+describe('duplicate_bpmn_element', () => {
   beforeEach(() => {
     clearDiagrams();
   });

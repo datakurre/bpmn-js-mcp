@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleListElements as handleSearchElements } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
-describe('handleSearchElements', () => {
+describe('list_bpmn_elements — search', () => {
   beforeEach(() => {
     clearDiagrams();
   });

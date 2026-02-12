@@ -6,6 +6,7 @@
  */
 
 import { ELK_NODE_SPACING } from '../constants';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { isConnection, isInfrastructure, isArtifact, isLayoutableShape } from './helpers';
 import {
   MAX_WOBBLE_CORRECTION,
@@ -23,11 +24,11 @@ import {
  * Skips gateways on the happy path to avoid breaking row alignment.
  */
 export function centreGatewaysOnBranches(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   happyPathNodeIds: Set<string>
 ): void {
-  const gateways = elementRegistry.filter((el: any) => el.type?.includes('Gateway'));
+  const gateways = elementRegistry.filter((el) => el.type?.includes('Gateway'));
 
   for (const gw of gateways) {
     // Skip gateways on the happy path to preserve row alignment
@@ -35,7 +36,7 @@ export function centreGatewaysOnBranches(
 
     // Collect all directly connected elements (via outgoing + incoming flows)
     const connectedYs: number[] = [];
-    const allElements: any[] = elementRegistry.getAll();
+    const allElements: BpmnElement[] = elementRegistry.getAll();
 
     for (const el of allElements) {
       if (!isConnection(el.type)) continue;
@@ -73,19 +74,19 @@ export function centreGatewaysOnBranches(
  * that make them appear disconnected.
  */
 export function symmetriseGatewayBranches(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   happyPathNodeIds: Set<string>
 ): void {
-  const allElements: any[] = elementRegistry.getAll();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
   const nodeSpacing = ELK_NODE_SPACING;
 
   // Find split gateways on the happy path (≥2 outgoing flows)
-  const splitGateways = allElements.filter((el: any) => {
+  const splitGateways = allElements.filter((el) => {
     if (!el.type?.includes('Gateway')) return false;
     if (!happyPathNodeIds.has(el.id)) return false;
     const outCount = allElements.filter(
-      (conn: any) => isConnection(conn.type) && conn.source?.id === el.id
+      (conn) => isConnection(conn.type) && conn.source?.id === el.id
     ).length;
     return outCount >= 2;
   });
@@ -96,13 +97,15 @@ export function symmetriseGatewayBranches(
     // Find outgoing connections and their non-gateway, non-event targets
     // (i.e. the branch task targets, excluding merge gateways / end events)
     const outgoing = allElements.filter(
-      (conn: any) => isConnection(conn.type) && conn.source?.id === gw.id && conn.target
+      (conn) => isConnection(conn.type) && conn.source?.id === gw.id && !!conn.target
     );
 
     // Collect ALL branch targets (both on-path and off-path)
     const branchTargets = outgoing
-      .map((conn: any) => conn.target)
-      .filter((t: any) => t.type !== 'bpmn:EndEvent' && !t.type?.includes('Gateway'));
+      .map((conn) => conn.target)
+      .filter(
+        (t): t is BpmnElement => !!t && t.type !== 'bpmn:EndEvent' && !t.type?.includes('Gateway')
+      );
 
     // For 2-branch patterns with tasks, symmetrise around the gateway Y.
     // When one branch is on the happy path, pin it at the gateway row and
@@ -175,8 +178,8 @@ export function symmetriseGatewayBranches(
 
     // ── Off-path target handling ──
     const offPathTargets = outgoing
-      .map((conn: any) => conn.target)
-      .filter((t: any) => !happyPathNodeIds.has(t.id));
+      .map((conn) => conn.target)
+      .filter((t): t is BpmnElement => !!t && !happyPathNodeIds.has(t.id));
 
     // Move off-path end events to the same Y as their immediate
     // predecessor to avoid long vertical connectors.
@@ -185,11 +188,11 @@ export function symmetriseGatewayBranches(
 
       // Find incoming connection to this end event
       const incoming = allElements.find(
-        (conn: any) => isConnection(conn.type) && conn.target?.id === target.id && conn.source
+        (conn) => isConnection(conn.type) && conn.target?.id === target.id && conn.source
       );
       if (!incoming) continue;
 
-      const sourceCy = incoming.source.y + (incoming.source.height || 0) / 2;
+      const sourceCy = incoming.source!.y + (incoming.source!.height || 0) / 2;
       const targetCy = target.y + (target.height || 0) / 2;
       const dy = Math.round(sourceCy - targetCy);
       if (Math.abs(dy) > MIN_MOVE_THRESHOLD) {
@@ -212,28 +215,31 @@ export function symmetriseGatewayBranches(
  * This matches the pattern that `symmetriseGatewayBranches()` uses
  * for gateway-connected end events.
  */
-export function alignBoundarySubFlowEndEvents(elementRegistry: any, modeling: any): void {
-  const allElements: any[] = elementRegistry.getAll();
+export function alignBoundarySubFlowEndEvents(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
+  const allElements: BpmnElement[] = elementRegistry.getAll();
 
   // Find boundary events with outgoing flows
   const boundaryEvents = allElements.filter(
-    (el: any) => el.type === 'bpmn:BoundaryEvent' && el.outgoing?.length > 0
+    (el) => el.type === 'bpmn:BoundaryEvent' && !!(el.outgoing?.length && el.outgoing.length > 0)
   );
 
   for (const be of boundaryEvents) {
     // Trace forward from the boundary event, following outgoing flows
     // until we find end events
     const visited = new Set<string>();
-    const queue: any[] = [be];
+    const queue: BpmnElement[] = [be];
 
     while (queue.length > 0) {
-      const current = queue.shift();
+      const current = queue.shift()!;
       if (visited.has(current.id)) continue;
       visited.add(current.id);
 
       // Find outgoing connections from this element
       const outgoing = allElements.filter(
-        (conn: any) => isConnection(conn.type) && conn.source?.id === current.id && conn.target
+        (conn) => isConnection(conn.type) && conn.source?.id === current.id && conn.target
       );
 
       for (const conn of outgoing) {
@@ -271,14 +277,14 @@ export function alignBoundarySubFlowEndEvents(elementRegistry: any, modeling: an
  * events already aligned by those earlier passes.
  */
 export function alignOffPathEndEvents(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   happyPathEdgeIds?: Set<string>,
-  container?: any
+  container?: BpmnElement
 ): void {
   // Compute happy-path node IDs from edge IDs
   const happyPathNodeIds = new Set<string>();
-  const allElements: any[] = elementRegistry.getAll();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
   if (happyPathEdgeIds && happyPathEdgeIds.size > 0) {
     for (const el of allElements) {
       if (isConnection(el.type) && happyPathEdgeIds.has(el.id)) {
@@ -289,10 +295,10 @@ export function alignOffPathEndEvents(
   }
 
   // Scope to container if provided
-  let parentFilter: any = container;
+  let parentFilter: BpmnElement | undefined = container;
   if (!parentFilter) {
     parentFilter = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   }
 
@@ -303,20 +309,20 @@ export function alignOffPathEndEvents(
 
     // Find incoming connection
     const incoming = allElements.find(
-      (conn: any) => isConnection(conn.type) && conn.target?.id === el.id && conn.source
+      (conn) => isConnection(conn.type) && conn.target?.id === el.id && conn.source
     );
     if (!incoming) continue;
 
-    const sourceCy = incoming.source.y + (incoming.source.height || 0) / 2;
+    const sourceCy = incoming.source!.y + (incoming.source!.height || 0) / 2;
     const targetCy = el.y + (el.height || 0) / 2;
     const dy = Math.round(sourceCy - targetCy);
 
     // Skip if incoming source is a split gateway — the end event is on a
     // downward branch and should stay on its ELK-assigned row.
-    const isSourceBoundaryEvent = incoming.source.type === 'bpmn:BoundaryEvent';
-    const sourceOutgoing: any[] = incoming.source.outgoing || [];
+    const isSourceBoundaryEvent = incoming.source!.type === 'bpmn:BoundaryEvent';
+    const sourceOutgoing: BpmnElement[] = incoming.source!.outgoing || [];
     const isSourceSplitGateway =
-      incoming.source.type?.includes('Gateway') && sourceOutgoing.length >= 2;
+      incoming.source!.type?.includes('Gateway') && sourceOutgoing.length >= 2;
     if (isSourceBoundaryEvent || isSourceSplitGateway) continue;
 
     if (Math.abs(dy) > MIN_MOVE_THRESHOLD) {
@@ -342,25 +348,25 @@ export function alignOffPathEndEvents(
  * BEFORE edge routing (so waypoints reflect final positions).
  */
 export function alignHappyPath(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   happyPathEdgeIds?: Set<string>,
-  container?: any,
+  container?: BpmnElement,
   hasDiverseY?: boolean
 ): void {
   if (!happyPathEdgeIds || happyPathEdgeIds.size === 0) return;
 
   // Determine which container to scope to
-  let parentFilter: any = container;
+  let parentFilter: BpmnElement | undefined = container;
   if (!parentFilter) {
     parentFilter = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
     )[0];
   }
 
   // Collect happy-path node IDs from the edge set
   const happyPathNodeIds = new Set<string>();
-  const allElements: any[] = elementRegistry.getAll();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
   for (const el of allElements) {
     if (isConnection(el.type) && happyPathEdgeIds.has(el.id)) {
       if (el.source) happyPathNodeIds.add(el.source.id);
@@ -373,7 +379,7 @@ export function alignHappyPath(
   // Get the actual shape objects for happy-path nodes that are direct
   // children of the target container (don't mix nesting levels)
   const happyShapes = allElements.filter(
-    (el: any) =>
+    (el) =>
       happyPathNodeIds.has(el.id) &&
       !isConnection(el.type) &&
       !isInfrastructure(el.type) &&
@@ -387,7 +393,7 @@ export function alignHappyPath(
   if (happyShapes.length < 2) return;
 
   // Compute Y-centres
-  const yCentres = happyShapes.map((el: any) => el.y + (el.height || 0) / 2);
+  const yCentres = happyShapes.map((el) => el.y + (el.height || 0) / 2);
   yCentres.sort((a: number, b: number) => a - b);
 
   // Use the median Y-centre as the alignment target
@@ -444,7 +450,7 @@ export function alignHappyPath(
   // happy-path position, creating inconsistent Y gaps after alignment.
   const columnThreshold = COLUMN_PROXIMITY; // X-centre proximity to consider same column
   const nonHappyShapes = allElements.filter(
-    (el: any) =>
+    (el) =>
       !happyPathNodeIds.has(el.id) &&
       isLayoutableShape(el) &&
       (!parentFilter || el.parent === parentFilter)
@@ -462,7 +468,7 @@ export function alignHappyPath(
       // alignOffPathEndEvents, not their column's happy-path element.
       const elCx = el.x + (el.width || 0) / 2;
       const columnMates = nonHappyShapes.filter(
-        (f: any) =>
+        (f) =>
           Math.abs(f.x + (f.width || 0) / 2 - elCx) < columnThreshold &&
           !f.type?.includes('EndEvent')
       );

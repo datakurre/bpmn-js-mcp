@@ -3,7 +3,7 @@ import { handleValidate as handleLintDiagram } from '../../src/handlers/validate
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleLintDiagram', () => {
+describe('validate_bpmn_diagram — lint', () => {
   beforeEach(() => {
     clearDiagrams();
   });

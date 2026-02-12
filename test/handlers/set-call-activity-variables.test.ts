@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetCallActivityVariables, handleExportBpmn } from '../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 
-describe('handleSetCallActivityVariables', () => {
+describe('set_bpmn_call_activity_variables', () => {
   beforeEach(() => {
     clearDiagrams();
   });

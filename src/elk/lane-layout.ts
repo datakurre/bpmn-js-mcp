@@ -23,6 +23,8 @@
 /** Saved lane → node ID mapping, keyed by lane ID. */
 export type LaneNodeAssignments = Map<string, Set<string>>;
 
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
+
 /**
  * Saved lane metadata: original Y-position (from DI coordinates)
  * and assigned flow node IDs.
@@ -51,13 +53,13 @@ const LANE_VERTICAL_PADDING = 30;
  *
  * Call this **before** any ELK layout passes (before `applyElkPositions`).
  */
-export function saveLaneNodeAssignments(elementRegistry: any): LaneSnapshot[] {
+export function saveLaneNodeAssignments(elementRegistry: ElementRegistry): LaneSnapshot[] {
   const snapshots: LaneSnapshot[] = [];
-  const lanes = elementRegistry.filter((el: any) => el.type === 'bpmn:Lane');
+  const lanes = elementRegistry.filter((el) => el.type === 'bpmn:Lane');
 
   for (const lane of lanes) {
     const bo = lane.businessObject;
-    const refs = bo?.flowNodeRef || [];
+    const refs = (bo?.flowNodeRef || []) as Array<{ id: string }>;
     const nodeIds = new Set<string>();
 
     for (const ref of refs) {
@@ -92,27 +94,25 @@ export function saveLaneNodeAssignments(elementRegistry: any): LaneSnapshot[] {
  *   the (possibly mutated) `flowNodeRef` from the business objects.
  */
 export function repositionLanes(
-  elementRegistry: any,
-  modeling: any,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
   savedAssignments?: LaneSnapshot[]
 ): void {
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
+  const participants = elementRegistry.filter((el) => el.type === 'bpmn:Participant');
 
   for (const pool of participants) {
-    const lanes = elementRegistry.filter(
-      (el: any) => el.type === 'bpmn:Lane' && el.parent === pool
-    );
+    const lanes = elementRegistry.filter((el) => el.type === 'bpmn:Lane' && el.parent === pool);
 
     if (lanes.length === 0) continue;
 
     // Build lane → flow node IDs mapping.
     // Prefer saved assignments (captured before layout mutated flowNodeRef).
     const laneNodeMap = new Map<string, Set<string>>();
-    let orderedLanes: any[];
+    let orderedLanes: BpmnElement[];
 
     if (savedAssignments && savedAssignments.length > 0) {
       // Filter saved snapshots to lanes in this pool
-      const poolLaneIds = new Set(lanes.map((l: any) => l.id));
+      const poolLaneIds = new Set(lanes.map((l) => l.id));
       const poolSnapshots = savedAssignments.filter((s) => poolLaneIds.has(s.laneId));
 
       // Sort lanes by their original DI Y-position (before layout moved them)
@@ -214,7 +214,7 @@ export function repositionLanes(
       const bandH = laneBandHeights.get(lane.id)!;
       const bandCentreY = bandY + bandH / 2;
 
-      const shapes: any[] = [];
+      const shapes: BpmnElement[] = [];
       for (const nodeId of nodeIds) {
         const shape = elementRegistry.get(nodeId);
         if (shape) shapes.push(shape);
@@ -224,7 +224,7 @@ export function repositionLanes(
 
       // Compute median Y-centre of the lane's nodes (they are likely
       // on the same row after ELK + centreElementsInPools)
-      const yCentres = shapes.map((s: any) => s.y + (s.height || 0) / 2);
+      const yCentres = shapes.map((s) => s.y + (s.height || 0) / 2);
       yCentres.sort((a, b) => a - b);
       const medianCentre = yCentres[Math.floor(yCentres.length / 2)];
 
@@ -262,12 +262,15 @@ export function repositionLanes(
  * Uses the BPMN model's `lane.businessObject.flowNodeRef` which contains
  * references to the flow node business objects assigned to each lane.
  */
-function buildLaneNodeMap(lanes: any[], elementRegistry: any): Map<string, Set<string>> {
+function buildLaneNodeMap(
+  lanes: BpmnElement[],
+  elementRegistry: ElementRegistry
+): Map<string, Set<string>> {
   const map = new Map<string, Set<string>>();
 
   for (const lane of lanes) {
     const bo = lane.businessObject;
-    const refs = bo?.flowNodeRef || [];
+    const refs = (bo?.flowNodeRef || []) as Array<{ id: string }>;
     const nodeIds = new Set<string>();
 
     for (const ref of refs) {

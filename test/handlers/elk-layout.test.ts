@@ -3,7 +3,7 @@ import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('handleLayoutDiagram (ELK)', () => {
+describe('layout_bpmn_diagram (ELK)', () => {
   beforeEach(() => {
     clearDiagrams();
   });

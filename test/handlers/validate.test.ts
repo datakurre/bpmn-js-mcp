@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleValidate, handleConnect, handleSetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleValidate', () => {
+describe('validate_bpmn_diagram', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -58,7 +58,7 @@ describe('handleValidate', () => {
   });
 });
 
-describe('handleValidate — external task validation', () => {
+describe('validate_bpmn_diagram — external task validation', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -91,7 +91,7 @@ describe('handleValidate — external task validation', () => {
   });
 });
 
-describe('handleValidate — gateway default flow warning', () => {
+describe('validate_bpmn_diagram — gateway default flow warning', () => {
   beforeEach(() => {
     clearDiagrams();
   });

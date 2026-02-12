@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleSetCamundaListeners, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('handleSetCamundaErrorEventDefinition', () => {
+describe('set_bpmn_camunda_listeners — error definitions', () => {
   beforeEach(() => {
     clearDiagrams();
   });
