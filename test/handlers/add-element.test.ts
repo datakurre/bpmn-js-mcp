@@ -186,4 +186,40 @@ describe('smart add_bpmn_element insertion', () => {
     const endEl = list.elements.find((e: any) => e.id === endId);
     expect(endEl.x).toBeGreaterThan(300);
   });
+
+  test('should auto-connect when using afterElementId', async () => {
+    const diagramId = await createDiagram('autoconnect-test');
+
+    const startId = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+
+    const addResult = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:UserTask',
+        name: 'Auto Connected',
+        afterElementId: startId,
+      })
+    );
+    expect(addResult.success).toBe(true);
+    expect(addResult.autoConnected).toBe(true);
+    expect(addResult.connectionId).toBeDefined();
+  });
+
+  test('should skip auto-connect when autoConnect is false', async () => {
+    const diagramId = await createDiagram('no-autoconnect');
+
+    const startId = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+
+    const addResult = parseResult(
+      await handleAddElement({
+        diagramId,
+        elementType: 'bpmn:UserTask',
+        name: 'No Connect',
+        afterElementId: startId,
+        autoConnect: false,
+      } as any)
+    );
+    expect(addResult.success).toBe(true);
+    expect(addResult.autoConnected).toBeUndefined();
+  });
 });

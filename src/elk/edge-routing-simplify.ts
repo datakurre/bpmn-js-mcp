@@ -7,6 +7,7 @@
 
 import { isConnection } from './helpers';
 import { buildZShapeRoute } from './edge-routing-helpers';
+import { DIFFERENT_ROW_THRESHOLD } from './constants';
 
 // ── Gateway branch route simplification ────────────────────────────────────
 
@@ -66,7 +67,7 @@ export function simplifyGatewayBranchRoutes(elementRegistry: any, modeling: any)
     // Only process if the target is on a different Y (different row)
     const srcCy = src.y + (src.height || 0) / 2;
     const tgtCy = tgt.y + (tgt.height || 0) / 2;
-    if (Math.abs(srcCy - tgtCy) < 10) continue;
+    if (Math.abs(srcCy - tgtCy) < DIFFERENT_ROW_THRESHOLD) continue;
 
     // Only process if target is to the right
     const srcRight = src.x + (src.width || 0);
@@ -99,7 +100,7 @@ export function simplifyGatewayBranchRoutes(elementRegistry: any, modeling: any)
     // Only process if source is on a different Y (different row)
     const srcCy = src.y + (src.height || 0) / 2;
     const tgtCy = tgt.y + (tgt.height || 0) / 2;
-    if (Math.abs(srcCy - tgtCy) < 10) continue;
+    if (Math.abs(srcCy - tgtCy) < DIFFERENT_ROW_THRESHOLD) continue;
 
     const srcRight = src.x + (src.width || 0);
     const tgtLeft = tgt.x;

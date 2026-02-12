@@ -7,11 +7,12 @@
 
 import { isConnection } from './helpers';
 import { deduplicateWaypoints, buildZShapeRoute } from './edge-routing-helpers';
-
-// ── Disconnected edge repair ───────────────────────────────────────────────
-
-/** Distance threshold (px) — edge endpoint is "disconnected" if further. */
-const DISCONNECT_THRESHOLD = 20;
+import {
+  DISCONNECT_THRESHOLD,
+  CENTRE_SNAP_TOLERANCE,
+  DIFFERENT_ROW_MIN_Y,
+  SAME_ROW_Y_TOLERANCE,
+} from './constants';
 
 /** Get the centre point of an element. */
 function elementCentre(el: any): { x: number; y: number } {
@@ -101,7 +102,7 @@ export function fixDisconnectedEdges(elementRegistry: any, modeling: any): void 
 
     // For same-row connections (source and target on roughly the same Y),
     // rebuild as a simple 2-point horizontal flow
-    if (Math.abs(srcCentre.y - tgtCentre.y) < 5) {
+    if (Math.abs(srcCentre.y - tgtCentre.y) < SAME_ROW_Y_TOLERANCE) {
       const y = Math.round(srcCentre.y);
       const srcRight = src.x + (src.width || 0);
       const tgtLeft = tgt.x;
@@ -126,7 +127,7 @@ export function fixDisconnectedEdges(elementRegistry: any, modeling: any): void 
     const srcRight = src.x + (src.width || 0);
     const tgtLeft = tgt.x;
     if (
-      Math.abs(srcCentre.y - tgtCentre.y) >= 15 &&
+      Math.abs(srcCentre.y - tgtCentre.y) >= DIFFERENT_ROW_MIN_Y &&
       tgtLeft > srcRight &&
       (srcDist > DISCONNECT_THRESHOLD || tgtDist > DISCONNECT_THRESHOLD)
     ) {
@@ -179,13 +180,6 @@ export function fixDisconnectedEdges(elementRegistry: any, modeling: any): void 
 }
 
 // ── Endpoint centre-snap pass ──────────────────────────────────────────────
-
-/**
- * Tolerance (px) for snapping endpoints to element centres.
- * Only adjusts endpoints that are within this distance of the element
- * centre on the cross-axis — avoids distorting intentionally angled routes.
- */
-const CENTRE_SNAP_TOLERANCE = 15;
 
 /**
  * Snap flow waypoint endpoints to element centre lines.
@@ -323,7 +317,6 @@ export function snapEndpointsToElementCentres(elementRegistry: any, modeling: an
  * midpoint.
  */
 export function rebuildOffRowGatewayRoutes(elementRegistry: any, modeling: any): void {
-  const DIFFERENT_ROW_Y = 15; // minimum Y-centre diff to consider "different row"
   const BPMN_SEQUENCE_FLOW = 'bpmn:SequenceFlow';
   const BPMN_BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
 
@@ -350,7 +343,7 @@ export function rebuildOffRowGatewayRoutes(elementRegistry: any, modeling: any):
 
     // Only process if source and target are on different rows
     const yCentreDiff = Math.abs(srcCy - tgtCy);
-    if (yCentreDiff < DIFFERENT_ROW_Y) continue;
+    if (yCentreDiff < DIFFERENT_ROW_MIN_Y) continue;
 
     // Target must be to the right of source
     if (tgtLeft <= srcRight) continue;
@@ -367,7 +360,7 @@ export function rebuildOffRowGatewayRoutes(elementRegistry: any, modeling: any):
     if (!srcIsGateway && !tgtIsGateway) {
       const yValues = wps.map((wp) => wp.y);
       const yRange = Math.max(...yValues) - Math.min(...yValues);
-      if (yRange > DIFFERENT_ROW_Y) continue; // Already has vertical movement
+      if (yRange > DIFFERENT_ROW_MIN_Y) continue; // Already has vertical movement
     }
 
     if (srcIsGateway) {

@@ -253,3 +253,35 @@ export const BOUNDARY_TARGET_ROW_BUFFER = 10;
 
 /** Minimum Y-movement (px) to trigger boundary event repositioning. */
 export const BOUNDARY_MIN_MOVE_DELTA = 0.1;
+
+// ── Edge routing — local constants promoted from inline values ──────────
+
+/**
+ * Tolerance (px) for snapping edge endpoints to element boundaries.
+ * Covers gaps introduced by grid snap moving elements after ELK routing.
+ */
+export const ENDPOINT_SNAP_TOLERANCE = 15;
+
+/**
+ * Tolerance (px) for snapping flow endpoints to element centre lines.
+ * Only adjusts endpoints within this distance on the cross-axis.
+ */
+export const CENTRE_SNAP_TOLERANCE = 15;
+
+/**
+ * Minimum Y-centre difference (px) for two elements to be considered
+ * "on a different row" in route rebuilding and simplification.
+ */
+export const DIFFERENT_ROW_MIN_Y = 15;
+
+/**
+ * Y-centre proximity (px) for treating source and target as "same row"
+ * in disconnected-edge straight-flow rebuilding.
+ */
+export const SAME_ROW_Y_TOLERANCE = 5;
+
+/**
+ * X-centre proximity (px) for two branch targets to be considered
+ * "in the same layer" during gateway branch symmetrisation.
+ */
+export const SAME_LAYER_X_THRESHOLD = 50;

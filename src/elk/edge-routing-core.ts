@@ -8,12 +8,7 @@
 import type { ElkNode, ElkExtendedEdge, ElkEdgeSection } from 'elkjs';
 import { isConnection } from './helpers';
 import { deduplicateWaypoints } from './edge-routing-helpers';
-
-/**
- * Tolerance (px) for snapping edge endpoints to element boundaries.
- * Covers gaps introduced by grid snap moving elements after ELK routing.
- */
-const ENDPOINT_SNAP_TOLERANCE = 15;
+import { ENDPOINT_SNAP_TOLERANCE, BPMN_EVENT_SIZE, SEGMENT_ORTHO_SNAP } from './constants';
 
 /**
  * Build a flat lookup of ELK edges (including nested containers) so we can
@@ -154,10 +149,10 @@ export function applyElkEdgeRoutes(
       for (let i = 1; i < waypoints.length; i++) {
         const prev = waypoints[i - 1];
         const curr = waypoints[i];
-        if (Math.abs(curr.y - prev.y) < 8) {
+        if (Math.abs(curr.y - prev.y) < SEGMENT_ORTHO_SNAP) {
           curr.y = prev.y;
         }
-        if (Math.abs(curr.x - prev.x) < 8) {
+        if (Math.abs(curr.x - prev.x) < SEGMENT_ORTHO_SNAP) {
           curr.x = prev.x;
         }
       }
@@ -206,10 +201,10 @@ export function applyElkEdgeRoutes(
         // then horizontally to the target.  bpmn-js ManhattanLayout can
         // produce backward routes in headless mode.
         if (src.type === BPMN_BOUNDARY_EVENT && tgt) {
-          const srcCx = src.x + (src.width || 36) / 2;
-          const srcBottom = src.y + (src.height || 36);
-          const tgtW = tgt.width || 36;
-          const tgtCy = tgt.y + (tgt.height || 36) / 2;
+          const srcCx = src.x + (src.width || BPMN_EVENT_SIZE) / 2;
+          const srcBottom = src.y + (src.height || BPMN_EVENT_SIZE);
+          const tgtW = tgt.width || BPMN_EVENT_SIZE;
+          const tgtCy = tgt.y + (tgt.height || BPMN_EVENT_SIZE) / 2;
 
           // Enter target from the side facing the source (L-shaped route:
           // vertical from boundary event, then horizontal to target).
