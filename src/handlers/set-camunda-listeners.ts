@@ -33,11 +33,13 @@ export interface SetCamundaListenersArgs {
   }>;
   taskListeners?: Array<{
     event: string;
+    id?: string;
     class?: string;
     delegateExpression?: string;
     expression?: string;
     script?: { scriptFormat: string; value: string };
     fields?: Array<{ name: string; stringValue?: string; string?: string; expression?: string }>;
+    timerEventDefinition?: { timeDuration?: string; timeDate?: string; timeCycle?: string };
   }>;
   errorDefinitions?: Array<{
     id: string;
@@ -51,14 +53,19 @@ function createListenerElement(
   type: 'camunda:ExecutionListener' | 'camunda:TaskListener',
   listener: {
     event: string;
+    id?: string;
     class?: string;
     delegateExpression?: string;
     expression?: string;
     script?: { scriptFormat: string; value: string };
     fields?: Array<{ name: string; stringValue?: string; string?: string; expression?: string }>;
+    timerEventDefinition?: { timeDuration?: string; timeDate?: string; timeCycle?: string };
   }
 ): any {
   const attrs: Record<string, any> = { event: listener.event };
+  if (listener.id) {
+    attrs.id = listener.id;
+  }
 
   if (listener.class) {
     attrs['class'] = listener.class;
@@ -91,6 +98,36 @@ function createListenerElement(
       fieldEl.$parent = el;
       return fieldEl;
     });
+  }
+
+  // Timer event definition support (task listener timeout)
+  if (type === 'camunda:TaskListener' && listener.timerEventDefinition) {
+    const timerDef = listener.timerEventDefinition;
+    const timerAttrs: Record<string, any> = {};
+    const timerEl = moddle.create('bpmn:TimerEventDefinition', timerAttrs);
+
+    if (timerDef.timeDuration) {
+      const formalExpr = moddle.create('bpmn:FormalExpression', {
+        body: timerDef.timeDuration,
+      });
+      formalExpr.$parent = timerEl;
+      timerEl.timeDuration = formalExpr;
+    } else if (timerDef.timeDate) {
+      const formalExpr = moddle.create('bpmn:FormalExpression', {
+        body: timerDef.timeDate,
+      });
+      formalExpr.$parent = timerEl;
+      timerEl.timeDate = formalExpr;
+    } else if (timerDef.timeCycle) {
+      const formalExpr = moddle.create('bpmn:FormalExpression', {
+        body: timerDef.timeCycle,
+      });
+      formalExpr.$parent = timerEl;
+      timerEl.timeCycle = formalExpr;
+    }
+
+    timerEl.$parent = el;
+    el.eventDefinitions = [timerEl];
   }
 
   return el;
@@ -213,175 +250,4 @@ export async function handleSetCamundaListeners(
   return appendLintFeedback(result, diagram);
 }
 
-export const TOOL_DEFINITION = {
-  name: 'set_bpmn_camunda_listeners',
-  description:
-    'Set Camunda extension elements on a BPMN element: execution listeners, task listeners, and/or error event definitions. ' +
-    'Execution listeners can be attached to any flow node or process. Task listeners are specific to UserTasks. ' +
-    'Error definitions (camunda:ErrorEventDefinition) are specific to ServiceTasks for Camunda 7 External Task error handling.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elementId: {
-        type: 'string',
-        description: 'The ID of the element to configure',
-      },
-      executionListeners: {
-        type: 'array',
-        description: 'Execution listeners to set (replaces existing)',
-        items: {
-          type: 'object',
-          properties: {
-            event: {
-              type: 'string',
-              description: "Listener event: 'start', 'end', or 'take' (for sequence flows)",
-            },
-            class: {
-              type: 'string',
-              description: 'Fully qualified Java class name implementing ExecutionListener',
-            },
-            delegateExpression: {
-              type: 'string',
-              description: "Expression resolving to a listener bean (e.g. '${myListenerBean}')",
-            },
-            expression: {
-              type: 'string',
-              description: "UEL expression to evaluate (e.g. '${myBean.notify(execution)}')",
-            },
-            script: {
-              type: 'object',
-              description: 'Inline script for the listener',
-              properties: {
-                scriptFormat: {
-                  type: 'string',
-                  description: "Script language (e.g. 'groovy', 'javascript')",
-                },
-                value: { type: 'string', description: 'The script body' },
-              },
-              required: ['scriptFormat', 'value'],
-            },
-            fields: {
-              type: 'array',
-              description:
-                'Field injection on the listener (e.g. for configuring delegate classes)',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string', description: 'Field name' },
-                  stringValue: {
-                    type: 'string',
-                    description: 'Static string value (attribute form)',
-                  },
-                  string: {
-                    type: 'string',
-                    description: 'Static string value (child element form)',
-                  },
-                  expression: {
-                    type: 'string',
-                    description: 'Expression value (e.g. ${myBean.value})',
-                  },
-                },
-                required: ['name'],
-              },
-            },
-          },
-          required: ['event'],
-        },
-      },
-      taskListeners: {
-        type: 'array',
-        description: 'Task listeners to set (UserTask only, replaces existing)',
-        items: {
-          type: 'object',
-          properties: {
-            event: {
-              type: 'string',
-              description: "Listener event: 'create', 'assignment', 'complete', or 'delete'",
-            },
-            class: {
-              type: 'string',
-              description: 'Fully qualified Java class name implementing TaskListener',
-            },
-            delegateExpression: {
-              type: 'string',
-              description: 'Expression resolving to a listener bean',
-            },
-            expression: {
-              type: 'string',
-              description: 'UEL expression to evaluate',
-            },
-            script: {
-              type: 'object',
-              description: 'Inline script for the listener',
-              properties: {
-                scriptFormat: {
-                  type: 'string',
-                  description: "Script language (e.g. 'groovy', 'javascript')",
-                },
-                value: { type: 'string', description: 'The script body' },
-              },
-              required: ['scriptFormat', 'value'],
-            },
-            fields: {
-              type: 'array',
-              description:
-                'Field injection on the listener (e.g. for configuring delegate classes)',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string', description: 'Field name' },
-                  stringValue: {
-                    type: 'string',
-                    description: 'Static string value (attribute form)',
-                  },
-                  string: {
-                    type: 'string',
-                    description: 'Static string value (child element form)',
-                  },
-                  expression: {
-                    type: 'string',
-                    description: 'Expression value (e.g. ${myBean.value})',
-                  },
-                },
-                required: ['name'],
-              },
-            },
-          },
-          required: ['event'],
-        },
-      },
-      errorDefinitions: {
-        type: 'array',
-        description:
-          'camunda:ErrorEventDefinition entries for ServiceTask error handling (replaces existing). ' +
-          'Distinct from standard bpmn:ErrorEventDefinition on boundary events.',
-        items: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              description: 'Unique ID for the error event definition',
-            },
-            expression: {
-              type: 'string',
-              description: 'Error expression (e.g. \'${error.code == "ERR_001"}\')',
-            },
-            errorRef: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', description: 'Error element ID' },
-                name: { type: 'string', description: 'Error name' },
-                errorCode: { type: 'string', description: 'Error code' },
-              },
-              required: ['id'],
-              description: 'Reference to a bpmn:Error root element (created if not existing)',
-            },
-          },
-          required: ['id'],
-        },
-      },
-    },
-    required: ['diagramId', 'elementId'],
-  },
-} as const;
+export { TOOL_DEFINITION } from './set-camunda-listeners-schema';

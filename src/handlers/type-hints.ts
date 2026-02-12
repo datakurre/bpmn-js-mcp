@@ -57,7 +57,7 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
       {
         tool: 'set_bpmn_element_properties',
         description:
-          'Set camunda:decisionRef for DMN integration, or camunda:class for custom rule logic',
+          'Set camunda:decisionRef for DMN integration, or camunda:class for custom rule logic. For DMN, also set camunda:decisionRefBinding and camunda:mapDecisionResult.',
       },
     ],
   },
@@ -70,7 +70,8 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
       },
       {
         tool: 'set_bpmn_element_properties',
-        description: 'Set calledElement (process key) and camunda:calledElementBinding',
+        description:
+          "Set calledElement (process key) and camunda:calledElementBinding ('latest', 'deployment', 'version', 'versionTag') to control version resolution",
       },
     ],
   },
@@ -139,6 +140,36 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
       {
         tool: 'add_bpmn_element',
         description: 'Add start/end events and tasks inside the subprocess',
+      },
+    ],
+  },
+  {
+    match: (t) => t === 'bpmn:DataObjectReference' || t === 'bpmn:DataStoreReference',
+    hints: [
+      {
+        tool: 'connect_bpmn_elements',
+        description:
+          'Create a data association to connect this data element to a task (auto-detects DataInputAssociation or DataOutputAssociation based on direction)',
+      },
+    ],
+  },
+  {
+    match: (t) => t === 'bpmn:Lane',
+    hints: [
+      {
+        tool: 'create_bpmn_collaboration',
+        description:
+          'Consider using pools (participants) with message flows instead of lanes for cross-organizational processes. Lanes are for role-based swimlanes within a single pool.',
+      },
+    ],
+  },
+  {
+    match: (t) => t === 'bpmn:IntermediateThrowEvent' || t === 'bpmn:IntermediateCatchEvent',
+    hints: [
+      {
+        tool: 'set_bpmn_event_definition',
+        description:
+          'Set the event type (message, timer, signal, link, conditional, compensation). Use LinkEventDefinition for cross-page flow references in large diagrams.',
       },
     ],
   },

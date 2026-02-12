@@ -15,7 +15,7 @@ import { type ToolResult } from '../types';
 import { storeDiagram, generateDiagramId, createModelerFromXml } from '../diagram-manager';
 import { jsonResult, syncXml } from './helpers';
 import { appendLintFeedback } from '../linter';
-import { elkLayout } from '../elk';
+import { elkLayout } from '../elk/api';
 import * as fs from 'node:fs';
 
 export interface ImportXmlArgs {

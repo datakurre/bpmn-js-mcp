@@ -14,7 +14,7 @@ import { type ToolResult } from '../types';
 import { requireDiagram, jsonResult, syncXml, getVisibleElements } from './helpers';
 import { appendLintFeedback, resetMutationCounter } from '../linter';
 import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
-import { elkLayout, elkLayoutSubset } from '../elk';
+import { elkLayout, elkLayoutSubset } from '../elk/api';
 
 export interface LayoutDiagramArgs {
   diagramId: string;

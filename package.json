@@ -4,10 +4,10 @@
   "description": "MCP server for creating and manipulating BPMN diagrams using bpmn-js",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node16 --format=cjs --outfile=dist/index.js --external:jsdom --external:bpmn-js --external:bpmn-auto-layout --external:elkjs --external:bpmnlint --external:bpmnlint-plugin-camunda-compat --banner:js='#!/usr/bin/env node'",
+    "build": "node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
-    "watch": "npm run build -- --watch",
+    "watch": "node esbuild.config.mjs --watch",
     "dev": "nodemon",
     "start": "node dist/index.js",
     "format": "prettier --write .",

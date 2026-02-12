@@ -20,6 +20,7 @@ import {
   upsertExtensionElement,
 } from './helpers';
 import { appendLintFeedback } from '../linter';
+import { buildPropertyHints } from './property-hints';
 
 export interface SetPropertiesArgs {
   diagramId: string;
@@ -276,39 +277,6 @@ function handleProperties(element: any, camundaProps: Record<string, any>, diagr
   upsertExtensionElement(moddle, bo, modeling, element, 'camunda:Properties', propertiesEl);
 }
 
-// ── Contextual hints ───────────────────────────────────────────────────────
-
-/**
- * Build contextual next-step hints based on properties that were set.
- */
-function buildPropertyHints(
-  props: Record<string, any>,
-  camundaProps: Record<string, any>,
-  element: any
-): Array<{ tool: string; description: string }> {
-  const hints: Array<{ tool: string; description: string }> = [];
-
-  if (props['triggeredByEvent'] === true) {
-    hints.push({
-      tool: 'add_bpmn_element',
-      description:
-        'Add a start event with an event definition (timer, message, error, signal) inside the event subprocess',
-    });
-  }
-
-  if (camundaProps['camunda:topic'] || camundaProps['camunda:class']) {
-    if (!props['camunda:asyncBefore'] && !element.businessObject?.asyncBefore) {
-      hints.push({
-        tool: 'set_bpmn_element_properties',
-        description:
-          'Consider setting camunda:asyncBefore=true for reliable execution with external tasks or Java delegates',
-      });
-    }
-  }
-
-  return hints;
-}
-
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleSetProperties(args: SetPropertiesArgs): Promise<ToolResult> {
@@ -401,7 +369,7 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_element_properties',
   description:
-    "Set BPMN or Camunda extension properties on an element. Supports standard properties (name, isExecutable, documentation) and Camunda extensions (e.g. camunda:assignee, camunda:candidateUsers, camunda:candidateGroups, camunda:formKey, camunda:class, camunda:delegateExpression, camunda:expression, camunda:asyncBefore, camunda:asyncAfter, camunda:topic, camunda:type). UserTask-specific: camunda:dueDate, camunda:followUpDate, camunda:priority. Process-specific: camunda:historyTimeToLive, camunda:candidateStarterGroups, camunda:candidateStarterUsers, camunda:versionTag, camunda:isStartableInTasklist. CallActivity: camunda:calledElementBinding, camunda:calledElementVersion, camunda:calledElementVersionTag. BusinessRuleTask (DMN): camunda:decisionRef, camunda:decisionRefBinding, camunda:mapDecisionResult. StartEvent: camunda:initiator. Supports camunda:retryTimeCycle to create a camunda:FailedJobRetryTimeCycle extension element (e.g. 'R3/PT10M'). Supports camunda:connector to create a camunda:Connector extension element (e.g. { connectorId: 'http-connector', inputOutput: { inputParameters: [{ name: 'url', value: 'https://...' }] } }). Supports camunda:field for field injection on ServiceTask/SendTask/BusinessRuleTask (array of { name, stringValue?, string?, expression? }). Supports camunda:properties for generic key-value properties on any element (object of { key: value } pairs). Supports `default` attribute on exclusive/inclusive gateways (pass a sequence flow ID to mark it as the default flow). Supports `conditionExpression` on sequence flows (pass a string expression e.g. '${approved == true}'). Supports `isExpanded` on SubProcess elements — properly toggles between expanded (inline children) and collapsed (drilldown plane) via element replacement. For loop characteristics, use the dedicated set_loop_characteristics tool.",
+    "Set BPMN or Camunda extension properties on an element. Supports standard properties (name, isExecutable, documentation) and Camunda extensions (e.g. camunda:assignee, camunda:candidateUsers, camunda:candidateGroups, camunda:formKey, camunda:class, camunda:delegateExpression, camunda:expression, camunda:asyncBefore, camunda:asyncAfter, camunda:topic, camunda:type). UserTask-specific: camunda:dueDate, camunda:followUpDate, camunda:priority. Process-specific: camunda:historyTimeToLive, camunda:candidateStarterGroups, camunda:candidateStarterUsers, camunda:versionTag, camunda:isStartableInTasklist. CallActivity: camunda:calledElementBinding, camunda:calledElementVersion, camunda:calledElementVersionTag. BusinessRuleTask (DMN): camunda:decisionRef, camunda:decisionRefBinding, camunda:mapDecisionResult. StartEvent: camunda:initiator. Camunda Forms (7.15+): camunda:formRef, camunda:formRefBinding, camunda:formRefVersion (for UserTask and StartEvent). Supports camunda:retryTimeCycle to create a camunda:FailedJobRetryTimeCycle extension element (e.g. 'R3/PT10M'). Supports camunda:connector to create a camunda:Connector extension element (e.g. { connectorId: 'http-connector', inputOutput: { inputParameters: [{ name: 'url', value: 'https://...' }] } }). Supports camunda:field for field injection on ServiceTask/SendTask/BusinessRuleTask (array of { name, stringValue?, string?, expression? }). Supports camunda:properties for generic key-value properties on any element (object of { key: value } pairs). Supports `default` attribute on exclusive/inclusive gateways (pass a sequence flow ID to mark it as the default flow). Supports `conditionExpression` on sequence flows (pass a string expression e.g. '${approved == true}'). Supports `isExpanded` on SubProcess elements — properly toggles between expanded (inline children) and collapsed (drilldown plane) via element replacement. For loop characteristics, use the dedicated set_loop_characteristics tool.",
   inputSchema: {
     type: 'object',
     properties: {

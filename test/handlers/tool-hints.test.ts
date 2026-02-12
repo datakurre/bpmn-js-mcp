@@ -185,3 +185,142 @@ describe('external task hint', () => {
     expect(result.nextSteps.some((h: any) => h.description.includes('asyncBefore'))).toBe(true);
   });
 });
+
+describe('DMN integration hint', () => {
+  test('suggests decisionRefBinding when setting camunda:decisionRef on BusinessRuleTask', async () => {
+    const diagramId = await createDiagram();
+    const taskId = (await addEl(diagramId, 'bpmn:BusinessRuleTask', 'Evaluate Rules')).elementId;
+
+    const result = parseResult(
+      await handleSetProperties({
+        diagramId,
+        elementId: taskId,
+        properties: { 'camunda:decisionRef': 'myDecision' },
+      })
+    );
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.description.includes('decisionRefBinding'))).toBe(
+      true
+    );
+  });
+});
+
+describe('CallActivity version binding hint', () => {
+  test('suggests calledElementBinding when setting calledElement', async () => {
+    const diagramId = await createDiagram();
+    const callId = (await addEl(diagramId, 'bpmn:CallActivity', 'Call Sub')).elementId;
+
+    const result = parseResult(
+      await handleSetProperties({
+        diagramId,
+        elementId: callId,
+        properties: { calledElement: 'mySubProcess' },
+      })
+    );
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.description.includes('calledElementBinding'))).toBe(
+      true
+    );
+  });
+});
+
+describe('history TTL hint', () => {
+  test('suggests historyTimeToLive after setting isExecutable on process', async () => {
+    // Import a minimal BPMN without historyTimeToLive to test the hint
+    const { handleImportXml } = await import('../../src/handlers');
+    const minimalBpmn = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1" />
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+    const importResult = parseResult(await handleImportXml({ xml: minimalBpmn }));
+    const diagramId = importResult.diagramId;
+
+    const result = parseResult(
+      await handleSetProperties({
+        diagramId,
+        elementId: 'Process_1',
+        properties: { isExecutable: true },
+      })
+    );
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.description.includes('historyTimeToLive'))).toBe(
+      true
+    );
+  });
+
+  test('does not suggest historyTimeToLive when already set', async () => {
+    // Default createDiagram includes historyTimeToLive="P180D"
+    const diagramId = await createDiagram();
+
+    const result = parseResult(
+      await handleSetProperties({
+        diagramId,
+        elementId: 'Process_1',
+        properties: { isExecutable: true },
+      })
+    );
+
+    // Should NOT suggest HTTL since it's already set on the default template
+    expect(result.nextSteps).toBeUndefined();
+  });
+});
+
+describe('data element hints', () => {
+  test('includes data association hint for DataObjectReference', async () => {
+    const diagramId = await createDiagram();
+    const result = await addEl(diagramId, 'bpmn:DataObjectReference', 'Order Data');
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.tool === 'connect_bpmn_elements')).toBe(true);
+    expect(result.nextSteps.some((h: any) => h.description.includes('data association'))).toBe(
+      true
+    );
+  });
+
+  test('includes data association hint for DataStoreReference', async () => {
+    const diagramId = await createDiagram();
+    const result = await addEl(diagramId, 'bpmn:DataStoreReference', 'Database');
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.tool === 'connect_bpmn_elements')).toBe(true);
+  });
+});
+
+describe('intermediate event hints', () => {
+  test('includes event definition hint for IntermediateThrowEvent', async () => {
+    const diagramId = await createDiagram();
+    const result = await addEl(diagramId, 'bpmn:IntermediateThrowEvent', 'Send Signal');
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.tool === 'set_bpmn_event_definition')).toBe(true);
+    expect(result.nextSteps.some((h: any) => h.description.includes('LinkEventDefinition'))).toBe(
+      true
+    );
+  });
+});
+
+describe('lane hint', () => {
+  test('includes collaboration hint when adding a Lane', async () => {
+    const diagramId = await createDiagram();
+
+    // Create a collaboration first so we can add a lane
+    await handleCreateCollaboration({
+      diagramId,
+      participants: [{ name: 'Main Process' }, { name: 'External', collapsed: true }],
+    });
+
+    const result = await addEl(diagramId, 'bpmn:Lane', 'Manager');
+
+    expect(result.nextSteps).toBeDefined();
+    expect(result.nextSteps.some((h: any) => h.tool === 'create_bpmn_collaboration')).toBe(true);
+  });
+});
