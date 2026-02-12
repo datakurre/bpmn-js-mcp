@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('vertical alignment inside expanded subprocesses (AS-2)', () => {
@@ -34,10 +34,10 @@ describe('vertical alignment inside expanded subprocesses (AS-2)', () => {
 
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: sub });
-    await handleConnect({ diagramId, sourceElementId: subStart, targetElementId: subTask });
-    await handleConnect({ diagramId, sourceElementId: subTask, targetElementId: subEnd });
-    await handleConnect({ diagramId, sourceElementId: sub, targetElementId: end });
+    await connect(diagramId, start, sub);
+    await connect(diagramId, subStart, subTask);
+    await connect(diagramId, subTask, subEnd);
+    await connect(diagramId, sub, end);
 
     // Run layout
     const res = parseResult(await handleLayoutDiagram({ diagramId }));

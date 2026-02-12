@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('overlap resolution after layout', () => {
@@ -20,14 +20,14 @@ describe('overlap resolution after layout', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskA });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskB });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskC });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskC, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, split);
+    await connect(diagramId, split, taskA);
+    await connect(diagramId, split, taskB);
+    await connect(diagramId, split, taskC);
+    await connect(diagramId, taskA, join);
+    await connect(diagramId, taskB, join);
+    await connect(diagramId, taskC, join);
+    await connect(diagramId, join, end);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -59,9 +59,9 @@ describe('overlap resolution after layout', () => {
     const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Error End' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: boundary, targetElementId: errorEnd });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
+    await connect(diagramId, boundary, errorEnd);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);

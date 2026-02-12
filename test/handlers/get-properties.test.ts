@@ -1,11 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import {
-  handleGetProperties,
-  handleSetProperties,
-  handleConnect,
-  handleAddElement,
-} from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleGetProperties, handleSetProperties, handleAddElement } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('get_bpmn_element_properties', () => {
   beforeEach(() => {
@@ -39,11 +34,7 @@ describe('get_bpmn_element_properties', () => {
       x: 300,
       y: 100,
     });
-    await handleConnect({
-      diagramId,
-      sourceElementId: aId,
-      targetElementId: bId,
-    });
+    await connect(diagramId, aId, bId);
 
     const res = parseResult(await handleGetProperties({ diagramId, elementId: bId }));
     expect(res.incoming).toBeDefined();

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleValidate, handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleValidate } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('validate_bpmn_diagram — fix suggestions', () => {
   beforeEach(() => {
@@ -66,19 +66,9 @@ describe('validate_bpmn_diagram — fix suggestions', () => {
     const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Do A' });
     const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Do B' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskA,
-      conditionExpression: '${yes}',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskB,
-      conditionExpression: '${!yes}',
-    });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskA, { conditionExpression: '${yes}' });
+    await connect(diagramId, gw, taskB, { conditionExpression: '${!yes}' });
 
     const res = parseResult(await handleValidate({ diagramId }));
     const defaultIssue = res.issues.find((i: any) => i.rule === 'bpmn-mcp/gateway-missing-default');
@@ -91,7 +81,7 @@ describe('validate_bpmn_diagram — fix suggestions', () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
 
     const res = parseResult(await handleValidate({ diagramId }));
     // Issues without known fixes should not have a fix field

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect, handleListElements } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram, handleListElements } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('layout_bpmn_diagram — crossing flow pairs', () => {
   beforeEach(() => {
@@ -16,12 +16,12 @@ describe('layout_bpmn_diagram — crossing flow pairs', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: taskA });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: taskB });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskA);
+    await connect(diagramId, gw, taskB);
+    await connect(diagramId, taskA, join);
+    await connect(diagramId, taskB, join);
+    await connect(diagramId, join, end);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -48,8 +48,8 @@ describe('layout_bpmn_diagram — grid snapping', () => {
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Order' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     // Layout with grid snapping to 10px
     const res = parseResult(await handleLayoutDiagram({ diagramId, gridSnap: 10 } as any));
@@ -73,8 +73,8 @@ describe('layout_bpmn_diagram — grid snapping', () => {
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Order' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     // Layout without grid snapping
     const res = parseResult(await handleLayoutDiagram({ diagramId }));

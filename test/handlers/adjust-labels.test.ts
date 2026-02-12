@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAdjustLabels } from '../../src/handlers/adjust-labels-handler';
-import { handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('adjust_bpmn_labels', () => {
   beforeEach(() => {
@@ -39,9 +39,9 @@ describe('adjust_bpmn_labels', () => {
     const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'Work', x: 400, y: 100 });
     const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 550, y: 100 });
 
-    await handleConnect({ diagramId, sourceElementId: startId, targetElementId: gwId });
-    await handleConnect({ diagramId, sourceElementId: gwId, targetElementId: taskId });
-    await handleConnect({ diagramId, sourceElementId: taskId, targetElementId: endId });
+    await connect(diagramId, startId, gwId);
+    await connect(diagramId, gwId, taskId);
+    await connect(diagramId, taskId, endId);
 
     const res = parseResult(await handleAdjustLabels({ diagramId }));
     expect(res.success).toBe(true);

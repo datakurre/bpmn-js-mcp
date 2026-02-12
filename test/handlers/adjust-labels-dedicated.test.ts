@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleConnect, handleLayoutDiagram } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 import { adjustDiagramLabels, adjustFlowLabels } from '../../src/handlers/adjust-labels';
 import { rectsOverlap } from '../../src/handlers/label-utils';
@@ -36,21 +36,11 @@ describe('adjust_bpmn_labels — dedicated', () => {
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { x: 600, y: 200 });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskA,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskB,
-      label: 'No',
-    });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskA, { label: 'Yes' });
+    await connect(diagramId, gw, taskB, { label: 'No' });
+    await connect(diagramId, taskA, end);
+    await connect(diagramId, taskB, end);
 
     const diagram = getDiagram(diagramId)!;
     const movedCount = await adjustDiagramLabels(diagram);
@@ -71,13 +61,8 @@ describe('adjust_bpmn_labels — dedicated', () => {
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { x: 400, y: 100 });
 
-    await handleConnect({
-      diagramId,
-      sourceElementId: start,
-      targetElementId: task,
-      label: 'Start flow',
-    });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task, { label: 'Start flow' });
+    await connect(diagramId, task, end);
 
     const diagram = getDiagram(diagramId)!;
     const movedCount = await adjustFlowLabels(diagram);
@@ -127,8 +112,8 @@ describe('adjust_bpmn_labels — dedicated', () => {
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Decision?' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, end);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);

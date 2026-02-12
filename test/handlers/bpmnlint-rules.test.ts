@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleConnect, handleLintDiagram } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLintDiagram } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('bpmnlint custom rules', () => {
   beforeEach(() => {
@@ -72,18 +72,8 @@ describe('bpmnlint custom rules', () => {
       const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Accept' });
       const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Reject' });
 
-      await handleConnect({
-        diagramId,
-        sourceElementId: task,
-        targetElementId: taskA,
-        conditionExpression: '${approved}',
-      });
-      await handleConnect({
-        diagramId,
-        sourceElementId: task,
-        targetElementId: taskB,
-        conditionExpression: '${!approved}',
-      });
+      await connect(diagramId, task, taskA, { conditionExpression: '${approved}' });
+      await connect(diagramId, task, taskB, { conditionExpression: '${!approved}' });
 
       const res = parseResult(
         await handleLintDiagram({
@@ -110,11 +100,11 @@ describe('bpmnlint custom rules', () => {
       const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Do B' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-      await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskA });
-      await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskB });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: end });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: end });
+      await connect(diagramId, start, split);
+      await connect(diagramId, split, taskA);
+      await connect(diagramId, split, taskB);
+      await connect(diagramId, taskA, end);
+      await connect(diagramId, taskB, end);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -139,12 +129,12 @@ describe('bpmnlint custom rules', () => {
       const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-      await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskA });
-      await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskB });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: join });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: join });
-      await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+      await connect(diagramId, start, split);
+      await connect(diagramId, split, taskA);
+      await connect(diagramId, split, taskB);
+      await connect(diagramId, taskA, join);
+      await connect(diagramId, taskB, join);
+      await connect(diagramId, join, end);
 
       const res = parseResult(
         await handleLintDiagram({

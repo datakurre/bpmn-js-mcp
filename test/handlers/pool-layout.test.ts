@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram, handleCreateCollaboration } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('layout_bpmn_diagram — pool element centering (AP-2)', () => {
@@ -37,8 +37,8 @@ describe('layout_bpmn_diagram — pool element centering (AP-2)', () => {
       participantId: poolId,
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     // Run layout
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
@@ -104,10 +104,10 @@ describe('layout_bpmn_diagram — pool width scaling (AP-3)', () => {
       participantId: poolId,
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: t3 });
-    await handleConnect({ diagramId, sourceElementId: t3, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, t2);
+    await connect(diagramId, t2, t3);
+    await connect(diagramId, t3, end);
 
     // Run layout
     const res = parseResult(await handleLayoutDiagram({ diagramId }));

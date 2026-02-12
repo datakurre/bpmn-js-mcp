@@ -7,14 +7,9 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import {
-  handleCreateCollaboration,
-  handleAddElement,
-  handleConnect,
-  handleValidate,
-} from '../../src/handlers';
+import { handleCreateCollaboration, handleAddElement, handleValidate } from '../../src/handlers';
 import { handleSetEventDefinition } from '../../src/handlers/set-event-definition';
-import { parseResult, createDiagram, clearDiagrams } from '../helpers';
+import { parseResult, createDiagram, clearDiagrams, connect, connectAll } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('bpmnlint multiple-expanded-pools', () => {
@@ -120,16 +115,10 @@ describe('bpmnlint multiple-expanded-pools', () => {
         participantId: mainPool,
       })
     );
-    await handleConnect({
-      diagramId,
-      elementIds: [start.elementId, sendPayment.elementId, end.elementId],
-    });
+    await connectAll(diagramId, start.elementId, sendPayment.elementId, end.elementId);
 
     // Message flow from the main pool element to the collapsed pool participant
-    await handleConnect({
-      diagramId,
-      sourceElementId: sendPayment.elementId,
-      targetElementId: collapsedPool,
+    await connect(diagramId, sendPayment.elementId, collapsedPool, {
       connectionType: 'bpmn:MessageFlow',
     });
 

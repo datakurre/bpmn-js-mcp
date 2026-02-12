@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('layout_bpmn_diagram', () => {
   beforeEach(() => {
@@ -19,11 +19,7 @@ describe('layout_bpmn_diagram', () => {
       x: 100,
       y: 100,
     });
-    await handleConnect({
-      diagramId,
-      sourceElementId: startId,
-      targetElementId: endId,
-    });
+    await connect(diagramId, startId, endId);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);

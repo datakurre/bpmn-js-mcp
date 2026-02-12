@@ -9,13 +9,14 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
+import { handleLayoutDiagram } from '../../src/handlers';
 import {
   createDiagram,
   addElement,
   clearDiagrams,
   importReference,
   comparePositions,
+  connect,
 } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
@@ -64,10 +65,10 @@ describe('Layout quality regression', () => {
     const t3 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 3' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: t3 });
-    await handleConnect({ diagramId, sourceElementId: t3, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, t2);
+    await connect(diagramId, t2, t3);
+    await connect(diagramId, t3, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -101,23 +102,12 @@ describe('Layout quality regression', () => {
     const merge = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskYes,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskNo,
-      label: 'No',
-      isDefault: true,
-    });
-    await handleConnect({ diagramId, sourceElementId: taskYes, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: taskNo, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: merge, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskYes, { label: 'Yes' });
+    await connect(diagramId, gw, taskNo, { label: 'No', isDefault: true });
+    await connect(diagramId, taskYes, merge);
+    await connect(diagramId, taskNo, merge);
+    await connect(diagramId, merge, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -145,14 +135,14 @@ describe('Layout quality regression', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t3 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t3, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, split);
+    await connect(diagramId, split, t1);
+    await connect(diagramId, split, t2);
+    await connect(diagramId, split, t3);
+    await connect(diagramId, t1, join);
+    await connect(diagramId, t2, join);
+    await connect(diagramId, t3, join);
+    await connect(diagramId, join, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -182,22 +172,12 @@ describe('Layout quality regression', () => {
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
     // Note: No default flow, so happy path follows first connected flow
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskYes,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskNo,
-      label: 'No',
-    });
-    await handleConnect({ diagramId, sourceElementId: taskYes, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: taskNo, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: merge, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskYes, { label: 'Yes' });
+    await connect(diagramId, gw, taskNo, { label: 'No' });
+    await connect(diagramId, taskYes, merge);
+    await connect(diagramId, taskNo, merge);
+    await connect(diagramId, merge, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -225,21 +205,11 @@ describe('Layout quality regression', () => {
     const endOk = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
     const endFail = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Failed' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskOk,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: endFail,
-      label: 'No',
-    });
-    await handleConnect({ diagramId, sourceElementId: taskOk, targetElementId: endOk });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, gw);
+    await connect(diagramId, gw, taskOk, { label: 'Yes' });
+    await connect(diagramId, gw, endFail, { label: 'No' });
+    await connect(diagramId, taskOk, endOk);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -262,23 +232,12 @@ describe('Layout quality regression', () => {
     const taskB = await addElement(diagramId, 'bpmn:UserTask', { name: 'Path B' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskA,
-      label: 'A',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskB,
-      label: 'B',
-      isDefault: true,
-    });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, gw);
+    await connect(diagramId, gw, taskA, { label: 'A' });
+    await connect(diagramId, gw, taskB, { label: 'B', isDefault: true });
+    await connect(diagramId, taskA, end);
+    await connect(diagramId, taskB, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -313,8 +272,8 @@ describe('Layout quality regression', () => {
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Work' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -340,14 +299,14 @@ describe('Layout quality regression', () => {
     const t4 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Final' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t3, isDefault: true });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t3, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: t4 });
-    await handleConnect({ diagramId, sourceElementId: t4, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, gw);
+    await connect(diagramId, gw, t2);
+    await connect(diagramId, gw, t3);
+    await connect(diagramId, t2, join);
+    await connect(diagramId, t3, join);
+    await connect(diagramId, join, t4);
+    await connect(diagramId, t4, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -382,8 +341,8 @@ describe('Layout quality regression', () => {
       name: 'Important note about processing',
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -433,10 +392,10 @@ describe('Layout quality regression', () => {
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
     const endError = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Error End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: boundary, targetElementId: recovery });
-    await handleConnect({ diagramId, sourceElementId: recovery, targetElementId: endError });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
+    await connect(diagramId, boundary, recovery);
+    await connect(diagramId, recovery, endError);
 
     await handleLayoutDiagram({ diagramId });
 

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleValidate as handleLintDiagram } from '../../src/handlers/validate';
-import { handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('validate_bpmn_diagram — lint', () => {
   beforeEach(() => {
@@ -28,8 +28,8 @@ describe('validate_bpmn_diagram — lint', () => {
       y: 100,
     });
     const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 400, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: startId, targetElementId: taskId });
-    await handleConnect({ diagramId, sourceElementId: taskId, targetElementId: endId });
+    await connect(diagramId, startId, taskId);
+    await connect(diagramId, taskId, endId);
 
     const res = parseResult(await handleLintDiagram({ diagramId }));
     // Should not have start/end event required errors

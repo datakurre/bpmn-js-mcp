@@ -8,11 +8,10 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleLayoutDiagram,
-  handleConnect,
   handleCreateCollaboration,
   handleAddElement,
 } from '../../src/handlers';
-import { parseResult, createDiagram, clearDiagrams } from '../helpers';
+import { parseResult, createDiagram, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('collaboration layout', () => {
@@ -59,16 +58,8 @@ describe('collaboration layout', () => {
       })
     );
 
-    await handleConnect({
-      diagramId,
-      sourceElementId: startRes.elementId,
-      targetElementId: taskRes.elementId,
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: taskRes.elementId,
-      targetElementId: endRes.elementId,
-    });
+    await connect(diagramId, startRes.elementId, taskRes.elementId);
+    await connect(diagramId, taskRes.elementId, endRes.elementId);
 
     // Run layout
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
@@ -92,11 +83,7 @@ describe('collaboration layout', () => {
         name: 'Finish',
       })
     );
-    await handleConnect({
-      diagramId,
-      sourceElementId: startRes.elementId,
-      targetElementId: endRes.elementId,
-    });
+    await connect(diagramId, startRes.elementId, endRes.elementId);
 
     // Layout with DOWN direction (top-to-bottom)
     const res = parseResult(await handleLayoutDiagram({ diagramId, direction: 'DOWN' }));
@@ -128,11 +115,7 @@ describe('collaboration layout', () => {
         name: 'E',
       })
     );
-    await handleConnect({
-      diagramId,
-      sourceElementId: startRes.elementId,
-      targetElementId: endRes.elementId,
-    });
+    await connect(diagramId, startRes.elementId, endRes.elementId);
 
     // Layout with custom spacing
     const res = parseResult(

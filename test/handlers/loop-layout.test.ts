@@ -8,8 +8,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -54,22 +54,12 @@ describe('Loop-back layout (Root Cause 4)', () => {
     const task2 = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task1 });
-    await handleConnect({ diagramId, sourceElementId: task1, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: task2,
-      label: 'Yes',
-    });
-    await handleConnect({ diagramId, sourceElementId: task2, targetElementId: end });
+    await connect(diagramId, start, task1);
+    await connect(diagramId, task1, gw);
+    await connect(diagramId, gw, task2, { label: 'Yes' });
+    await connect(diagramId, task2, end);
     // Loop-back edge: gateway "No" branch goes back to task1
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: task1,
-      label: 'No',
-    });
+    await connect(diagramId, gw, task1, { label: 'No' });
 
     await handleLayoutDiagram({ diagramId });
 
@@ -106,23 +96,13 @@ describe('Loop-back layout (Root Cause 4)', () => {
     const publish = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Publish' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: draft });
-    await handleConnect({ diagramId, sourceElementId: draft, targetElementId: review });
-    await handleConnect({ diagramId, sourceElementId: review, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: publish,
-      label: 'Yes',
-    });
-    await handleConnect({ diagramId, sourceElementId: publish, targetElementId: end });
+    await connect(diagramId, start, draft);
+    await connect(diagramId, draft, review);
+    await connect(diagramId, review, gw);
+    await connect(diagramId, gw, publish, { label: 'Yes' });
+    await connect(diagramId, publish, end);
     // Loop-back: Rejected → back to Draft
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: draft,
-      label: 'Revise',
-    });
+    await connect(diagramId, gw, draft, { label: 'Revise' });
 
     await handleLayoutDiagram({ diagramId });
 
@@ -154,22 +134,12 @@ describe('Loop-back layout (Root Cause 4)', () => {
     const check = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'More items?' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Complete' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: init });
-    await handleConnect({ diagramId, sourceElementId: init, targetElementId: process });
-    await handleConnect({ diagramId, sourceElementId: process, targetElementId: check });
-    await handleConnect({
-      diagramId,
-      sourceElementId: check,
-      targetElementId: end,
-      label: 'No',
-    });
+    await connect(diagramId, start, init);
+    await connect(diagramId, init, process);
+    await connect(diagramId, process, check);
+    await connect(diagramId, check, end, { label: 'No' });
     // Loop-back: "Yes" → back to Init for next iteration
-    await handleConnect({
-      diagramId,
-      sourceElementId: check,
-      targetElementId: init,
-      label: 'Yes',
-    });
+    await connect(diagramId, check, init, { label: 'Yes' });
 
     await handleLayoutDiagram({ diagramId });
 

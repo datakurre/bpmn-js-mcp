@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleExportBpmn, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleExportBpmn } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 /**
  * SVG snapshot tests.
@@ -67,8 +67,8 @@ describe('export_bpmn — SVG snapshots', () => {
       x: 460,
       y: 200,
     });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'svg', skipLint: true });
     const svg = normaliseSvg(res.content[0].text);
@@ -115,24 +115,12 @@ describe('export_bpmn — SVG snapshots', () => {
       y: 200,
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskA,
-      label: 'Yes',
-      conditionExpression: '${approved}',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskB,
-      label: 'No',
-      isDefault: true,
-    });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskA, { label: 'Yes', conditionExpression: '${approved}' });
+    await connect(diagramId, gw, taskB, { label: 'No', isDefault: true });
+    await connect(diagramId, taskA, join);
+    await connect(diagramId, taskB, join);
+    await connect(diagramId, join, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'svg', skipLint: true });
     const svg = normaliseSvg(res.content[0].text);
@@ -154,8 +142,8 @@ describe('export_bpmn — SVG snapshots', () => {
       y: 200,
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { x: 460, y: 200 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'svg', skipLint: true });
     const svg = res.content[0].text;

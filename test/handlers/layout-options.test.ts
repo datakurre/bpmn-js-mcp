@@ -3,8 +3,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams, parseResult } from '../helpers';
+import { handleLayoutDiagram, handleCreateCollaboration } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, parseResult, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('layout_bpmn_diagram — compactness option', () => {
@@ -22,9 +22,9 @@ describe('layout_bpmn_diagram — compactness option', () => {
       const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
       const t2 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 2' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-      await handleConnect({ diagramId, sourceElementId: t1, targetElementId: t2 });
-      await handleConnect({ diagramId, sourceElementId: t2, targetElementId: end });
+      await connect(diagramId, start, t1);
+      await connect(diagramId, t1, t2);
+      await connect(diagramId, t2, end);
     }
 
     await handleLayoutDiagram({ diagramId: compactId, compactness: 'compact' });
@@ -49,8 +49,8 @@ describe('layout_bpmn_diagram — compactness option', () => {
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-      await handleConnect({ diagramId, sourceElementId: t1, targetElementId: end });
+      await connect(diagramId, start, t1);
+      await connect(diagramId, t1, end);
     }
 
     await handleLayoutDiagram({ diagramId: spaciousId, compactness: 'spacious' });
@@ -71,8 +71,8 @@ describe('layout_bpmn_diagram — compactness option', () => {
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, end);
 
     // Use compact preset but override with large spacing
     const result = await handleLayoutDiagram({
@@ -99,12 +99,12 @@ describe('layout_bpmn_diagram — simplifyRoutes option', () => {
     const join = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t1, label: 'Yes' });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t2, label: 'No' });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, t1);
+    await connect(diagramId, gw, t2);
+    await connect(diagramId, t1, join);
+    await connect(diagramId, t2, join);
+    await connect(diagramId, join, end);
 
     const result = await handleLayoutDiagram({ diagramId, simplifyRoutes: false });
     const parsed = parseResult(result);
@@ -120,12 +120,12 @@ describe('layout_bpmn_diagram — simplifyRoutes option', () => {
     const join = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t1, label: 'Yes' });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t2, label: 'No' });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, t1);
+    await connect(diagramId, gw, t2);
+    await connect(diagramId, t1, join);
+    await connect(diagramId, t2, join);
+    await connect(diagramId, join, end);
 
     const result = await handleLayoutDiagram({ diagramId });
     const parsed = parseResult(result);
@@ -168,8 +168,8 @@ describe('layout_bpmn_diagram — pool vertical centering (AP-2)', () => {
       participantId: mainPool.id,
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     await handleLayoutDiagram({ diagramId });
 

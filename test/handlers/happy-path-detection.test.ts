@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleSetProperties, handleLayoutDiagram } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 import { detectHappyPath } from '../../src/elk/happy-path';
 
@@ -25,7 +25,7 @@ describe('happy-path detection', () => {
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
     // Connect: Start → Gateway
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
+    await connect(diagramId, start, gw);
 
     // Gateway → Process (conditioned/Yes path)
     const connYes = parseResult(
@@ -47,7 +47,7 @@ describe('happy-path detection', () => {
     );
 
     // Process → End
-    await handleConnect({ diagramId, sourceElementId: taskYes, targetElementId: end });
+    await connect(diagramId, taskYes, end);
 
     // Set default flow to the No/Reject path (the fallback)
     await handleSetProperties({
@@ -73,7 +73,7 @@ describe('happy-path detection', () => {
     const taskA = await addElement(diagramId, 'bpmn:UserTask', { name: 'Path A' });
     const taskB = await addElement(diagramId, 'bpmn:UserTask', { name: 'Path B' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
+    await connect(diagramId, start, gw);
 
     const connA = parseResult(
       await handleConnect({
@@ -83,11 +83,7 @@ describe('happy-path detection', () => {
       })
     );
 
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskB,
-    });
+    await connect(diagramId, gw, taskB);
 
     // No default set — should follow first outgoing
     const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
@@ -104,7 +100,7 @@ describe('happy-path detection', () => {
     const taskA = await addElement(diagramId, 'bpmn:UserTask', { name: 'Branch A' });
     const taskB = await addElement(diagramId, 'bpmn:UserTask', { name: 'Branch B' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
+    await connect(diagramId, start, gw);
 
     const connA = parseResult(
       await handleConnect({
@@ -114,11 +110,7 @@ describe('happy-path detection', () => {
       })
     );
 
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskB,
-    });
+    await connect(diagramId, gw, taskB);
 
     const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
     const allElements = reg.getAll();
@@ -138,16 +130,11 @@ describe('happy-path detection', () => {
     const taskErr = await addElement(diagramId, 'bpmn:UserTask', { name: 'Handle Error' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task1 });
-    await handleConnect({ diagramId, sourceElementId: task1, targetElementId: gw });
+    await connect(diagramId, start, task1);
+    await connect(diagramId, task1, gw);
 
     // Ok path (conditioned)
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskOk,
-      conditionExpression: '${valid}',
-    });
+    await connect(diagramId, gw, taskOk, { conditionExpression: '${valid}' });
 
     // Error path (default = fallback)
     const connErr = parseResult(
@@ -158,7 +145,7 @@ describe('happy-path detection', () => {
       })
     );
 
-    await handleConnect({ diagramId, sourceElementId: taskOk, targetElementId: end });
+    await connect(diagramId, taskOk, end);
 
     // Set default to the error path
     await handleSetProperties({

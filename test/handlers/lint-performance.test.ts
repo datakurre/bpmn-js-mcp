@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { lintDiagram, lintDiagramFlat, clearLintCache } from '../../src/linter';
 import { getDiagram } from '../../src/diagram-manager';
 
@@ -37,7 +37,7 @@ describe.skipIf(!!process.env.CI)('linter performance benchmarks', () => {
         x: 50 + i * 160,
         y: 200,
       });
-      await handleConnect({ diagramId, sourceElementId: prev, targetElementId: task });
+      await connect(diagramId, prev, task);
       prev = task;
     }
 
@@ -46,7 +46,7 @@ describe.skipIf(!!process.env.CI)('linter performance benchmarks', () => {
       x: 50 + (n + 1) * 160,
       y: 200,
     });
-    await handleConnect({ diagramId, sourceElementId: prev, targetElementId: end });
+    await connect(diagramId, prev, end);
 
     return diagramId;
   }
@@ -66,7 +66,7 @@ describe.skipIf(!!process.env.CI)('linter performance benchmarks', () => {
       x: 200,
       y: 300,
     });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
+    await connect(diagramId, start, gw);
 
     const join = await addElement(diagramId, 'bpmn:ExclusiveGateway', {
       name: 'Join',
@@ -93,7 +93,7 @@ describe.skipIf(!!process.env.CI)('linter performance benchmarks', () => {
         connectOpts.conditionExpression = `\${branch == ${i + 1}}`;
       }
       await handleConnect(connectOpts);
-      await handleConnect({ diagramId, sourceElementId: task, targetElementId: join });
+      await connect(diagramId, task, join);
     }
 
     const end = await addElement(diagramId, 'bpmn:EndEvent', {
@@ -101,7 +101,7 @@ describe.skipIf(!!process.env.CI)('linter performance benchmarks', () => {
       x: 650,
       y: 300,
     });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, join, end);
 
     return diagramId;
   }

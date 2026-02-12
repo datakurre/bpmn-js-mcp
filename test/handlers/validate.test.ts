@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleValidate, handleConnect, handleSetProperties } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleValidate, handleSetProperties } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('validate_bpmn_diagram', () => {
   beforeEach(() => {
@@ -46,11 +46,7 @@ describe('validate_bpmn_diagram', () => {
       x: 300,
       y: 100,
     });
-    await handleConnect({
-      diagramId,
-      sourceElementId: startId,
-      targetElementId: endId,
-    });
+    await connect(diagramId, startId, endId);
 
     const res = parseResult(await handleValidate({ diagramId }));
     expect(res.issues.some((i: any) => i.message.includes('No start event'))).toBe(false);
@@ -118,23 +114,9 @@ describe('validate_bpmn_diagram — gateway default flow warning', () => {
       y: 300,
     });
 
-    await handleConnect({
-      diagramId,
-      sourceElementId: startId,
-      targetElementId: gwId,
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gwId,
-      targetElementId: taskAId,
-      conditionExpression: '${yes}',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gwId,
-      targetElementId: taskBId,
-      conditionExpression: '${!yes}',
-    });
+    await connect(diagramId, startId, gwId);
+    await connect(diagramId, gwId, taskAId, { conditionExpression: '${yes}' });
+    await connect(diagramId, gwId, taskBId, { conditionExpression: '${!yes}' });
 
     const res = parseResult(await handleValidate({ diagramId }));
     expect(res.issues.some((i: any) => i.message.includes('default flow'))).toBe(true);

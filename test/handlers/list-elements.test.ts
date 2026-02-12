@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleListElements, handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleListElements } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('list_bpmn_elements', () => {
   beforeEach(() => {
@@ -28,11 +28,7 @@ describe('list_bpmn_elements', () => {
       x: 300,
       y: 100,
     });
-    await handleConnect({
-      diagramId,
-      sourceElementId: aId,
-      targetElementId: bId,
-    });
+    await connect(diagramId, aId, bId);
 
     const res = parseResult(await handleListElements({ diagramId }));
     const startEl = res.elements.find((e: any) => e.id === aId);
@@ -50,11 +46,7 @@ describe('list_bpmn_elements', () => {
       x: 300,
       y: 100,
     });
-    await handleConnect({
-      diagramId,
-      sourceElementId: aId,
-      targetElementId: bId,
-    });
+    await connect(diagramId, aId, bId);
 
     const res = parseResult(await handleListElements({ diagramId }));
     const flow = res.elements.find((e: any) => e.type === 'bpmn:SequenceFlow');

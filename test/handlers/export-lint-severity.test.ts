@@ -3,8 +3,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleExportBpmn, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleExportBpmn } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('export_bpmn — lintMinSeverity', () => {
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe('export_bpmn — lintMinSeverity', () => {
     // label-required is downgraded to 'warn' by default config
     const start = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { x: 300, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
 
     const res = await handleExportBpmn({
       diagramId,
@@ -42,7 +42,7 @@ describe('export_bpmn — lintMinSeverity', () => {
       x: 300,
       y: 100,
     });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
 
     const res = await handleExportBpmn({
       diagramId,

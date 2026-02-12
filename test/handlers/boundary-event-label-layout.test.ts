@@ -7,8 +7,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleConnect, handleLayoutDiagram, handleAddElement } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram, handleAddElement } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('boundary event layout', () => {
@@ -22,8 +22,8 @@ describe('boundary event layout', () => {
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     // Add boundary error event
     const beRes = parseResult(
@@ -39,7 +39,7 @@ describe('boundary event layout', () => {
 
     // Add target for boundary flow
     const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Timed Out' });
-    await handleConnect({ diagramId, sourceElementId: beId, targetElementId: errorEnd });
+    await connect(diagramId, beId, errorEnd);
 
     // Run layout
     await handleLayoutDiagram({ diagramId });
@@ -72,8 +72,8 @@ describe('boundary event layout', () => {
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     // Add boundary event with downward target
     const beRes = parseResult(
@@ -88,7 +88,7 @@ describe('boundary event layout', () => {
     const beId = beRes.elementId;
 
     const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Failed' });
-    await handleConnect({ diagramId, sourceElementId: beId, targetElementId: errorEnd });
+    await connect(diagramId, beId, errorEnd);
 
     // Run layout
     await handleLayoutDiagram({ diagramId });

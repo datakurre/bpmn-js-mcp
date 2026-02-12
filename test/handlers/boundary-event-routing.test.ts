@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('Boundary event routing after layout', () => {
@@ -23,13 +23,9 @@ describe('Boundary event routing after layout', () => {
 
     const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Timeout End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
-    await handleConnect({
-      diagramId,
-      sourceElementId: boundaryEvent,
-      targetElementId: errorEnd,
-    });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
+    await connect(diagramId, boundaryEvent, errorEnd);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -64,10 +60,10 @@ describe('Boundary event routing after layout', () => {
     const retryTask = await addElement(diagramId, 'bpmn:UserTask', { name: 'Handle Error' });
     const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Failed' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: boundary, targetElementId: retryTask });
-    await handleConnect({ diagramId, sourceElementId: retryTask, targetElementId: errorEnd });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
+    await connect(diagramId, boundary, retryTask);
+    await connect(diagramId, retryTask, errorEnd);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);

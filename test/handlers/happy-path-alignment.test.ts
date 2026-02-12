@@ -7,8 +7,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 function centreY(el: any): number {
@@ -27,9 +27,9 @@ describe('Happy-path vertical alignment', () => {
     const t2 = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Task 2' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, t2);
+    await connect(diagramId, t2, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -54,23 +54,12 @@ describe('Happy-path vertical alignment', () => {
     const merge = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskYes,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskNo,
-      label: 'No',
-      isDefault: true,
-    });
-    await handleConnect({ diagramId, sourceElementId: taskYes, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: taskNo, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: merge, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskYes, { label: 'Yes' });
+    await connect(diagramId, gw, taskNo, { label: 'No', isDefault: true });
+    await connect(diagramId, taskYes, merge);
+    await connect(diagramId, taskNo, merge);
+    await connect(diagramId, merge, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -104,12 +93,12 @@ describe('Happy-path vertical alignment', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, split);
+    await connect(diagramId, split, t1);
+    await connect(diagramId, split, t2);
+    await connect(diagramId, t1, join);
+    await connect(diagramId, t2, join);
+    await connect(diagramId, join, end);
 
     await handleLayoutDiagram({ diagramId });
 

@@ -6,8 +6,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 /** Centre-Y of an element. */
@@ -40,13 +40,13 @@ describe('edge endpoint connectivity after layout', () => {
     const gw2 = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: gw1 });
-    await handleConnect({ diagramId, sourceElementId: gw1, targetElementId: tA });
-    await handleConnect({ diagramId, sourceElementId: gw1, targetElementId: tB });
-    await handleConnect({ diagramId, sourceElementId: tA, targetElementId: gw2 });
-    await handleConnect({ diagramId, sourceElementId: tB, targetElementId: gw2 });
-    await handleConnect({ diagramId, sourceElementId: gw2, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, gw1);
+    await connect(diagramId, gw1, tA);
+    await connect(diagramId, gw1, tB);
+    await connect(diagramId, tA, gw2);
+    await connect(diagramId, tB, gw2);
+    await connect(diagramId, gw2, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -84,8 +84,8 @@ describe('edge endpoint connectivity after layout', () => {
     const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, end);
 
     await handleLayoutDiagram({ diagramId });
 

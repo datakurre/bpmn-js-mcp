@@ -4,10 +4,9 @@
 
 import { describe, test, expect, afterEach } from 'vitest';
 import { handleReplaceElement } from '../../src/handlers/replace-element';
-import { handleConnect } from '../../src/handlers/connect';
 import { handleListElements } from '../../src/handlers/list-elements';
 import { clearDiagrams } from '../../src/diagram-manager';
-import { parseResult, createDiagram, addElement } from '../helpers';
+import { parseResult, createDiagram, addElement, connect } from '../helpers';
 
 afterEach(() => clearDiagrams());
 
@@ -27,8 +26,8 @@ describe('replace_bpmn_element', () => {
       y: 100,
     });
 
-    await handleConnect({ diagramId, sourceElementId: startId, targetElementId: taskId });
-    await handleConnect({ diagramId, sourceElementId: taskId, targetElementId: endId });
+    await connect(diagramId, startId, taskId);
+    await connect(diagramId, taskId, endId);
 
     // Replace Task → UserTask
     const replaceResult = parseResult(

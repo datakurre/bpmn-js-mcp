@@ -7,13 +7,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import {
-  handleReplaceElement,
-  handleExportBpmn,
-  handleAddElement,
-  handleConnect,
-} from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleReplaceElement, handleExportBpmn, handleAddElement } from '../../src/handlers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('replace_bpmn_element — boundary event guard', () => {
   beforeEach(() => {
@@ -179,7 +174,7 @@ describe('export_bpmn — skipLint abuse warning', () => {
       y: 100,
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     const allText = res.content.map((c: any) => c.text).join('\n');

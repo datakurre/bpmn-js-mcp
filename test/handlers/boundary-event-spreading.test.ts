@@ -7,8 +7,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect, handleAddElement } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams, parseResult } from '../helpers';
+import { handleLayoutDiagram, handleAddElement } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, parseResult, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('boundary event spreading', () => {
@@ -22,8 +22,8 @@ describe('boundary event spreading', () => {
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     // Add two boundary events on the same task
     const be1Res = parseResult(
@@ -51,8 +51,8 @@ describe('boundary event spreading', () => {
     const endBe1 = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End BE1' });
     const endBe2 = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End BE2' });
 
-    await handleConnect({ diagramId, sourceElementId: be1Res.elementId, targetElementId: endBe1 });
-    await handleConnect({ diagramId, sourceElementId: be2Res.elementId, targetElementId: endBe2 });
+    await connect(diagramId, be1Res.elementId, endBe1);
+    await connect(diagramId, be2Res.elementId, endBe2);
 
     // Run layout
     await handleLayoutDiagram({ diagramId });

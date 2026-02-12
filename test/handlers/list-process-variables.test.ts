@@ -5,9 +5,8 @@ import {
   handleSetFormData,
   handleSetLoopCharacteristics,
   handleSetScript,
-  handleConnect,
 } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
+import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('list_bpmn_process_variables', () => {
   beforeEach(() => {
@@ -70,12 +69,7 @@ describe('list_bpmn_process_variables', () => {
     const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check?' });
     const taskA = await addElement(diagramId, 'bpmn:Task', { name: 'Yes path' });
 
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskA,
-      conditionExpression: '${approved == true}',
-    });
+    await connect(diagramId, gw, taskA, { conditionExpression: '${approved == true}' });
 
     const res = parseResult(await handleListProcessVariables({ diagramId }));
     const names = res.variables.map((v: any) => v.name);

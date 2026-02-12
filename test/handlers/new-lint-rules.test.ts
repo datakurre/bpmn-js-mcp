@@ -1,11 +1,17 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import {
-  handleConnect,
   handleLintDiagram,
   handleSetProperties,
   handleSetEventDefinition,
 } from '../../src/handlers';
-import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../helpers';
+import {
+  parseResult,
+  createDiagram,
+  addElement,
+  clearDiagrams,
+  connect,
+  connectAll,
+} from '../helpers';
 
 describe('bpmnlint new rules', () => {
   beforeEach(() => {
@@ -19,10 +25,7 @@ describe('bpmnlint new rules', () => {
       const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process Payment' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-      await handleConnect({
-        diagramId,
-        elementIds: [start, task, end],
-      });
+      await connectAll(diagramId, start, task, end);
 
       // Add compensation boundary event (without association)
       const boundaryEvent = await addElement(diagramId, 'bpmn:BoundaryEvent', {
@@ -68,7 +71,7 @@ describe('bpmnlint new rules', () => {
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Enter Details' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, elementIds: [start, task, end] });
+      await connectAll(diagramId, start, task, end);
 
       // Add message boundary event
       const boundaryEvent = await addElement(diagramId, 'bpmn:BoundaryEvent', {
@@ -95,10 +98,7 @@ describe('bpmnlint new rules', () => {
       const cancelEnd = await addElement(diagramId, 'bpmn:EndEvent', {
         name: 'Registration Cancelled',
       });
-      await handleConnect({
-        diagramId,
-        elementIds: [boundaryEvent, compThrow, cancelEnd],
-      });
+      await connectAll(diagramId, boundaryEvent, compThrow, cancelEnd);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -121,7 +121,7 @@ describe('bpmnlint new rules', () => {
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Wait Task' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, elementIds: [start, task, end] });
+      await connectAll(diagramId, start, task, end);
 
       const boundaryEvent = await addElement(diagramId, 'bpmn:BoundaryEvent', {
         name: 'Timeout',
@@ -135,11 +135,7 @@ describe('bpmnlint new rules', () => {
       });
 
       const timeoutEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Timed Out' });
-      await handleConnect({
-        diagramId,
-        sourceElementId: boundaryEvent,
-        targetElementId: timeoutEnd,
-      });
+      await connect(diagramId, boundaryEvent, timeoutEnd);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -164,21 +160,10 @@ describe('bpmnlint new rules', () => {
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Valid?' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, elementIds: [start, task, gw] });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: end,
-        isDefault: true,
-      });
+      await connectAll(diagramId, start, task, gw);
+      await connect(diagramId, gw, end, { isDefault: true });
       // Loop back without any limiting mechanism
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: task,
-        conditionExpression: '${!valid}',
-        label: 'No',
-      });
+      await connect(diagramId, gw, task, { conditionExpression: '${!valid}', label: 'No' });
 
       const res = parseResult(
         await handleLintDiagram({
@@ -202,20 +187,9 @@ describe('bpmnlint new rules', () => {
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Valid?' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, elementIds: [start, task, gw] });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: end,
-        isDefault: true,
-      });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: task,
-        conditionExpression: '${!valid}',
-        label: 'No',
-      });
+      await connectAll(diagramId, start, task, gw);
+      await connect(diagramId, gw, end, { isDefault: true });
+      await connect(diagramId, gw, task, { conditionExpression: '${!valid}', label: 'No' });
 
       // Add timer boundary event (acts as loop limiter)
       const timerBound = await addElement(diagramId, 'bpmn:BoundaryEvent', {
@@ -230,11 +204,7 @@ describe('bpmnlint new rules', () => {
       });
 
       const timeoutEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Timed Out' });
-      await handleConnect({
-        diagramId,
-        sourceElementId: timerBound,
-        targetElementId: timeoutEnd,
-      });
+      await connect(diagramId, timerBound, timeoutEnd);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -260,21 +230,10 @@ describe('bpmnlint new rules', () => {
       const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Valid?' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, elementIds: [start, task, counter, gw] });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: end,
-        isDefault: true,
-      });
+      await connectAll(diagramId, start, task, counter, gw);
+      await connect(diagramId, gw, end, { isDefault: true });
       // Loop back through the counter script
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: task,
-        conditionExpression: '${!valid}',
-        label: 'No',
-      });
+      await connect(diagramId, gw, task, { conditionExpression: '${!valid}', label: 'No' });
 
       const res = parseResult(
         await handleLintDiagram({
@@ -300,21 +259,12 @@ describe('bpmnlint new rules', () => {
       const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Reject' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskA,
-        conditionExpression: '${approved}',
-      });
+      await connect(diagramId, start, gw);
+      await connect(diagramId, gw, taskA, { conditionExpression: '${approved}' });
       // Second flow has no condition and is not set as default
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskB,
-      });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: end });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: end });
+      await connect(diagramId, gw, taskB);
+      await connect(diagramId, taskA, end);
+      await connect(diagramId, taskB, end);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -341,21 +291,11 @@ describe('bpmnlint new rules', () => {
       const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Reject' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskA,
-        conditionExpression: '${approved}',
-      });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskB,
-        conditionExpression: '${!approved}',
-      });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: end });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: end });
+      await connect(diagramId, start, gw);
+      await connect(diagramId, gw, taskA, { conditionExpression: '${approved}' });
+      await connect(diagramId, gw, taskB, { conditionExpression: '${!approved}' });
+      await connect(diagramId, taskA, end);
+      await connect(diagramId, taskB, end);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -381,21 +321,11 @@ describe('bpmnlint new rules', () => {
       const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Reject' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskA,
-        conditionExpression: '${approved}',
-      });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskB,
-        isDefault: true,
-      });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: end });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: end });
+      await connect(diagramId, start, gw);
+      await connect(diagramId, gw, taskA, { conditionExpression: '${approved}' });
+      await connect(diagramId, gw, taskB, { isDefault: true });
+      await connect(diagramId, taskA, end);
+      await connect(diagramId, taskB, end);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -421,16 +351,11 @@ describe('bpmnlint new rules', () => {
       const taskB = await addElement(diagramId, 'bpmn:Task', { name: 'Path B' });
       const taskC = await addElement(diagramId, 'bpmn:Task', { name: 'Path C' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gw,
-        targetElementId: taskA,
-        conditionExpression: '${route == "A"}',
-      });
+      await connect(diagramId, start, gw);
+      await connect(diagramId, gw, taskA, { conditionExpression: '${route == "A"}' });
       // Two flows without conditions
-      await handleConnect({ diagramId, sourceElementId: gw, targetElementId: taskB });
-      await handleConnect({ diagramId, sourceElementId: gw, targetElementId: taskC });
+      await connect(diagramId, gw, taskB);
+      await connect(diagramId, gw, taskC);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -457,7 +382,7 @@ describe('bpmnlint new rules', () => {
       const task = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Charge Card' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-      await handleConnect({ diagramId, elementIds: [start, task, end] });
+      await connectAll(diagramId, start, task, end);
 
       // Create a handler with isForCompensation=true but no boundary event at all
       const handler = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Refund Card' });
@@ -495,12 +420,12 @@ describe('bpmnlint new rules', () => {
       const pjoin = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Merge' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: xgw });
-      await handleConnect({ diagramId, sourceElementId: xgw, targetElementId: taskA });
-      await handleConnect({ diagramId, sourceElementId: xgw, targetElementId: taskB });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: pjoin });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: pjoin });
-      await handleConnect({ diagramId, sourceElementId: pjoin, targetElementId: end });
+      await connect(diagramId, start, xgw);
+      await connect(diagramId, xgw, taskA);
+      await connect(diagramId, xgw, taskB);
+      await connect(diagramId, taskA, pjoin);
+      await connect(diagramId, taskB, pjoin);
+      await connect(diagramId, pjoin, end);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -528,12 +453,12 @@ describe('bpmnlint new rules', () => {
       const pjoin = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: psplit });
-      await handleConnect({ diagramId, sourceElementId: psplit, targetElementId: taskA });
-      await handleConnect({ diagramId, sourceElementId: psplit, targetElementId: taskB });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: pjoin });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: pjoin });
-      await handleConnect({ diagramId, sourceElementId: pjoin, targetElementId: end });
+      await connect(diagramId, start, psplit);
+      await connect(diagramId, psplit, taskA);
+      await connect(diagramId, psplit, taskB);
+      await connect(diagramId, taskA, pjoin);
+      await connect(diagramId, taskB, pjoin);
+      await connect(diagramId, pjoin, end);
 
       const res = parseResult(
         await handleLintDiagram({
@@ -560,12 +485,12 @@ describe('bpmnlint new rules', () => {
       const xjoin = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: xsplit });
-      await handleConnect({ diagramId, sourceElementId: xsplit, targetElementId: taskA });
-      await handleConnect({ diagramId, sourceElementId: xsplit, targetElementId: taskB });
-      await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: xjoin });
-      await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: xjoin });
-      await handleConnect({ diagramId, sourceElementId: xjoin, targetElementId: end });
+      await connect(diagramId, start, xsplit);
+      await connect(diagramId, xsplit, taskA);
+      await connect(diagramId, xsplit, taskB);
+      await connect(diagramId, taskA, xjoin);
+      await connect(diagramId, taskB, xjoin);
+      await connect(diagramId, xjoin, end);
 
       const res = parseResult(
         await handleLintDiagram({

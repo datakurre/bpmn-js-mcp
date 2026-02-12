@@ -8,8 +8,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -79,22 +79,12 @@ describe('Channel routing for gateway branches', () => {
     const merge = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskYes,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: taskNo,
-      label: 'No',
-    });
-    await handleConnect({ diagramId, sourceElementId: taskYes, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: taskNo, targetElementId: merge });
-    await handleConnect({ diagramId, sourceElementId: merge, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, taskYes, { label: 'Yes' });
+    await connect(diagramId, gw, taskNo, { label: 'No' });
+    await connect(diagramId, taskYes, merge);
+    await connect(diagramId, taskNo, merge);
+    await connect(diagramId, merge, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -147,14 +137,14 @@ describe('Channel routing for gateway branches', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway');
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskA });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskB });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: taskC });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskC, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, split);
+    await connect(diagramId, split, taskA);
+    await connect(diagramId, split, taskB);
+    await connect(diagramId, split, taskC);
+    await connect(diagramId, taskA, join);
+    await connect(diagramId, taskB, join);
+    await connect(diagramId, taskC, join);
+    await connect(diagramId, join, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -188,11 +178,11 @@ describe('Channel routing for gateway branches', () => {
     const t2 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Path B' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t1, label: 'A' });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: t2, label: 'B' });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: end });
+    await connect(diagramId, start, gw);
+    await connect(diagramId, gw, t1);
+    await connect(diagramId, gw, t2);
+    await connect(diagramId, t1, end);
+    await connect(diagramId, t2, end);
 
     await handleLayoutDiagram({ diagramId });
 

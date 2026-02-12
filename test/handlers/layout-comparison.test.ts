@@ -12,7 +12,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   handleLayoutDiagram,
-  handleConnect,
   handleCreateCollaboration,
   handleAddElement,
 } from '../../src/handlers';
@@ -23,6 +22,7 @@ import {
   clearDiagrams,
   importReference,
   comparePositions,
+  connect,
 } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
@@ -112,7 +112,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     ids.push(await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' }));
 
     for (let i = 0; i < ids.length - 1; i++) {
-      await handleConnect({ diagramId, sourceElementId: ids[i], targetElementId: ids[i + 1] });
+      await connect(diagramId, ids[i], ids[i + 1]);
     }
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
@@ -152,23 +152,12 @@ describe('Layout comparison: ELK quality metrics', () => {
     const join = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Merge' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-    await handleConnect({
-      diagramId,
-      sourceElementId: split,
-      targetElementId: taskA,
-      label: 'Yes',
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: split,
-      targetElementId: taskB,
-      label: 'No',
-      isDefault: true,
-    });
-    await handleConnect({ diagramId, sourceElementId: taskA, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: taskB, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, split);
+    await connect(diagramId, split, taskA, { label: 'Yes' });
+    await connect(diagramId, split, taskB, { label: 'No', isDefault: true });
+    await connect(diagramId, taskA, join);
+    await connect(diagramId, taskB, join);
+    await connect(diagramId, join, end);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -205,12 +194,12 @@ describe('Layout comparison: ELK quality metrics', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
+    await connect(diagramId, start, split);
     for (const t of tasks) {
-      await handleConnect({ diagramId, sourceElementId: split, targetElementId: t });
-      await handleConnect({ diagramId, sourceElementId: t, targetElementId: join });
+      await connect(diagramId, split, t);
+      await connect(diagramId, t, join);
     }
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, join, end);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -267,10 +256,10 @@ describe('Layout comparison: ELK quality metrics', () => {
       })
     ).elementId;
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: sub });
-    await handleConnect({ diagramId, sourceElementId: sub, targetElementId: end });
-    await handleConnect({ diagramId, sourceElementId: subStart, targetElementId: subTask });
-    await handleConnect({ diagramId, sourceElementId: subTask, targetElementId: subEnd });
+    await connect(diagramId, start, sub);
+    await connect(diagramId, sub, end);
+    await connect(diagramId, subStart, subTask);
+    await connect(diagramId, subTask, subEnd);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -327,8 +316,8 @@ describe('Layout comparison: ELK quality metrics', () => {
       })
     ).elementId;
 
-    await handleConnect({ diagramId, sourceElementId: custStart, targetElementId: custTask });
-    await handleConnect({ diagramId, sourceElementId: custTask, targetElementId: custEnd });
+    await connect(diagramId, custStart, custTask);
+    await connect(diagramId, custTask, custEnd);
 
     // Supplier flow
     const suppStart = parseResult(
@@ -356,16 +345,11 @@ describe('Layout comparison: ELK quality metrics', () => {
       })
     ).elementId;
 
-    await handleConnect({ diagramId, sourceElementId: suppStart, targetElementId: suppTask });
-    await handleConnect({ diagramId, sourceElementId: suppTask, targetElementId: suppEnd });
+    await connect(diagramId, suppStart, suppTask);
+    await connect(diagramId, suppTask, suppEnd);
 
     // Cross-pool message flow
-    await handleConnect({
-      diagramId,
-      sourceElementId: custTask,
-      targetElementId: suppStart,
-      connectionType: 'bpmn:MessageFlow',
-    });
+    await connect(diagramId, custTask, suppStart, { connectionType: 'bpmn:MessageFlow' });
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -394,10 +378,10 @@ describe('Layout comparison: ELK quality metrics', () => {
     const normalEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Success' });
     const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Failure' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: normalEnd });
-    await handleConnect({ diagramId, sourceElementId: boundary, targetElementId: recovery });
-    await handleConnect({ diagramId, sourceElementId: recovery, targetElementId: errorEnd });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, normalEnd);
+    await connect(diagramId, boundary, recovery);
+    await connect(diagramId, recovery, errorEnd);
 
     const res = parseResult(await handleLayoutDiagram({ diagramId }));
     expect(res.success).toBe(true);
@@ -425,12 +409,12 @@ describe('Layout comparison: ELK quality metrics', () => {
     const join = await addElement(diagramId, 'bpmn:ParallelGateway', { name: 'Join' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: split });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: split, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: join });
-    await handleConnect({ diagramId, sourceElementId: join, targetElementId: end });
+    await connect(diagramId, start, split);
+    await connect(diagramId, split, t1);
+    await connect(diagramId, split, t2);
+    await connect(diagramId, t1, join);
+    await connect(diagramId, t2, join);
+    await connect(diagramId, join, end);
 
     // Layout with grid snap disabled
     const res = parseResult(await handleLayoutDiagram({ diagramId, gridSnap: false } as any));
@@ -451,22 +435,11 @@ describe('Layout comparison: ELK quality metrics', () => {
     const rework = await addElement(diagramId, 'bpmn:UserTask', { name: 'Rework' });
     const endFail = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Rejected' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: gw });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: endOk,
-      label: 'Yes',
-      isDefault: true,
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gw,
-      targetElementId: rework,
-      label: 'No',
-    });
-    await handleConnect({ diagramId, sourceElementId: rework, targetElementId: endFail });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, gw);
+    await connect(diagramId, gw, endOk, { label: 'Yes', isDefault: true });
+    await connect(diagramId, gw, rework, { label: 'No' });
+    await connect(diagramId, rework, endFail);
 
     await handleLayoutDiagram({ diagramId });
 

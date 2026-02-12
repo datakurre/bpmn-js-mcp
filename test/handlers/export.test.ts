@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleExportBpmn, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleExportBpmn } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('export_bpmn', () => {
   beforeEach(() => {
@@ -55,7 +55,7 @@ describe('export_bpmn', () => {
       y: 100,
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'xml' });
     // Should export normally — no "Export blocked"
@@ -82,7 +82,7 @@ describe('export_bpmn', () => {
       y: 100,
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
     // Add orphaned annotation (not connected to anything)
     await addElement(diagramId, 'bpmn:TextAnnotation', { name: 'Orphaned note', x: 200, y: 300 });
 
@@ -100,7 +100,7 @@ describe('export_bpmn', () => {
       y: 100,
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
     await addElement(diagramId, 'bpmn:DataObjectReference', { name: 'Doc', x: 200, y: 300 });
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
@@ -117,7 +117,7 @@ describe('export_bpmn', () => {
       y: 100,
     });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
     await addElement(diagramId, 'bpmn:DataStoreReference', { name: 'DB', x: 200, y: 300 });
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
@@ -145,14 +145,10 @@ describe('export_bpmn', () => {
       y: 300,
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
     // Connect annotation to task via Association (auto-corrected)
-    await handleConnect({
-      diagramId,
-      sourceElementId: annot,
-      targetElementId: task,
-    });
+    await connect(diagramId, annot, task);
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     const warningTexts = res.content.slice(1).map((c) => c.text);

@@ -12,7 +12,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   handleLayoutDiagram,
-  handleConnect,
   handleSetProperties,
   handleCreateCollaboration,
 } from '../../src/handlers';
@@ -234,13 +233,7 @@ describe('MCP Reproduction Tests', () => {
       });
 
       // Connect gateway → rejection (No, default)
-      await handleConnect({
-        diagramId,
-        sourceElementId: gatewayId,
-        targetElementId: rejectionId,
-        label: 'No',
-        isDefault: true,
-      });
+      await connect(diagramId, gatewayId, rejectionId, { label: 'No', isDefault: true });
       // Connect rejection → merge
       await connect(diagramId, rejectionId, mergeId);
 
@@ -810,13 +803,7 @@ describe('MCP Reproduction Tests', () => {
       }
 
       // No branch (default)
-      await handleConnect({
-        diagramId,
-        sourceElementId: validGwId,
-        targetElementId: rejectionId,
-        label: 'No',
-        isDefault: true,
-      });
+      await connect(diagramId, validGwId, rejectionId, { label: 'No', isDefault: true });
 
       // Parallel branches
       await connect(diagramId, forkId, inventoryId);

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleExportBpmn, handleConnect, handleImportXml } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleExportBpmn, handleImportXml } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -21,7 +21,7 @@ describe('export_bpmn — enhancements', () => {
         y: 100,
       });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+      await connect(diagramId, start, end);
 
       const res = await handleExportBpmn({ diagramId, format: 'both' });
       // First content block should be XML
@@ -57,7 +57,7 @@ describe('export_bpmn — enhancements', () => {
         y: 100,
       });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+      await connect(diagramId, start, end);
 
       const outPath = path.join(tmpDir, 'test.bpmn');
       const res = await handleExportBpmn({
@@ -84,7 +84,7 @@ describe('export_bpmn — enhancements', () => {
         y: 100,
       });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+      await connect(diagramId, start, end);
 
       const outPath = path.join(tmpDir, 'test.bpmn');
       const res = await handleExportBpmn({
@@ -110,7 +110,7 @@ describe('export_bpmn — enhancements', () => {
         y: 100,
       });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+      await connect(diagramId, start, end);
 
       const outPath = path.join(tmpDir, 'nested', 'dir', 'test.bpmn');
       await handleExportBpmn({
@@ -134,7 +134,7 @@ describe('export_bpmn — enhancements', () => {
         y: 100,
       });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+      await connect(diagramId, start, end);
 
       const res = await handleExportBpmn({ diagramId, format: 'xml' });
       const xml = res.content[0].text;
@@ -215,7 +215,7 @@ describe('import_bpmn_xml — enhancements', () => {
         y: 100,
       });
       const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+      await connect(diagramId, start, end);
 
       const exportPath = path.join(tmpDir, 'roundtrip.bpmn');
       await handleExportBpmn({

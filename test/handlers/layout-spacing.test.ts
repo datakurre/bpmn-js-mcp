@@ -6,8 +6,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram, handleCreateCollaboration } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 import { ELK_LAYER_SPACING, ELK_NODE_SPACING, ELK_EDGE_NODE_SPACING } from '../../src/constants';
 
@@ -37,9 +37,9 @@ describe('layout spacing regression', () => {
     const t2 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 2' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: t1 });
-    await handleConnect({ diagramId, sourceElementId: t1, targetElementId: t2 });
-    await handleConnect({ diagramId, sourceElementId: t2, targetElementId: end });
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, t2);
+    await connect(diagramId, t2, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -92,8 +92,8 @@ describe('layout spacing regression', () => {
       participantId: mainPool.id,
     });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: end });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
 
     await handleLayoutDiagram({ diagramId });
 

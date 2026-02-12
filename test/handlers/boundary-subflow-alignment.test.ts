@@ -6,8 +6,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect, handleSetEventDefinition } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram, handleSetEventDefinition } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 function centreY(el: any): number {
@@ -37,10 +37,10 @@ describe('Boundary sub-flow end event alignment', () => {
     const endOk = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
     const endTimeout = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Timed Out' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: endOk });
-    await handleConnect({ diagramId, sourceElementId: boundary, targetElementId: handler });
-    await handleConnect({ diagramId, sourceElementId: handler, targetElementId: endTimeout });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, endOk);
+    await connect(diagramId, boundary, handler);
+    await connect(diagramId, handler, endTimeout);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -67,9 +67,9 @@ describe('Boundary sub-flow end event alignment', () => {
     const endOk = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Success' });
     const endError = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Error End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: endOk });
-    await handleConnect({ diagramId, sourceElementId: boundary, targetElementId: endError });
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, endOk);
+    await connect(diagramId, boundary, endError);
 
     await handleLayoutDiagram({ diagramId });
 

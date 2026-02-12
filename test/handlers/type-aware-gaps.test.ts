@@ -6,8 +6,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLayoutDiagram, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleLayoutDiagram } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -33,10 +33,10 @@ describe('Element-type-aware gap variation (AI-8)', () => {
     const task3 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 3' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task1 });
-    await handleConnect({ diagramId, sourceElementId: task1, targetElementId: task2 });
-    await handleConnect({ diagramId, sourceElementId: task2, targetElementId: task3 });
-    await handleConnect({ diagramId, sourceElementId: task3, targetElementId: end });
+    await connect(diagramId, start, task1);
+    await connect(diagramId, task1, task2);
+    await connect(diagramId, task2, task3);
+    await connect(diagramId, task3, end);
 
     await handleLayoutDiagram({ diagramId });
 
@@ -68,10 +68,10 @@ describe('Element-type-aware gap variation (AI-8)', () => {
     const task2 = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Process' });
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
 
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task1 });
-    await handleConnect({ diagramId, sourceElementId: task1, targetElementId: gw });
-    await handleConnect({ diagramId, sourceElementId: gw, targetElementId: task2, label: 'Yes' });
-    await handleConnect({ diagramId, sourceElementId: task2, targetElementId: end });
+    await connect(diagramId, start, task1);
+    await connect(diagramId, task1, gw);
+    await connect(diagramId, gw, task2);
+    await connect(diagramId, task2, end);
 
     await handleLayoutDiagram({ diagramId });
 

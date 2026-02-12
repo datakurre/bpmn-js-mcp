@@ -1,11 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import {
-  handleConnect,
-  handleExportBpmn,
-  handleImportXml,
-  handleLintDiagram,
-} from '../../src/handlers';
-import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
+import { handleExportBpmn, handleImportXml, handleLintDiagram } from '../../src/handlers';
+import { createDiagram, addElement, parseResult, clearDiagrams, connect } from '../helpers';
 
 /**
  * Integration test: full round-trip through the BPMN pipeline.
@@ -65,33 +60,16 @@ describe('integration: full round-trip', () => {
     });
 
     // Connect the flow
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: task });
-    await handleConnect({ diagramId, sourceElementId: task, targetElementId: gateway });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gateway,
-      targetElementId: approvedTask,
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, gateway);
+    await connect(diagramId, gateway, approvedTask, {
       label: 'Yes',
       conditionExpression: '${approved}',
     });
-    await handleConnect({
-      diagramId,
-      sourceElementId: gateway,
-      targetElementId: rejectedTask,
-      label: 'No',
-      isDefault: true,
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: approvedTask,
-      targetElementId: joinGateway,
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: rejectedTask,
-      targetElementId: joinGateway,
-    });
-    await handleConnect({ diagramId, sourceElementId: joinGateway, targetElementId: end });
+    await connect(diagramId, gateway, rejectedTask, { label: 'No', isDefault: true });
+    await connect(diagramId, approvedTask, joinGateway);
+    await connect(diagramId, rejectedTask, joinGateway);
+    await connect(diagramId, joinGateway, end);
 
     // ── Step 2: Export as XML ──────────────────────────────────────────
     const exportRes = await handleExportBpmn({

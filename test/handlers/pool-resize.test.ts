@@ -8,11 +8,10 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import {
   handleLayoutDiagram,
-  handleConnect,
   handleCreateCollaboration,
   handleAddElement,
 } from '../../src/handlers';
-import { parseResult, createDiagram, clearDiagrams } from '../helpers';
+import { parseResult, createDiagram, clearDiagrams, connect, connectAll } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
 describe('layout_bpmn_diagram — pool auto-resize', () => {
@@ -75,10 +74,14 @@ describe('layout_bpmn_diagram — pool auto-resize', () => {
       })
     );
 
-    await handleConnect({
+    await connectAll(
       diagramId,
-      elementIds: [s1.elementId, t1.elementId, t2.elementId, t3.elementId, e1.elementId],
-    });
+      s1.elementId,
+      t1.elementId,
+      t2.elementId,
+      t3.elementId,
+      e1.elementId
+    );
 
     // Add a shorter flow to pool B (start → task → end)
     const s2 = parseResult(
@@ -106,7 +109,7 @@ describe('layout_bpmn_diagram — pool auto-resize', () => {
       })
     );
 
-    await handleConnect({ diagramId, elementIds: [s2.elementId, t4.elementId, e2.elementId] });
+    await connectAll(diagramId, s2.elementId, t4.elementId, e2.elementId);
 
     // Record sizes before layout
     const diagram = getDiagram(diagramId)!;
@@ -173,15 +176,8 @@ describe('layout_bpmn_diagram — pool auto-resize', () => {
       await handleAddElement({ diagramId, elementType: 'bpmn:EndEvent', name: 'Timed Out' })
     );
 
-    await handleConnect({
-      diagramId,
-      elementIds: [startRes.elementId, taskRes.elementId, endRes.elementId],
-    });
-    await handleConnect({
-      diagramId,
-      sourceElementId: boundaryRes.elementId,
-      targetElementId: errorEndRes.elementId,
-    });
+    await connectAll(diagramId, startRes.elementId, taskRes.elementId, endRes.elementId);
+    await connect(diagramId, boundaryRes.elementId, errorEndRes.elementId);
 
     // Run layout
     const res = parseResult(await handleLayoutDiagram({ diagramId }));

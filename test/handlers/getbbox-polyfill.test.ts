@@ -6,8 +6,8 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleExportBpmn, handleConnect } from '../../src/handlers';
-import { createDiagram, addElement, clearDiagrams } from '../helpers';
+import { handleExportBpmn } from '../../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from '../helpers';
 
 describe('getBBox polyfill', () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('getBBox polyfill', () => {
       x: 300,
       y: 100,
     });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: end });
+    await connect(diagramId, start, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     const xml = res.content[0].text;
@@ -61,8 +61,8 @@ describe('getBBox polyfill', () => {
       x: 500,
       y: 100,
     });
-    await handleConnect({ diagramId, sourceElementId: shortId, targetElementId: longId });
-    await handleConnect({ diagramId, sourceElementId: longId, targetElementId: end });
+    await connect(diagramId, shortId, longId);
+    await connect(diagramId, longId, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     const xml = res.content[0].text;
@@ -92,12 +92,7 @@ describe('getBBox polyfill', () => {
     });
 
     // Connect annotation to task
-    await handleConnect({
-      diagramId,
-      sourceElementId: annotId,
-      targetElementId: taskId,
-      connectionType: 'bpmn:Association',
-    });
+    await connect(diagramId, annotId, taskId, { connectionType: 'bpmn:Association' });
 
     const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End', x: 400, y: 100 });
     const start = await addElement(diagramId, 'bpmn:StartEvent', {
@@ -105,8 +100,8 @@ describe('getBBox polyfill', () => {
       x: 50,
       y: 100,
     });
-    await handleConnect({ diagramId, sourceElementId: start, targetElementId: taskId });
-    await handleConnect({ diagramId, sourceElementId: taskId, targetElementId: end });
+    await connect(diagramId, start, taskId);
+    await connect(diagramId, taskId, end);
 
     const res = await handleExportBpmn({ diagramId, format: 'xml', skipLint: true });
     const xml = res.content[0].text;

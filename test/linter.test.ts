@@ -8,8 +8,8 @@ import {
   resetUserConfig,
   DEFAULT_LINT_CONFIG,
 } from '../src/linter';
-import { createDiagram, addElement, clearDiagrams } from './helpers';
-import { handleConnect } from '../src/handlers';
+import { createDiagram, addElement, clearDiagrams, connect } from './helpers';
+
 import { getDiagram } from '../src/diagram-manager';
 
 describe('linter', () => {
@@ -52,8 +52,8 @@ describe('linter', () => {
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
       const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'Work', x: 250, y: 100 });
       const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 400, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: startId, targetElementId: taskId });
-      await handleConnect({ diagramId, sourceElementId: taskId, targetElementId: endId });
+      await connect(diagramId, startId, taskId);
+      await connect(diagramId, taskId, endId);
 
       const diagram = getDiagram(diagramId);
       const results = await lintDiagram(diagram!);
@@ -130,17 +130,12 @@ describe('linter', () => {
       const task1Id = await addElement(diagramId, 'bpmn:Task', { name: 'A', x: 400, y: 50 });
       const task2Id = await addElement(diagramId, 'bpmn:Task', { name: 'B', x: 400, y: 200 });
       const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 550, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: startId, targetElementId: gwId });
+      await connect(diagramId, startId, gwId);
       // One flow WITH a condition, one WITHOUT — triggers the rule
-      await handleConnect({
-        diagramId,
-        sourceElementId: gwId,
-        targetElementId: task1Id,
-        conditionExpression: '${approved}',
-      });
-      await handleConnect({ diagramId, sourceElementId: gwId, targetElementId: task2Id });
-      await handleConnect({ diagramId, sourceElementId: task1Id, targetElementId: endId });
-      await handleConnect({ diagramId, sourceElementId: task2Id, targetElementId: endId });
+      await connect(diagramId, gwId, task1Id, { conditionExpression: '${approved}' });
+      await connect(diagramId, gwId, task2Id);
+      await connect(diagramId, task1Id, endId);
+      await connect(diagramId, task2Id, endId);
 
       const diagram = getDiagram(diagramId);
       const result = {
@@ -172,8 +167,8 @@ describe('linter', () => {
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
       const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'Work', x: 250, y: 100 });
       const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 400, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: startId, targetElementId: taskId });
-      await handleConnect({ diagramId, sourceElementId: taskId, targetElementId: endId });
+      await connect(diagramId, startId, taskId);
+      await connect(diagramId, taskId, endId);
 
       const diagram = getDiagram(diagramId);
 
@@ -294,19 +289,9 @@ describe('linter', () => {
       const taskAId = await addElement(diagramId, 'bpmn:Task', { name: 'Yes', x: 400, y: 100 });
       const taskBId = await addElement(diagramId, 'bpmn:Task', { name: 'No', x: 400, y: 300 });
 
-      await handleConnect({ diagramId, sourceElementId: startId, targetElementId: gwId });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gwId,
-        targetElementId: taskAId,
-        conditionExpression: '${yes}',
-      });
-      await handleConnect({
-        diagramId,
-        sourceElementId: gwId,
-        targetElementId: taskBId,
-        conditionExpression: '${!yes}',
-      });
+      await connect(diagramId, startId, gwId);
+      await connect(diagramId, gwId, taskAId, { conditionExpression: '${yes}' });
+      await connect(diagramId, gwId, taskBId, { conditionExpression: '${!yes}' });
 
       const diagram = getDiagram(diagramId);
       const flat = await lintDiagramFlat(diagram!, {
@@ -328,7 +313,7 @@ describe('linter', () => {
       // Add a process with start and end events
       const startId = await addElement(diagramId, 'bpmn:StartEvent', { x: 100, y: 100 });
       const endId = await addElement(diagramId, 'bpmn:EndEvent', { x: 300, y: 100 });
-      await handleConnect({ diagramId, sourceElementId: startId, targetElementId: endId });
+      await connect(diagramId, startId, endId);
 
       const diagram = getDiagram(diagramId);
       // Lint with explicit camunda-compat config to verify plugin loads
