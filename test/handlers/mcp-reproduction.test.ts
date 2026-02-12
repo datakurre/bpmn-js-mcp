@@ -9,7 +9,7 @@
  * Run with: npx vitest run test/handlers/mcp-reproduction.test.ts
  */
 
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   handleLayoutDiagram,
   handleConnect,
@@ -76,7 +76,7 @@ describe('MCP Reproduction Tests', () => {
     clearDiagrams();
   });
 
-  afterAll(() => {
+  afterEach(() => {
     clearDiagrams();
   });
 

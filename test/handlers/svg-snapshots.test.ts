@@ -10,7 +10,7 @@
  * Run with: npx vitest run test/handlers/svg-snapshots.test.ts
  */
 
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { handleLayoutDiagram, handleExportBpmn } from '../../src/handlers';
@@ -65,7 +65,7 @@ describe('SVG snapshot generation', () => {
     clearDiagrams();
   });
 
-  afterAll(() => {
+  afterEach(() => {
     clearDiagrams();
   });
 

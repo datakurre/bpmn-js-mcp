@@ -9,7 +9,7 @@
  * ELK engine produces visually spacious, regular layouts.
  */
 
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   handleLayoutDiagram,
   handleConnect,
@@ -97,7 +97,7 @@ describe('Layout comparison: ELK quality metrics', () => {
     clearDiagrams();
   });
 
-  afterAll(() => {
+  afterEach(() => {
     clearDiagrams();
   });
 

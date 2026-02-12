@@ -12,7 +12,7 @@
  * Run with: npx vitest run test/handlers/svg-comparison.test.ts
  */
 
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 import { handleLayoutDiagram, handleExportBpmn } from '../../src/handlers';
 import {
@@ -96,7 +96,7 @@ describe('SVG position comparison (normalised)', () => {
     clearDiagrams();
   });
 
-  afterAll(() => {
+  afterEach(() => {
     clearDiagrams();
   });
 

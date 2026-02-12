@@ -17,7 +17,7 @@
  * Run with: npx vitest run test/handlers/bpmn-comparison.test.ts
  */
 
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { handleLayoutDiagram, handleExportBpmn } from '../../src/handlers';
 import {
   clearDiagrams,
@@ -90,7 +90,7 @@ describe('BPMN position comparison (normalised)', () => {
     clearDiagrams();
   });
 
-  afterAll(() => {
+  afterEach(() => {
     clearDiagrams();
   });
 

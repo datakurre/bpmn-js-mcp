@@ -30,6 +30,14 @@ export const CONTAINER_PADDING = '[top=60,left=40,bottom=60,right=50]';
 /** Padding inside participant pools — extra left for the ~30px bpmn-js label band. */
 export const PARTICIPANT_PADDING = '[top=80,left=50,bottom=80,right=40]';
 
+/**
+ * Padding inside participant pools that contain lanes.
+ * Lanes have their own ~30px label band on the left, so elements need
+ * to be pushed further right: pool label band (30) + lane label band (30)
+ * + breathing room (20) = 80px total left padding.
+ */
+export const PARTICIPANT_WITH_LANES_PADDING = '[top=80,left=80,bottom=80,right=40]';
+
 /** Offset from origin so the diagram has comfortable breathing room. */
 export const ORIGIN_OFFSET_X = 180;
 export const ORIGIN_OFFSET_Y = 80;

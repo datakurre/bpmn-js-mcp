@@ -7,6 +7,7 @@ import {
   ELK_LAYOUT_OPTIONS,
   CONTAINER_PADDING,
   PARTICIPANT_PADDING,
+  PARTICIPANT_WITH_LANES_PADDING,
   DIVERSE_Y_THRESHOLD,
   ELK_HIGH_PRIORITY,
   BPMN_TASK_WIDTH,
@@ -89,6 +90,18 @@ export function buildContainerGraph(
       // Compound node — recurse
       const isParticipant = shape.type === 'bpmn:Participant';
       const nested = buildContainerGraph(allElements, shape, excludeIds);
+
+      // Determine padding: participants with lanes need extra left padding
+      // to account for the lane label band (~30px) in addition to the pool
+      // label band (~30px).
+      let padding: string;
+      if (isParticipant) {
+        const hasLanes = allElements.some((el: any) => el.parent === shape && isLane(el.type));
+        padding = hasLanes ? PARTICIPANT_WITH_LANES_PADDING : PARTICIPANT_PADDING;
+      } else {
+        padding = CONTAINER_PADDING;
+      }
+
       children.push({
         id: shape.id,
         width: shape.width || CONTAINER_DEFAULT_WIDTH,
@@ -97,7 +110,7 @@ export function buildContainerGraph(
         edges: nested.edges,
         layoutOptions: {
           ...ELK_LAYOUT_OPTIONS,
-          'elk.padding': isParticipant ? PARTICIPANT_PADDING : CONTAINER_PADDING,
+          'elk.padding': padding,
         },
       });
     } else {
