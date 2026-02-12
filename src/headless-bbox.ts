@@ -17,6 +17,157 @@ const LINE_HEIGHT = 14;
 /** Default line width for text wrapping estimation. */
 const DEFAULT_WRAP_WIDTH = 90;
 
+// ── Proportional character width table (Arial) ─────────────────────────────
+
+/**
+ * Character width ratios relative to font size for Arial.
+ *
+ * These ratios were measured from the Arial font and represent the
+ * advance width of each character as a fraction of the font's em size.
+ * To get pixel width: `ratio * fontSize`.
+ *
+ * Coverage: ASCII printable range (32–126) plus common Unicode chars.
+ * Characters not in the table fall back to `DEFAULT_CHAR_RATIO`.
+ */
+const DEFAULT_CHAR_RATIO = 0.55;
+
+const ARIAL_CHAR_RATIOS: Record<string, number> = {
+  // Whitespace and punctuation
+  ' ': 0.278,
+  '!': 0.278,
+  '"': 0.355,
+  '#': 0.556,
+  $: 0.556,
+  '%': 0.889,
+  '&': 0.667,
+  "'": 0.191,
+  '(': 0.333,
+  ')': 0.333,
+  '*': 0.389,
+  '+': 0.584,
+  ',': 0.278,
+  '-': 0.333,
+  '.': 0.278,
+  '/': 0.278,
+
+  // Digits
+  '0': 0.556,
+  '1': 0.556,
+  '2': 0.556,
+  '3': 0.556,
+  '4': 0.556,
+  '5': 0.556,
+  '6': 0.556,
+  '7': 0.556,
+  '8': 0.556,
+  '9': 0.556,
+
+  // Punctuation
+  ':': 0.278,
+  ';': 0.278,
+  '<': 0.584,
+  '=': 0.584,
+  '>': 0.584,
+  '?': 0.556,
+  '@': 1.015,
+
+  // Uppercase
+  A: 0.667,
+  B: 0.667,
+  C: 0.722,
+  D: 0.722,
+  E: 0.667,
+  F: 0.611,
+  G: 0.778,
+  H: 0.722,
+  I: 0.278,
+  J: 0.5,
+  K: 0.667,
+  L: 0.556,
+  M: 0.833,
+  N: 0.722,
+  O: 0.778,
+  P: 0.667,
+  Q: 0.778,
+  R: 0.722,
+  S: 0.667,
+  T: 0.611,
+  U: 0.722,
+  V: 0.667,
+  W: 0.944,
+  X: 0.667,
+  Y: 0.667,
+  Z: 0.611,
+
+  // Brackets and special
+  '[': 0.278,
+  '\\': 0.278,
+  ']': 0.278,
+  '^': 0.469,
+  _: 0.556,
+  '`': 0.333,
+
+  // Lowercase
+  a: 0.556,
+  b: 0.556,
+  c: 0.5,
+  d: 0.556,
+  e: 0.556,
+  f: 0.278,
+  g: 0.556,
+  h: 0.556,
+  i: 0.222,
+  j: 0.222,
+  k: 0.5,
+  l: 0.222,
+  m: 0.833,
+  n: 0.556,
+  o: 0.556,
+  p: 0.556,
+  q: 0.556,
+  r: 0.333,
+  s: 0.5,
+  t: 0.278,
+  u: 0.556,
+  v: 0.5,
+  w: 0.722,
+  x: 0.5,
+  y: 0.5,
+  z: 0.5,
+
+  // Remaining ASCII
+  '{': 0.334,
+  '|': 0.26,
+  '}': 0.334,
+  '~': 0.584,
+};
+
+/**
+ * Measure the pixel width of a string using proportional Arial metrics.
+ * Falls back to the flat `AVG_CHAR_WIDTH` estimate if font size is unknown.
+ */
+function measureTextWidth(text: string, fontSize: number): number {
+  let width = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ratio = ARIAL_CHAR_RATIOS[text[i]] ?? DEFAULT_CHAR_RATIO;
+    width += ratio * fontSize;
+  }
+  return width;
+}
+
+/**
+ * Extract font size in px from an SVG element's style attribute.
+ * Returns undefined if not set or not parseable.
+ */
+function getFontSize(el: any): number | undefined {
+  // tiny-svg sets CSS properties via node.style
+  const styleAttr: string | undefined =
+    el.style?.fontSize || el.style?.['font-size'] || el.getAttribute?.('font-size');
+  if (!styleAttr) return undefined;
+  const parsed = parseFloat(String(styleAttr));
+  return isNaN(parsed) ? undefined : parsed;
+}
+
 // ── Geometry helpers ───────────────────────────────────────────────────────
 
 /**
@@ -58,29 +209,49 @@ function parseSvgPointsBBox(points: string): {
 
 /**
  * Estimate bounding box dimensions for a text/tspan SVG element based on
- * its textContent.  Returns { width, height } proportional to character
- * count and line breaks.
+ * its textContent and font metrics.  Returns { width, height } using
+ * proportional character widths when fontSize is known.
  */
-function estimateTextBBox(textContent: string): { width: number; height: number } {
+function estimateTextBBox(
+  textContent: string,
+  fontSize?: number
+): { width: number; height: number } {
   if (!textContent || textContent.trim().length === 0) {
     return { width: 0, height: 0 };
   }
   const lines = textContent.split('\n');
-  const maxLineLen = Math.max(...lines.map((l) => l.length));
-  const rawWidth = maxLineLen * AVG_CHAR_WIDTH;
+
+  // Use proportional measurement when font size is known
+  const lineWidths = fontSize
+    ? lines.map((l) => measureTextWidth(l, fontSize))
+    : lines.map((l) => l.length * AVG_CHAR_WIDTH);
+  const rawWidth = Math.max(...lineWidths);
+
+  const lineHeight = fontSize ? Math.round(fontSize * 1.2) : LINE_HEIGHT;
 
   // Simulate wrapping: if text is wider than the default wrap width,
   // estimate wrapped line count
   if (rawWidth > DEFAULT_WRAP_WIDTH) {
+    if (fontSize) {
+      // Proportional wrapping: estimate chars-per-line based on average char width
+      const totalChars = lines.reduce((sum, l) => sum + l.length, 0);
+      const avgCharWidth = rawWidth / Math.max(1, totalChars / lines.length);
+      const charsPerLine = Math.floor(DEFAULT_WRAP_WIDTH / avgCharWidth);
+      let wrappedLines = 0;
+      for (const line of lines) {
+        wrappedLines += Math.max(1, Math.ceil(line.length / Math.max(1, charsPerLine)));
+      }
+      return { width: DEFAULT_WRAP_WIDTH, height: wrappedLines * lineHeight };
+    }
     const charsPerLine = Math.floor(DEFAULT_WRAP_WIDTH / AVG_CHAR_WIDTH);
     let wrappedLines = 0;
     for (const line of lines) {
       wrappedLines += Math.max(1, Math.ceil(line.length / charsPerLine));
     }
-    return { width: DEFAULT_WRAP_WIDTH, height: wrappedLines * LINE_HEIGHT };
+    return { width: DEFAULT_WRAP_WIDTH, height: wrappedLines * lineHeight };
   }
 
-  return { width: rawWidth, height: lines.length * LINE_HEIGHT };
+  return { width: rawWidth, height: lines.length * lineHeight };
 }
 
 // ── Transform parsing ──────────────────────────────────────────────────────
@@ -124,7 +295,8 @@ const FALLBACK_BBOX = { x: 0, y: 0, width: 100, height: 80 };
 /** getBBox for text/tspan elements. */
 function bboxText(el: any): { x: number; y: number; width: number; height: number } {
   const text: string = el.textContent || '';
-  const bbox = estimateTextBBox(text);
+  const fontSize = getFontSize(el);
+  const bbox = estimateTextBBox(text, fontSize);
   const x = parseFloat(el.getAttribute?.('x')) || 0;
   const y = parseFloat(el.getAttribute?.('y')) || 0;
   return { x, y: y - bbox.height, width: bbox.width, height: bbox.height };
@@ -246,9 +418,13 @@ export function polyfillGetBBox(element: any): {
 }
 
 /**
- * Estimate computed text length based on character count.
+ * Estimate computed text length using proportional character widths.
  */
 export function polyfillGetComputedTextLength(element: any): number {
   const text: string = element.textContent || '';
+  const fontSize = getFontSize(element);
+  if (fontSize) {
+    return measureTextWidth(text, fontSize);
+  }
   return text.length * AVG_CHAR_WIDTH;
 }

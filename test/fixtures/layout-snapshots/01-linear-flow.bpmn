@@ -29,7 +29,7 @@
       <bpmndi:BPMNShape id="Event_1l18z3u_di" bpmnElement="Event_1l18z3u">
         <dc:Bounds x="192" y="114" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="183" y="157" width="56" height="27" />
+          <dc:Bounds x="172" y="157" width="78" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_17tx0sz_di" bpmnElement="Activity_01aji74">
@@ -44,7 +44,7 @@
       <bpmndi:BPMNShape id="Event_0bdlayk_di" bpmnElement="Event_0bdlayk">
         <dc:Bounds x="788" y="114" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="778" y="165" width="56" height="27" />
+          <dc:Bounds x="766.5" y="165" width="79" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1o0buuy_di" bpmnElement="Flow_1o0buuy">
