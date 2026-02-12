@@ -7,7 +7,7 @@ import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '.
 import { createDiagram, addElement, clearDiagrams, parseResult } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('layout compactness option', () => {
+describe('layout_bpmn_diagram — compactness option', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -85,7 +85,7 @@ describe('layout compactness option', () => {
   });
 });
 
-describe('layout simplifyRoutes option', () => {
+describe('layout_bpmn_diagram — simplifyRoutes option', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -133,7 +133,7 @@ describe('layout simplifyRoutes option', () => {
   });
 });
 
-describe('pool vertical centering (AP-2)', () => {
+describe('layout_bpmn_diagram — pool vertical centering (AP-2)', () => {
   beforeEach(() => {
     clearDiagrams();
   });

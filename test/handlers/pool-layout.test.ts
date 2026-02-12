@@ -3,7 +3,7 @@ import { handleLayoutDiagram, handleConnect, handleCreateCollaboration } from '.
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('pool element centering (AP-2)', () => {
+describe('layout_bpmn_diagram — pool element centering (AP-2)', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -63,7 +63,7 @@ describe('pool element centering (AP-2)', () => {
   });
 });
 
-describe('pool width scaling (AP-3)', () => {
+describe('layout_bpmn_diagram — pool width scaling (AP-3)', () => {
   beforeEach(() => {
     clearDiagrams();
   });

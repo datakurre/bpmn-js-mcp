@@ -15,7 +15,7 @@ import {
 import { parseResult, createDiagram, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('pool auto-resize after layout', () => {
+describe('layout_bpmn_diagram — pool auto-resize', () => {
   beforeEach(() => {
     clearDiagrams();
   });

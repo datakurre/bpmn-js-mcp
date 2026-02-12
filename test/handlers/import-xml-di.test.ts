@@ -53,7 +53,7 @@ const XML_WITHOUT_DI = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-describe('import_bpmn_xml DI handling', () => {
+describe('import_bpmn_xml — DI handling', () => {
   beforeEach(() => {
     clearDiagrams();
   });

@@ -14,7 +14,7 @@ function getFormData(props: any): any {
   return props.extensionElements?.find((e: any) => e.type === 'camunda:FormData');
 }
 
-describe('set_bpmn_form_data comprehensive', () => {
+describe('set_bpmn_form_data — comprehensive', () => {
   beforeEach(() => {
     clearDiagrams();
   });

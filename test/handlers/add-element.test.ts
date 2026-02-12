@@ -77,7 +77,7 @@ describe('add_bpmn_element', () => {
   });
 });
 
-describe('descriptive element IDs', () => {
+describe('add_bpmn_element — descriptive element IDs', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -157,7 +157,7 @@ describe('descriptive element IDs', () => {
   });
 });
 
-describe('smart add_bpmn_element insertion', () => {
+describe('add_bpmn_element — smart insertion', () => {
   beforeEach(() => {
     clearDiagrams();
   });

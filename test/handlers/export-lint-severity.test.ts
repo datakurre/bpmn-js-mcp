@@ -6,7 +6,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleExportBpmn, handleConnect } from '../../src/handlers';
 import { createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('export lintMinSeverity', () => {
+describe('export_bpmn — lintMinSeverity', () => {
   beforeEach(() => {
     clearDiagrams();
   });

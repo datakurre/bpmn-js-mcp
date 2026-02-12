@@ -15,7 +15,7 @@ import {
 } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('replace_bpmn_element: boundary event guard', () => {
+describe('replace_bpmn_element — boundary event guard', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -84,7 +84,7 @@ describe('replace_bpmn_element: boundary event guard', () => {
   });
 });
 
-describe('add_bpmn_element: visual boundary event feedback', () => {
+describe('add_bpmn_element — visual boundary event feedback', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -150,7 +150,7 @@ describe('add_bpmn_element: visual boundary event feedback', () => {
   });
 });
 
-describe('export_bpmn: skipLint abuse warning', () => {
+describe('export_bpmn — skipLint abuse warning', () => {
   beforeEach(() => {
     clearDiagrams();
   });

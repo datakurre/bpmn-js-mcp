@@ -3,7 +3,7 @@ import { handleUndoChange, handleRedoChange, handleSetProperties } from '../../s
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('undo/redo', () => {
+describe('bpmn_history', () => {
   beforeEach(() => {
     clearDiagrams();
   });

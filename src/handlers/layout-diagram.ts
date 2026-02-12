@@ -12,7 +12,7 @@
 
 import { type ToolResult } from '../types';
 import { requireDiagram, jsonResult, syncXml, getVisibleElements } from './helpers';
-import { appendLintFeedback } from '../linter';
+import { appendLintFeedback, resetMutationCounter } from '../linter';
 import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
 import { elkLayout, elkLayoutSubset } from '../elk';
 
@@ -29,6 +29,26 @@ export interface LayoutDiagramArgs {
   elementIds?: string[];
   /** Grid snap: boolean to enable/disable ELK grid snap, or number for pixel-level snapping. */
   gridSnap?: boolean | number;
+}
+
+/** Apply pixel-level grid snapping to all visible non-flow elements. */
+function applyPixelGridSnap(diagram: any, pixelGridSnap: number): void {
+  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const modeling = diagram.modeler.get('modeling');
+  const visibleElements = getVisibleElements(elementRegistry).filter(
+    (el: any) =>
+      !el.type.includes('SequenceFlow') &&
+      !el.type.includes('MessageFlow') &&
+      !el.type.includes('Association') &&
+      el.type !== 'bpmn:BoundaryEvent'
+  );
+  for (const el of visibleElements) {
+    const snappedX = Math.round(el.x / pixelGridSnap) * pixelGridSnap;
+    const snappedY = Math.round(el.y / pixelGridSnap) * pixelGridSnap;
+    if (snappedX !== el.x || snappedY !== el.y) {
+      modeling.moveElements([el], { x: snappedX - el.x, y: snappedY - el.y });
+    }
+  }
 }
 
 export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
@@ -75,25 +95,13 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
 
   // Optional pixel-level grid snapping after layout
   if (pixelGridSnap && pixelGridSnap > 0) {
-    const elementRegistry = diagram.modeler.get('elementRegistry');
-    const modeling = diagram.modeler.get('modeling');
-    const visibleElements = getVisibleElements(elementRegistry).filter(
-      (el: any) =>
-        !el.type.includes('SequenceFlow') &&
-        !el.type.includes('MessageFlow') &&
-        !el.type.includes('Association') &&
-        el.type !== 'bpmn:BoundaryEvent'
-    );
-    for (const el of visibleElements) {
-      const snappedX = Math.round(el.x / pixelGridSnap) * pixelGridSnap;
-      const snappedY = Math.round(el.y / pixelGridSnap) * pixelGridSnap;
-      if (snappedX !== el.x || snappedY !== el.y) {
-        modeling.moveElements([el], { x: snappedX - el.x, y: snappedY - el.y });
-      }
-    }
+    applyPixelGridSnap(diagram, pixelGridSnap);
   }
 
   await syncXml(diagram);
+
+  // Reset mutation counter since layout was just applied
+  resetMutationCounter(diagram);
 
   const elementRegistry = diagram.modeler.get('elementRegistry');
 

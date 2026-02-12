@@ -189,6 +189,14 @@ function getDiagramVersion(diagram: DiagramState): number {
  */
 export function bumpDiagramVersion(diagram: DiagramState): void {
   diagram.version = (diagram.version ?? 0) + 1;
+  diagram.mutationsSinceLayout = (diagram.mutationsSinceLayout ?? 0) + 1;
+}
+
+/**
+ * Reset the structural mutation counter (called after layout_bpmn_diagram).
+ */
+export function resetMutationCounter(diagram: DiagramState): void {
+  diagram.mutationsSinceLayout = 0;
 }
 
 function configCacheKey(config: LintConfig): string {
@@ -348,6 +356,17 @@ export async function appendLintFeedback(
   } catch {
     // Linting should never break the primary tool response
   }
+
+  // Append layout hint when many structural mutations have occurred without layout
+  const LAYOUT_HINT_THRESHOLD = 5;
+  const mutations = diagram.mutationsSinceLayout ?? 0;
+  if (mutations >= LAYOUT_HINT_THRESHOLD && mutations % LAYOUT_HINT_THRESHOLD === 0) {
+    result.content.push({
+      type: 'text',
+      text: `\n💡 Hint: ${mutations} changes since last layout — consider calling layout_bpmn_diagram to arrange elements.`,
+    });
+  }
+
   return result;
 }
 

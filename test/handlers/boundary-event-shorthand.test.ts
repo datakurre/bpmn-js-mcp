@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAddElement, handleGetProperties } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('boundary event shorthand (eventDefinitionType on add_bpmn_element)', () => {
+describe('add_bpmn_element — boundary event shorthand', () => {
   beforeEach(() => {
     clearDiagrams();
   });

@@ -80,7 +80,7 @@ const XML_FILE_B = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-describe('file-path import produces distinct diagrams (AP-4)', () => {
+describe('import_bpmn_xml — file-path distinct diagrams (AP-4)', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bpmn-import-test-'));
   const fileA = path.join(tmpDir, 'file-a.bpmn');
   const fileB = path.join(tmpDir, 'file-b.bpmn');

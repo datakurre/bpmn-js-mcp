@@ -21,6 +21,8 @@ export interface DiagramState {
   draftMode?: boolean;
   /** Monotonically increasing version counter, bumped on each mutation. */
   version?: number;
+  /** Count of structural mutations since the last layout_bpmn_diagram call. */
+  mutationsSinceLayout?: number;
 }
 
 /** Shape of the JSON returned by tool handlers that wrap results. */

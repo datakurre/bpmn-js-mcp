@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleValidate, handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('validate fix suggestions', () => {
+describe('validate_bpmn_diagram — fix suggestions', () => {
   beforeEach(() => {
     clearDiagrams();
   });

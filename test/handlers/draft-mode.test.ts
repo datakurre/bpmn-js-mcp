@@ -8,7 +8,7 @@ import {
 import { parseResult, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('draft mode', () => {
+describe('create_bpmn_diagram — draft mode', () => {
   beforeEach(() => {
     clearDiagrams();
   });

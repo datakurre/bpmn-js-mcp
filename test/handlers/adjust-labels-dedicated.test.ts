@@ -5,7 +5,7 @@ import { getDiagram } from '../../src/diagram-manager';
 import { adjustDiagramLabels, adjustFlowLabels } from '../../src/handlers/adjust-labels';
 import { rectsOverlap } from '../../src/handlers/label-utils';
 
-describe('adjustOverlappingLabels (dedicated)', () => {
+describe('adjust_bpmn_labels — dedicated', () => {
   beforeEach(() => {
     clearDiagrams();
   });

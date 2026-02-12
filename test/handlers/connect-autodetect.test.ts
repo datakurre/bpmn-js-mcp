@@ -13,7 +13,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('connect_bpmn_elements auto-detection', () => {
+describe('connect_bpmn_elements — auto-detection', () => {
   beforeEach(() => {
     clearDiagrams();
   });

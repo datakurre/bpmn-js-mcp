@@ -3,7 +3,7 @@ import { handleBatchOperations } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('batch operations rollback', () => {
+describe('batch_bpmn_operations — rollback', () => {
   beforeEach(() => {
     clearDiagrams();
   });

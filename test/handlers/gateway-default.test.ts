@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleSetProperties, handleExportBpmn } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 
-describe('gateway default flow', () => {
+describe('connect_bpmn_elements — gateway default flow', () => {
   beforeEach(() => {
     clearDiagrams();
   });

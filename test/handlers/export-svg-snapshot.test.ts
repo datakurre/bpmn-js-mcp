@@ -9,7 +9,7 @@ import { createDiagram, addElement, clearDiagrams } from '../helpers';
  * Uses Vitest inline snapshots / file snapshots so reviewers can diff
  * visual changes in pull requests.
  */
-describe('SVG export snapshots', () => {
+describe('export_bpmn — SVG snapshots', () => {
   beforeEach(() => {
     clearDiagrams();
   });

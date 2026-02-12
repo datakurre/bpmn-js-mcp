@@ -3,7 +3,7 @@ import { handleAddElement, handleSetProperties } from '../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams, addElement, exportXml } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('expanded subprocess support', () => {
+describe('add_bpmn_element — expanded subprocess', () => {
   beforeEach(() => {
     clearDiagrams();
   });

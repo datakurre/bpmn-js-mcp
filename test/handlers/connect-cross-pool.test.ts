@@ -6,7 +6,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleConnect, handleCreateCollaboration, handleAddElement } from '../../src/handlers';
 import { parseResult, createDiagram, clearDiagrams } from '../helpers';
 
-describe('cross-pool connection handling', () => {
+describe('connect_bpmn_elements — cross-pool handling', () => {
   beforeEach(() => {
     clearDiagrams();
   });

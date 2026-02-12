@@ -81,7 +81,7 @@ describe('connect_bpmn_elements', () => {
   });
 });
 
-describe('descriptive flow IDs', () => {
+describe('connect_bpmn_elements — descriptive flow IDs', () => {
   beforeEach(() => {
     clearDiagrams();
   });

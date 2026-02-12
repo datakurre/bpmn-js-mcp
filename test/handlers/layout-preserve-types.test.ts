@@ -114,7 +114,7 @@ const MIXED_TYPES_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-describe('layout_bpmn_diagram preserves element types', () => {
+describe('layout_bpmn_diagram — preserves element types', () => {
   test('should preserve all element types after full layout', async () => {
     // Import diagram
     const importResult = parseResult(

@@ -1,5 +1,5 @@
 /**
- * Tests for resize_bpmn_element tool (merged into move_bpmn_element).
+ * Tests for resize via move_bpmn_element tool.
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
@@ -7,7 +7,7 @@ import { handleMoveElement } from '../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../helpers';
 import { getDiagram } from '../../src/diagram-manager';
 
-describe('resize_bpmn_element', () => {
+describe('move_bpmn_element — resize', () => {
   beforeEach(() => {
     clearDiagrams();
   });
