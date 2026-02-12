@@ -4,7 +4,7 @@
 
 import { ELK_LAYER_SPACING } from '../constants';
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
-import { SAME_ROW_THRESHOLD, ORTHO_SNAP_TOLERANCE } from './constants';
+import { SAME_ROW_THRESHOLD, ORTHO_SNAP_TOLERANCE, SUBPROCESS_ROW_THRESHOLD } from './constants';
 import {
   isConnection,
   isInfrastructure,
@@ -174,7 +174,6 @@ export function snapAllConnectionsOrthogonal(
  */
 
 /** More generous row threshold for aligning elements inside subprocesses. */
-const SUBPROCESS_ROW_THRESHOLD = 40;
 
 export function snapExpandedSubprocesses(
   elementRegistry: ElementRegistry,

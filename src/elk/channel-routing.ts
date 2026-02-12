@@ -7,6 +7,7 @@
  */
 
 import { detectLayers } from './grid-snap';
+import { CHANNEL_GW_PROXIMITY, MIN_CHANNEL_WIDTH, CHANNEL_MARGIN_FACTOR } from './constants';
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 
 /**
@@ -124,7 +125,7 @@ export function routeBranchConnectionsThroughChannels(
       const next = wps[i + 1];
       const dx = Math.abs(curr.x - next.x);
       const dy = Math.abs(curr.y - next.y);
-      if (dx < 2 && dy > 5 && Math.abs(curr.x - gwCx) < 40) {
+      if (dx < 2 && dy > 5 && Math.abs(curr.x - gwCx) < CHANNEL_GW_PROXIMITY) {
         vertSegIdx = i;
         break;
       }
@@ -152,12 +153,12 @@ export function routeBranchConnectionsThroughChannels(
     const channelWidth = rightColLeft - leftColRight;
 
     // Skip if channel is too narrow for meaningful routing
-    if (channelWidth < 30) continue;
+    if (channelWidth < MIN_CHANNEL_WIDTH) continue;
 
     // For a single connection, use the channel midpoint.
     // For multiple connections, spread them evenly but keep them within
     // the middle 60% of the channel to maintain clearance from columns.
-    const margin = channelWidth * 0.2;
+    const margin = channelWidth * CHANNEL_MARGIN_FACTOR;
     const usableLeft = leftColRight + margin;
     const usableRight = rightColLeft - margin;
     const usableWidth = usableRight - usableLeft;

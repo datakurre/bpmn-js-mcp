@@ -17,9 +17,7 @@ import {
   isLayoutableShape,
 } from './helpers';
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
-
-/** Minimum gap (px) enforced between elements after overlap resolution. */
-const MIN_OVERLAP_GAP = 30;
+import { MIN_OVERLAP_GAP, OVERLAP_MAX_ITERATIONS } from './constants';
 
 interface Rect {
   x: number;
@@ -49,9 +47,7 @@ export function resolveOverlaps(
   modeling: Modeling,
   container?: BpmnElement
 ): void {
-  const MAX_ITERATIONS = 5;
-
-  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+  for (let iter = 0; iter < OVERLAP_MAX_ITERATIONS; iter++) {
     const shapes = getLayoutableShapes(elementRegistry, container);
     if (shapes.length < 2) return;
 

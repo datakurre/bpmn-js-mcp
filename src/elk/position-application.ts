@@ -11,7 +11,12 @@ import {
   isLane as _isLane,
   isLayoutableShape,
 } from './helpers';
-import { COLLAPSED_POOL_GAP, INTER_POOL_GAP_EXTRA } from './constants';
+import {
+  COLLAPSED_POOL_GAP,
+  INTER_POOL_GAP_EXTRA,
+  RESIZE_SIGNIFICANCE_THRESHOLD,
+  COLLAPSED_POOL_DEFAULT_HEIGHT,
+} from './constants';
 
 /**
  * Recursively apply ELK layout results to bpmn-js elements.
@@ -82,7 +87,10 @@ export function resizeCompoundNodes(
     const desiredH = Math.round(child.height);
 
     // Only resize if significantly different from current size
-    if (Math.abs(element.width - desiredW) > 5 || Math.abs(element.height - desiredH) > 5) {
+    if (
+      Math.abs(element.width - desiredW) > RESIZE_SIGNIFICANCE_THRESHOLD ||
+      Math.abs(element.height - desiredH) > RESIZE_SIGNIFICANCE_THRESHOLD
+    ) {
       modeling.resizeShape(element, {
         x: element.x,
         y: element.y,
@@ -139,8 +147,7 @@ export function centreElementsInPools(elementRegistry: ElementRegistry, modeling
     const desiredMinY = poolTop + (usableHeight - contentHeight) / 2;
     const dy = Math.round(desiredMinY - contentMinY);
 
-    // Only shift if the offset is significant (>5px)
-    if (Math.abs(dy) > 5) {
+    if (Math.abs(dy) > RESIZE_SIGNIFICANCE_THRESHOLD) {
       modeling.moveElements(children, { x: 0, y: dy });
     }
   }
@@ -262,12 +269,12 @@ export function reorderCollapsedPoolsBelow(
 
     // Resize width to match expanded pool span
     const currentPool = elementRegistry.get(pool.id)!;
-    if (Math.abs((currentPool.width || 0) - expandedWidth) > 5) {
+    if (Math.abs((currentPool.width || 0) - expandedWidth) > RESIZE_SIGNIFICANCE_THRESHOLD) {
       modeling.resizeShape(currentPool, {
         x: currentPool.x,
         y: currentPool.y,
         width: expandedWidth,
-        height: currentPool.height || 60,
+        height: currentPool.height || COLLAPSED_POOL_DEFAULT_HEIGHT,
       });
     }
 

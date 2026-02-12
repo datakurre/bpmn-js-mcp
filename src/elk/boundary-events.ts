@@ -20,6 +20,9 @@ import {
   CENTER_FACTOR,
   BOUNDARY_TARGET_ROW_BUFFER,
   BOUNDARY_MIN_MOVE_DELTA,
+  BOUNDARY_PROXIMITY_TOLERANCE,
+  BOUNDARY_TARGET_Y_OFFSET,
+  BOUNDARY_TARGET_X_OFFSET,
 } from './constants';
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 
@@ -260,7 +263,7 @@ export function repositionBoundaryEvents(
     if (!needsReposition) {
       const hostRight = host.x + (host.width || BPMN_TASK_WIDTH);
       const hostBottom = host.y + (host.height || BPMN_TASK_HEIGHT);
-      const tolerance = 60;
+      const tolerance = BOUNDARY_PROXIMITY_TOLERANCE;
 
       needsReposition = !(
         beCx >= host.x - tolerance &&
@@ -313,12 +316,6 @@ export function repositionBoundaryEvents(
 }
 
 // ── Boundary event target repositioning ────────────────────────────────────
-
-/** Distance (px) from host bottom to boundary target centre Y. */
-const BOUNDARY_TARGET_Y_OFFSET = 85;
-
-/** Distance (px) from boundary event centre X to target centre X. */
-const BOUNDARY_TARGET_X_OFFSET = 90;
 
 /**
  * Identify boundary-only leaf targets: end events whose only incoming
@@ -598,7 +595,7 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[]): void {
 
       for (let i = 0; i < group.length; i++) {
         const be = group[i];
-        const beH = be.height || 36;
+        const beH = be.height || BPMN_EVENT_SIZE;
         const targetCy = host.y + margin + (group.length > 1 ? i * step : availableHeight / 2);
         const dy = targetCy - (be.y + beH / 2);
 

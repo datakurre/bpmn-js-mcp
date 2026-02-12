@@ -16,6 +16,7 @@ import {
   CENTER_FACTOR,
   CONTAINER_DEFAULT_WIDTH,
   CONTAINER_DEFAULT_HEIGHT,
+  MAX_TRACE_DEPTH,
 } from './constants';
 import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
 
@@ -392,7 +393,7 @@ function addSyntheticOrderingEdges(
     let predecessorOfEnd: string | null = null;
     const traceVisited = new Set<string>([gwId]);
 
-    for (let step = 0; step < 15; step++) {
+    for (let step = 0; step < MAX_TRACE_DEPTH; step++) {
       traceVisited.add(traceId);
       const nextConns = (outgoingAdj.get(traceId) || []).filter(
         (c) => c.target && !traceVisited.has(c.target.id) && nodeIds.has(c.target.id)

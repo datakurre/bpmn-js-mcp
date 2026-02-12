@@ -41,6 +41,7 @@ import {
   BPMN_TASK_WIDTH,
   BPMN_TASK_HEIGHT,
   BPMN_DUMMY_HEIGHT,
+  ELK_CROSSING_THOROUGHNESS,
 } from './constants';
 import {
   ELK_COMPACT_NODE_SPACING,
@@ -159,7 +160,7 @@ function resolveLayoutOptions(options?: ElkLayoutOptions): {
   }
 
   // Happy-path emphasis: prioritise default/first-connected branch
-  layoutOptions['elk.layered.crossingMinimization.thoroughness'] = '30';
+  layoutOptions['elk.layered.crossingMinimization.thoroughness'] = ELK_CROSSING_THOROUGHNESS;
   layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
 
   return { layoutOptions, effectiveLayerSpacing };

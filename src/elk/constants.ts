@@ -264,3 +264,86 @@ export const SAME_ROW_Y_TOLERANCE = 5;
  * "in the same layer" during gateway branch symmetrisation.
  */
 export const SAME_LAYER_X_THRESHOLD = 50;
+
+// ── Boundary event target positioning ───────────────────────────────────
+
+/**
+ * Distance (px) from boundary event's host bottom edge to the
+ * boundary leaf target's centre Y.
+ */
+export const BOUNDARY_TARGET_Y_OFFSET = 85;
+
+/** Distance (px) from boundary event centre X to its leaf target centre X. */
+export const BOUNDARY_TARGET_X_OFFSET = 90;
+
+/**
+ * Proximity tolerance (px) for deciding if a boundary event needs
+ * repositioning relative to its host.
+ */
+export const BOUNDARY_PROXIMITY_TOLERANCE = 60;
+
+// ── Channel routing constants ───────────────────────────────────────────
+
+/**
+ * X-proximity (px) of a vertical segment to the gateway centre X
+ * to qualify as a gateway branch vertical segment for channel routing.
+ */
+export const CHANNEL_GW_PROXIMITY = 40;
+
+/** Minimum channel width (px) for meaningful channel routing. */
+export const MIN_CHANNEL_WIDTH = 30;
+
+/** Fraction of channel width used as margin on each side (0.2 = 20%). */
+export const CHANNEL_MARGIN_FACTOR = 0.2;
+
+// ── Lane layout constants ───────────────────────────────────────────────
+
+/** Minimum lane height (px) inside a participant pool. */
+export const MIN_LANE_HEIGHT = 250;
+
+/** Left label band width (px) inside a participant pool. */
+export const POOL_LABEL_BAND = 30;
+
+/** Vertical padding (px) above/below content within each lane band. */
+export const LANE_VERTICAL_PADDING = 30;
+
+// ── Overlap resolution constants ────────────────────────────────────────
+
+/** Minimum gap (px) enforced between elements after overlap resolution. */
+export const MIN_OVERLAP_GAP = 30;
+
+/** Maximum iterations for the overlap resolution pass. */
+export const OVERLAP_MAX_ITERATIONS = 5;
+
+// ── Position application constants ──────────────────────────────────────
+
+/**
+ * Significance threshold (px) for element resize and repositioning.
+ * Changes below this threshold are skipped to avoid sub-pixel churn.
+ */
+export const RESIZE_SIGNIFICANCE_THRESHOLD = 5;
+
+/** Default height (px) for collapsed participant pools when not specified. */
+export const COLLAPSED_POOL_DEFAULT_HEIGHT = 60;
+
+// ── Subprocess alignment constants ──────────────────────────────────────
+
+/**
+ * Y-centre threshold (px) for grouping elements into the same row
+ * within expanded subprocesses.  More generous than the top-level
+ * SAME_ROW_THRESHOLD because subprocesses have tighter spacing.
+ */
+export const SUBPROCESS_ROW_THRESHOLD = 40;
+
+// ── Graph builder constants ─────────────────────────────────────────────
+
+/** Maximum trace depth for synthetic ordering edges in gateway analysis. */
+export const MAX_TRACE_DEPTH = 15;
+
+// ── ELK algorithm tuning ───────────────────────────────────────────────
+
+/**
+ * ELK crossing minimisation thoroughness.
+ * Higher values produce fewer edge crossings at the cost of layout time.
+ */
+export const ELK_CROSSING_THOROUGHNESS = '30';

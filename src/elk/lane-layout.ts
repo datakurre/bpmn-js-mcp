@@ -24,6 +24,7 @@
 export type LaneNodeAssignments = Map<string, Set<string>>;
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
+import { MIN_LANE_HEIGHT, POOL_LABEL_BAND, LANE_VERTICAL_PADDING } from './constants';
 
 /**
  * Saved lane metadata: original Y-position (from DI coordinates)
@@ -34,15 +35,6 @@ interface LaneSnapshot {
   originalY: number;
   nodeIds: Set<string>;
 }
-
-/** Minimum lane height in pixels. */
-const MIN_LANE_HEIGHT = 250;
-
-/** Left label band width (px) inside a participant pool. */
-const POOL_LABEL_BAND = 30;
-
-/** Vertical padding (px) above/below content within each lane band. */
-const LANE_VERTICAL_PADDING = 30;
 
 /**
  * Capture lane → flow-node assignments before layout mutates them.
