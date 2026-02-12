@@ -10,7 +10,9 @@ import {
   DEFAULT_LABEL_SIZE,
   LABEL_POSITION_PRIORITY,
   EVENT_LABEL_POSITION_PRIORITY,
+  BOUNDARY_EVENT_LABEL_POSITION_PRIORITY,
   LABEL_SHAPE_PROXIMITY_MARGIN,
+  OWN_FLOW_CROSSING_PENALTY,
 } from '../constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -174,8 +176,13 @@ export function getLabelCandidatePositions(
   const gap = ELEMENT_LABEL_DISTANCE;
 
   // Choose priority order based on element type
+  const isBoundaryEvent = element.type === 'bpmn:BoundaryEvent';
   const isEvent = element.type ? element.type.includes('Event') : false;
-  const priority = isEvent ? EVENT_LABEL_POSITION_PRIORITY : LABEL_POSITION_PRIORITY;
+  const priority = isBoundaryEvent
+    ? BOUNDARY_EVENT_LABEL_POSITION_PRIORITY
+    : isEvent
+      ? EVENT_LABEL_POSITION_PRIORITY
+      : LABEL_POSITION_PRIORITY;
 
   // Cardinal positions (priority order)
   const cardinals: LabelCandidate[] = priority.map((orientation) => {
@@ -250,6 +257,46 @@ export function getLabelCandidatePositions(
   return [...cardinals, ...diagonals];
 }
 
+// ── Scoring helpers ────────────────────────────────────────────────────────
+
+/** Compute penalty for a label candidate overlapping connection segments. */
+function scoreConnectionCrossings(
+  candidateRect: Rect,
+  connectionSegments: [Point, Point][]
+): number {
+  let score = 0;
+  for (const [p1, p2] of connectionSegments) {
+    if (segmentIntersectsRect(p1, p2, candidateRect)) {
+      score += 1;
+    }
+  }
+  return score;
+}
+
+/** Compute penalty for a label candidate overlapping nearby shapes. */
+function scoreShapeOverlaps(candidateRect: Rect, shapeRects: Rect[]): number {
+  let score = 0;
+  for (const sr of shapeRects) {
+    if (rectsOverlap(candidateRect, sr)) {
+      score += 5; // label hidden behind a shape is very bad
+    } else if (rectsNearby(candidateRect, sr, LABEL_SHAPE_PROXIMITY_MARGIN)) {
+      score += 1; // label too close to a shape — hard to read
+    }
+  }
+  return score;
+}
+
+/** Compute penalty for overlapping the element's own outgoing/incoming flows. */
+function scoreOwnFlowCrossings(candidateRect: Rect, ownFlowSegments: [Point, Point][]): number {
+  let score = 0;
+  for (const [p1, p2] of ownFlowSegments) {
+    if (segmentIntersectsRect(p1, p2, candidateRect)) {
+      score += OWN_FLOW_CROSSING_PENALTY;
+    }
+  }
+  return score;
+}
+
 // ── Scoring ────────────────────────────────────────────────────────────────
 
 /**
@@ -262,13 +309,16 @@ export function getLabelCandidatePositions(
  * @param otherLabelRects  Bounding boxes of other external labels.
  * @param hostRect  Optional host-element rect (for boundary events) to exclude.
  * @param shapeRects  Optional bounding boxes of nearby shapes (tasks, gateways, etc.).
+ * @param ownFlowSegments  Optional segments of the element's own outgoing/incoming flows.
+ *                         Penalised more heavily than generic crossing segments.
  */
 export function scoreLabelPosition(
   candidateRect: Rect,
   connectionSegments: [Point, Point][],
   otherLabelRects: Rect[],
   hostRect?: Rect,
-  shapeRects?: Rect[]
+  shapeRects?: Rect[],
+  ownFlowSegments?: [Point, Point][]
 ): number {
   let score = 0;
 
@@ -279,11 +329,7 @@ export function scoreLabelPosition(
   }
 
   // Penalty for intersecting connection segments
-  for (const [p1, p2] of connectionSegments) {
-    if (segmentIntersectsRect(p1, p2, candidateRect)) {
-      score += 1;
-    }
-  }
+  score += scoreConnectionCrossings(candidateRect, connectionSegments);
 
   // Penalty for overlapping other labels
   for (const lr of otherLabelRects) {
@@ -299,13 +345,14 @@ export function scoreLabelPosition(
 
   // Penalty for overlapping nearby shapes (tasks, gateways, etc.)
   if (shapeRects) {
-    for (const sr of shapeRects) {
-      if (rectsOverlap(candidateRect, sr)) {
-        score += 5; // label hidden behind a shape is very bad
-      } else if (rectsNearby(candidateRect, sr, LABEL_SHAPE_PROXIMITY_MARGIN)) {
-        score += 1; // label too close to a shape — hard to read
-      }
-    }
+    score += scoreShapeOverlaps(candidateRect, shapeRects);
+  }
+
+  // Extra penalty for overlapping the element's own outgoing/incoming flows.
+  // These segments always exit near the element, so overlap is systematic
+  // rather than coincidental — penalise more heavily to push the label away.
+  if (ownFlowSegments) {
+    score += scoreOwnFlowCrossings(candidateRect, ownFlowSegments);
   }
 
   return score;

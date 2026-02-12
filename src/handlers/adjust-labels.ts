@@ -20,6 +20,8 @@ import { getVisibleElements, syncXml } from './helpers';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+const BOUNDARY_EVENT_TYPE = 'bpmn:BoundaryEvent';
+
 /** Check whether an element type has an external label. */
 function hasExternalLabel(type: string): boolean {
   return (
@@ -39,6 +41,32 @@ function collectConnectionSegments(elements: any[]): [Point, Point][] {
         el.type === 'bpmn:MessageFlow' ||
         el.type === 'bpmn:Association') &&
       el.waypoints?.length >= 2
+    ) {
+      for (let i = 0; i < el.waypoints.length - 1; i++) {
+        segments.push([
+          { x: el.waypoints[i].x, y: el.waypoints[i].y },
+          { x: el.waypoints[i + 1].x, y: el.waypoints[i + 1].y },
+        ]);
+      }
+    }
+  }
+  return segments;
+}
+
+/**
+ * Collect segments from flows that are directly attached to a given element
+ * (outgoing or incoming).  Used to apply a heavier penalty for boundary
+ * event labels overlapping their own outgoing flows.
+ */
+function collectOwnFlowSegments(elementId: string, elements: any[]): [Point, Point][] {
+  const segments: [Point, Point][] = [];
+  for (const el of elements) {
+    if (
+      (el.type === 'bpmn:SequenceFlow' ||
+        el.type === 'bpmn:MessageFlow' ||
+        el.type === 'bpmn:Association') &&
+      el.waypoints?.length >= 2 &&
+      (el.source?.id === elementId || el.target?.id === elementId)
     ) {
       for (let i = 0; i < el.waypoints.length - 1; i++) {
         segments.push([
@@ -77,7 +105,8 @@ function tryRepositionLabel(
   shapeRects: Rect[],
   connectionSegments: [Point, Point][],
   labelRects: Map<string, Rect>,
-  modeling: any
+  modeling: any,
+  ownFlowSegments?: [Point, Point][]
 ): Rect | null {
   const label = el.label;
   if (!label) return null;
@@ -88,7 +117,7 @@ function tryRepositionLabel(
     .map(([, r]) => r);
 
   let hostRect: Rect | undefined;
-  if (el.type === 'bpmn:BoundaryEvent' && el.host) {
+  if (el.type === BOUNDARY_EVENT_TYPE && el.host) {
     hostRect = { x: el.host.x, y: el.host.y, width: el.host.width, height: el.host.height };
   }
 
@@ -101,7 +130,8 @@ function tryRepositionLabel(
     connectionSegments,
     otherLabelRects,
     hostRect,
-    otherShapeRects
+    otherShapeRects,
+    ownFlowSegments
   );
 
   const actualLabelSize = { width: label.width || 90, height: label.height || 20 };
@@ -124,7 +154,8 @@ function tryRepositionLabel(
         connectionSegments,
         otherLabelRects,
         hostRect,
-        otherShapeRects
+        otherShapeRects,
+        ownFlowSegments
       );
 
       if (preferredScore === 0) {
@@ -148,7 +179,8 @@ function tryRepositionLabel(
       connectionSegments,
       otherLabelRects,
       hostRect,
-      otherShapeRects
+      otherShapeRects,
+      ownFlowSegments
     );
     if (score < bestScore) {
       bestScore = score;
@@ -212,7 +244,19 @@ export async function adjustDiagramLabels(diagram: DiagramState): Promise<number
   let movedCount = 0;
 
   for (const el of labelBearers) {
-    const newRect = tryRepositionLabel(el, shapeRects, connectionSegments, labelRects, modeling);
+    // For boundary events, collect their own outgoing flow segments
+    // to apply a heavier overlap penalty (their outgoing flows exit
+    // downward, right where the default 'bottom' label would be).
+    const ownFlows =
+      el.type === BOUNDARY_EVENT_TYPE ? collectOwnFlowSegments(el.id, allElements) : undefined;
+    const newRect = tryRepositionLabel(
+      el,
+      shapeRects,
+      connectionSegments,
+      labelRects,
+      modeling,
+      ownFlows
+    );
     if (newRect) {
       labelRects.set(el.id, newRect);
       movedCount++;
@@ -223,7 +267,10 @@ export async function adjustDiagramLabels(diagram: DiagramState): Promise<number
   // aligned with the element centre.  This catches labels that were moved
   // by external code (boundary event repositioning, ELK layout) rather
   // than by tryRepositionLabel above.
+  // Skip boundary events — their labels are deliberately placed at
+  // left/right to avoid overlapping their own outgoing flows.
   for (const el of labelBearers) {
+    if (el.type === BOUNDARY_EVENT_TYPE) continue;
     const label = el.label;
     if (!label) continue;
     const orientation = getCurrentLabelOrientation(el, label);
@@ -288,9 +335,13 @@ export async function adjustElementLabel(
 
   // Host rect for boundary events
   let hostRect: Rect | undefined;
-  if (el.type === 'bpmn:BoundaryEvent' && el.host) {
+  if (el.type === BOUNDARY_EVENT_TYPE && el.host) {
     hostRect = { x: el.host.x, y: el.host.y, width: el.host.width, height: el.host.height };
   }
+
+  // Own outgoing flow segments for boundary events
+  const ownFlowSegments =
+    el.type === BOUNDARY_EVENT_TYPE ? collectOwnFlowSegments(el.id, allElements) : undefined;
 
   const label = el.label;
   const currentRect = getLabelRect(label);
@@ -299,7 +350,8 @@ export async function adjustElementLabel(
     connectionSegments,
     otherLabelRects,
     hostRect,
-    shapeRects
+    shapeRects,
+    ownFlowSegments
   );
 
   if (currentScore === 0) return false;
@@ -315,7 +367,8 @@ export async function adjustElementLabel(
       connectionSegments,
       otherLabelRects,
       hostRect,
-      shapeRects
+      shapeRects,
+      ownFlowSegments
     );
     if (score < bestScore) {
       bestScore = score;

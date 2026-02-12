@@ -92,7 +92,7 @@ export const LABEL_POSITION_PRIORITY: readonly ('top' | 'bottom' | 'left' | 'rig
 ];
 
 /**
- * Label position priority for events (start, end, intermediate, boundary).
+ * Label position priority for events (start, end, intermediate).
  * Events prefer bottom labels because their connections typically exit
  * left/right, leaving the bottom clear.  bpmn-js places event labels
  * below by default.
@@ -103,6 +103,28 @@ export const EVENT_LABEL_POSITION_PRIORITY: readonly ('top' | 'bottom' | 'left' 
   'left',
   'right',
 ];
+
+/**
+ * Label position priority for boundary events.
+ * Boundary events have outgoing flows that exit downward from the bottom
+ * of the event, so 'bottom' labels would overlap the first vertical
+ * segment of the outgoing flow.  Prefer 'left' to avoid this clash.
+ */
+export const BOUNDARY_EVENT_LABEL_POSITION_PRIORITY: readonly (
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+)[] = ['left', 'bottom', 'right', 'top'];
+
+/**
+ * Extra scoring penalty when a label candidate overlaps connection
+ * segments that are directly attached to the label's own element.
+ * Higher than the generic +1 crossing penalty because own-flow overlap
+ * is systematic (the flow always exits near the element) rather than
+ * coincidental.
+ */
+export const OWN_FLOW_CROSSING_PENALTY = 4;
 
 /** Indent offset for flow (connection) labels from midpoint (matches bpmn-js). */
 export const FLOW_LABEL_INDENT = 15;
