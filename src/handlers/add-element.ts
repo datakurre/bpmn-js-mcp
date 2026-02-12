@@ -20,6 +20,7 @@ import { appendLintFeedback } from '../linter';
 import { handleInsertElement } from './insert-element';
 import { handleSetEventDefinition } from './set-event-definition';
 import { shiftDownstreamElements, snapToLane, createAndPlaceElement } from './add-element-helpers';
+import { getTypeSpecificHints } from './type-hints';
 
 export interface AddElementArgs {
   diagramId: string;
@@ -200,6 +201,7 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
           message: `Added ${elementType} to diagram${eventDefinitionApplied ? ` with ${eventDefinitionApplied}` : ''}${hint}`,
         }),
     diagramCounts: buildElementCounts(elementRegistry),
+    ...getTypeSpecificHints(elementType),
   });
   return appendLintFeedback(result, diagram);
 }

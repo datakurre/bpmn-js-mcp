@@ -11,7 +11,14 @@
  */
 
 import { type ToolResult } from '../types';
-import { requireDiagram, requireElement, jsonResult, syncXml, validateArgs } from './helpers';
+import {
+  requireDiagram,
+  requireElement,
+  jsonResult,
+  syncXml,
+  validateArgs,
+  upsertExtensionElement,
+} from './helpers';
 import { appendLintFeedback } from '../linter';
 
 export interface SetPropertiesArgs {
@@ -97,6 +104,43 @@ function handleIsExpandedOnSubProcess(element: any, props: Record<string, any>, 
   }
 }
 
+/**
+ * Handle `camunda:retryTimeCycle` — creates/removes camunda:FailedJobRetryTimeCycle
+ * extension element. Mutates `camundaProps` in-place (deletes the key after processing).
+ */
+function handleRetryTimeCycle(element: any, camundaProps: Record<string, any>, diagram: any): void {
+  if (!('camunda:retryTimeCycle' in camundaProps)) return;
+
+  const moddle = diagram.modeler.get('moddle');
+  const modeling = diagram.modeler.get('modeling');
+  const bo = element.businessObject;
+  const cycleValue = camundaProps['camunda:retryTimeCycle'];
+  delete camundaProps['camunda:retryTimeCycle'];
+
+  if (cycleValue != null && cycleValue !== '') {
+    const retryEl = moddle.create('camunda:FailedJobRetryTimeCycle', {
+      body: String(cycleValue),
+    });
+    upsertExtensionElement(
+      moddle,
+      bo,
+      modeling,
+      element,
+      'camunda:FailedJobRetryTimeCycle',
+      retryEl
+    );
+  } else {
+    // Clear: remove existing FailedJobRetryTimeCycle extension element
+    const extensionElements = bo.extensionElements;
+    if (extensionElements?.values) {
+      extensionElements.values = extensionElements.values.filter(
+        (v: any) => v.$type !== 'camunda:FailedJobRetryTimeCycle'
+      );
+      modeling.updateProperties(element, { extensionElements });
+    }
+  }
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleSetProperties(args: SetPropertiesArgs): Promise<ToolResult> {
@@ -129,6 +173,9 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
 
   handleDefaultOnGateway(element, standardProps, elementRegistry, modeling);
   handleConditionExpression(standardProps, diagram.modeler.get('moddle'));
+
+  // Handle `camunda:retryTimeCycle` — creates camunda:FailedJobRetryTimeCycle extension element
+  handleRetryTimeCycle(element, camundaProps, diagram);
 
   // Handle `documentation` — creates/updates bpmn:documentation child element
   if ('documentation' in standardProps) {
@@ -173,7 +220,7 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_element_properties',
   description:
-    "Set BPMN or Camunda extension properties on an element. Supports standard properties (name, isExecutable) and Camunda extensions (e.g. camunda:assignee, camunda:formKey, camunda:class, camunda:delegateExpression, camunda:asyncBefore, camunda:topic, camunda:type). Supports `default` attribute on exclusive/inclusive gateways (pass a sequence flow ID to mark it as the default flow). Supports `conditionExpression` on sequence flows (pass a string expression e.g. '${approved == true}'). Supports `isExpanded` on SubProcess elements — properly toggles between expanded (inline children) and collapsed (drilldown plane) via element replacement. For loop characteristics, use the dedicated set_loop_characteristics tool.",
+    "Set BPMN or Camunda extension properties on an element. Supports standard properties (name, isExecutable, documentation) and Camunda extensions (e.g. camunda:assignee, camunda:candidateUsers, camunda:candidateGroups, camunda:formKey, camunda:class, camunda:delegateExpression, camunda:expression, camunda:asyncBefore, camunda:asyncAfter, camunda:topic, camunda:type). UserTask-specific: camunda:dueDate, camunda:followUpDate, camunda:priority. Process-specific: camunda:historyTimeToLive, camunda:candidateStarterGroups, camunda:candidateStarterUsers, camunda:versionTag, camunda:isStartableInTasklist. CallActivity: camunda:calledElementBinding, camunda:calledElementVersion, camunda:calledElementVersionTag. BusinessRuleTask (DMN): camunda:decisionRef, camunda:decisionRefBinding, camunda:mapDecisionResult. StartEvent: camunda:initiator. Supports camunda:retryTimeCycle to create a camunda:FailedJobRetryTimeCycle extension element (e.g. 'R3/PT10M'). Supports `default` attribute on exclusive/inclusive gateways (pass a sequence flow ID to mark it as the default flow). Supports `conditionExpression` on sequence flows (pass a string expression e.g. '${approved == true}'). Supports `isExpanded` on SubProcess elements — properly toggles between expanded (inline children) and collapsed (drilldown plane) via element replacement. For loop characteristics, use the dedicated set_loop_characteristics tool.",
   inputSchema: {
     type: 'object',
     properties: {

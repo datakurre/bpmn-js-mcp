@@ -23,7 +23,7 @@ export interface SetEventDefinitionArgs {
   elementId: string;
   eventDefinitionType: string;
   properties?: Record<string, any>;
-  errorRef?: { id: string; name?: string; errorCode?: string };
+  errorRef?: { id: string; name?: string; errorCode?: string; errorMessage?: string };
   messageRef?: { id: string; name?: string };
   signalRef?: { id: string; name?: string };
   escalationRef?: { id: string; name?: string; escalationCode?: string };
@@ -86,6 +86,30 @@ const REF_RESOLVERS: Record<
   },
 };
 
+// ── Camunda extension attributes on event definitions ──────────────────────
+
+/** Map of eventDefinitionType → Camunda property names to copy from defProps. */
+const CAMUNDA_EVENT_DEF_PROPS: Record<string, string[]> = {
+  'bpmn:ConditionalEventDefinition': ['variableName', 'variableEvents'],
+  'bpmn:ErrorEventDefinition': ['errorCodeVariable', 'errorMessageVariable'],
+  'bpmn:EscalationEventDefinition': ['escalationCodeVariable'],
+};
+
+/** Apply Camunda-specific extension props (variableName, errorCodeVariable, etc.) to an event definition. */
+function applyCamundaEventDefProps(
+  eventDef: any,
+  eventDefinitionType: string,
+  defProps: Record<string, any>
+): void {
+  const propNames = CAMUNDA_EVENT_DEF_PROPS[eventDefinitionType];
+  if (!propNames) return;
+  for (const prop of propNames) {
+    if (defProps[prop] != null) {
+      eventDef[prop] = defProps[prop];
+    }
+  }
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
@@ -142,6 +166,9 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
 
   const eventDef = moddle.create(eventDefinitionType, eventDefAttrs);
 
+  // Apply Camunda extension attributes on the event definition itself
+  applyCamundaEventDefProps(eventDef, eventDefinitionType, defProps);
+
   // Replace existing event definitions
   bo.eventDefinitions = [eventDef];
   eventDef.$parent = bo;
@@ -193,7 +220,7 @@ export const TOOL_DEFINITION = {
       properties: {
         type: 'object',
         description:
-          'Type-specific properties. For Timer events, provide exactly ONE of: timeDuration (ISO 8601 duration, e.g. "PT15M" for 15 minutes, "PT1H30M" for 1.5 hours, "P1D" for 1 day), timeDate (ISO 8601 date-time, e.g. "2025-12-31T23:59:00Z"), or timeCycle (ISO 8601 repeating interval, e.g. "R3/PT10M" for 3 repetitions every 10 minutes, "R/P1D" for daily). For Conditional events: condition (expression string). For Link events: name (link name). Camunda expressions are also supported (e.g. "${myDuration}").',
+          'Type-specific properties. For Timer events, provide exactly ONE of: timeDuration (ISO 8601 duration, e.g. "PT15M" for 15 minutes, "PT1H30M" for 1.5 hours, "P1D" for 1 day), timeDate (ISO 8601 date-time, e.g. "2025-12-31T23:59:00Z"), or timeCycle (ISO 8601 repeating interval, e.g. "R3/PT10M" for 3 repetitions every 10 minutes, "R/P1D" for daily). For Conditional events: condition (expression string), variableName (restrict to specific variable), variableEvents (e.g. "create, update"). For Link events: name (link name). For Error events: errorCodeVariable (variable to store error code), errorMessageVariable (variable to store error message). For Escalation events: escalationCodeVariable (variable to store escalation code). Camunda expressions are also supported (e.g. "${myDuration}").',
         additionalProperties: true,
       },
       errorRef: {
@@ -202,6 +229,10 @@ export const TOOL_DEFINITION = {
           id: { type: 'string', description: 'Error element ID' },
           name: { type: 'string', description: 'Error name' },
           errorCode: { type: 'string', description: 'Error code' },
+          errorMessage: {
+            type: 'string',
+            description: 'Error message (camunda:errorMessage extension)',
+          },
         },
         required: ['id'],
         description: 'For ErrorEventDefinition: creates or references a bpmn:Error root element',

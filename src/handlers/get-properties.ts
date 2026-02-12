@@ -121,18 +121,101 @@ function serializeFormData(ext: any): Record<string, any> {
 
 // ── Sub-function: all extension elements ───────────────────────────────────
 
+// ── Sub-function: Listener extension serialisation ─────────────────────────
+
+function serializeListener(ext: any): Record<string, any> {
+  const listener: Record<string, any> = { type: ext.$type, event: ext.event };
+  if (ext['class']) listener.class = ext['class'];
+  if (ext.delegateExpression) listener.delegateExpression = ext.delegateExpression;
+  if (ext.expression) listener.expression = ext.expression;
+  if (ext.script) {
+    listener.script = {
+      scriptFormat: ext.script.scriptFormat,
+      value: ext.script.value,
+    };
+  }
+  return listener;
+}
+
+// ── Sub-function: camunda:In / camunda:Out serialisation ───────────────────
+
+function serializeInOut(ext: any): Record<string, any> {
+  const result: Record<string, any> = { type: ext.$type };
+  if (ext.source) result.source = ext.source;
+  if (ext.target) result.target = ext.target;
+  if (ext.sourceExpression) result.sourceExpression = ext.sourceExpression;
+  if (ext.variables) result.variables = ext.variables;
+  if (ext.local) result.local = ext.local;
+  if (ext.businessKey) result.businessKey = ext.businessKey;
+  return result;
+}
+
+// ── Sub-function: camunda:FailedJobRetryTimeCycle serialisation ─────────────
+
+function serializeRetryTimeCycle(ext: any): Record<string, any> {
+  return { type: ext.$type, body: ext.body };
+}
+
+// ── Sub-function: camunda:Connector serialisation ──────────────────────────
+
+function serializeConnector(ext: any): Record<string, any> {
+  const result: Record<string, any> = { type: ext.$type };
+  if (ext.connectorId) result.connectorId = ext.connectorId;
+  if (ext.inputOutput) result.inputOutput = serializeInputOutput(ext.inputOutput);
+  return result;
+}
+
+// ── Sub-function: camunda:Properties serialisation ─────────────────────────
+
+function serializeCamundaProperties(ext: any): Record<string, any> {
+  const result: Record<string, any> = { type: ext.$type };
+  if (ext.values?.length) {
+    result.properties = ext.values.reduce((acc: Record<string, string>, p: any) => {
+      acc[p.name || p.id] = p.value;
+      return acc;
+    }, {});
+  }
+  return result;
+}
+
+// ── Sub-function: camunda:ErrorEventDefinition serialisation ───────────────
+
+function serializeCamundaErrorDefinition(ext: any): Record<string, any> {
+  const result: Record<string, any> = { type: ext.$type };
+  if (ext.expression) result.expression = ext.expression;
+  if (ext.errorRef) {
+    result.errorRef = {
+      id: ext.errorRef.id,
+      name: ext.errorRef.name,
+      errorCode: ext.errorRef.errorCode,
+    };
+  }
+  return result;
+}
+
+// ── Sub-function: all extension elements ───────────────────────────────────
+
+/** Type → serialiser mapping for known extension element types. */
+const EXTENSION_SERIALIZERS: Record<string, (ext: any) => Record<string, any>> = {
+  'camunda:InputOutput': serializeInputOutput,
+  'camunda:FormData': serializeFormData,
+  'camunda:ExecutionListener': serializeListener,
+  'camunda:TaskListener': serializeListener,
+  'camunda:In': serializeInOut,
+  'camunda:Out': serializeInOut,
+  'camunda:FailedJobRetryTimeCycle': serializeRetryTimeCycle,
+  'camunda:Connector': serializeConnector,
+  'camunda:Properties': serializeCamundaProperties,
+  'camunda:ErrorEventDefinition': serializeCamundaErrorDefinition,
+};
+
 function serializeExtensionElements(bo: any): any[] | undefined {
   if (!bo.extensionElements?.values) return undefined;
 
   const extensions: any[] = [];
   for (const ext of bo.extensionElements.values) {
-    if (ext.$type === 'camunda:InputOutput') {
-      extensions.push(serializeInputOutput(ext));
-    } else if (ext.$type === 'camunda:FormData') {
-      extensions.push(serializeFormData(ext));
-    } else {
-      extensions.push({ type: ext.$type });
-    }
+    const serializer = EXTENSION_SERIALIZERS[ext.$type];
+    extensions.push(serializer ? serializer(ext) : { type: ext.$type });
   }
   return extensions.length > 0 ? extensions : undefined;
 }
@@ -170,7 +253,34 @@ function serializeEventDefinitions(bo: any): any[] | undefined {
         name: ed.errorRef.name,
         errorCode: ed.errorRef.errorCode,
       };
+      if (ed.errorRef.errorMessage) def.errorRef.errorMessage = ed.errorRef.errorMessage;
     }
+    if (ed.messageRef) {
+      def.messageRef = { id: ed.messageRef.id, name: ed.messageRef.name };
+    }
+    if (ed.signalRef) {
+      def.signalRef = { id: ed.signalRef.id, name: ed.signalRef.name };
+    }
+    if (ed.escalationRef) {
+      def.escalationRef = {
+        id: ed.escalationRef.id,
+        name: ed.escalationRef.name,
+        escalationCode: ed.escalationRef.escalationCode,
+      };
+    }
+    // Timer properties
+    if (ed.timeDuration) def.timeDuration = ed.timeDuration.body;
+    if (ed.timeDate) def.timeDate = ed.timeDate.body;
+    if (ed.timeCycle) def.timeCycle = ed.timeCycle.body;
+    // Conditional properties
+    if (ed.condition) def.condition = ed.condition.body;
+    // Link properties
+    if (ed.name) def.name = ed.name;
+    // Camunda extensions on event definitions
+    if (ed.errorCodeVariable) def['camunda:errorCodeVariable'] = ed.errorCodeVariable;
+    if (ed.errorMessageVariable) def['camunda:errorMessageVariable'] = ed.errorMessageVariable;
+    if (ed.variableName) def['camunda:variableName'] = ed.variableName;
+    if (ed.variableEvents) def['camunda:variableEvents'] = ed.variableEvents;
     return def;
   });
 }

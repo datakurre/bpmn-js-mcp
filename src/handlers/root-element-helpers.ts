@@ -49,7 +49,7 @@ function resolveOrCreate<T = any>(
 export function resolveOrCreateError(
   moddle: any,
   definitions: any,
-  errorRef: { id: string; name?: string; errorCode?: string }
+  errorRef: { id: string; name?: string; errorCode?: string; errorMessage?: string }
 ): any {
   return resolveOrCreate(moddle, definitions, 'bpmn:Error', errorRef);
 }

@@ -10,6 +10,7 @@ import { type ToolResult } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { requireDiagram, requireElement, jsonResult, syncXml, validateArgs } from './helpers';
 import { appendLintFeedback } from '../linter';
+import { getTypeSpecificHints } from './type-hints';
 
 export interface ReplaceElementArgs {
   diagramId: string;
@@ -115,6 +116,7 @@ export async function handleReplaceElement(args: ReplaceElementArgs): Promise<To
     ...(newElement.id !== elementId
       ? { note: `Element ID changed from ${elementId} to ${newElement.id}` }
       : {}),
+    ...getTypeSpecificHints(newType),
   });
   return appendLintFeedback(result, diagram);
 }

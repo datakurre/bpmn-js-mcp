@@ -8,6 +8,7 @@
 
 import { type DiagramState, type ToolResult } from './types';
 import type { LintConfig, LintResults, FlatLintIssue } from './bpmnlint-types';
+import { suggestFix } from './lint-suggestions';
 import {
   configs as localPluginConfigs,
   rules as localRuleFactories,
@@ -338,8 +339,14 @@ export async function appendLintFeedback(
 
     // Enrich error messages with contextual hints
     const elementRegistry = diagram.modeler.get('elementRegistry');
+    const diagramId = getDiagramId(diagram) ?? '';
     const lines = errors.map((i) => {
       let line = `- [${i.rule}] ${i.message}${i.elementId ? ` (${i.elementId})` : ''}`;
+      // Add fix suggestion from the shared FIX_SUGGESTIONS table
+      const fix = suggestFix(i, diagramId);
+      if (fix) {
+        line += ` → ${fix}`;
+      }
       // Add context for boundary event issues
       if (i.elementId && (i.rule === 'no-implicit-start' || i.rule === 'no-implicit-end')) {
         const el = elementRegistry.get(i.elementId);
