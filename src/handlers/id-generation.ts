@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Descriptive ID generation for BPMN elements and flows.
  *
  * Produces short 2-part IDs (e.g. `UserTask_EnterName`) with collision

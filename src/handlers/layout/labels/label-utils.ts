@@ -13,7 +13,7 @@ import {
   BOUNDARY_EVENT_LABEL_POSITION_PRIORITY,
   LABEL_SHAPE_PROXIMITY_MARGIN,
   OWN_FLOW_CROSSING_PENALTY,
-} from '../../constants';
+} from '../../../constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

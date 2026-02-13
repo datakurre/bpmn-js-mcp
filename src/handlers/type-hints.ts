@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Type-specific tool-discovery hints for AI callers.
  *
  * Returns a `nextSteps` object mapping element types to relevant

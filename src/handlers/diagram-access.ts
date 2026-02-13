@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Diagram and element lookup helpers with MCP error handling.
  *
  * Provides typed accessors that throw McpError when resources are not found.

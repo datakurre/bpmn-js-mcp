@@ -7,7 +7,7 @@
  * - `adjustElementLabel(diagram, elementId)` — adjusts a single element's label
  */
 
-import { type DiagramState } from '../../types';
+import { type DiagramState } from '../../../types';
 import {
   type Point,
   type Rect,
@@ -16,7 +16,7 @@ import {
   scoreLabelPosition,
   getLabelRect,
 } from './label-utils';
-import { getVisibleElements, syncXml } from '../helpers';
+import { getVisibleElements, syncXml } from '../../helpers';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Runtime argument validation for MCP tool handlers.
  */
 

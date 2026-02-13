@@ -4,7 +4,11 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { scoreLabelPosition, type Rect, type Point } from '../../src/handlers/layout/label-utils';
+import {
+  scoreLabelPosition,
+  type Rect,
+  type Point,
+} from '../../src/handlers/layout/labels/label-utils';
 
 describe('Label scoring: negative coordinate penalty', () => {
   const noSegments: [Point, Point][] = [];

@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Shared helpers for managing BPMN root-level elements
  * (bpmn:Error, bpmn:Message, bpmn:Signal, bpmn:Escalation).
  *

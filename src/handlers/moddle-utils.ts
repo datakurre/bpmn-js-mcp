@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Moddle / extension-element utilities for BPMN element manipulation.
  *
  * Provides helpers for managing extensionElements containers, creating

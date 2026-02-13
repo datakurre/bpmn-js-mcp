@@ -5,8 +5,8 @@
  * Split from adjust-labels.ts for file-size compliance.
  */
 
-import { type DiagramState } from '../../types';
-import { FLOW_LABEL_INDENT, LABEL_SHAPE_PROXIMITY_MARGIN } from '../../constants';
+import { type DiagramState } from '../../../types';
+import { FLOW_LABEL_INDENT, LABEL_SHAPE_PROXIMITY_MARGIN } from '../../../constants';
 import {
   type Point,
   type Rect,
@@ -15,7 +15,7 @@ import {
   segmentIntersectsRect,
   getLabelRect,
 } from './label-utils';
-import { getVisibleElements, syncXml } from '../helpers';
+import { getVisibleElements, syncXml } from '../../helpers';
 
 /** Indexed shape rects: parallel arrays of Rects and their element IDs. */
 interface ShapeRectIndex {

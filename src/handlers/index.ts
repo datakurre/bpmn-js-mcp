@@ -126,7 +126,7 @@ import {
 import {
   handleAdjustLabels,
   TOOL_DEFINITION as ADJUST_LABELS_DEF,
-} from './layout/adjust-labels-handler';
+} from './layout/labels/adjust-labels-handler';
 
 // ── Collaboration: pools, root elements ────────────────────────────────────
 

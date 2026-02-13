@@ -1,4 +1,5 @@
 /**
+ * @internal
  * Contextual next-step hints for set_bpmn_element_properties responses.
  *
  * Each hint function checks a specific condition and appends a

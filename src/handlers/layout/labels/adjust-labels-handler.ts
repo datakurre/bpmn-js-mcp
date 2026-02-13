@@ -4,8 +4,8 @@
  * Exposes label adjustment as an explicit MCP tool.
  */
 
-import { type ToolResult } from '../../types';
-import { validateArgs, requireDiagram, jsonResult } from '../helpers';
+import { type ToolResult } from '../../../types';
+import { validateArgs, requireDiagram, jsonResult } from '../../helpers';
 import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
 
 export interface AdjustLabelsArgs {
