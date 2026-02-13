@@ -77,6 +77,6 @@ describe('insert_bpmn_element', () => {
         flowId: connectResult.connectionId,
         elementType: 'bpmn:Participant',
       })
-    ).rejects.toThrow(/Cannot insert/);
+    ).rejects.toThrow(/Invalid elementType/);
   });
 });

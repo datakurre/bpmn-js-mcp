@@ -48,6 +48,14 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
     'A parallel gateway is merging mutually exclusive paths{elementRef}. Replace with an exclusive gateway using replace_bpmn_element',
   'camunda-compat/history-time-to-live':
     'Set historyTimeToLive on the process. Use set_bpmn_element_properties on the process element with camunda:historyTimeToLive',
+  'bpmn-mcp/no-duplicate-named-flow-nodes':
+    'Remove the duplicate element{elementRef} with delete_bpmn_element, or rename it with set_bpmn_element_properties',
+  'bpmn-mcp/collaboration-participant-missing-processref':
+    'The expanded participant{elementRef} has no process reference. Recreate it properly with create_bpmn_collaboration, or set it to collapsed if it is a documentation-only partner pool',
+  'bpmn-mcp/collaboration-multiple-participants-no-messageflows':
+    'Add message flows between pools using connect_bpmn_elements to document message exchanges between participants',
+  'bpmn-mcp/elements-outside-participant-bounds':
+    'Reposition element{elementRef} inside its pool using move_bpmn_element, or run layout_bpmn_diagram to re-arrange all elements',
 };
 
 /**

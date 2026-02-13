@@ -29,6 +29,7 @@ import {
   resolveInsertionOverlaps,
   buildInsertResult,
 } from './insert-element-helpers';
+import { validateElementType, INSERTABLE_ELEMENT_TYPES } from '../element-type-validation';
 
 export interface InsertElementArgs {
   diagramId: string;
@@ -150,6 +151,7 @@ function computeInsertionMidpoint(
 
 export async function handleInsertElement(args: InsertElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'flowId', 'elementType']);
+  validateElementType(args.elementType, INSERTABLE_ELEMENT_TYPES);
   const { diagramId, flowId, elementType, name: elementName } = args;
   const diagram = requireDiagram(diagramId);
 

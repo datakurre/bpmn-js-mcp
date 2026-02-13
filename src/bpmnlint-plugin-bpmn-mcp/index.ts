@@ -27,6 +27,10 @@ import parallelGatewayMergeExclusive from './rules/parallel-gateway-merge-exclus
 import userTaskMissingAssignee from './rules/user-task-missing-assignee';
 import implicitMerge from './rules/implicit-merge';
 import undefinedVariable from './rules/undefined-variable';
+import noDuplicateNamedFlowNodes from './rules/no-duplicate-named-flow-nodes';
+import collaborationParticipantMissingProcessref from './rules/collaboration-participant-missing-processref';
+import collaborationMultipleParticipantsNoMessageflows from './rules/collaboration-multiple-participants-no-messageflows';
+import elementsOutsideParticipantBounds from './rules/elements-outside-participant-bounds';
 
 /**
  * All custom lint rules keyed by rule name (without plugin prefix).
@@ -52,6 +56,11 @@ export const rules: Record<string, any> = {
   'user-task-missing-assignee': userTaskMissingAssignee,
   'implicit-merge': implicitMerge,
   'undefined-variable': undefinedVariable,
+  'no-duplicate-named-flow-nodes': noDuplicateNamedFlowNodes,
+  'collaboration-participant-missing-processref': collaborationParticipantMissingProcessref,
+  'collaboration-multiple-participants-no-messageflows':
+    collaborationMultipleParticipantsNoMessageflows,
+  'elements-outside-participant-bounds': elementsOutsideParticipantBounds,
 };
 
 export const configs = {
@@ -74,6 +83,10 @@ export const configs = {
       'bpmn-mcp/user-task-missing-assignee': 'warn',
       'bpmn-mcp/implicit-merge': 'error',
       'bpmn-mcp/undefined-variable': 'warn',
+      'bpmn-mcp/no-duplicate-named-flow-nodes': 'warn',
+      'bpmn-mcp/collaboration-participant-missing-processref': 'warn',
+      'bpmn-mcp/collaboration-multiple-participants-no-messageflows': 'warn',
+      'bpmn-mcp/elements-outside-participant-bounds': 'warn',
     },
   },
 };

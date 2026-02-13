@@ -21,6 +21,7 @@ import { handleInsertElement } from './insert-element';
 import { handleSetEventDefinition } from '../properties/set-event-definition';
 import { shiftDownstreamElements, snapToLane, createAndPlaceElement } from './add-element-helpers';
 import { getTypeSpecificHints, getNamingHint } from '../type-hints';
+import { validateElementType, ALLOWED_ELEMENT_TYPES } from '../element-type-validation';
 
 export interface AddElementArgs {
   diagramId: string;
@@ -56,6 +57,7 @@ export interface AddElementArgs {
 // eslint-disable-next-line complexity, max-lines-per-function, sonarjs/cognitive-complexity
 export async function handleAddElement(args: AddElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementType']);
+  validateElementType(args.elementType, ALLOWED_ELEMENT_TYPES);
 
   // Delegate to insert-into-flow handler when flowId is provided
   const { flowId } = args;
