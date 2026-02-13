@@ -27,6 +27,14 @@ export interface SetEventDefinitionArgs {
   messageRef?: { id: string; name?: string };
   signalRef?: { id: string; name?: string };
   escalationRef?: { id: string; name?: string; escalationCode?: string };
+  /** Variable mappings to pass with a signal throw event (camunda:In on SignalEventDefinition). */
+  inMappings?: Array<{
+    source?: string;
+    sourceExpression?: string;
+    target?: string;
+    variables?: 'all';
+    local?: boolean;
+  }>;
 }
 
 // ── Type-specific attribute builders ───────────────────────────────────────
@@ -139,6 +147,66 @@ function validateRefArgs(eventDefinitionType: string, args: Record<string, any>)
   }
 }
 
+// ── Signal variable mapping helpers ────────────────────────────────────────
+
+interface InMappingSpec {
+  source?: string;
+  sourceExpression?: string;
+  target?: string;
+  variables?: 'all';
+  local?: boolean;
+}
+
+/** Apply camunda:In variable mappings as extension elements on a SignalEventDefinition. */
+function applySignalInMappings(
+  moddle: any,
+  eventDef: any,
+  eventDefinitionType: string,
+  inMappings: InMappingSpec[]
+): void {
+  if (eventDefinitionType !== 'bpmn:SignalEventDefinition') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `inMappings are only supported on bpmn:SignalEventDefinition, not ${eventDefinitionType}`
+    );
+  }
+  const extElements = moddle.create('bpmn:ExtensionElements', { values: [] }) as any;
+  extElements.$parent = eventDef;
+  for (const mapping of inMappings) {
+    const attrs: Record<string, any> = {};
+    if (mapping.variables === 'all') {
+      attrs.variables = 'all';
+    } else {
+      if (mapping.source) attrs.source = mapping.source;
+      if (mapping.sourceExpression) attrs.sourceExpression = mapping.sourceExpression;
+      if (mapping.target) attrs.target = mapping.target;
+    }
+    if (mapping.local) attrs.local = true;
+    const inEl = moddle.create('camunda:In', attrs);
+    inEl.$parent = extElements;
+    extElements.values.push(inEl);
+  }
+  (eventDef as any).extensionElements = extElements;
+}
+
+/** Build event definition attributes from type-specific properties. */
+function buildEventDefAttrs(
+  moddle: any,
+  eventDefinitionType: string,
+  defProps: Record<string, any>
+): Record<string, any> {
+  if (eventDefinitionType === 'bpmn:TimerEventDefinition') {
+    return buildTimerAttrs(moddle, defProps);
+  }
+  if (eventDefinitionType === 'bpmn:ConditionalEventDefinition' && defProps.condition) {
+    return { condition: moddle.create('bpmn:FormalExpression', { body: defProps.condition }) };
+  }
+  if (eventDefinitionType === 'bpmn:LinkEventDefinition' && defProps.name) {
+    return { name: defProps.name };
+  }
+  return {};
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
@@ -152,6 +220,7 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
     messageRef,
     signalRef,
     escalationRef,
+    inMappings,
   } = args;
 
   // Validate that ref args match the event definition type
@@ -175,15 +244,7 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   }
 
   // Build event definition attributes based on type
-  let eventDefAttrs: Record<string, any> = {};
-
-  if (eventDefinitionType === 'bpmn:TimerEventDefinition') {
-    eventDefAttrs = buildTimerAttrs(moddle, defProps);
-  } else if (eventDefinitionType === 'bpmn:ConditionalEventDefinition' && defProps.condition) {
-    eventDefAttrs.condition = moddle.create('bpmn:FormalExpression', { body: defProps.condition });
-  } else if (eventDefinitionType === 'bpmn:LinkEventDefinition' && defProps.name) {
-    eventDefAttrs.name = defProps.name;
-  }
+  const eventDefAttrs = buildEventDefAttrs(moddle, eventDefinitionType, defProps);
 
   // Resolve root-level references (error, message, signal, escalation)
   const refArgs: Record<string, any> = { errorRef, messageRef, signalRef, escalationRef };
@@ -201,6 +262,11 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
 
   // Apply Camunda extension attributes on the event definition itself
   applyCamundaEventDefProps(eventDef, eventDefinitionType, defProps);
+
+  // Apply camunda:In variable mappings for SignalEventDefinition
+  if (inMappings && inMappings.length > 0) {
+    applySignalInMappings(moddle, eventDef, eventDefinitionType, inMappings);
+  }
 
   // Replace existing event definitions
   bo.eventDefinitions = [eventDef];
@@ -222,85 +288,5 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   return appendLintFeedback(result, diagram);
 }
 
-export const TOOL_DEFINITION = {
-  name: 'set_bpmn_event_definition',
-  description:
-    'Add or replace an event definition on an event element (e.g. bpmn:ErrorEventDefinition, bpmn:TimerEventDefinition, bpmn:MessageEventDefinition, bpmn:SignalEventDefinition, bpmn:TerminateEventDefinition, bpmn:EscalationEventDefinition). For error events, optionally creates/references a bpmn:Error root element.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elementId: {
-        type: 'string',
-        description: 'The ID of the event element',
-      },
-      eventDefinitionType: {
-        type: 'string',
-        enum: [
-          'bpmn:ErrorEventDefinition',
-          'bpmn:TimerEventDefinition',
-          'bpmn:MessageEventDefinition',
-          'bpmn:SignalEventDefinition',
-          'bpmn:TerminateEventDefinition',
-          'bpmn:EscalationEventDefinition',
-          'bpmn:ConditionalEventDefinition',
-          'bpmn:CompensateEventDefinition',
-          'bpmn:CancelEventDefinition',
-          'bpmn:LinkEventDefinition',
-        ],
-        description: 'The type of event definition to add',
-      },
-      properties: {
-        type: 'object',
-        description:
-          'Type-specific properties. For Timer events, provide exactly ONE of: timeDuration (ISO 8601 duration, e.g. "PT15M" for 15 minutes, "PT1H30M" for 1.5 hours, "P1D" for 1 day), timeDate (ISO 8601 date-time, e.g. "2025-12-31T23:59:00Z"), or timeCycle (ISO 8601 repeating interval, e.g. "R3/PT10M" for 3 repetitions every 10 minutes, "R/P1D" for daily). For Conditional events: condition (expression string), variableName (restrict to specific variable), variableEvents (e.g. "create, update"). For Link events: name (link name). For Error events: errorCodeVariable (variable to store error code), errorMessageVariable (variable to store error message). For Escalation events: escalationCodeVariable (variable to store escalation code). Camunda expressions are also supported (e.g. "${myDuration}").',
-        additionalProperties: true,
-      },
-      errorRef: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'Error element ID' },
-          name: { type: 'string', description: 'Error name' },
-          errorCode: { type: 'string', description: 'Error code' },
-          errorMessage: {
-            type: 'string',
-            description: 'Error message (camunda:errorMessage extension)',
-          },
-        },
-        required: ['id'],
-        description: 'For ErrorEventDefinition: creates or references a bpmn:Error root element',
-      },
-      messageRef: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'Message element ID' },
-          name: { type: 'string', description: 'Message name' },
-        },
-        required: ['id'],
-        description:
-          'For MessageEventDefinition: creates or references a bpmn:Message root element',
-      },
-      signalRef: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'Signal element ID' },
-          name: { type: 'string', description: 'Signal name' },
-        },
-        required: ['id'],
-        description: 'For SignalEventDefinition: creates or references a bpmn:Signal root element',
-      },
-      escalationRef: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'Escalation element ID' },
-          name: { type: 'string', description: 'Escalation name' },
-          escalationCode: { type: 'string', description: 'Escalation code' },
-        },
-        required: ['id'],
-        description:
-          'For EscalationEventDefinition: creates or references a bpmn:Escalation root element',
-      },
-    },
-    required: ['diagramId', 'elementId', 'eventDefinitionType'],
-  },
-} as const;
+// Schema extracted to set-event-definition-schema.ts for readability.
+export { TOOL_DEFINITION } from './set-event-definition-schema';

@@ -98,4 +98,76 @@ describe('set_bpmn_event_definition', () => {
     expect(xml).toContain('camunda:async="true"');
     expect(xml).toContain('signalEventDefinition');
   });
+
+  test('sets camunda:in variable mappings on SignalEventDefinition', async () => {
+    const diagramId = await createDiagram();
+    const eventId = await addElement(diagramId, 'bpmn:IntermediateThrowEvent', {
+      name: 'Send Signal',
+      x: 200,
+      y: 100,
+    });
+
+    const res = parseResult(
+      await handleSetEventDefinition({
+        diagramId,
+        elementId: eventId,
+        eventDefinitionType: 'bpmn:SignalEventDefinition',
+        signalRef: { id: 'Signal_Order', name: 'OrderCompleted' },
+        inMappings: [
+          { source: 'orderId', target: 'orderId' },
+          { source: 'customerName', target: 'customerName' },
+        ],
+      })
+    );
+    expect(res.success).toBe(true);
+
+    const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text;
+    expect(xml).toContain('camunda:in');
+    expect(xml).toContain('source="orderId"');
+    expect(xml).toContain('target="customerName"');
+  });
+
+  test('sets camunda:in with variables="all" on SignalEventDefinition', async () => {
+    const diagramId = await createDiagram();
+    const eventId = await addElement(diagramId, 'bpmn:IntermediateThrowEvent', {
+      name: 'Broadcast Signal',
+      x: 200,
+      y: 100,
+    });
+
+    const res = parseResult(
+      await handleSetEventDefinition({
+        diagramId,
+        elementId: eventId,
+        eventDefinitionType: 'bpmn:SignalEventDefinition',
+        signalRef: { id: 'Signal_Broadcast', name: 'BroadcastAll' },
+        inMappings: [{ variables: 'all' }],
+      })
+    );
+    expect(res.success).toBe(true);
+
+    const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text;
+    expect(xml).toContain('camunda:in');
+    expect(xml).toContain('variables="all"');
+  });
+
+  test('rejects inMappings on non-Signal event definitions', async () => {
+    const diagramId = await createDiagram();
+    const eventId = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', {
+      x: 200,
+      y: 100,
+    });
+
+    await expect(
+      handleSetEventDefinition({
+        diagramId,
+        elementId: eventId,
+        eventDefinitionType: 'bpmn:TimerEventDefinition',
+        properties: { timeDuration: 'PT1H' },
+        inMappings: [{ source: 'foo', target: 'bar' }],
+      })
+    ).rejects.toThrow(/only supported on bpmn:SignalEventDefinition/);
+  });
 });

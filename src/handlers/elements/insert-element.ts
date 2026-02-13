@@ -290,5 +290,25 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'flowId', 'elementType'],
+    examples: [
+      {
+        title: 'Insert an approval task into an existing flow',
+        value: {
+          diagramId: '<diagram-id>',
+          flowId: 'Flow_SubmitToEnd',
+          elementType: 'bpmn:UserTask',
+          name: 'Approve Request',
+        },
+      },
+      {
+        title: 'Insert a decision gateway into an existing flow',
+        value: {
+          diagramId: '<diagram-id>',
+          flowId: 'Flow_ReviewToProcess',
+          elementType: 'bpmn:ExclusiveGateway',
+          name: 'Order valid?',
+        },
+      },
+    ],
   },
 } as const;

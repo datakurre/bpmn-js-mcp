@@ -207,5 +207,17 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'participants'],
+    examples: [
+      {
+        title: 'Camunda 7 pattern: one executable pool + one collapsed partner pool',
+        value: {
+          diagramId: '<diagram-id>',
+          participants: [
+            { name: 'Order Processing', processId: 'Process_OrderProcessing' },
+            { name: 'Customer', collapsed: true },
+          ],
+        },
+      },
+    ],
   },
 } as const;
