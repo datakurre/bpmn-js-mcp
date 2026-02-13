@@ -50,7 +50,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 | `src/handlers/elements/`        | Element CRUD: add, connect, delete, move, duplicate, insert, replace, list, get-properties                                                                                        |
 | `src/handlers/properties/`      | Property setters: set-properties, set-input-output, set-event-definition, set-form-data, set-loop-characteristics, set-script, set-camunda-listeners, set-call-activity-variables |
 | `src/handlers/layout/`          | Layout & alignment: layout-diagram, align-elements, adjust-labels, label-utils                                                                                                    |
-| `src/handlers/collaboration/`   | Collaboration: create-collaboration, manage-root-elements                                                                                                                         |
+| `src/handlers/collaboration/`   | Collaboration: create-collaboration, create-lanes, assign-elements-to-lane, wrap-process-in-collaboration, manage-root-elements                                                   |
 | `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                                           |
 | `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                                                          |
 | `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                                                   |
@@ -60,7 +60,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 1. A shared `jsdom` instance polyfills browser APIs (SVG, CSS, structuredClone) so `bpmn-js` can run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
-3. **34 MCP tools** are exposed (see "Tool Naming" below), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **6 prompt workflows** (create-executable-process, convert-to-collaboration, add-sla-timer-pattern, add-approval-pattern, add-error-handling-pattern, add-parallel-tasks-pattern).
+3. **37 MCP tools** are exposed (see "Tool Naming" below), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **6 prompt workflows** (create-executable-process, convert-to-collaboration, add-sla-timer-pattern, add-approval-pattern, add-error-handling-pattern, add-parallel-tasks-pattern).
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
 5. `camunda-bpmn-moddle` is registered as a moddle extension, enabling Camunda-specific attributes (e.g. `camunda:assignee`, `camunda:class`, `camunda:formKey`) on elements.
 6. Each handler file **co-locates** its MCP tool definition (`TOOL_DEFINITION`) alongside the handler function, preventing definition drift.
@@ -73,7 +73,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 - **Core structural tools:** `create_bpmn_diagram`, `add_bpmn_element` (includes insert-into-flow via `flowId`), `insert_bpmn_element`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element` (includes resize via `width`/`height`), `replace_bpmn_element`, `duplicate_bpmn_element`, `list_bpmn_elements`, `validate_bpmn_diagram`, `align_bpmn_elements` (includes distribute via `orientation`), `export_bpmn`, `import_bpmn_xml`
 - **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties`, `set_bpmn_input_output_mapping`, `set_bpmn_event_definition`, `set_bpmn_form_data`, `set_bpmn_camunda_listeners` (includes error definitions), `set_bpmn_loop_characteristics`, `set_bpmn_script`, `set_bpmn_call_activity_variables`
-- **Collaboration & data tools:** `create_bpmn_collaboration`, `manage_bpmn_root_elements`
+- **Collaboration & data tools:** `create_bpmn_collaboration`, `create_bpmn_lanes`, `assign_bpmn_elements_to_lane`, `wrap_bpmn_process_in_collaboration`, `manage_bpmn_root_elements`
 - **History tools:** `bpmn_history`, `diff_bpmn_diagrams`
 - **Batch tools:** `batch_bpmn_operations`
 - **Utility tools:** `delete_bpmn_diagram`, `list_bpmn_diagrams` (includes diagram summary via `diagramId`), `summarize_bpmn_diagram`, `list_bpmn_process_variables`, `clone_bpmn_diagram`, `layout_bpmn_diagram`, `adjust_bpmn_labels`

@@ -42,6 +42,7 @@ import collaborationTooComplex from './rules/collaboration-too-complex';
 import laneCrossingExcessive from './rules/lane-crossing-excessive';
 import laneSingleElement from './rules/lane-single-element';
 import laneMissingStartOrEnd from './rules/lane-missing-start-or-end';
+import inconsistentLaneNaming from './rules/inconsistent-lane-naming';
 
 /**
  * All custom lint rules keyed by rule name (without plugin prefix).
@@ -83,6 +84,7 @@ export const rules: Record<string, any> = {
   'lane-crossing-excessive': laneCrossingExcessive,
   'lane-single-element': laneSingleElement,
   'lane-missing-start-or-end': laneMissingStartOrEnd,
+  'inconsistent-lane-naming': inconsistentLaneNaming,
 };
 
 export const configs = {
@@ -120,6 +122,7 @@ export const configs = {
       'bpmn-mcp/lane-crossing-excessive': 'warn',
       'bpmn-mcp/lane-single-element': 'info',
       'bpmn-mcp/lane-missing-start-or-end': 'warn',
+      'bpmn-mcp/inconsistent-lane-naming': 'info',
     },
   },
 };

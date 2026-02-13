@@ -139,6 +139,18 @@ import {
   handleManageRootElements,
   TOOL_DEFINITION as MANAGE_ROOT_ELEMENTS_DEF,
 } from './collaboration/manage-root-elements';
+import {
+  handleCreateLanes,
+  TOOL_DEFINITION as CREATE_LANES_DEF,
+} from './collaboration/create-lanes';
+import {
+  handleAssignElementsToLane,
+  TOOL_DEFINITION as ASSIGN_ELEMENTS_TO_LANE_DEF,
+} from './collaboration/assign-elements-to-lane';
+import {
+  handleWrapProcessInCollaboration,
+  TOOL_DEFINITION as WRAP_PROCESS_IN_COLLABORATION_DEF,
+} from './collaboration/wrap-process-in-collaboration';
 
 // ── Unified tool registry ──────────────────────────────────────────────────
 //
@@ -180,6 +192,9 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners },
   { definition: SET_CALL_ACTIVITY_VARIABLES_DEF, handler: handleSetCallActivityVariables },
   { definition: MANAGE_ROOT_ELEMENTS_DEF, handler: handleManageRootElements },
+  { definition: CREATE_LANES_DEF, handler: handleCreateLanes },
+  { definition: ASSIGN_ELEMENTS_TO_LANE_DEF, handler: handleAssignElementsToLane },
+  { definition: WRAP_PROCESS_IN_COLLABORATION_DEF, handler: handleWrapProcessInCollaboration },
   { definition: DUPLICATE_ELEMENT_DEF, handler: handleDuplicateElement },
   { definition: INSERT_ELEMENT_DEF, handler: handleInsertElement },
   { definition: REPLACE_ELEMENT_DEF, handler: handleReplaceElement },
@@ -244,6 +259,9 @@ export {
   handleAdjustLabels,
   handleSetScript,
   handleCreateCollaboration,
+  handleCreateLanes,
+  handleAssignElementsToLane,
+  handleWrapProcessInCollaboration,
   handleBpmnHistory,
   handleUndoChange,
   handleRedoChange,
