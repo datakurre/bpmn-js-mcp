@@ -5,7 +5,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(41);
+    expect(TOOL_DEFINITIONS.length).toBe(43);
   });
 
   test.each([
@@ -48,6 +48,8 @@ describe('tool-definitions', () => {
     'add_bpmn_element_chain',
     'create_bpmn_participant',
     'handoff_bpmn_to_lane',
+    'suggest_bpmn_lane_organization',
+    'validate_bpmn_lane_organization',
     'summarize_bpmn_diagram',
     'list_bpmn_process_variables',
   ])("includes tool '%s'", (name) => {

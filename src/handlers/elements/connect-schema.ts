@@ -57,6 +57,16 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId'],
+    oneOf: [
+      {
+        description: 'Pair mode: connect two specific elements',
+        required: ['sourceElementId', 'targetElementId'],
+      },
+      {
+        description: 'Chain mode: connect a sequence of elements',
+        required: ['elementIds'],
+      },
+    ],
     examples: [
       {
         title: 'Connect two elements with a sequence flow',

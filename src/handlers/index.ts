@@ -167,6 +167,14 @@ import {
   handleHandoffToLane,
   TOOL_DEFINITION as HANDOFF_TO_LANE_DEF,
 } from './collaboration/handoff-to-lane';
+import {
+  handleSuggestLaneOrganization,
+  TOOL_DEFINITION as SUGGEST_LANE_ORGANIZATION_DEF,
+} from './collaboration/suggest-lane-organization';
+import {
+  handleValidateLaneOrganization,
+  TOOL_DEFINITION as VALIDATE_LANE_ORGANIZATION_DEF,
+} from './collaboration/validate-lane-organization';
 
 // ── Unified tool registry ──────────────────────────────────────────────────
 //
@@ -214,6 +222,8 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: SPLIT_PARTICIPANT_INTO_LANES_DEF, handler: handleSplitParticipantIntoLanes },
   { definition: CREATE_PARTICIPANT_DEF, handler: handleCreateParticipant },
   { definition: HANDOFF_TO_LANE_DEF, handler: handleHandoffToLane },
+  { definition: SUGGEST_LANE_ORGANIZATION_DEF, handler: handleSuggestLaneOrganization },
+  { definition: VALIDATE_LANE_ORGANIZATION_DEF, handler: handleValidateLaneOrganization },
   { definition: DUPLICATE_ELEMENT_DEF, handler: handleDuplicateElement },
   { definition: INSERT_ELEMENT_DEF, handler: handleInsertElement },
   { definition: REPLACE_ELEMENT_DEF, handler: handleReplaceElement },
@@ -297,6 +307,8 @@ export {
   handleAddElementChain,
   handleCreateParticipant,
   handleHandoffToLane,
+  handleSuggestLaneOrganization,
+  handleValidateLaneOrganization,
   handleSummarizeDiagram,
   handleListProcessVariables,
 };

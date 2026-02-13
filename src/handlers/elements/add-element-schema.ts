@@ -68,7 +68,8 @@ export const TOOL_DEFINITION = {
       hostElementId: {
         type: 'string',
         description:
-          'For boundary events: the ID of the host element (task/subprocess) to attach to',
+          'Required for bpmn:BoundaryEvent: the ID of the host element (task/subprocess) to attach to. ' +
+          'Boundary events are positioned relative to their host, so afterElementId and flowId are not applicable.',
       },
       afterElementId: {
         type: 'string',
@@ -80,13 +81,16 @@ export const TOOL_DEFINITION = {
         description:
           'Insert the element into an existing sequence flow, splitting the flow and reconnecting automatically. ' +
           "The new element is positioned at the midpoint between the flow's source and target. " +
-          'When set, other positioning parameters (x, y, afterElementId) are ignored.',
+          'When set, other positioning parameters (x, y, afterElementId) are ignored. ' +
+          'Cannot be combined with afterElementId.',
       },
       autoConnect: {
         type: 'boolean',
+        default: true,
         description:
           'When afterElementId is set, automatically create a sequence flow from the reference element ' +
-          'to the new element. Default: true. Set to false to skip auto-connection.',
+          'to the new element. Default: true. Set to false to skip auto-connection. ' +
+          'Ignored when flowId is used (flow splitting always reconnects both sides).',
       },
       participantId: {
         type: 'string',
@@ -101,6 +105,7 @@ export const TOOL_DEFINITION = {
       },
       ensureUnique: {
         type: 'boolean',
+        default: false,
         description:
           'When true, reject creation if another element with the same type and name already exists. ' +
           'Default: false (duplicates produce a warning but are allowed).',
@@ -172,6 +177,45 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementType'],
+    allOf: [
+      {
+        if: {
+          properties: { elementType: { const: 'bpmn:BoundaryEvent' } },
+          required: ['elementType'],
+        },
+        then: {
+          required: ['hostElementId'],
+          properties: {
+            afterElementId: { not: {} },
+            flowId: { not: {} },
+          },
+        },
+      },
+      {
+        not: {
+          description: 'flowId and afterElementId are mutually exclusive',
+          required: ['flowId', 'afterElementId'],
+        },
+      },
+      {
+        if: {
+          required: ['eventDefinitionType'],
+        },
+        then: {
+          properties: {
+            elementType: {
+              enum: [
+                'bpmn:StartEvent',
+                'bpmn:EndEvent',
+                'bpmn:IntermediateCatchEvent',
+                'bpmn:IntermediateThrowEvent',
+                'bpmn:BoundaryEvent',
+              ],
+            },
+          },
+        },
+      },
+    ],
     examples: [
       {
         title: 'Attach boundary timer event to a task',
