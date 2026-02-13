@@ -93,6 +93,7 @@ const CAMUNDA_EVENT_DEF_PROPS: Record<string, string[]> = {
   'bpmn:ConditionalEventDefinition': ['variableName', 'variableEvents'],
   'bpmn:ErrorEventDefinition': ['errorCodeVariable', 'errorMessageVariable'],
   'bpmn:EscalationEventDefinition': ['escalationCodeVariable'],
+  'bpmn:SignalEventDefinition': ['async'],
 };
 
 /** Apply Camunda-specific extension props (variableName, errorCodeVariable, etc.) to an event definition. */
