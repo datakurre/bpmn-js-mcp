@@ -10,6 +10,7 @@
 
 export { elkLayout, elkLayoutSubset } from './index';
 export { computeLaneCrossingMetrics } from './crossing-detection';
+export { isTrivialDiagram, applyDeterministicLayout } from './deterministic-layout';
 export type {
   ElkLayoutOptions,
   CrossingFlowsResult,

@@ -14,7 +14,12 @@ import { type ToolResult } from '../../types';
 import { requireDiagram, jsonResult, syncXml, getVisibleElements } from '../helpers';
 import { appendLintFeedback, resetMutationCounter } from '../../linter';
 import { adjustDiagramLabels, adjustFlowLabels, centerFlowLabels } from './labels/adjust-labels';
-import { elkLayout, elkLayoutSubset, computeLaneCrossingMetrics } from '../../elk/api';
+import {
+  elkLayout,
+  elkLayoutSubset,
+  computeLaneCrossingMetrics,
+  applyDeterministicLayout,
+} from '../../elk/api';
 import {
   generateDiagramId,
   storeDiagram,
@@ -37,6 +42,19 @@ export interface LayoutDiagramArgs {
   gridSnap?: boolean | number;
   /** When true, preview layout changes without applying them. */
   dryRun?: boolean;
+  /**
+   * Layout algorithm strategy:
+   * - 'full': full ELK Sugiyama layered layout (default)
+   * - 'deterministic': simplified layout for trivial diagrams (linear chains, single split-merge);
+   *   falls back to 'full' if the diagram is too complex
+   */
+  layoutStrategy?: 'full' | 'deterministic';
+  /**
+   * Lane layout strategy:
+   * - 'preserve': keep elements in their current lanes (default)
+   * - 'optimize': reorder lanes to minimize cross-lane flows
+   */
+  laneStrategy?: 'preserve' | 'optimize';
 }
 
 /** Apply pixel-level grid snapping to all visible non-flow elements. */
@@ -211,6 +229,7 @@ function buildLayoutResult(params: {
   labelsMoved: number;
   layoutResult: { crossingFlows?: number; crossingFlowPairs?: Array<[string, string]> };
   elementRegistry: any;
+  usedDeterministic?: boolean;
 }): ToolResult {
   const {
     diagramId,
@@ -220,6 +239,7 @@ function buildLayoutResult(params: {
     labelsMoved,
     layoutResult,
     elementRegistry,
+    usedDeterministic,
   } = params;
   const crossingCount = layoutResult.crossingFlows ?? 0;
   const crossingPairs = layoutResult.crossingFlowPairs ?? [];
@@ -229,6 +249,7 @@ function buildLayoutResult(params: {
     success: true,
     elementCount,
     labelsMoved,
+    ...(usedDeterministic ? { layoutStrategy: 'deterministic' } : {}),
     ...(crossingCount > 0
       ? {
           crossingFlows: crossingCount,
@@ -248,7 +269,7 @@ function buildLayoutResult(params: {
           },
         }
       : {}),
-    message: `Layout applied to diagram ${diagramId}${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}${elementIds ? ` (${elementIds.length} elements)` : ''} — ${elementCount} elements arranged`,
+    message: `Layout applied to diagram ${diagramId}${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}${elementIds ? ` (${elementIds.length} elements)` : ''}${usedDeterministic ? ' (deterministic)' : ''} — ${elementCount} elements arranged`,
     nextSteps: [
       {
         tool: 'export_bpmn',
@@ -259,14 +280,15 @@ function buildLayoutResult(params: {
   });
 }
 
-export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
-  // Dry run: preview layout changes without applying them
-  if (args.dryRun) {
-    return handleDryRunLayout(args);
-  }
-
+/** Run the appropriate layout algorithm based on strategy and args. */
+async function executeLayout(
+  diagram: any,
+  args: LayoutDiagramArgs
+): Promise<{
+  layoutResult: { crossingFlows?: number; crossingFlowPairs?: Array<[string, string]> };
+  usedDeterministic: boolean;
+}> {
   const {
-    diagramId,
     direction,
     nodeSpacing,
     layerSpacing,
@@ -274,51 +296,57 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
     preserveHappyPath,
     compactness,
     simplifyRoutes,
+    layoutStrategy,
+    elementIds,
   } = args;
-  const { elementIds } = args;
   const rawGridSnap = args.gridSnap;
-  // gridSnap can be a boolean (enable/disable ELK grid snap pass)
-  // or a number (pixel-level snapping after layout)
   const elkGridSnap = typeof rawGridSnap === 'boolean' ? rawGridSnap : undefined;
-  const pixelGridSnap = typeof rawGridSnap === 'number' ? rawGridSnap : undefined;
-  const diagram = requireDiagram(diagramId);
 
-  let layoutResult: { crossingFlows?: number; crossingFlowPairs?: Array<[string, string]> };
+  // Deterministic layout for trivial diagrams (linear chains, single split-merge)
+  if (layoutStrategy === 'deterministic' && !elementIds && !scopeElementId) {
+    if (applyDeterministicLayout(diagram)) {
+      return { layoutResult: {}, usedDeterministic: true };
+    }
+    // Fall back to full ELK layout if diagram is not trivial
+  }
 
   if (elementIds && elementIds.length > 0) {
-    // Partial re-layout: only specified elements
-    layoutResult = await elkLayoutSubset(diagram, elementIds, {
+    const result = await elkLayoutSubset(diagram, elementIds, {
       direction,
       nodeSpacing,
       layerSpacing,
     });
-  } else {
-    // Full or scoped layout
-    layoutResult = await elkLayout(diagram, {
-      direction,
-      nodeSpacing,
-      layerSpacing,
-      scopeElementId,
-      preserveHappyPath,
-      gridSnap: elkGridSnap,
-      compactness,
-      simplifyRoutes,
-    });
+    return { layoutResult: result, usedDeterministic: false };
   }
 
-  // Optional pixel-level grid snapping after layout
-  if (pixelGridSnap && pixelGridSnap > 0) {
-    applyPixelGridSnap(diagram, pixelGridSnap);
-  }
+  const result = await elkLayout(diagram, {
+    direction,
+    nodeSpacing,
+    layerSpacing,
+    scopeElementId,
+    preserveHappyPath,
+    gridSnap: elkGridSnap,
+    compactness,
+    simplifyRoutes,
+  });
+  return { layoutResult: result, usedDeterministic: false };
+}
+
+export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
+  if (args.dryRun) return handleDryRunLayout(args);
+
+  const { diagramId, scopeElementId, elementIds } = args;
+  const pixelGridSnap = typeof args.gridSnap === 'number' ? args.gridSnap : undefined;
+  const diagram = requireDiagram(diagramId);
+
+  const { layoutResult, usedDeterministic } = await executeLayout(diagram, args);
+
+  if (pixelGridSnap && pixelGridSnap > 0) applyPixelGridSnap(diagram, pixelGridSnap);
 
   await syncXml(diagram);
-
-  // Reset mutation counter since layout was just applied
   resetMutationCounter(diagram);
 
   const elementRegistry = diagram.modeler.get('elementRegistry');
-
-  // Count laid-out elements for the response (exclude flows)
   const elements = getVisibleElements(elementRegistry).filter(
     (el: any) =>
       !el.type.includes('SequenceFlow') &&
@@ -327,11 +355,8 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
   );
 
   // Adjust labels after layout
-  // 1. Center flow labels on their connection midpoints (geometric baseline)
   await centerFlowLabels(diagram);
-  // 2. Reposition element labels to avoid overlaps
   const labelsMoved = await adjustDiagramLabels(diagram);
-  // 3. Nudge flow labels to resolve remaining overlaps
   const flowLabelsMoved = await adjustFlowLabels(diagram);
 
   const result = buildLayoutResult({
@@ -342,72 +367,10 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
     labelsMoved: labelsMoved + flowLabelsMoved,
     layoutResult,
     elementRegistry,
+    usedDeterministic,
   });
   return appendLintFeedback(result, diagram);
 }
 
-export const TOOL_DEFINITION = {
-  name: 'layout_bpmn_diagram',
-  description:
-    'Automatically arrange elements in a BPMN diagram using the ELK layered algorithm (Sugiyama), producing a clean left-to-right layout. Handles parallel branches, reconverging gateways, and nested containers. Use this after structural changes (adding gateways, splitting flows) to automatically clean up the layout. Supports partial re-layout via elementIds. ' +
-    'Use dryRun to preview changes before applying them. ' +
-    '**When NOT to use full layout:** If the diagram has carefully positioned elements, custom label placements, or boundary events, full re-layout may reposition them destructively. In such cases, prefer: (1) adjust_bpmn_labels for label cleanup only, (2) move_bpmn_element for targeted repositioning, (3) scopeElementId parameter to re-layout only one participant/subprocess, or (4) elementIds parameter for partial re-layout of specific elements.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      direction: {
-        type: 'string',
-        enum: ['RIGHT', 'DOWN', 'LEFT', 'UP'],
-        description:
-          'Layout direction. RIGHT = left-to-right (default), DOWN = top-to-bottom, LEFT = right-to-left, UP = bottom-to-top.',
-      },
-      nodeSpacing: {
-        type: 'number',
-        description: 'Spacing in pixels between nodes in the same layer (default: 80).',
-      },
-      layerSpacing: {
-        type: 'number',
-        description: 'Spacing in pixels between layers (default: 100).',
-      },
-      scopeElementId: {
-        type: 'string',
-        description:
-          'Optional ID of a Participant or SubProcess to layout in isolation, leaving the rest of the diagram unchanged.',
-      },
-      elementIds: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Optional list of element IDs for partial re-layout. Only these elements and their inter-connections are arranged, leaving the rest of the diagram unchanged.',
-      },
-      gridSnap: {
-        type: 'number',
-        description:
-          'Optional grid size in pixels to snap element positions to after layout (e.g. 10). Reduces near-overlaps and improves visual consistency. Off by default.',
-      },
-      preserveHappyPath: {
-        type: 'boolean',
-        description:
-          'When true (default), detects the main path (start→end via default flows) and pins it to a single row. Set to false to let ELK freely arrange all branches.',
-      },
-      compactness: {
-        type: 'string',
-        enum: ['compact', 'spacious'],
-        description:
-          "Layout compactness preset. 'compact' uses tighter spacing (nodeSpacing=40, layerSpacing=50). 'spacious' uses generous spacing (nodeSpacing=80, layerSpacing=100). Explicit nodeSpacing/layerSpacing values override compactness presets. Default uses balanced spacing (nodeSpacing=50, layerSpacing=60).",
-      },
-      simplifyRoutes: {
-        type: 'boolean',
-        description:
-          "When true (default), simplifies gateway branch routes to clean L/Z-shaped paths. Set to false to preserve ELK's original crossing-minimised routing for complex diagrams.",
-      },
-      dryRun: {
-        type: 'boolean',
-        description:
-          'When true, preview layout changes without applying them. Returns displacement statistics showing how many elements would move and by how much. Default: false.',
-      },
-    },
-    required: ['diagramId'],
-  },
-} as const;
+// Schema extracted to layout-diagram-schema.ts for readability.
+export { TOOL_DEFINITION } from './layout-diagram-schema';

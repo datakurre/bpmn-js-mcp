@@ -50,6 +50,20 @@ export interface AddElementArgs {
   laneId?: string;
   /** When true, reject creation if another element with the same type and name already exists. Default: false. */
   ensureUnique?: boolean;
+  /**
+   * Clarify positioning intent:
+   * - 'auto': default placement with collision avoidance (default)
+   * - 'after': position after afterElementId (requires afterElementId)
+   * - 'absolute': use exact x/y coordinates, no collision avoidance
+   * - 'insert': insert into existing flow (requires flowId)
+   */
+  placementStrategy?: 'auto' | 'after' | 'absolute' | 'insert';
+  /**
+   * Control collision avoidance behavior:
+   * - 'shift': shift right until no overlap (default for 'auto')
+   * - 'none': no collision avoidance (elements may overlap)
+   */
+  collisionPolicy?: 'shift' | 'none';
   /** Boundary event shorthand: set event definition type in one call. */
   eventDefinitionType?: string;
   /** Boundary event shorthand: event definition properties (timer, condition, etc.). */
@@ -113,6 +127,20 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
       'bpmn:IntermediateCatchEvent',
       'bpmn:IntermediateThrowEvent',
       'bpmn:BoundaryEvent',
+    ]);
+  }
+
+  // Validate placementStrategy consistency
+  if (args.placementStrategy === 'after' && !args.afterElementId) {
+    throw illegalCombinationError('placementStrategy "after" requires afterElementId to be set.', [
+      'placementStrategy',
+      'afterElementId',
+    ]);
+  }
+  if (args.placementStrategy === 'insert' && !args.flowId) {
+    throw illegalCombinationError('placementStrategy "insert" requires flowId to be set.', [
+      'placementStrategy',
+      'flowId',
     ]);
   }
 
@@ -200,9 +228,17 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
   }
 
   // Collision avoidance: shift right if position overlaps an existing element.
-  // Only when using default placement (no explicit x/y, no afterElementId, no host).
+  // Respects placementStrategy and collisionPolicy parameters.
+  const strategy = args.placementStrategy || 'auto';
+  const collisionPolicy = args.collisionPolicy || 'shift';
   const usingDefaultPosition = args.x === undefined && args.y === undefined;
-  if (usingDefaultPosition && !hostElementId && !afterElementId) {
+  const shouldAvoidCollisions =
+    collisionPolicy !== 'none' &&
+    strategy !== 'absolute' &&
+    usingDefaultPosition &&
+    !hostElementId &&
+    !afterElementId;
+  if (shouldAvoidCollisions) {
     const avoided = avoidCollision(elementRegistry, x, y, elementSize.width, elementSize.height);
     x = avoided.x;
     y = avoided.y;

@@ -110,6 +110,24 @@ export const TOOL_DEFINITION = {
           'When true, reject creation if another element with the same type and name already exists. ' +
           'Default: false (duplicates produce a warning but are allowed).',
       },
+      placementStrategy: {
+        type: 'string',
+        enum: ['auto', 'after', 'absolute', 'insert'],
+        description:
+          'Clarify positioning intent: ' +
+          "'auto' = default placement with collision avoidance (default), " +
+          "'after' = position after afterElementId (requires afterElementId), " +
+          "'absolute' = use exact x/y coordinates with no collision avoidance, " +
+          "'insert' = insert into existing flow (requires flowId).",
+      },
+      collisionPolicy: {
+        type: 'string',
+        enum: ['shift', 'none'],
+        description:
+          'Control collision avoidance behavior: ' +
+          "'shift' = shift right until no overlap (default for auto placement), " +
+          "'none' = no collision avoidance (elements may overlap).",
+      },
       eventDefinitionType: {
         type: 'string',
         enum: [
