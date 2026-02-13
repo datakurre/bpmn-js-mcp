@@ -90,6 +90,14 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
     'Lane{elementRef} has very few elements. Consider merging it with an adjacent lane using move_bpmn_element with laneId',
   'bpmn-mcp/lane-missing-start-or-end':
     'Assign start and end events to appropriate lanes using move_bpmn_element with laneId',
+  'bpmn-mcp/pool-size-insufficient':
+    'Use move_bpmn_element with width/height to resize the pool{elementRef}, or run layout_bpmn_diagram to re-arrange all elements',
+  'bpmn-mcp/message-flow-necessity':
+    'If the connected pools represent roles within the same organization, consider using a single pool with lanes and sequence flows instead of message flows{elementRef}',
+  'bpmn-mcp/unaligned-message-events':
+    'Align message flow endpoints vertically (same X coordinate) using move_bpmn_element{elementRef} to create straight vertical message flows',
+  'bpmn-mcp/inconsistent-assignee-grouping':
+    'Group elements with the same assignee/candidateGroups into a single lane using assign_bpmn_elements_to_lane or move_bpmn_element with laneId',
 };
 
 /**

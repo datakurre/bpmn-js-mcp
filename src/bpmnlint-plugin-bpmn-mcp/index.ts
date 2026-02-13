@@ -51,6 +51,10 @@ import laneCandidateDetection from './rules/lane-candidate-detection';
 import laneWithoutAssignments from './rules/lane-without-assignments';
 import longMessageFlowPath from './rules/long-message-flow-path';
 import collaborationPatternMismatch from './rules/collaboration-pattern-mismatch';
+import poolSizeInsufficient from './rules/pool-size-insufficient';
+import messageFlowNecessity from './rules/message-flow-necessity';
+import unalignedMessageEvents from './rules/unaligned-message-events';
+import inconsistentAssigneeGrouping from './rules/inconsistent-assignee-grouping';
 
 /**
  * All custom lint rules keyed by rule name (without plugin prefix).
@@ -101,6 +105,10 @@ export const rules: Record<string, any> = {
   'lane-without-assignments': laneWithoutAssignments,
   'long-message-flow-path': longMessageFlowPath,
   'collaboration-pattern-mismatch': collaborationPatternMismatch,
+  'pool-size-insufficient': poolSizeInsufficient,
+  'message-flow-necessity': messageFlowNecessity,
+  'unaligned-message-events': unalignedMessageEvents,
+  'inconsistent-assignee-grouping': inconsistentAssigneeGrouping,
 };
 
 export const configs = {
@@ -147,6 +155,10 @@ export const configs = {
       'bpmn-mcp/lane-without-assignments': 'warn',
       'bpmn-mcp/long-message-flow-path': 'info',
       'bpmn-mcp/collaboration-pattern-mismatch': 'warn',
+      'bpmn-mcp/pool-size-insufficient': 'warn',
+      'bpmn-mcp/message-flow-necessity': 'info',
+      'bpmn-mcp/unaligned-message-events': 'info',
+      'bpmn-mcp/inconsistent-assignee-grouping': 'warn',
     },
   },
 };
