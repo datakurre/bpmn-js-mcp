@@ -6,7 +6,7 @@
 
 import { type ToolResult } from '../../../types';
 import { validateArgs, requireDiagram, jsonResult } from '../../helpers';
-import { adjustDiagramLabels, adjustFlowLabels } from './adjust-labels';
+import { adjustDiagramLabels, adjustFlowLabels, centerFlowLabels } from './adjust-labels';
 
 export interface AdjustLabelsArgs {
   diagramId: string;
@@ -16,12 +16,15 @@ export async function handleAdjustLabels(args: AdjustLabelsArgs): Promise<ToolRe
   validateArgs(args, ['diagramId']);
   const diagram = requireDiagram(args.diagramId);
 
+  // Center flow labels on their connection midpoints first
+  const flowLabelsCentered = await centerFlowLabels(diagram);
   const elementLabelsMoved = await adjustDiagramLabels(diagram);
   const flowLabelsMoved = await adjustFlowLabels(diagram);
-  const totalMoved = elementLabelsMoved + flowLabelsMoved;
+  const totalMoved = flowLabelsCentered + elementLabelsMoved + flowLabelsMoved;
 
   return jsonResult({
     success: true,
+    flowLabelsCentered,
     elementLabelsMoved,
     flowLabelsMoved,
     totalMoved,

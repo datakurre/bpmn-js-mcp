@@ -14,7 +14,12 @@ export {
 } from './adjust-labels-handler';
 
 // Re-export adjustment functions used by layout-diagram and others
-export { adjustDiagramLabels, adjustElementLabel, adjustFlowLabels } from './adjust-labels';
+export {
+  adjustDiagramLabels,
+  adjustElementLabel,
+  adjustFlowLabels,
+  centerFlowLabels,
+} from './adjust-labels';
 
 // Re-export geometry utilities used by tests and internal consumers
 export {

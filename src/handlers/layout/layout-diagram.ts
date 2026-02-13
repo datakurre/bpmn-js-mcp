@@ -13,7 +13,7 @@
 import { type ToolResult } from '../../types';
 import { requireDiagram, jsonResult, syncXml, getVisibleElements } from '../helpers';
 import { appendLintFeedback, resetMutationCounter } from '../../linter';
-import { adjustDiagramLabels, adjustFlowLabels } from './labels/adjust-labels';
+import { adjustDiagramLabels, adjustFlowLabels, centerFlowLabels } from './labels/adjust-labels';
 import { elkLayout, elkLayoutSubset } from '../../elk/api';
 import {
   generateDiagramId,
@@ -270,7 +270,11 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
   );
 
   // Adjust labels after layout
+  // 1. Center flow labels on their connection midpoints (geometric baseline)
+  await centerFlowLabels(diagram);
+  // 2. Reposition element labels to avoid overlaps
   const labelsMoved = await adjustDiagramLabels(diagram);
+  // 3. Nudge flow labels to resolve remaining overlaps
   const flowLabelsMoved = await adjustFlowLabels(diagram);
 
   const crossingCount = layoutResult.crossingFlows ?? 0;

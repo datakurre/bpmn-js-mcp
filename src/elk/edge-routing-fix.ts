@@ -15,6 +15,9 @@ import {
   SAME_ROW_Y_TOLERANCE,
 } from './constants';
 
+/** Default vertical detour offset (px) for rerouting overlapping collinear flows. */
+const COLLINEAR_DETOUR_OFFSET = 20;
+
 /** Get the centre point of an element. */
 function elementCentre(el: BpmnElement): { x: number; y: number } {
   return {
@@ -405,6 +408,121 @@ export function rebuildOffRowGatewayRoutes(
     } else {
       // Non-gateway off-row connection: Z-shape through midpoint
       modeling.updateWaypoints(conn, buildZShapeRoute(srcRight, srcCy, tgtLeft, tgtCy));
+    }
+  }
+}
+
+// ── Overlapping collinear gateway flow separation ──────────────────────────
+
+/**
+ * Check if two horizontal segments (same Y) overlap along the X axis.
+ * Returns the overlap length, or 0 if they don't overlap.
+ */
+function horizontalOverlapLength(a1x: number, a2x: number, b1x: number, b2x: number): number {
+  const aMin = Math.min(a1x, a2x);
+  const aMax = Math.max(a1x, a2x);
+  const bMin = Math.min(b1x, b2x);
+  const bMax = Math.max(b1x, b2x);
+  const overlap = Math.min(aMax, bMax) - Math.max(aMin, bMin);
+  return Math.max(0, overlap);
+}
+
+/**
+ * Detect and fix overlapping collinear flows from the same gateway.
+ *
+ * **Problem:** When an exclusive gateway has a "skip-ahead" branch that
+ * bypasses an intermediate element, both the happy-path flow and the
+ * skip flow share the same horizontal line from the gateway to the
+ * intermediate element.  They are visually indistinguishable.
+ *
+ * **Fix:** Detect pairs of flows from the same gateway that share a
+ * horizontal segment (same Y, overlapping X range).  Reroute the
+ * longer (skip-ahead) flow with a small vertical detour: up from the
+ * gateway right edge, horizontal above, then down to the target.
+ *
+ * Should run after all edge routing passes (applyElkEdgeRoutes,
+ * simplifyGatewayBranchRoutes, fixDisconnectedEdges, etc.) but
+ * before crossing detection.
+ */
+export function separateOverlappingGatewayFlows(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
+  const connections = elementRegistry.filter(
+    (el) =>
+      el.type === 'bpmn:SequenceFlow' &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
+      el.waypoints.length >= 2
+  );
+
+  // Group connections by source gateway
+  const gwFlows = new Map<string, typeof connections>();
+  for (const conn of connections) {
+    const src = conn.source!;
+    if (!src.type?.includes('Gateway')) continue;
+    const group = gwFlows.get(src.id) || [];
+    group.push(conn);
+    gwFlows.set(src.id, group);
+  }
+
+  for (const [, flows] of gwFlows) {
+    if (flows.length < 2) continue;
+
+    // Check all pairs of flows from this gateway for collinear overlap
+    for (let i = 0; i < flows.length; i++) {
+      for (let j = i + 1; j < flows.length; j++) {
+        const flowA = flows[i];
+        const flowB = flows[j];
+        const wpsA: Array<{ x: number; y: number }> = flowA.waypoints!;
+        const wpsB: Array<{ x: number; y: number }> = flowB.waypoints!;
+
+        // Only handle the common case: both flows start with a horizontal
+        // segment from the gateway (first segment is same-Y)
+        if (wpsA.length < 2 || wpsB.length < 2) continue;
+
+        const aY = wpsA[0].y;
+        const bY = wpsB[0].y;
+        // Both first segments must be on the same horizontal line
+        if (Math.abs(aY - bY) > 3) continue;
+        if (Math.abs(wpsA[0].y - wpsA[1].y) > 3) continue;
+        if (Math.abs(wpsB[0].y - wpsB[1].y) > 3) continue;
+
+        // Check for X overlap
+        const overlap = horizontalOverlapLength(wpsA[0].x, wpsA[1].x, wpsB[0].x, wpsB[1].x);
+
+        // Only fix when the overlap is significant (> 10px)
+        if (overlap <= 10) continue;
+
+        // The longer horizontal segment is the "skip-ahead" flow — reroute it
+        const aLen = Math.abs(wpsA[1].x - wpsA[0].x);
+        const bLen = Math.abs(wpsB[1].x - wpsB[0].x);
+        const longerFlow = aLen >= bLen ? flowA : flowB;
+
+        const src = longerFlow.source!;
+        const tgt = longerFlow.target!;
+        const srcRight = src.x + (src.width || 0);
+        const srcCy = src.y + (src.height || 0) / 2;
+        const tgtLeft = tgt.x;
+        const tgtCy = tgt.y + (tgt.height || 0) / 2;
+        const flowY = longerFlow.waypoints![0].y;
+
+        // Detour above the flow line to avoid overlapping the shorter flow
+        const detourY = flowY - COLLINEAR_DETOUR_OFFSET;
+
+        // Build rerouted waypoints: gateway exit → up → horizontal → down to target
+        // Only for same-row targets; different-row targets are handled elsewhere
+        if (Math.abs(srcCy - tgtCy) <= 5) {
+          const newWps = [
+            { x: Math.round(srcRight), y: Math.round(srcCy) },
+            { x: Math.round(srcRight), y: Math.round(detourY) },
+            { x: Math.round(tgtLeft), y: Math.round(detourY) },
+            { x: Math.round(tgtLeft), y: Math.round(tgtCy) },
+          ];
+          modeling.updateWaypoints(longerFlow, deduplicateWaypoints(newWps));
+        }
+      }
     }
   }
 }

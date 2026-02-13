@@ -17,4 +17,5 @@ export {
   fixDisconnectedEdges,
   snapEndpointsToElementCentres,
   rebuildOffRowGatewayRoutes,
+  separateOverlappingGatewayFlows,
 } from './edge-routing-fix';

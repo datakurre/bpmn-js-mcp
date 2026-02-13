@@ -235,6 +235,125 @@ function hasAnyOverlap(o: FlowLabelOverlaps): boolean {
 }
 
 /**
+ * Compute the midpoint of a flow's waypoints along the path.
+ *
+ * For a 2-waypoint flow, this is the geometric midpoint of the single
+ * segment.  For multi-waypoint flows, walks 50% of the total path length
+ * to find the exact midpoint, which may fall on any segment.
+ */
+function computeFlowMidpoint(waypoints: Array<{ x: number; y: number }>): Point {
+  if (waypoints.length === 2) {
+    return {
+      x: (waypoints[0].x + waypoints[1].x) / 2,
+      y: (waypoints[0].y + waypoints[1].y) / 2,
+    };
+  }
+
+  // Compute total path length
+  let totalLength = 0;
+  for (let i = 1; i < waypoints.length; i++) {
+    const dx = waypoints[i].x - waypoints[i - 1].x;
+    const dy = waypoints[i].y - waypoints[i - 1].y;
+    totalLength += Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // Walk to 50% of path length
+  const halfLength = totalLength / 2;
+  let walked = 0;
+  for (let i = 1; i < waypoints.length; i++) {
+    const dx = waypoints[i].x - waypoints[i - 1].x;
+    const dy = waypoints[i].y - waypoints[i - 1].y;
+    const segLen = Math.sqrt(dx * dx + dy * dy);
+    if (walked + segLen >= halfLength && segLen > 0) {
+      const t = (halfLength - walked) / segLen;
+      return {
+        x: waypoints[i - 1].x + dx * t,
+        y: waypoints[i - 1].y + dy * t,
+      };
+    }
+    walked += segLen;
+  }
+
+  // Fallback: geometric midpoint of first and last
+  return {
+    x: (waypoints[0].x + waypoints[waypoints.length - 1].x) / 2,
+    y: (waypoints[0].y + waypoints[waypoints.length - 1].y) / 2,
+  };
+}
+
+/**
+ * Center flow labels on their connection's midpoint.
+ *
+ * After layout recomputes waypoints, flow labels may be stranded far
+ * from their connection's current geometry.  This pass repositions each
+ * labeled flow's label so its centre sits at the flow's path midpoint,
+ * offset slightly perpendicular to the flow direction (above for
+ * horizontal flows, to the left for vertical flows).
+ *
+ * Should run BEFORE the overlap-nudge pass (adjustFlowLabels) so that
+ * nudging starts from a geometrically correct baseline.
+ *
+ * Returns the number of flow labels moved.
+ */
+export async function centerFlowLabels(diagram: DiagramState): Promise<number> {
+  const modeling = diagram.modeler.get('modeling');
+  const elementRegistry = diagram.modeler.get('elementRegistry');
+  const allElements = getVisibleElements(elementRegistry);
+
+  const labeledFlows = allElements.filter(
+    (el: any) =>
+      (el.type === 'bpmn:SequenceFlow' || el.type === 'bpmn:MessageFlow') &&
+      el.label &&
+      el.businessObject?.name &&
+      el.waypoints?.length >= 2
+  );
+
+  let movedCount = 0;
+
+  for (const flow of labeledFlows) {
+    const label = flow.label;
+    const waypoints = flow.waypoints;
+
+    const midpoint = computeFlowMidpoint(waypoints);
+
+    // Compute perpendicular offset direction at the midpoint's segment
+    const midIdx = Math.min(Math.floor(waypoints.length / 2), waypoints.length - 1);
+    const p1 = waypoints[Math.max(0, midIdx - 1)];
+    const p2 = waypoints[midIdx];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+
+    // Perpendicular unit vector (rotated 90° counter-clockwise)
+    const perpX = -dy / len;
+    const perpY = dx / len;
+
+    // Offset the label above (for horizontal flows) or to the left
+    // (for vertical flows) by a small amount.  Use negative sign to
+    // place above/left rather than below/right.
+    const offset = FLOW_LABEL_INDENT;
+    const labelW = label.width || 90;
+    const labelH = label.height || 20;
+
+    // Position label centred on midpoint, shifted perpendicular
+    const targetX = Math.round(midpoint.x + perpX * offset - labelW / 2);
+    const targetY = Math.round(midpoint.y + perpY * offset - labelH / 2);
+
+    const moveX = targetX - label.x;
+    const moveY = targetY - label.y;
+
+    // Only move if displacement is significant (> 2px)
+    if (Math.abs(moveX) > 2 || Math.abs(moveY) > 2) {
+      modeling.moveShape(label, { x: moveX, y: moveY });
+      movedCount++;
+    }
+  }
+
+  if (movedCount > 0) await syncXml(diagram);
+  return movedCount;
+}
+
+/**
  * Adjust labels on connections (sequence flows) to avoid overlapping shapes,
  * other flow labels, and crossing connection segments.
  *

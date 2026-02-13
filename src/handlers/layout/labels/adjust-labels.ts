@@ -390,4 +390,4 @@ export async function adjustElementLabel(
 }
 
 // Re-export flow label adjustment from split module
-export { adjustFlowLabels } from './adjust-flow-labels';
+export { adjustFlowLabels, centerFlowLabels } from './adjust-flow-labels';

@@ -22,6 +22,7 @@
  * 8. Repair disconnected edge endpoints → fixDisconnectedEdges()
  * 8.3. Snap flow endpoints to element centres → snapEndpointsToElementCentres()
  * 8.5. Simplify collinear waypoints → simplifyCollinearWaypoints()
+ * 8.7. Separate overlapping collinear gateway flows → separateOverlappingGatewayFlows()
  * 9. Final orthogonal snap → snapAllConnectionsOrthogonal()
  * 10. Detect crossing flows → detectCrossingFlows()
  */
@@ -78,6 +79,7 @@ import {
   simplifyGatewayBranchRoutes,
   snapEndpointsToElementCentres,
   rebuildOffRowGatewayRoutes,
+  separateOverlappingGatewayFlows,
 } from './edge-routing';
 import { repositionArtifacts } from './artifacts';
 import { routeBranchConnectionsThroughChannels } from './channel-routing';
@@ -326,6 +328,7 @@ function repairAndSimplifyEdges(ctx: LayoutContext): void {
   fixDisconnectedEdges(ctx.elementRegistry, ctx.modeling);
   snapEndpointsToElementCentres(ctx.elementRegistry, ctx.modeling);
   rebuildOffRowGatewayRoutes(ctx.elementRegistry, ctx.modeling);
+  separateOverlappingGatewayFlows(ctx.elementRegistry, ctx.modeling);
   simplifyCollinearWaypoints(ctx.elementRegistry, ctx.modeling);
   snapAllConnectionsOrthogonal(ctx.elementRegistry, ctx.modeling);
 }
