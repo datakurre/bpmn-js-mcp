@@ -24,6 +24,7 @@ export interface CreateCollaborationArgs {
   diagramId: string;
   participants: Array<{
     name: string;
+    participantId?: string;
     processId?: string;
     collapsed?: boolean;
     width?: number;
@@ -64,7 +65,19 @@ function createParticipantShape(
   const elementRegistry = diagram.modeler.get('elementRegistry');
   const canvas = diagram.modeler.get('canvas');
 
-  const id = generateDescriptiveId(elementRegistry, 'bpmn:Participant', p.name);
+  // Use explicit participantId if provided, otherwise generate one
+  let id: string;
+  if (p.participantId) {
+    if (elementRegistry.get(p.participantId)) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Participant ID "${p.participantId}" already exists in the diagram. Choose a unique ID.`
+      );
+    }
+    id = p.participantId;
+  } else {
+    id = generateDescriptiveId(elementRegistry, 'bpmn:Participant', p.name);
+  }
   const poolHeight = p.height || (p.collapsed ? COLLAPSED_POOL_HEIGHT : defaultPoolHeight);
   const y = p.y ?? computeParticipantY(participants, index, defaultPoolHeight);
   const x = p.x ?? 300;
@@ -156,6 +169,11 @@ export const TOOL_DEFINITION = {
           type: 'object',
           properties: {
             name: { type: 'string', description: 'Participant/pool name' },
+            participantId: {
+              type: 'string',
+              description:
+                'Optional explicit ID for the participant element. Must be unique. If omitted, a descriptive ID is generated from the name.',
+            },
             processId: {
               type: 'string',
               description: 'Optional custom process ID for the participant',

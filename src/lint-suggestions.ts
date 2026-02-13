@@ -56,6 +56,12 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
     'Add message flows between pools using connect_bpmn_elements to document message exchanges between participants',
   'bpmn-mcp/elements-outside-participant-bounds':
     'Reposition element{elementRef} inside its pool using move_bpmn_element, or run layout_bpmn_diagram to re-arrange all elements',
+  'bpmn-mcp/duplicate-edges-same-waypoints':
+    'Remove the duplicate sequence flow{elementRef} with delete_bpmn_element',
+  'bpmn-mcp/no-overlapping-shapes':
+    'Reposition element{elementRef} using move_bpmn_element, or run layout_bpmn_diagram to re-arrange all elements',
+  'bpmn-mcp/unpaired-link-event':
+    'Add a matching link throw/catch event pair. Link events must have matching names set via set_bpmn_event_definition with properties: { name: "LinkName" }',
 };
 
 /**

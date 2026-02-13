@@ -22,6 +22,7 @@ import { handleSetEventDefinition } from '../properties/set-event-definition';
 import { shiftDownstreamElements, snapToLane, createAndPlaceElement } from './add-element-helpers';
 import { getTypeSpecificHints, getNamingHint } from '../type-hints';
 import { validateElementType, ALLOWED_ELEMENT_TYPES } from '../element-type-validation';
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
 export interface AddElementArgs {
   diagramId: string;
@@ -58,6 +59,44 @@ export interface AddElementArgs {
 export async function handleAddElement(args: AddElementArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementType']);
   validateElementType(args.elementType, ALLOWED_ELEMENT_TYPES);
+
+  // ── Validate incompatible argument combinations ────────────────────────
+  if (args.elementType === 'bpmn:BoundaryEvent' && !args.hostElementId) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      'BoundaryEvent requires hostElementId to specify the element to attach to. ' +
+        'Use hostElementId to reference the task or subprocess this boundary event should be attached to.'
+    );
+  }
+
+  if (args.elementType === 'bpmn:BoundaryEvent' && args.afterElementId) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      'BoundaryEvent cannot use afterElementId — boundary events are positioned relative to their host element. ' +
+        'Use hostElementId instead.'
+    );
+  }
+
+  if (args.flowId && args.afterElementId) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      'Cannot use both flowId and afterElementId. flowId inserts into an existing sequence flow; ' +
+        'afterElementId positions the element after another element. Choose one.'
+    );
+  }
+
+  if (args.flowId && (args.x !== undefined || args.y !== undefined)) {
+    // Not an error — just ignored. flowId overrides x/y positioning.
+    // Documented in the tool description.
+  }
+
+  if (args.eventDefinitionType && !args.elementType.includes('Event')) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `eventDefinitionType can only be used with event element types, but elementType is "${args.elementType}". ` +
+        'Use bpmn:StartEvent, bpmn:EndEvent, bpmn:IntermediateCatchEvent, bpmn:IntermediateThrowEvent, or bpmn:BoundaryEvent.'
+    );
+  }
 
   // Delegate to insert-into-flow handler when flowId is provided
   const { flowId } = args;

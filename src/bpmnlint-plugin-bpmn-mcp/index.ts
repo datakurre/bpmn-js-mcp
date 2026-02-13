@@ -31,6 +31,9 @@ import noDuplicateNamedFlowNodes from './rules/no-duplicate-named-flow-nodes';
 import collaborationParticipantMissingProcessref from './rules/collaboration-participant-missing-processref';
 import collaborationMultipleParticipantsNoMessageflows from './rules/collaboration-multiple-participants-no-messageflows';
 import elementsOutsideParticipantBounds from './rules/elements-outside-participant-bounds';
+import duplicateEdgesSameWaypoints from './rules/duplicate-edges-same-waypoints';
+import noOverlappingShapes from './rules/no-overlapping-shapes';
+import unpairedLinkEvent from './rules/unpaired-link-event';
 
 /**
  * All custom lint rules keyed by rule name (without plugin prefix).
@@ -61,6 +64,9 @@ export const rules: Record<string, any> = {
   'collaboration-multiple-participants-no-messageflows':
     collaborationMultipleParticipantsNoMessageflows,
   'elements-outside-participant-bounds': elementsOutsideParticipantBounds,
+  'duplicate-edges-same-waypoints': duplicateEdgesSameWaypoints,
+  'no-overlapping-shapes': noOverlappingShapes,
+  'unpaired-link-event': unpairedLinkEvent,
 };
 
 export const configs = {
@@ -87,6 +93,9 @@ export const configs = {
       'bpmn-mcp/collaboration-participant-missing-processref': 'warn',
       'bpmn-mcp/collaboration-multiple-participants-no-messageflows': 'warn',
       'bpmn-mcp/elements-outside-participant-bounds': 'warn',
+      'bpmn-mcp/duplicate-edges-same-waypoints': 'warn',
+      'bpmn-mcp/no-overlapping-shapes': 'warn',
+      'bpmn-mcp/unpaired-link-event': 'warn',
     },
   },
 };
