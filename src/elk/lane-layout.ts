@@ -88,7 +88,8 @@ export function saveLaneNodeAssignments(elementRegistry: ElementRegistry): LaneS
 export function repositionLanes(
   elementRegistry: ElementRegistry,
   modeling: Modeling,
-  savedAssignments?: LaneSnapshot[]
+  savedAssignments?: LaneSnapshot[],
+  laneStrategy?: 'preserve' | 'optimize'
 ): void {
   const participants = elementRegistry.filter((el) => el.type === 'bpmn:Participant');
 
@@ -129,6 +130,11 @@ export function repositionLanes(
     // Skip if no lane has any assigned nodes
     const hasNodes = Array.from(laneNodeMap.values()).some((s) => s.size > 0);
     if (!hasNodes) continue;
+
+    // Optimize lane order to minimise cross-lane flows if requested
+    if (laneStrategy === 'optimize' && orderedLanes.length > 1) {
+      orderedLanes = optimizeLaneOrder(orderedLanes, laneNodeMap, elementRegistry);
+    }
 
     // Compute the height of node content in each lane (single-row height)
     const laneContentHeight = new Map<string, number>();
@@ -279,4 +285,133 @@ function buildLaneNodeMap(
   }
 
   return map;
+}
+/**
+ * Compute the number of cross-lane sequence flow "crossings" for a
+ * given lane ordering.
+ *
+ * A crossing occurs when a sequence flow goes from lane at index i
+ * to lane at index j, and another flow goes from lane at index k to
+ * lane at index l, where (i < k && j > l) or (i > k && j < l).
+ *
+ * Additionally, we penalise "long" jumps: a flow between lane i and
+ * lane j costs |i - j| (adjacent = 1, skip-one = 2, etc.).  This
+ * prefers orderings where connected lanes are adjacent.
+ */
+function computeLaneCrossingCost(
+  laneOrder: BpmnElement[],
+  adjacencyPairs: Array<[string, string]>
+): number {
+  const laneIndex = new Map<string, number>();
+  for (let i = 0; i < laneOrder.length; i++) {
+    laneIndex.set(laneOrder[i].id, i);
+  }
+
+  // Sum of distances: prefer adjacent connected lanes
+  let cost = 0;
+  for (const [srcLane, tgtLane] of adjacencyPairs) {
+    const si = laneIndex.get(srcLane);
+    const ti = laneIndex.get(tgtLane);
+    if (si !== undefined && ti !== undefined) {
+      cost += Math.abs(si - ti);
+    }
+  }
+  return cost;
+}
+
+/**
+ * Optimise lane order to minimise the total distance of cross-lane
+ * sequence flows.  Uses a greedy adjacent-swap approach (bubble sort
+ * style) which is efficient for the typical 2–6 lanes.
+ *
+ * For ≤ 8 lanes, tries all permutations (8! = 40 320).
+ * For > 8 lanes (rare), uses greedy adjacent swaps.
+ */
+function optimizeLaneOrder(
+  lanes: BpmnElement[],
+  laneNodeMap: Map<string, Set<string>>,
+  elementRegistry: ElementRegistry
+): BpmnElement[] {
+  // Build adjacency pairs: (sourceLaneId, targetLaneId) for each
+  // cross-lane sequence flow.
+  const nodeToLane = new Map<string, string>();
+  for (const [laneId, nodeIds] of laneNodeMap) {
+    for (const nodeId of nodeIds) {
+      nodeToLane.set(nodeId, laneId);
+    }
+  }
+
+  const adjacencyPairs: Array<[string, string]> = [];
+  const sequenceFlows = elementRegistry.filter(
+    (el: BpmnElement) => el.type === 'bpmn:SequenceFlow' && !!el.source && !!el.target
+  );
+
+  for (const flow of sequenceFlows) {
+    const srcLane = nodeToLane.get(flow.source!.id);
+    const tgtLane = nodeToLane.get(flow.target!.id);
+    if (srcLane && tgtLane && srcLane !== tgtLane) {
+      adjacencyPairs.push([srcLane, tgtLane]);
+    }
+  }
+
+  // No cross-lane flows — order doesn't matter, keep original
+  if (adjacencyPairs.length === 0) return lanes;
+
+  if (lanes.length <= 8) {
+    // Brute-force: try all permutations
+    return bruteForceOptimal(lanes, adjacencyPairs);
+  }
+
+  // Greedy adjacent-swap optimisation
+  const order = [...lanes];
+  let bestCost = computeLaneCrossingCost(order, adjacencyPairs);
+  let improved = true;
+
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < order.length - 1; i++) {
+      // Try swapping adjacent lanes
+      [order[i], order[i + 1]] = [order[i + 1], order[i]];
+      const newCost = computeLaneCrossingCost(order, adjacencyPairs);
+      if (newCost < bestCost) {
+        bestCost = newCost;
+        improved = true;
+      } else {
+        // Swap back
+        [order[i], order[i + 1]] = [order[i + 1], order[i]];
+      }
+    }
+  }
+
+  return order;
+}
+
+/**
+ * Try all permutations and return the one with the lowest crossing cost.
+ */
+function bruteForceOptimal(
+  lanes: BpmnElement[],
+  adjacencyPairs: Array<[string, string]>
+): BpmnElement[] {
+  let bestOrder = lanes;
+  let bestCost = computeLaneCrossingCost(lanes, adjacencyPairs);
+
+  function permute(arr: BpmnElement[], start: number): void {
+    if (start === arr.length) {
+      const cost = computeLaneCrossingCost(arr, adjacencyPairs);
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestOrder = [...arr];
+      }
+      return;
+    }
+    for (let i = start; i < arr.length; i++) {
+      [arr[start], arr[i]] = [arr[i], arr[start]];
+      permute(arr, start + 1);
+      [arr[start], arr[i]] = [arr[i], arr[start]];
+    }
+  }
+
+  permute([...lanes], 0);
+  return bestOrder;
 }

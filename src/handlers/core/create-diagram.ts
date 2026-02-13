@@ -61,6 +61,16 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
     draftMode: effectiveDraft,
     hintLevel: hintLevel ?? 'full',
     message: `Created new BPMN diagram with ID: ${diagramId}${effectiveDraft ? ' (draft mode — lint feedback suppressed)' : ''}`,
+    nextSteps: [
+      {
+        tool: 'add_bpmn_element',
+        description: 'Add a bpmn:StartEvent to begin building the process.',
+      },
+      {
+        tool: 'import_bpmn_xml',
+        description: 'Or import an existing BPMN XML file instead of building from scratch.',
+      },
+    ],
   });
 }
 

@@ -128,6 +128,12 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
     success: true,
     elementId,
     message: `Element ${elementId}: ${actions.join(', ')}`,
+    nextSteps: [
+      {
+        tool: 'layout_bpmn_diagram',
+        description: 'Re-layout the diagram to adjust connections after the move.',
+      },
+    ],
   };
   if (hasMove) data.position = { x: x ?? element.x, y: y ?? element.y };
   if (hasResize) data.newSize = { width: width ?? element.width, height: height ?? element.height };

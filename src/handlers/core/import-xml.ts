@@ -94,6 +94,20 @@ export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> 
       'Import creates a fresh modeler with an empty undo/redo history. ' +
       'Use bpmn_history after making changes to undo/redo within this session.',
     message: `Imported BPMN diagram with ID: ${diagramId}${shouldLayout ? ' (auto-layout applied)' : ''}${filePath ? ` from ${filePath}` : ''}`,
+    nextSteps: [
+      {
+        tool: 'list_bpmn_elements',
+        description: 'List all elements in the imported diagram to understand its structure.',
+      },
+      {
+        tool: 'validate_bpmn_diagram',
+        description: 'Validate the imported diagram for lint issues and best practices.',
+      },
+      {
+        tool: 'layout_bpmn_diagram',
+        description: 'Apply automatic layout if the diagram needs visual cleanup.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

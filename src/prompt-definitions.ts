@@ -179,8 +179,86 @@ const addParallelTasksPattern: PromptDefinition = {
   },
 };
 
+// ── Lane-based process prompt ──────────────────────────────────────────────
+
+const createLaneBasedProcess: PromptDefinition = {
+  name: 'create-lane-based-process',
+  title: 'Create process with swim lanes for role separation',
+  description:
+    'Create a BPMN process using swim lanes (within a single pool) to separate work ' +
+    'by role or department. Includes guidance on when to use lanes vs. collaboration pools.',
+  arguments: [
+    {
+      name: 'processName',
+      description: 'Name for the process (e.g. "Order Fulfillment")',
+      required: true,
+    },
+    {
+      name: 'roles',
+      description:
+        'Comma-separated list of roles/departments ' +
+        '(e.g. "Customer Service, Warehouse, Shipping")',
+      required: true,
+    },
+    {
+      name: 'description',
+      description: 'Brief description of what the process should do',
+      required: false,
+    },
+  ],
+  getMessages: (args) => {
+    const name = args.processName || 'My Process';
+    const roles = args.roles ? args.roles.split(',').map((r) => r.trim()) : ['Role A', 'Role B'];
+    const desc = args.description ? `\n\nProcess description: ${args.description}` : '';
+    return [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text:
+            `Create a lane-based BPMN process called "${name}" with roles: ${roles.join(', ')}.${desc}\n\n` +
+            `**When to use lanes vs. pools:**\n` +
+            `- **Lanes** (swim lanes within a single pool): Use when the roles are ` +
+            `within the same organisation or process — e.g. departments, job roles, ` +
+            `teams that share a common workflow. Elements are connected with sequence flows.\n` +
+            `- **Pools** (collaboration diagram): Use when modelling separate organisations ` +
+            `or independent systems that communicate via messages — e.g. Customer ↔ Supplier, ` +
+            `or your system ↔ external payment gateway. Elements across pools use message flows.\n\n` +
+            `This process uses **lanes** because ${roles.join(', ')} are roles within the same process.\n\n` +
+            `Follow these steps:\n\n` +
+            `1. **Create diagram**: Use \`create_bpmn_diagram\` with name "${name}"\n` +
+            `2. **Build the process flow**: Add all tasks, gateways, and events ` +
+            `using \`add_bpmn_element\` and \`connect_bpmn_elements\`. ` +
+            `Name every element with verb-object pattern.\n` +
+            `3. **Wrap in collaboration**: Use \`wrap_bpmn_process_in_collaboration\` with ` +
+            `participantName "${name}"\n` +
+            `4. **Create lanes**: Use \`create_bpmn_lanes\` with the participant ID and lanes:\n` +
+            roles.map((r) => `   - { name: "${r}" }`).join('\n') +
+            `\n` +
+            `5. **Assign elements to lanes**: Use \`assign_bpmn_elements_to_lane\` to place ` +
+            `each task in the appropriate lane based on which role performs it. ` +
+            `Assign start/end events to the role that initiates/completes the process.\n` +
+            `6. **Configure tasks**: Set \`camunda:candidateGroups\` on UserTasks ` +
+            `to match the lane role (e.g. tasks in "Customer Service" lane → ` +
+            `candidateGroups: "customer-service")\n` +
+            `7. **Layout**: Run \`layout_bpmn_diagram\` with laneStrategy "optimize" ` +
+            `to arrange elements within lanes and minimise cross-lane flows\n` +
+            `8. **Validate**: Run \`validate_bpmn_diagram\` and fix any issues\n\n` +
+            `**Best practices:**\n` +
+            `- Keep related tasks in the same lane to minimise cross-lane sequence flows\n` +
+            `- Start events typically go in the lane of the initiating role\n` +
+            `- Use exclusive gateways when decisions are made by a specific role\n` +
+            `- Avoid putting the same role's tasks in multiple lanes\n` +
+            `- If you have > 5 lanes, consider decomposing into subprocesses`,
+        },
+      },
+    ];
+  },
+};
+
 /** Additional prompts defined in this module. */
 export const ADDITIONAL_PROMPTS: PromptDefinition[] = [
   addErrorHandlingPattern,
   addParallelTasksPattern,
+  createLaneBasedProcess,
 ];

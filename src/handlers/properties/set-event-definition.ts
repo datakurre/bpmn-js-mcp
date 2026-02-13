@@ -283,6 +283,16 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
     elementId,
     eventDefinitionType,
     message: `Set ${eventDefinitionType} on ${elementId}`,
+    nextSteps: [
+      {
+        tool: 'connect_bpmn_elements',
+        description: 'Connect this event to the next element in the process flow.',
+      },
+      {
+        tool: 'export_bpmn',
+        description: 'Export the diagram once the process is complete.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

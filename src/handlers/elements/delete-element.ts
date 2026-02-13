@@ -62,6 +62,17 @@ export async function handleDeleteElement(args: DeleteElementArgs): Promise<Tool
         : {}),
       diagramCounts: buildElementCounts(elementRegistry),
       message: `Removed ${elements.length} element(s) from diagram`,
+      nextSteps: [
+        {
+          tool: 'validate_bpmn_diagram',
+          description:
+            'Validate the diagram to check for disconnected elements or missing connections.',
+        },
+        {
+          tool: 'layout_bpmn_diagram',
+          description: 'Re-layout the diagram if the deletion created gaps.',
+        },
+      ],
     });
     return appendLintFeedback(result, diagram);
   }
@@ -81,6 +92,17 @@ export async function handleDeleteElement(args: DeleteElementArgs): Promise<Tool
     elementId,
     diagramCounts: buildElementCounts(elementRegistry),
     message: `Removed element ${elementId} from diagram`,
+    nextSteps: [
+      {
+        tool: 'validate_bpmn_diagram',
+        description:
+          'Validate the diagram to check for disconnected elements or missing connections.',
+      },
+      {
+        tool: 'layout_bpmn_diagram',
+        description: 'Re-layout the diagram if the deletion created gaps.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

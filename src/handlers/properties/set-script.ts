@@ -82,6 +82,12 @@ export async function handleSetScript(args: SetScriptArgs): Promise<ToolResult> 
     message: resource
       ? `Set external ${scriptFormat} script resource '${resource}' on ${elementId}`
       : `Set inline ${scriptFormat} script on ${elementId} (${script!.length} chars)`,
+    nextSteps: [
+      {
+        tool: 'connect_bpmn_elements',
+        description: 'Connect this script task to the next element in the process flow.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

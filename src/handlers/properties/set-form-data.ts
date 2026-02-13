@@ -108,6 +108,16 @@ export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResu
     fieldCount: formFields.length,
     businessKey: businessKey || undefined,
     message: `Set form data with ${formFields.length} field(s) on ${elementId}`,
+    nextSteps: [
+      {
+        tool: 'connect_bpmn_elements',
+        description: 'Connect this task to the next element in the process flow.',
+      },
+      {
+        tool: 'export_bpmn',
+        description: 'Export the diagram once the process is complete.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

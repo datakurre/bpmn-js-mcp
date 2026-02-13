@@ -328,6 +328,7 @@ async function executeLayout(
     gridSnap: elkGridSnap,
     compactness,
     simplifyRoutes,
+    laneStrategy: args.laneStrategy,
   });
   return { layoutResult: result, usedDeterministic: false };
 }

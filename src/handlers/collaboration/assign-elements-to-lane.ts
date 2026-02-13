@@ -123,6 +123,12 @@ export async function handleAssignElementsToLane(
     assignedElementIds: assigned,
     ...(skipped.length > 0 ? { skipped } : {}),
     message: `Assigned ${assigned.length} element(s) to lane "${lane.businessObject?.name || laneId}"${skipped.length > 0 ? ` (${skipped.length} skipped)` : ''}`,
+    nextSteps: [
+      {
+        tool: 'layout_bpmn_diagram',
+        description: 'Re-layout the diagram to position elements within their lanes.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

@@ -97,6 +97,16 @@ export async function handleDuplicateElement(args: DuplicateElementArgs): Promis
     name: copyName || undefined,
     position: { x: newX, y: newY },
     message: `Duplicated ${originalType} '${originalName || elementId}' → ${createdElement.id}`,
+    nextSteps: [
+      {
+        tool: 'connect_bpmn_elements',
+        description: 'Connect the duplicated element to the process flow.',
+      },
+      {
+        tool: 'set_bpmn_element_properties',
+        description: 'Update the name or properties of the duplicated element to differentiate it.',
+      },
+    ],
   });
   return appendLintFeedback(result, diagram);
 }

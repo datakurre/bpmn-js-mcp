@@ -7,7 +7,7 @@ import { listPrompts, getPrompt } from '../src/prompts';
 describe('listPrompts', () => {
   test('returns all prompt definitions', () => {
     const prompts = listPrompts();
-    expect(prompts.length).toBeGreaterThanOrEqual(6);
+    expect(prompts.length).toBeGreaterThanOrEqual(7);
     const names = prompts.map((p) => p.name);
     expect(names).toContain('create-executable-process');
     expect(names).toContain('convert-to-collaboration');
@@ -15,6 +15,7 @@ describe('listPrompts', () => {
     expect(names).toContain('add-approval-pattern');
     expect(names).toContain('add-error-handling-pattern');
     expect(names).toContain('add-parallel-tasks-pattern');
+    expect(names).toContain('create-lane-based-process');
   });
 
   test('each prompt has name, title, and description', () => {
@@ -91,6 +92,19 @@ describe('getPrompt', () => {
     expect(result.messages[0].content.text).toContain('Process Payment');
     expect(result.messages[0].content.text).toContain('Send Email');
     expect(result.messages[0].content.text).toContain('ParallelGateway');
+  });
+
+  test('returns messages for create-lane-based-process', () => {
+    const result = getPrompt('create-lane-based-process', {
+      processName: 'Helpdesk Workflow',
+      roles: 'Customer Service, Technical Support, Management',
+    });
+    expect(result.messages[0].content.text).toContain('Helpdesk Workflow');
+    expect(result.messages[0].content.text).toContain('Customer Service');
+    expect(result.messages[0].content.text).toContain('Technical Support');
+    expect(result.messages[0].content.text).toContain('lanes');
+    expect(result.messages[0].content.text).toContain('create_bpmn_lanes');
+    expect(result.messages[0].content.text).toContain('assign_bpmn_elements_to_lane');
   });
 
   test('uses defaults for missing arguments', () => {

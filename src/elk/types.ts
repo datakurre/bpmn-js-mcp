@@ -32,6 +32,12 @@ export interface ElkLayoutOptions {
    * Explicit nodeSpacing/layerSpacing values override compactness presets.
    */
   compactness?: 'compact' | 'spacious';
+  /**
+   * Lane layout strategy:
+   * - 'preserve': keep lanes in their original top-to-bottom order (default)
+   * - 'optimize': reorder lanes to minimise cross-lane sequence flows
+   */
+  laneStrategy?: 'preserve' | 'optimize';
 }
 
 /** Result of crossing flow detection: count + pairs of crossing flow IDs. */
