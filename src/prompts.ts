@@ -12,9 +12,9 @@ import { type PromptDefinition, ADDITIONAL_PROMPTS } from './prompt-definitions'
 const PROMPTS: PromptDefinition[] = [
   {
     name: 'create-executable-process',
-    title: 'Create executable (Operaton / Camunda 7 CE) process',
+    title: 'Create executable Operaton / Camunda 7 process',
     description:
-      'Step-by-step guide to create a complete executable BPMN process for Camunda 7 / Operaton: ' +
+      'Step-by-step guide to create a complete executable BPMN process for Operaton / Camunda 7: ' +
       'diagram creation, start event, user/service tasks with forms and external topics, ' +
       'gateways with conditions, and end event.',
     arguments: [
@@ -39,7 +39,7 @@ const PROMPTS: PromptDefinition[] = [
           content: {
             type: 'text',
             text:
-              `Create an executable Camunda 7 BPMN process called "${name}".${desc}\n\n` +
+              `Create an executable Operaton / Camunda 7 BPMN process called "${name}".${desc}\n\n` +
               `Follow these steps:\n\n` +
               `1. **Create diagram**: Use \`create_bpmn_diagram\` with name "${name}"\n` +
               `2. **Add start event**: Use \`add_bpmn_element\` with elementType "bpmn:StartEvent"\n` +
@@ -68,7 +68,7 @@ const PROMPTS: PromptDefinition[] = [
     title: 'Convert process to collaboration',
     description:
       'Step-by-step guide to convert a single-pool BPMN process into a collaboration diagram ' +
-      'with multiple participants. Follows the Camunda 7 pattern: one executable pool + ' +
+      'with multiple participants. Follows the Operaton / Camunda 7 pattern: one executable pool + ' +
       'collapsed partner pools for external systems.',
     arguments: [
       {
@@ -93,7 +93,7 @@ const PROMPTS: PromptDefinition[] = [
             type: 'text',
             text:
               `Convert diagram "${diagramId}" into a collaboration with these partners: ${partners}\n\n` +
-              `**Important Camunda 7 / Operaton rules:**\n` +
+              `**Important Operaton / Camunda 7 rules:**\n` +
               `- Only ONE pool can be deployed and executed\n` +
               `- Partner pools must be COLLAPSED (thin bars)\n` +
               `- Use message flows between expanded pool elements and collapsed pools\n\n` +
@@ -111,7 +111,7 @@ const PROMPTS: PromptDefinition[] = [
               `5. **Layout**: Run \`layout_bpmn_diagram\` to arrange everything cleanly.\n` +
               `6. **Validate**: Run \`validate_bpmn_diagram\` and fix any issues.\n\n` +
               `**Do NOT:**\n` +
-              `- Create multiple expanded pools (only one is executable in Camunda 7)\n` +
+              `- Create multiple expanded pools (only one is executable in Operaton / Camunda 7)\n` +
               `- Duplicate flow nodes across pools\n` +
               `- Use sequence flows between pools (use message flows instead)`,
           },
