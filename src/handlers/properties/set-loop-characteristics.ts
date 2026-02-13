@@ -210,5 +210,27 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId', 'loopType'],
+    examples: [
+      {
+        title: 'Parallel multi-instance over a collection',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'UserTask_ApproveItem',
+          loopType: 'parallel',
+          collection: 'orderItems',
+          elementVariable: 'item',
+        },
+      },
+      {
+        title: 'Sequential multi-instance with early completion',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'ServiceTask_RetryCall',
+          loopType: 'sequential',
+          loopCardinality: '3',
+          completionCondition: '${success == true}',
+        },
+      },
+    ],
   },
 } as const;

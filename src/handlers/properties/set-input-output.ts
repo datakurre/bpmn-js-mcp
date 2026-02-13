@@ -226,5 +226,19 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId'],
+    examples: [
+      {
+        title: 'Map variables for an HTTP connector service task',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'ServiceTask_FetchOrder',
+          inputParameters: [
+            { name: 'url', value: 'https://api.example.com/orders/${orderId}' },
+            { name: 'method', value: 'GET' },
+          ],
+          outputParameters: [{ name: 'orderData', value: '${response}' }],
+        },
+      },
+    ],
   },
 } as const;

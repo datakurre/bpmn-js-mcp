@@ -386,5 +386,50 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId', 'properties'],
+    examples: [
+      {
+        title: 'Configure an external service task',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'ServiceTask_ProcessPayment',
+          properties: {
+            'camunda:type': 'external',
+            'camunda:topic': 'process-payment',
+          },
+        },
+      },
+      {
+        title: 'Assign a user task to a candidate group',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'UserTask_ReviewOrder',
+          properties: {
+            'camunda:candidateGroups': 'managers',
+            'camunda:dueDate': '${dateTime().plusDays(3).toDate()}',
+          },
+        },
+      },
+      {
+        title: 'Set a condition on a sequence flow',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'Flow_Approved',
+          properties: {
+            name: 'Yes',
+            conditionExpression: '${approved == true}',
+          },
+        },
+      },
+      {
+        title: 'Set the default flow on an exclusive gateway',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'Gateway_OrderValid',
+          properties: {
+            default: 'Flow_Approved',
+          },
+        },
+      },
+    ],
   },
 } as const;

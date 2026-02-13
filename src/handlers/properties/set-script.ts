@@ -124,5 +124,26 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId', 'scriptFormat'],
+    examples: [
+      {
+        title: 'Set a Groovy script with result variable',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'ScriptTask_CalcTotal',
+          scriptFormat: 'groovy',
+          script: 'def total = orderItems.sum { it.price * it.quantity }\ntotal',
+          resultVariable: 'orderTotal',
+        },
+      },
+      {
+        title: 'Reference an external script file',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'ScriptTask_Transform',
+          scriptFormat: 'groovy',
+          resource: 'classpath://scripts/transform-data.groovy',
+        },
+      },
+    ],
   },
 } as const;

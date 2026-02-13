@@ -219,5 +219,32 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId'],
+    examples: [
+      {
+        title: 'Pass specific variables to a called process and get results back',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'CallActivity_ProcessPayment',
+          inMappings: [
+            { source: 'orderId', target: 'orderId' },
+            { source: 'amount', target: 'paymentAmount' },
+            { businessKey: '${execution.processBusinessKey}' },
+          ],
+          outMappings: [
+            { source: 'paymentStatus', target: 'paymentResult' },
+            { source: 'transactionId', target: 'transactionId' },
+          ],
+        },
+      },
+      {
+        title: 'Pass all variables to a subprocess',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'CallActivity_SubProcess',
+          inMappings: [{ variables: 'all' }],
+          outMappings: [{ variables: 'all' }],
+        },
+      },
+    ],
   },
 } as const;

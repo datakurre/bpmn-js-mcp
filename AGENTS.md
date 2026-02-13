@@ -60,7 +60,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 1. A shared `jsdom` instance polyfills browser APIs (SVG, CSS, structuredClone) so `bpmn-js` can run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
-3. **34 MCP tools** are exposed (see "Tool Naming" below).
+3. **34 MCP tools** are exposed (see "Tool Naming" below), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **6 prompt workflows** (create-executable-process, convert-to-collaboration, add-sla-timer-pattern, add-approval-pattern, add-error-handling-pattern, add-parallel-tasks-pattern).
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
 5. `camunda-bpmn-moddle` is registered as a moddle extension, enabling Camunda-specific attributes (e.g. `camunda:assignee`, `camunda:class`, `camunda:formKey`) on elements.
 6. Each handler file **co-locates** its MCP tool definition (`TOOL_DEFINITION`) alongside the handler function, preventing definition drift.

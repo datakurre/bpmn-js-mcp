@@ -198,5 +198,34 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId', 'fields'],
+    examples: [
+      {
+        title: 'Approval form with mixed field types',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'UserTask_ReviewOrder',
+          fields: [
+            { id: 'approved', label: 'Approved?', type: 'boolean', defaultValue: 'false' },
+            {
+              id: 'priority',
+              label: 'Priority',
+              type: 'enum',
+              defaultValue: 'medium',
+              values: [
+                { id: 'low', name: 'Low' },
+                { id: 'medium', name: 'Medium' },
+                { id: 'high', name: 'High' },
+              ],
+            },
+            {
+              id: 'comment',
+              label: 'Comments',
+              type: 'string',
+              validation: [{ name: 'required' }],
+            },
+          ],
+        },
+      },
+    ],
   },
 } as const;

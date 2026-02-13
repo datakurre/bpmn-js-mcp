@@ -33,6 +33,87 @@ interface ValidationIssue {
   fixToolCall?: { tool: string; args: Record<string, any> };
 }
 
+/** Fix tool call template. `{diagramId}` and `{elementId}` are substituted at runtime. */
+interface FixTemplate {
+  tool: string;
+  args: Record<string, any>;
+  /** Whether this fix requires a known elementId. Default: false. */
+  requiresElementId?: boolean;
+}
+
+/**
+ * Lookup table mapping lint rule names to structured fix tool call templates.
+ * Placeholders `'{diagramId}'` and `'{elementId}'` are replaced at runtime.
+ */
+const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
+  'label-required': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { name: '<descriptive name>' } },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/naming-convention': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { name: '<descriptive name>' } },
+    requiresElementId: true,
+  },
+  'start-event-required': {
+    tool: 'add_bpmn_element',
+    args: { elementType: 'bpmn:StartEvent' },
+  },
+  'end-event-required': {
+    tool: 'add_bpmn_element',
+    args: { elementType: 'bpmn:EndEvent' },
+  },
+  'bpmn-mcp/camunda-topic-without-external-type': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { 'camunda:type': 'external' } },
+    requiresElementId: true,
+  },
+  'no-disconnected': {
+    tool: 'connect_bpmn_elements',
+    args: { sourceElementId: '<source>' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/gateway-missing-default': {
+    tool: 'connect_bpmn_elements',
+    args: { targetElementId: '<target>', isDefault: true },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/exclusive-gateway-conditions': {
+    tool: 'set_bpmn_element_properties',
+    args: { elementId: '<outgoing-flow-id>', properties: { conditionExpression: '${condition}' } },
+    requiresElementId: true,
+  },
+  'no-implicit-start': {
+    tool: 'connect_bpmn_elements',
+    args: { sourceElementId: '<source>' },
+    requiresElementId: true,
+  },
+  'no-implicit-end': {
+    tool: 'connect_bpmn_elements',
+    args: { targetElementId: '<target>' },
+    requiresElementId: true,
+  },
+  'camunda-compat/history-time-to-live': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { 'camunda:historyTimeToLive': '180' } },
+  },
+  'single-blank-start-event': {
+    tool: 'delete_bpmn_element',
+    args: {},
+  },
+  'bpmn-mcp/no-duplicate-named-flow-nodes': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { name: '<unique name>' } },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/parallel-gateway-merge-exclusive': {
+    tool: 'replace_bpmn_element',
+    args: { newType: 'bpmn:ExclusiveGateway' },
+    requiresElementId: true,
+  },
+};
+
 /**
  * Generate a structured tool call suggestion for a lint issue.
  * Returns an object with tool name and args that would fix the issue.
@@ -44,45 +125,25 @@ function suggestFixToolCall(
   const { rule, elementId } = issue;
   if (!rule) return undefined;
 
-  switch (rule) {
-    case 'label-required':
-    case 'bpmn-mcp/naming-convention':
-      if (elementId) {
-        return {
-          tool: 'set_bpmn_element_properties',
-          args: { diagramId, elementId, properties: { name: '<descriptive name>' } },
-        };
-      }
-      return undefined;
-    case 'start-event-required':
-      return {
-        tool: 'add_bpmn_element',
-        args: { diagramId, elementType: 'bpmn:StartEvent' },
-      };
-    case 'end-event-required':
-      return {
-        tool: 'add_bpmn_element',
-        args: { diagramId, elementType: 'bpmn:EndEvent' },
-      };
-    case 'bpmn-mcp/camunda-topic-without-external-type':
-      if (elementId) {
-        return {
-          tool: 'set_bpmn_element_properties',
-          args: { diagramId, elementId, properties: { 'camunda:type': 'external' } },
-        };
-      }
-      return undefined;
-    case 'bpmn-mcp/parallel-gateway-merge-exclusive':
-      if (elementId) {
-        return {
-          tool: 'replace_bpmn_element',
-          args: { diagramId, elementId, newType: 'bpmn:ExclusiveGateway' },
-        };
-      }
-      return undefined;
-    default:
-      return undefined;
+  const template = FIX_TOOL_CALLS[rule];
+  if (!template) return undefined;
+  if (template.requiresElementId && !elementId) return undefined;
+
+  // Build args: always include diagramId, include elementId when available
+  const args: Record<string, any> = { diagramId, ...template.args };
+
+  // Inject elementId based on the tool's expected parameter name
+  if (elementId) {
+    if (template.tool === 'connect_bpmn_elements') {
+      // For connect: set sourceElementId or targetElementId based on which is missing
+      if (!args.sourceElementId) args.sourceElementId = elementId;
+      else if (!args.targetElementId) args.targetElementId = elementId;
+    } else if (!args.elementId) {
+      args.elementId = elementId;
+    }
   }
+
+  return { tool: template.tool, args };
 }
 
 export async function handleValidate(args: ValidateArgs): Promise<ToolResult> {

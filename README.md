@@ -120,9 +120,35 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 
 ### Automatic Lint Feedback
 
-All mutating tools automatically append bpmnlint error-level issues to their response. This gives AI callers immediate feedback when an operation introduces a rule violation. The `lint_bpmn_diagram` tool returns all severities for a full report.
+All mutating tools automatically append bpmnlint error-level issues to their response. This gives AI callers immediate feedback when an operation introduces a rule violation. The `validate_bpmn_diagram` tool returns all severities for a full report.
 
 The default config extends `bpmnlint:recommended`, `plugin:camunda-compat/camunda-platform-7-24`, and `plugin:bpmn-mcp/recommended`, with `label-required` and `no-disconnected` downgraded to warnings for incremental construction.
+
+### MCP Resources
+
+Stable, addressable read-context endpoints for AI callers to re-ground context mid-conversation:
+
+| URI                                 | Description                                                       |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `bpmn://diagrams`                   | List all in-memory diagrams                                       |
+| `bpmn://diagram/{id}/summary`       | Lightweight diagram summary (element counts, names, connectivity) |
+| `bpmn://diagram/{id}/lint`          | Validation issues with fix suggestions                            |
+| `bpmn://diagram/{id}/variables`     | Process variable references with read/write access patterns       |
+| `bpmn://diagram/{id}/xml`           | Current BPMN 2.0 XML for re-grounding                             |
+| `bpmn://guides/executable-camunda7` | Constraints and best practices for Camunda 7 / Operaton           |
+
+### MCP Prompts
+
+Reusable modeling workflows that guide AI callers through multi-tool patterns:
+
+| Prompt                       | Description                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `create-executable-process`  | Step-by-step guide to create a complete executable BPMN process for Operaton / Camunda 7 |
+| `convert-to-collaboration`   | Convert a single-pool process into a collaboration with multiple participants            |
+| `add-sla-timer-pattern`      | Add SLA timers using boundary events (interrupting or non-interrupting)                  |
+| `add-approval-pattern`       | Add an approval pattern with gateway, conditions, default flow, and form fields          |
+| `add-error-handling-pattern` | Add error handling with boundary events or event subprocesses                            |
+| `add-parallel-tasks-pattern` | Add parallel gateway pattern with concurrent branches and synchronization                |
 
 ## Output Compatibility
 

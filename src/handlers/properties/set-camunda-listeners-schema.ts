@@ -174,5 +174,36 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId'],
+    examples: [
+      {
+        title: 'Add a groovy execution listener on task start',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'ServiceTask_ProcessOrder',
+          executionListeners: [
+            {
+              event: 'start',
+              script: {
+                scriptFormat: 'groovy',
+                value: 'execution.setVariable("startTime", new Date())',
+              },
+            },
+          ],
+        },
+      },
+      {
+        title: 'Add a task listener with delegate expression',
+        value: {
+          diagramId: '<diagram-id>',
+          elementId: 'UserTask_ReviewOrder',
+          taskListeners: [
+            {
+              event: 'complete',
+              delegateExpression: '${auditLogger}',
+            },
+          ],
+        },
+      },
+    ],
   },
 } as const;
