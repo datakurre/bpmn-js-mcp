@@ -70,6 +70,26 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
     'Remove the empty participant{elementRef} with delete_bpmn_element, or add process elements to it. If it represents an external system, set it to collapsed',
   'bpmn-mcp/lane-zigzag-flow':
     'Consider moving the element{elementRef} to the same lane as its predecessor and successor using move_bpmn_element with laneId, or restructure the process to avoid unnecessary lane crossings',
+  'bpmn-mcp/gateway-pair-mismatch':
+    'Add a matching join gateway of the same type downstream{elementRef}. Pair split/join gateways for readability — use add_bpmn_element to add the join gateway',
+  'bpmn-mcp/exclusive-gateway-marker':
+    'Use set_bpmn_element_properties{elementRef} or re-export the diagram to ensure isMarkerVisible is set on exclusive gateway DI shapes',
+  'bpmn-mcp/boundary-event-scope':
+    'Consider replacing the boundary event{elementRef} with an event subprocess (bpmn:SubProcess with triggeredByEvent: true) for process-wide scope coverage',
+  'bpmn-mcp/user-task-missing-assignee':
+    'Use set_bpmn_element_properties to set camunda:assignee, camunda:candidateUsers, or camunda:candidateGroups{elementRef}',
+  'bpmn-mcp/implicit-merge':
+    'Add an explicit merge gateway before element{elementRef} — use add_bpmn_element to insert a bpmn:ExclusiveGateway or bpmn:ParallelGateway to combine the incoming flows',
+  'bpmn-mcp/undefined-variable':
+    'Ensure variable{elementRef} is defined upstream via a form field, output parameter, script result variable, or call activity out-mapping before it is referenced',
+  'bpmn-mcp/lanes-expected-but-missing':
+    'Consider adding lanes to clarify role assignments — use add_bpmn_element with bpmn:Lane to create swimlanes within the participant',
+  'bpmn-mcp/lane-crossing-excessive':
+    'Reorganize tasks into lanes to reduce cross-lane flows. Use move_bpmn_element with laneId to move elements between lanes',
+  'bpmn-mcp/lane-single-element':
+    'Lane{elementRef} has very few elements. Consider merging it with an adjacent lane using move_bpmn_element with laneId',
+  'bpmn-mcp/lane-missing-start-or-end':
+    'Assign start and end events to appropriate lanes using move_bpmn_element with laneId',
 };
 
 /**
