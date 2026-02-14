@@ -160,6 +160,10 @@ function buildNextSteps(
       tool: 'validate_bpmn_lane_organization',
       description: `Lane coherence score is ${laneCrossingMetrics.laneCoherenceScore}% (below 70%). Run validate_bpmn_lane_organization for detailed lane improvement suggestions.`,
     });
+    steps.push({
+      tool: 'optimize_bpmn_lane_assignments',
+      description: `Lane coherence is low (${laneCrossingMetrics.laneCoherenceScore}%). Run optimize_bpmn_lane_assignments to automatically minimize cross-lane flows.`,
+    });
   }
 
   const poolIssues = sizingIssues.filter((i) => i.severity === 'warning');

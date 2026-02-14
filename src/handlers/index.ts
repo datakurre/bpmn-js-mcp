@@ -199,6 +199,10 @@ import {
   handleAutosizePoolsAndLanes,
   TOOL_DEFINITION as AUTOSIZE_POOLS_AND_LANES_DEF,
 } from './collaboration/autosize-pools-and-lanes';
+import {
+  handleOptimizeLaneAssignments,
+  TOOL_DEFINITION as OPTIMIZE_LANE_ASSIGNMENTS_DEF,
+} from './collaboration/optimize-lane-assignments';
 
 // ── Unified tool registry ──────────────────────────────────────────────────
 //
@@ -256,6 +260,7 @@ const TOOL_REGISTRY: ToolRegistration[] = [
     handler: handleRedistributeElementsAcrossLanes,
   },
   { definition: AUTOSIZE_POOLS_AND_LANES_DEF, handler: handleAutosizePoolsAndLanes },
+  { definition: OPTIMIZE_LANE_ASSIGNMENTS_DEF, handler: handleOptimizeLaneAssignments },
   { definition: DUPLICATE_ELEMENT_DEF, handler: handleDuplicateElement },
   { definition: INSERT_ELEMENT_DEF, handler: handleInsertElement },
   { definition: REPLACE_ELEMENT_DEF, handler: handleReplaceElement },
@@ -347,6 +352,7 @@ export {
   handleSuggestPoolVsLanes,
   handleRedistributeElementsAcrossLanes,
   handleAutosizePoolsAndLanes,
+  handleOptimizeLaneAssignments,
   handleSummarizeDiagram,
   handleListProcessVariables,
   handleSetConnectionWaypoints,
