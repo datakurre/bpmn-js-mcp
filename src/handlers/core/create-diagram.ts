@@ -6,10 +6,20 @@ import { type ToolResult, type HintLevel } from '../../types';
 import { storeDiagram, generateDiagramId, createModeler } from '../../diagram-manager';
 import { jsonResult, getService } from '../helpers';
 
+/** Workflow context hint for guiding pool/lane usage. */
+export type WorkflowContext = 'single-organization' | 'multi-organization' | 'multi-system';
+
 export interface CreateDiagramArgs {
   name?: string;
   draftMode?: boolean;
   hintLevel?: HintLevel;
+  /**
+   * Optional hint about the workflow context.
+   * - 'single-organization': suggests using lanes for role separation
+   * - 'multi-organization': suggests using collaboration with separate pools
+   * - 'multi-system': requires collaboration with message flows between systems
+   */
+  workflowContext?: WorkflowContext;
 }
 
 /** Convert a human name into a valid BPMN process id (XML NCName). */
@@ -20,6 +30,46 @@ function toProcessId(name: string): string {
     .replace(/^[^a-zA-Z_]/, '_');
   return `Process_${sanitized || '1'}`;
 }
+
+/** Workflow-context guidance table. */
+const WORKFLOW_CONTEXT_GUIDANCE: Record<
+  WorkflowContext,
+  { guidance: string; step: { tool: string; description: string } }
+> = {
+  'single-organization': {
+    guidance:
+      'For role separation within one organization, use a single pool with lanes. ' +
+      'Create a participant, add lanes for each role (e.g. Requester, Approver, Finance), ' +
+      'and assign elements to lanes.',
+    step: {
+      tool: 'create_bpmn_collaboration',
+      description:
+        'Create a single expanded pool with lanes for role separation (use the lanes parameter).',
+    },
+  },
+  'multi-organization': {
+    guidance:
+      'For separate organizations communicating via messages, use a collaboration ' +
+      'with one executable pool and collapsed partner pools for external parties. ' +
+      'Connect them with message flows.',
+    step: {
+      tool: 'create_bpmn_collaboration',
+      description:
+        'Create a collaboration with one expanded pool (your process) and collapsed pools for external partners.',
+    },
+  },
+  'multi-system': {
+    guidance:
+      'For system-to-system integration, use a collaboration with pools per system. ' +
+      'Only one pool is executable (Camunda 7); others are collapsed message flow endpoints. ' +
+      'For simple integrations, consider ServiceTask with external topic instead.',
+    step: {
+      tool: 'create_bpmn_collaboration',
+      description:
+        'Create a collaboration with expanded pool for your process and collapsed pools for external systems.',
+    },
+  },
+};
 
 export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<ToolResult> {
   const diagramId = generateDiagramId();
@@ -54,24 +104,36 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
 
   const effectiveDraft = hintLevel === 'none' || (args.draftMode ?? false);
 
-  return jsonResult({
+  const nextSteps: Array<{ tool: string; description: string }> = [];
+  const resultData: Record<string, any> = {
     success: true,
     diagramId,
     name: args.name || undefined,
     draftMode: effectiveDraft,
     hintLevel: hintLevel ?? 'full',
     message: `Created new BPMN diagram with ID: ${diagramId}${effectiveDraft ? ' (draft mode — lint feedback suppressed)' : ''}`,
-    nextSteps: [
-      {
-        tool: 'add_bpmn_element',
-        description: 'Add a bpmn:StartEvent to begin building the process.',
-      },
-      {
-        tool: 'import_bpmn_xml',
-        description: 'Or import an existing BPMN XML file instead of building from scratch.',
-      },
-    ],
-  });
+  };
+
+  if (args.workflowContext) {
+    const ctx = WORKFLOW_CONTEXT_GUIDANCE[args.workflowContext];
+    resultData.workflowContext = args.workflowContext;
+    resultData.structureGuidance = ctx.guidance;
+    nextSteps.push(ctx.step);
+  }
+
+  nextSteps.push(
+    {
+      tool: 'add_bpmn_element',
+      description: 'Add a bpmn:StartEvent to begin building the process.',
+    },
+    {
+      tool: 'import_bpmn_xml',
+      description: 'Or import an existing BPMN XML file instead of building from scratch.',
+    }
+  );
+  resultData.nextSteps = nextSteps;
+
+  return jsonResult(resultData);
 }
 
 export const TOOL_DEFINITION = {
@@ -103,6 +165,17 @@ export const TOOL_DEFINITION = {
           "lint errors, layout hints, and connectivity warnings. 'minimal' " +
           "includes only lint errors. 'none' suppresses all implicit feedback " +
           '(equivalent to draftMode: true). Overrides draftMode when set.',
+      },
+      workflowContext: {
+        type: 'string',
+        enum: ['single-organization', 'multi-organization', 'multi-system'],
+        description:
+          "Optional hint about the workflow context. 'single-organization' " +
+          'suggests using lanes for role separation within one pool. ' +
+          "'multi-organization' suggests using collaboration with separate pools " +
+          "for distinct organizations. 'multi-system' requires collaboration " +
+          'with message flows between technical systems. Adds structural guidance ' +
+          'to the response to help choose the right modeling approach.',
       },
     },
   },

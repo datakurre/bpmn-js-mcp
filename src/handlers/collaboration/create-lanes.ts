@@ -18,6 +18,7 @@ import {
   getService,
 } from '../helpers';
 import { appendLintFeedback } from '../../linter';
+import { autoDistributeElements, type AutoDistributeResult } from './auto-distribute';
 
 export interface CreateLanesArgs {
   diagramId: string;
@@ -29,6 +30,13 @@ export interface CreateLanesArgs {
     /** Optional explicit height (px). If omitted, pool height is divided evenly. */
     height?: number;
   }>;
+  /**
+   * When true, automatically assigns existing elements in the participant to the
+   * created lanes based on matching lane names to element roles (camunda:assignee
+   * or camunda:candidateGroups). Elements without role matches fall back to
+   * type-based grouping (human tasks vs automated tasks).
+   */
+  autoDistribute?: boolean;
 }
 
 /** Minimum lane height in pixels. */
@@ -97,9 +105,36 @@ function createSingleLane(
   return created.id;
 }
 
+/** Build the next-steps hints for the response. */
+function buildNextSteps(distributeResult?: AutoDistributeResult) {
+  const steps = [];
+  if (distributeResult && distributeResult.assignedCount > 0) {
+    steps.push({
+      tool: 'layout_bpmn_diagram',
+      description: 'Run layout to organize elements within their assigned lanes.',
+    });
+  }
+  steps.push(
+    {
+      tool: 'add_bpmn_element',
+      description:
+        'Add elements to a specific lane using the laneId parameter for automatic vertical centering',
+    },
+    {
+      tool: 'move_bpmn_element',
+      description: 'Move existing elements into lanes using the laneId parameter',
+    },
+    {
+      tool: 'assign_bpmn_elements_to_lane',
+      description: 'Bulk-assign multiple existing elements to a lane',
+    }
+  );
+  return steps;
+}
+
 export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'participantId', 'lanes']);
-  const { diagramId, participantId, lanes } = args;
+  const { diagramId, participantId, lanes, autoDistribute = false } = args;
 
   if (!lanes || lanes.length < 2) {
     throw missingRequiredError(['lanes (at least 2 lanes required)']);
@@ -137,30 +172,44 @@ export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResu
     currentY += laneDef.height || geometry.autoHeight;
   }
 
+  // Auto-distribute existing elements to lanes if requested
+  const distributeResult = autoDistribute
+    ? autoDistributeElements(
+        diagram,
+        participant,
+        createdIds,
+        lanes.map((l) => l.name)
+      )
+    : undefined;
+
   await syncXml(diagram);
 
-  const result = jsonResult({
+  let message = `Created ${createdIds.length} lanes in participant ${participantId}: ${createdIds.join(', ')}`;
+  if (distributeResult && distributeResult.assignedCount > 0) {
+    message += ` (auto-distributed ${distributeResult.assignedCount} element(s))`;
+  }
+
+  const resultData: Record<string, any> = {
     success: true,
     participantId,
     laneIds: createdIds,
     laneCount: createdIds.length,
-    message: `Created ${createdIds.length} lanes in participant ${participantId}: ${createdIds.join(', ')}`,
-    nextSteps: [
-      {
-        tool: 'add_bpmn_element',
-        description:
-          'Add elements to a specific lane using the laneId parameter for automatic vertical centering',
-      },
-      {
-        tool: 'move_bpmn_element',
-        description: 'Move existing elements into lanes using the laneId parameter',
-      },
-      {
-        tool: 'assign_bpmn_elements_to_lane',
-        description: 'Bulk-assign multiple existing elements to a lane',
-      },
-    ],
-  });
+    message,
+  };
+
+  if (distributeResult) {
+    resultData.autoDistribute = {
+      assignedCount: distributeResult.assignedCount,
+      assignments: distributeResult.assignments,
+      ...(distributeResult.unassigned.length > 0
+        ? { unassigned: distributeResult.unassigned }
+        : {}),
+    };
+  }
+
+  resultData.nextSteps = buildNextSteps(distributeResult);
+
+  const result = jsonResult(resultData);
   return appendLintFeedback(result, diagram);
 }
 
@@ -196,6 +245,16 @@ export const TOOL_DEFINITION = {
           required: ['name'],
         },
         minItems: 2,
+      },
+      autoDistribute: {
+        type: 'boolean',
+        description:
+          'When true, automatically assigns existing elements in the participant to the ' +
+          'created lanes based on matching lane names to element roles (camunda:assignee ' +
+          'or camunda:candidateGroups, case-insensitive). Elements without role matches ' +
+          'fall back to type-based grouping (human tasks vs automated tasks). ' +
+          'Flow-control elements (gateways, events) are assigned to their most-connected ' +
+          "neighbor's lane. Run layout_bpmn_diagram afterwards for clean positioning.",
       },
     },
     required: ['diagramId', 'participantId', 'lanes'],
