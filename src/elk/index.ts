@@ -22,7 +22,9 @@
  * 8. Repair disconnected edge endpoints → fixDisconnectedEdges()
  * 8.3. Snap flow endpoints to element centres → snapEndpointsToElementCentres()
  * 8.5. Simplify collinear waypoints → simplifyCollinearWaypoints()
+ * 8.6. Remove micro-bends and short-segment staircases → removeMicroBends()
  * 8.7. Separate overlapping collinear gateway flows → separateOverlappingGatewayFlows()
+ * 8.8. Route loopback (backward) flows below main path → routeLoopbacksBelow()
  * 9. Final orthogonal snap → snapAllConnectionsOrthogonal()
  * 10. Detect crossing flows → detectCrossingFlows()
  */
@@ -80,6 +82,9 @@ import {
   snapEndpointsToElementCentres,
   rebuildOffRowGatewayRoutes,
   separateOverlappingGatewayFlows,
+  removeMicroBends,
+  buildZShapeRoute,
+  routeLoopbacksBelow,
 } from './edge-routing';
 import { repositionArtifacts } from './artifacts';
 import { routeBranchConnectionsThroughChannels } from './channel-routing';
@@ -330,6 +335,8 @@ function repairAndSimplifyEdges(ctx: LayoutContext): void {
   rebuildOffRowGatewayRoutes(ctx.elementRegistry, ctx.modeling);
   separateOverlappingGatewayFlows(ctx.elementRegistry, ctx.modeling);
   simplifyCollinearWaypoints(ctx.elementRegistry, ctx.modeling);
+  removeMicroBends(ctx.elementRegistry, ctx.modeling);
+  routeLoopbacksBelow(ctx.elementRegistry, ctx.modeling);
   snapAllConnectionsOrthogonal(ctx.elementRegistry, ctx.modeling);
 }
 
@@ -504,6 +511,65 @@ function computeLayoutOffset(
 // ── Partial (subset) layout ────────────────────────────────────────────────
 
 /**
+ * Rebuild routes for edges that connect a subset element to an element
+ * outside the subset.
+ *
+ * After partial layout moves elements within the subset, edges connecting
+ * to their external neighbors may have stale waypoints that no longer
+ * connect to the element boundaries.  This function detects such "neighbor
+ * edges" and rebuilds their routes.
+ *
+ * For same-row connections (source and target on roughly the same Y within
+ * 15px), builds a straight 2-point horizontal route.
+ *
+ * For different-row connections, builds a Z-shaped route through the midpoint.
+ */
+function rebuildNeighborEdges(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  subsetIds: Set<string>
+): void {
+  const allElements: BpmnElement[] = elementRegistry.getAll();
+
+  // Find connections where exactly one endpoint is in the subset
+  const neighborEdges = allElements.filter(
+    (el) =>
+      isConnection(el.type) &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
+      el.waypoints.length >= 2 &&
+      subsetIds.has(el.source.id) !== subsetIds.has(el.target.id)
+  );
+
+  for (const conn of neighborEdges) {
+    const src = conn.source!;
+    const tgt = conn.target!;
+
+    const srcCy = Math.round(src.y + (src.height || 0) / 2);
+    const tgtCy = Math.round(tgt.y + (tgt.height || 0) / 2);
+    const srcRight = src.x + (src.width || 0);
+    const tgtLeft = tgt.x;
+
+    // Only rebuild if the target is to the right of the source
+    // (backwards/loopback edges have custom routing and shouldn't be touched)
+    if (tgtLeft <= srcRight) continue;
+
+    const sameRow = Math.abs(srcCy - tgtCy) <= 15;
+    if (sameRow) {
+      // Straight horizontal
+      modeling.updateWaypoints(conn, [
+        { x: Math.round(srcRight), y: srcCy },
+        { x: Math.round(tgtLeft), y: srcCy },
+      ]);
+    } else {
+      // Z-shape through midpoint
+      modeling.updateWaypoints(conn, buildZShapeRoute(srcRight, srcCy, tgtLeft, tgtCy));
+    }
+  }
+}
+
+/**
  * Run ELK layered layout on a subset of elements in a BPMN diagram.
  *
  * Builds a sub-graph from the specified element IDs and their
@@ -666,6 +732,11 @@ export async function elkLayoutSubset(
 
   // Apply edge routes for the subset connections
   applyElkEdgeRoutes(elementRegistry, modeling, result, offsetX, offsetY);
+
+  // Rebuild routes for edges connecting subset elements to their neighbors.
+  // After partial layout moves elements, edges to/from elements outside the
+  // subset may have stale waypoints that no longer connect properly.
+  rebuildNeighborEdges(elementRegistry, modeling, idSet);
 
   return {};
 }

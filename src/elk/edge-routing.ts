@@ -12,10 +12,15 @@
 
 export { deduplicateWaypoints, buildZShapeRoute } from './edge-routing-helpers';
 export { applyElkEdgeRoutes } from './edge-routing-core';
-export { simplifyGatewayBranchRoutes, simplifyCollinearWaypoints } from './edge-routing-simplify';
+export {
+  simplifyGatewayBranchRoutes,
+  simplifyCollinearWaypoints,
+  removeMicroBends,
+} from './edge-routing-simplify';
 export {
   fixDisconnectedEdges,
   snapEndpointsToElementCentres,
   rebuildOffRowGatewayRoutes,
   separateOverlappingGatewayFlows,
+  routeLoopbacksBelow,
 } from './edge-routing-fix';

@@ -184,3 +184,181 @@ function removeCollinearPoints(
   result.push(wps[wps.length - 1]);
   return result;
 }
+
+// ── Micro-bend removal ─────────────────────────────────────────────────────
+
+/**
+ * Maximum deviation (px) for a waypoint to be considered a micro-bend.
+ *
+ * Three consecutive waypoints that are nearly collinear — all Y values
+ * within this threshold (horizontal) or all X values within this threshold
+ * (vertical) — indicate a "wiggle" caused by ELK rounding, grid snap, or
+ * post-processing.  The middle point is removed to produce a cleaner route.
+ */
+const MICRO_BEND_TOLERANCE = 5;
+
+/**
+ * Maximum length (px) of a short orthogonal segment to be merged.
+ *
+ * An H-V-H or V-H-V staircase where the middle segment is shorter than
+ * this threshold is flattened into a single straight segment by snapping
+ * the two surrounding bend points to the same axis.
+ */
+const SHORT_SEGMENT_THRESHOLD = 6;
+
+/**
+ * Remove micro-bends from all connections in the diagram.
+ *
+ * A micro-bend is a small deviation from a straight horizontal or vertical
+ * path that creates a visible wiggle.  Two patterns are detected:
+ *
+ * **Near-collinear triples:** Three consecutive waypoints that are nearly
+ * on the same horizontal line (all Y within `MICRO_BEND_TOLERANCE`) or the
+ * same vertical line (all X within tolerance).  The middle point is removed.
+ *
+ * **Short orthogonal segments (staircases):** An H-V-H or V-H-V pattern
+ * where the middle segment is shorter than `SHORT_SEGMENT_THRESHOLD`.  The
+ * short segment is flattened by snapping both surrounding bend points to
+ * the same axis.
+ *
+ * Boundary event connections are skipped because their routing is
+ * intentionally non-standard (L-shaped exits from host element edges).
+ *
+ * Should run after `simplifyCollinearWaypoints` as a second, more
+ * aggressive straightening pass.
+ */
+export function removeMicroBends(elementRegistry: ElementRegistry, modeling: Modeling): void {
+  const BPMN_BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
+  const connections = elementRegistry.filter(
+    (el) =>
+      isConnection(el.type) &&
+      !!el.waypoints &&
+      el.waypoints.length >= 3 &&
+      el.source?.type !== BPMN_BOUNDARY_EVENT
+  );
+
+  for (const conn of connections) {
+    const wps: Array<{ x: number; y: number }> = conn.waypoints!.map((wp: any) => ({
+      x: wp.x,
+      y: wp.y,
+    }));
+
+    // Pass 1: remove near-collinear triples (micro-wiggle)
+    let simplified = removeNearCollinearPoints(wps);
+
+    // Pass 2: merge short orthogonal segments (staircase)
+    simplified = mergeShortSegments(simplified);
+
+    if (simplified.length < wps.length && simplified.length >= 2) {
+      modeling.updateWaypoints(conn, simplified);
+    }
+  }
+}
+
+/**
+ * Remove near-collinear middle points from a waypoint array.
+ *
+ * Like `removeCollinearPoints` but with a larger tolerance to catch
+ * micro-bends: small deviations (e.g. a 2–3px Y-shift) that create
+ * a visible wiggle in what should be a straight horizontal or vertical
+ * segment.
+ */
+function removeNearCollinearPoints(
+  wps: Array<{ x: number; y: number }>
+): Array<{ x: number; y: number }> {
+  if (wps.length < 3) return wps;
+
+  const result: Array<{ x: number; y: number }> = [wps[0]];
+
+  for (let i = 1; i < wps.length - 1; i++) {
+    const prev = result[result.length - 1];
+    const curr = wps[i];
+    const next = wps[i + 1];
+
+    // Near-horizontal: all Y values within tolerance
+    const nearHorizontal =
+      Math.abs(prev.y - curr.y) <= MICRO_BEND_TOLERANCE &&
+      Math.abs(curr.y - next.y) <= MICRO_BEND_TOLERANCE &&
+      Math.abs(prev.y - next.y) <= MICRO_BEND_TOLERANCE;
+
+    // Near-vertical: all X values within tolerance
+    const nearVertical =
+      Math.abs(prev.x - curr.x) <= MICRO_BEND_TOLERANCE &&
+      Math.abs(curr.x - next.x) <= MICRO_BEND_TOLERANCE &&
+      Math.abs(prev.x - next.x) <= MICRO_BEND_TOLERANCE;
+
+    if (!nearHorizontal && !nearVertical) {
+      result.push(curr);
+    }
+    // else: near-collinear — skip the middle point (micro-bend removed)
+  }
+
+  result.push(wps[wps.length - 1]);
+  return result;
+}
+
+/**
+ * Merge short orthogonal segments (staircases) in a waypoint array.
+ *
+ * Detects H-V-H patterns where the vertical segment is very short, or
+ * V-H-V patterns where the horizontal segment is very short.  Flattens
+ * the staircase by snapping both surrounding bend points to the same
+ * axis value (using the average of the two Y or X values).
+ *
+ * Example (H-V-H staircase with short vertical):
+ *   (100,200) → (200,200) → (200,203) → (300,203)
+ *   becomes: (100,200) → (300,200)  [or similar, after collinear cleanup]
+ */
+function mergeShortSegments(wps: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (wps.length < 4) return wps;
+
+  // Work on a copy so we can mutate in-place
+  const result = wps.map((wp) => ({ x: wp.x, y: wp.y }));
+  let changed = false;
+
+  for (let i = 0; i < result.length - 3; i++) {
+    const a = result[i];
+    const b = result[i + 1];
+    const c = result[i + 2];
+    const d = result[i + 3];
+
+    // H-V-H: horizontal → short vertical → horizontal
+    const abHorizontal = Math.abs(a.y - b.y) <= 1;
+    const bcVertical = Math.abs(b.x - c.x) <= 1;
+    const cdHorizontal = Math.abs(c.y - d.y) <= 1;
+
+    if (abHorizontal && bcVertical && cdHorizontal) {
+      const vLen = Math.abs(b.y - c.y);
+      if (vLen > 0 && vLen <= SHORT_SEGMENT_THRESHOLD) {
+        // Snap both bend points to the average Y
+        const avgY = Math.round((b.y + c.y) / 2);
+        b.y = avgY;
+        c.y = avgY;
+        changed = true;
+        continue;
+      }
+    }
+
+    // V-H-V: vertical → short horizontal → vertical
+    const abVertical = Math.abs(a.x - b.x) <= 1;
+    const bcHorizontal = Math.abs(b.y - c.y) <= 1;
+    const cdVertical = Math.abs(c.x - d.x) <= 1;
+
+    if (abVertical && bcHorizontal && cdVertical) {
+      const hLen = Math.abs(b.x - c.x);
+      if (hLen > 0 && hLen <= SHORT_SEGMENT_THRESHOLD) {
+        // Snap both bend points to the average X
+        const avgX = Math.round((b.x + c.x) / 2);
+        b.x = avgX;
+        c.x = avgX;
+        changed = true;
+      }
+    }
+  }
+
+  if (!changed) return wps;
+
+  // After merging short segments, the b and c points may now be identical
+  // or collinear with their neighbors — run a final collinear cleanup.
+  return removeCollinearPoints(result);
+}

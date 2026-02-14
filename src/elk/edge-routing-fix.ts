@@ -18,6 +18,12 @@ import {
 /** Default vertical detour offset (px) for rerouting overlapping collinear flows. */
 const COLLINEAR_DETOUR_OFFSET = 20;
 
+/** Vertical margin (px) below the lowest element for loopback routing. */
+const LOOPBACK_BELOW_MARGIN = 30;
+
+/** Horizontal margin (px) outside source/target for loopback vertical segments. */
+const LOOPBACK_HORIZONTAL_MARGIN = 15;
+
 /** Get the centre point of an element. */
 function elementCentre(el: BpmnElement): { x: number; y: number } {
   return {
@@ -524,5 +530,127 @@ export function separateOverlappingGatewayFlows(
         }
       }
     }
+  }
+}
+
+// ── Loopback routing below main path ───────────────────────────────────────
+
+/**
+ * Route loopback (backward) connections below the main process path.
+ *
+ * **Problem:** When ELK handles cycles, it reverses back-edges during
+ * layout.  After applying positions, these reversed edge routes may cut
+ * through the main process path area, creating visual confusion.  Loopback
+ * connections should route clearly below (or above) the main flow so they
+ * are visually distinct from forward flows.
+ *
+ * **Fix:** Detect sequence flows where the target is to the left of the
+ * source (backward flow).  Rebuild their routes as a clean U-shape:
+ *
+ * ```
+ *          ┌── target ◄──────────────────┐
+ *          │                              │
+ *          │   task → task → gateway ─────┘
+ *          │                    │
+ *          └────────────────────┘  (routed below)
+ * ```
+ *
+ * Route: exit source bottom/right → go down below the lowest element →
+ * go left → go up into target bottom/left.
+ *
+ * Skips boundary event connections and message flows.
+ * Should run after all other edge routing passes.
+ */
+export function routeLoopbacksBelow(elementRegistry: ElementRegistry, modeling: Modeling): void {
+  const BPMN_SEQUENCE_FLOW = 'bpmn:SequenceFlow';
+  const BPMN_BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
+
+  const allElements: BpmnElement[] = elementRegistry.getAll();
+
+  // Compute the bottom boundary of all visible non-flow elements
+  // (the lowest Y + height of any shape in the diagram).
+  let maxBottom = 0;
+  for (const el of allElements) {
+    if (
+      isConnection(el.type) ||
+      el.type === BPMN_BOUNDARY_EVENT ||
+      el.type === 'bpmn:Participant' ||
+      el.type === 'bpmn:Lane' ||
+      el.type === 'label'
+    ) {
+      continue;
+    }
+    const bottom = (el.y ?? 0) + (el.height ?? 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  }
+
+  if (maxBottom === 0) return;
+
+  const connections = allElements.filter(
+    (el) =>
+      el.type === BPMN_SEQUENCE_FLOW &&
+      !!el.source &&
+      !!el.target &&
+      !!el.waypoints &&
+      el.waypoints.length >= 2 &&
+      el.source.type !== BPMN_BOUNDARY_EVENT
+  );
+
+  for (const conn of connections) {
+    const src = conn.source!;
+    const tgt = conn.target!;
+
+    const srcCx = Math.round(src.x + (src.width || 0) / 2);
+    const srcCy = Math.round(src.y + (src.height || 0) / 2);
+    const srcBottom = src.y + (src.height || 0);
+    const srcRight = src.x + (src.width || 0);
+    const tgtCx = Math.round(tgt.x + (tgt.width || 0) / 2);
+    const tgtCy = Math.round(tgt.y + (tgt.height || 0) / 2);
+    const tgtBottom = tgt.y + (tgt.height || 0);
+    const tgtLeft = tgt.x;
+
+    // Only process backward flows: target is to the left of source
+    // with a meaningful gap (>30px) to avoid touching near-collinear elements.
+    if (tgtLeft >= srcRight - 30) continue;
+
+    // Skip connections that are already routed below the main path
+    // (their waypoints go below the lowest element).
+    const wps = conn.waypoints!;
+    const currentMaxY = Math.max(...wps.map((wp: any) => wp.y));
+    if (currentMaxY > maxBottom) continue;
+
+    // Compute the U-shape route below the main path
+    const belowY = Math.round(maxBottom + LOOPBACK_BELOW_MARGIN);
+
+    // Determine exit/entry points based on source/target positions
+    // Gateway sources: exit from bottom edge (centre X)
+    // Task/event sources: exit from right edge then go down
+    const srcIsGateway = src.type?.includes('Gateway');
+
+    let newWps: Array<{ x: number; y: number }>;
+
+    if (srcIsGateway) {
+      // Gateway: exit from bottom, go down, left, up into target
+      newWps = [
+        { x: srcCx, y: Math.round(srcBottom) },
+        { x: srcCx, y: belowY },
+        { x: tgtCx, y: belowY },
+        { x: tgtCx, y: Math.round(tgtBottom) },
+      ];
+    } else {
+      // Non-gateway: exit from right edge down, go left, up into target left
+      const exitX = Math.round(srcRight + LOOPBACK_HORIZONTAL_MARGIN);
+      const entryX = Math.round(tgtLeft - LOOPBACK_HORIZONTAL_MARGIN);
+      newWps = [
+        { x: Math.round(srcRight), y: srcCy },
+        { x: exitX, y: srcCy },
+        { x: exitX, y: belowY },
+        { x: entryX, y: belowY },
+        { x: entryX, y: tgtCy },
+        { x: Math.round(tgtLeft), y: tgtCy },
+      ];
+    }
+
+    modeling.updateWaypoints(conn, deduplicateWaypoints(newWps));
   }
 }
