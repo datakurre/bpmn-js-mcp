@@ -33,9 +33,27 @@ async function exportXml(diagramId: string): Promise<string> {
   return res.content[0].text;
 }
 
+/**
+ * Normalise random marker IDs in SVG output to deterministic sequential
+ * names (marker-seq-0, marker-seq-1, …). Preserves the id↔url(#id)
+ * relationship so the SVG remains viewable, while eliminating
+ * non-deterministic diffs. The pattern requires 8+ alphanumeric chars
+ * after `marker-` to avoid matching CSS properties like `marker-end`.
+ */
+function normaliseMarkerIds(svg: string): string {
+  const seen = new Map<string, string>();
+  let counter = 0;
+  return svg.replace(/marker-[a-z0-9]{8,}/g, (match) => {
+    if (!seen.has(match)) {
+      seen.set(match, `marker-seq-${counter++}`);
+    }
+    return seen.get(match)!;
+  });
+}
+
 function writeSvg(name: string, svg: string) {
   ensureDir();
-  writeFileSync(join(SNAPSHOT_DIR, `${name}.svg`), svg);
+  writeFileSync(join(SNAPSHOT_DIR, `${name}.svg`), normaliseMarkerIds(svg));
 }
 
 function writeBpmn(name: string, xml: string) {
