@@ -22,7 +22,7 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0123k21">
       <bpmndi:BPMNShape id="Participant_1kju1v4_di" bpmnElement="Participant_1kju1v4" isHorizontal="true">
-        <dc:Bounds x="192" y="172" width="382" height="240" />
+        <dc:Bounds x="162" y="172" width="600" height="240" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0oa8qrz_di" bpmnElement="Activity_0umkpno">

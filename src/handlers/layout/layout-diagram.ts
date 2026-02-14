@@ -31,6 +31,11 @@ import {
 } from './layout-helpers';
 import { handleAutosizePoolsAndLanes } from '../collaboration/autosize-pools-and-lanes';
 
+/** Check whether the diagram contains any participant (pool) elements. */
+function hasParticipants(elementRegistry: any): boolean {
+  return elementRegistry.filter((el: any) => el.type === 'bpmn:Participant').length > 0;
+}
+
 export interface LayoutDiagramArgs {
   diagramId: string;
   direction?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
@@ -60,10 +65,11 @@ export interface LayoutDiagramArgs {
    */
   laneStrategy?: 'preserve' | 'optimize';
   /**
-   * When true, automatically resize pools and lanes after layout to fit all
-   * elements with proper padding. Prevents the common problem of elements
-   * overflowing pool/lane boundaries after layout repositioning.
-   * Default: false.
+   * Automatically resize pools and lanes after layout to fit all elements
+   * with proper padding. Prevents the common problem of elements overflowing
+   * pool/lane boundaries after layout repositioning.
+   * Default: auto-enabled when the diagram contains pools.
+   * Set to false to explicitly disable.
    */
   poolExpansion?: boolean;
 }
@@ -253,9 +259,13 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
   const labelsMoved = await adjustDiagramLabels(diagram);
   const flowLabelsMoved = await adjustFlowLabels(diagram);
 
-  // Auto-resize pools/lanes after layout if poolExpansion is enabled
+  // Auto-resize pools/lanes after layout.
+  // When poolExpansion is not explicitly set, auto-enable when pools exist.
   let poolExpansionApplied = false;
-  if (args.poolExpansion) {
+  const shouldAutosize =
+    args.poolExpansion === true ||
+    (args.poolExpansion === undefined && hasParticipants(elementRegistry));
+  if (shouldAutosize) {
     const poolResult = await handleAutosizePoolsAndLanes({ diagramId });
     const poolData = JSON.parse(poolResult.content[0].text as string);
     poolExpansionApplied = (poolData.resizedCount ?? 0) > 0;

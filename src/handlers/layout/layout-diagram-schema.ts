@@ -86,9 +86,9 @@ export const TOOL_DEFINITION = {
       poolExpansion: {
         type: 'boolean',
         description:
-          'When true, automatically resize pools and lanes after layout to fit all elements ' +
+          'Automatically resize pools and lanes after layout to fit all elements ' +
           'with proper padding. Prevents elements from overflowing pool/lane boundaries after ' +
-          'layout repositioning. Default: false.',
+          'layout repositioning. Default: auto-enabled when the diagram contains pools.',
       },
     },
     required: ['diagramId'],
