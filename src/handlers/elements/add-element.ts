@@ -6,28 +6,28 @@ import { type ToolResult } from '../../types';
 import {
   requireDiagram,
   requireElement,
-  jsonResult,
   syncXml,
   generateDescriptiveId,
-  generateFlowId,
   validateArgs,
   createBusinessObject,
-  fixConnectionId,
-  buildElementCounts,
   getVisibleElements,
   getService,
 } from '../helpers';
 import { STANDARD_BPMN_GAP, getElementSize } from '../../constants';
 import { appendLintFeedback } from '../../linter';
 import { handleInsertElement } from './insert-element';
-import { handleSetEventDefinition } from '../properties/set-event-definition';
 import {
   shiftDownstreamElements,
   snapToLane,
   createAndPlaceElement,
   avoidCollision,
 } from './add-element-helpers';
-import { getTypeSpecificHints, getNamingHint } from '../hints';
+import {
+  autoConnectToElement,
+  applyEventDefinitionShorthand,
+  collectAddElementWarnings,
+  buildAddElementResult,
+} from './add-element-response';
 import { validateElementType, ALLOWED_ELEMENT_TYPES } from '../element-type-validation';
 import { illegalCombinationError, typeMismatchError, duplicateError } from '../../errors';
 
@@ -281,139 +281,52 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
   }
 
   // Auto-connect to afterElement when requested (default: true for afterElementId)
-  const { autoConnect } = args;
-  let connectionId: string | undefined;
-  const connectionsCreated: Array<{
-    id: string;
-    sourceId: string;
-    targetId: string;
-    type: string;
-  }> = [];
-  if (afterElementId && autoConnect !== false) {
-    const afterEl = elementRegistry.get(afterElementId);
-    if (afterEl) {
-      try {
-        const flowId = generateFlowId(elementRegistry, afterEl.businessObject?.name, elementName);
-        const conn = modeling.connect(afterEl, createdElement, {
-          type: 'bpmn:SequenceFlow',
-          id: flowId,
-        });
-        fixConnectionId(conn, flowId);
-        connectionId = conn.id;
-        connectionsCreated.push({
-          id: conn.id,
-          sourceId: afterElementId,
-          targetId: createdElement.id,
-          type: 'bpmn:SequenceFlow',
-        });
-      } catch {
-        // Auto-connect may fail for some element type combinations — non-fatal
-      }
-    }
-  }
+  const { connectionId, connectionsCreated } = autoConnectToElement(
+    elementRegistry,
+    modeling,
+    afterElementId,
+    createdElement,
+    elementName,
+    args.autoConnect
+  );
 
   await syncXml(diagram);
 
   // ── Boundary event shorthand: set event definition in one call ─────────
-  let eventDefinitionApplied: string | undefined;
-  const evtDefType = args.eventDefinitionType;
-  if (evtDefType && createdElement.businessObject?.$type?.includes('Event')) {
-    await handleSetEventDefinition({
-      diagramId,
-      elementId: createdElement.id,
-      eventDefinitionType: evtDefType,
-      properties: args.eventDefinitionProperties,
-      errorRef: args.errorRef,
-      messageRef: args.messageRef,
-      signalRef: args.signalRef,
-      escalationRef: args.escalationRef,
-    });
-    eventDefinitionApplied = evtDefType;
-    await syncXml(diagram);
-  }
+  const eventDefinitionApplied = await applyEventDefinitionShorthand(
+    diagramId,
+    createdElement,
+    diagram,
+    args
+  );
 
-  const needsConnection =
-    elementType.includes('Event') ||
-    elementType.includes('Task') ||
-    elementType.includes('Gateway') ||
-    elementType.includes('SubProcess') ||
-    elementType.includes('CallActivity');
-  const hint =
-    needsConnection && !connectionId
-      ? ' (not connected - use connect_bpmn_elements to create sequence flows)'
-      : '';
-
-  // Collect warnings for ignored parameters
-  const warnings: string[] = [];
-  if (afterElementId && (args.x !== undefined || args.y !== undefined)) {
-    warnings.push(
-      'x/y coordinates were ignored because afterElementId was provided (element is auto-positioned relative to the reference element).'
-    );
-  }
-
-  // Warn when adding a flow element to a process with lanes but no laneId specified
-  if (
-    !assignToLaneId &&
-    !hostElementId &&
-    needsConnection &&
-    elementType !== 'bpmn:BoundaryEvent'
-  ) {
-    const lanes = getVisibleElements(elementRegistry).filter((el: any) => el.type === 'bpmn:Lane');
-    if (lanes.length > 0) {
-      const laneNames = lanes
-        .map((l: any) => `${l.id} ("${l.businessObject?.name || 'unnamed'}")`)
-        .join(', ');
-      warnings.push(
-        `This process has lanes but no laneId was specified. The element may be outside all lanes. ` +
-          `Consider specifying laneId to place the element in a lane. Available lanes: ${laneNames}`
-      );
-    }
-  }
-
-  // Duplicate detection: warn if another element with same type+name exists
-  if (elementName) {
-    const duplicates = getVisibleElements(elementRegistry).filter(
-      (el: any) =>
-        el.id !== createdElement.id &&
-        el.type === elementType &&
-        el.businessObject?.name === elementName
-    );
-    if (duplicates.length > 0) {
-      warnings.push(
-        `An element with the same type (${elementType}) and name ("${elementName}") already exists: ${duplicates.map((d: any) => d.id).join(', ')}. ` +
-          `This may indicate accidental duplication.`
-      );
-    }
-  }
-
-  const result = jsonResult({
-    success: true,
-    elementId: createdElement.id,
+  // Collect warnings and build result
+  const warnings = collectAddElementWarnings({
+    afterElementId,
+    argsX: args.x,
+    argsY: args.y,
+    assignToLaneId,
+    hostElementId,
     elementType,
-    name: elementName,
-    position: { x, y },
-    di: {
-      x: createdElement.x,
-      y: createdElement.y,
-      width: createdElement.width || elementSize.width,
-      height: createdElement.height || elementSize.height,
-    },
-    ...(assignToLaneId ? { laneId: assignToLaneId } : {}),
-    ...(connectionId ? { connectionId, autoConnected: true } : {}),
-    ...(connectionsCreated.length > 0 ? { connectionsCreated } : {}),
-    ...(eventDefinitionApplied ? { eventDefinitionType: eventDefinitionApplied } : {}),
-    ...(warnings.length > 0 ? { warnings } : {}),
-    ...(hostInfo
-      ? {
-          attachedTo: hostInfo,
-          message: `Added ${elementType} attached to ${hostInfo.hostElementType} '${hostInfo.hostElementName || hostInfo.hostElementId}'${eventDefinitionApplied ? ` with ${eventDefinitionApplied}` : ''}${hint}`,
-        }
-      : {
-          message: `Added ${elementType} to diagram${eventDefinitionApplied ? ` with ${eventDefinitionApplied}` : ''}${hint}`,
-        }),
-    diagramCounts: buildElementCounts(elementRegistry),
-    ...getTypeSpecificHints(elementType),
-    ...getNamingHint(elementType, elementName),
+    elementName,
+    createdElementId: createdElement.id,
+    elementRegistry,
+  });
+
+  const result = buildAddElementResult({
+    createdElement,
+    elementType,
+    elementName,
+    x,
+    y,
+    elementSize,
+    assignToLaneId,
+    connectionId,
+    connectionsCreated,
+    eventDefinitionApplied,
+    warnings,
+    hostInfo,
+    elementRegistry,
   });
   return appendLintFeedback(result, diagram);
 }

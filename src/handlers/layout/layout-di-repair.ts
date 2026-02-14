@@ -73,7 +73,7 @@ export function checkDiIntegrity(diagram: any, elementRegistry: any): string[] {
 
     const processes = (definitions.rootElements || []).filter(
       (el: any) => el.$type === 'bpmn:Process'
-    );
+    ) as any[];
 
     for (const process of processes) {
       checkFlowElements(process.flowElements || [], registeredIds, warnings);
@@ -82,7 +82,7 @@ export function checkDiIntegrity(diagram: any, elementRegistry: any): string[] {
     // Also check participants' processes
     const collaborations = (definitions.rootElements || []).filter(
       (el: any) => el.$type === 'bpmn:Collaboration'
-    );
+    ) as any[];
     for (const collab of collaborations) {
       for (const participant of collab.participants || []) {
         if (participant.processRef?.flowElements) {

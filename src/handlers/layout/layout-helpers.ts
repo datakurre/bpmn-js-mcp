@@ -103,8 +103,8 @@ export function deduplicateDiInModeler(diagram: any): number {
     const definitions = getDefinitionsFromModeler(diagram.modeler);
     if (!definitions?.diagrams?.[0]?.plane?.planeElement) return 0;
 
-    const plane = definitions.diagrams[0].plane;
-    const elements: any[] = plane.planeElement;
+    const plane = definitions.diagrams[0].plane!;
+    const elements: any[] = plane.planeElement!;
 
     // Map bpmnElement.id → last index
     const lastIndex = new Map<string, number>();

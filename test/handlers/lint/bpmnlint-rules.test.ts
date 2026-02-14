@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLintDiagram } from '../../../src/handlers';
+import { handleValidate as handleLintDiagram } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../../helpers';
 
 describe('bpmnlint custom rules', () => {

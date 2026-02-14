@@ -7,6 +7,7 @@
  */
 
 import { type DiagramState, type ToolResult, type HintLevel } from './types';
+import type { BpmnDefinitions } from './bpmn-types';
 import type { LintConfig, LintResults, FlatLintIssue } from './bpmnlint-types';
 import { suggestFix } from './lint-suggestions';
 import {
@@ -145,7 +146,7 @@ export function resetLinterCache(): void {
  *
  * bpmnlint requires a moddle root element — not raw XML.
  */
-export function getDefinitionsFromModeler(modeler: any): any {
+export function getDefinitionsFromModeler(modeler: any): BpmnDefinitions {
   // Public API in bpmn-js >= 7.x
   if (typeof modeler.getDefinitions === 'function') {
     return modeler.getDefinitions();

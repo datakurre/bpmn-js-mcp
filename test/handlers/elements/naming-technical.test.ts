@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLintDiagram } from '../../../src/handlers';
+import { handleValidate as handleLintDiagram } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../helpers';
 
 describe('naming-convention: technical name detection', () => {

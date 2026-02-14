@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleAddElement, handleLintDiagram } from '../../../src/handlers';
+import { handleAddElement, handleValidate as handleLintDiagram } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, connectAll, clearDiagrams } from '../../helpers';
 
 describe('collision avoidance', () => {

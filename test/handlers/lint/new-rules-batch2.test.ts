@@ -1,5 +1,9 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLintDiagram, handleSetProperties, handleImportXml } from '../../../src/handlers';
+import {
+  handleValidate as handleLintDiagram,
+  handleSetProperties,
+  handleImportXml,
+} from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../helpers';
 
 describe('New bpmnlint rules (pool-size, message-flow, alignment, grouping)', () => {

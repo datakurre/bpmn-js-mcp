@@ -1,5 +1,9 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleExportBpmn, handleImportXml, handleLintDiagram } from '../../../src/handlers';
+import {
+  handleExportBpmn,
+  handleImportXml,
+  handleValidate as handleLintDiagram,
+} from '../../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams, connect } from '../../helpers';
 
 /**

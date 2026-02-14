@@ -1,5 +1,9 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLintDiagram, handleCreateCollaboration, handleConnect } from '../../../src/handlers';
+import {
+  handleValidate as handleLintDiagram,
+  handleCreateCollaboration,
+  handleConnect,
+} from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams, connectAll } from '../../helpers';
 
 /**

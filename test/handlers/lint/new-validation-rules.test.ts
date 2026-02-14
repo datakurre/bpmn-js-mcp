@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import {
-  handleLintDiagram,
+  handleValidate as handleLintDiagram,
   handleSetEventDefinition,
   handleAddElement,
   handleCreateCollaboration,

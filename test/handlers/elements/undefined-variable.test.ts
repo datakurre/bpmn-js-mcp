@@ -1,5 +1,9 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleLintDiagram, handleSetFormData, handleSetProperties } from '../../../src/handlers';
+import {
+  handleValidate as handleLintDiagram,
+  handleSetFormData,
+  handleSetProperties,
+} from '../../../src/handlers';
 import {
   parseResult,
   createDiagram,

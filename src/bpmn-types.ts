@@ -38,6 +38,18 @@ export interface EventDefinition {
   [key: string]: unknown;
 }
 
+/**
+ * Minimal representation of a bpmn:Definitions root element.
+ *
+ * This is the moddle root element that bpmnlint expects as input.
+ * It extends BusinessObject with the Definitions-specific `$type`.
+ */
+export interface BpmnDefinitions extends BusinessObject {
+  $type: 'bpmn:Definitions';
+  rootElements?: BusinessObject[];
+  diagrams?: Array<{ plane?: { planeElement?: any[] } }>;
+}
+
 /** extensionElements container. */
 export interface ExtensionElements {
   $type: string;

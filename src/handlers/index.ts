@@ -357,7 +357,3 @@ export {
   handleListProcessVariables,
   handleSetConnectionWaypoints,
 };
-
-// Backward-compat alias for removed tool name (used by tests)
-const handleLintDiagram = handleValidate;
-export { handleLintDiagram };
