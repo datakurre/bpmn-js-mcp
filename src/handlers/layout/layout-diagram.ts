@@ -14,18 +14,19 @@ import { type ToolResult } from '../../types';
 import { requireDiagram, jsonResult, syncXml, getVisibleElements } from '../helpers';
 import { appendLintFeedback, resetMutationCounter } from '../../linter';
 import { adjustDiagramLabels, adjustFlowLabels, centerFlowLabels } from './labels/adjust-labels';
-import {
-  elkLayout,
-  elkLayoutSubset,
-  computeLaneCrossingMetrics,
-  applyDeterministicLayout,
-} from '../../elk/api';
+import { elkLayout, elkLayoutSubset, applyDeterministicLayout } from '../../elk/api';
 import {
   generateDiagramId,
   storeDiagram,
   deleteDiagram,
   createModelerFromXml,
 } from '../../diagram-manager';
+import {
+  applyPixelGridSnap,
+  computeDisplacementStats,
+  checkDiIntegrity,
+  buildLayoutResult,
+} from './layout-helpers';
 
 export interface LayoutDiagramArgs {
   diagramId: string;
@@ -55,70 +56,6 @@ export interface LayoutDiagramArgs {
    * - 'optimize': reorder lanes to minimize cross-lane flows
    */
   laneStrategy?: 'preserve' | 'optimize';
-}
-
-/** Apply pixel-level grid snapping to all visible non-flow elements. */
-function applyPixelGridSnap(diagram: any, pixelGridSnap: number): void {
-  const elementRegistry = diagram.modeler.get('elementRegistry');
-  const modeling = diagram.modeler.get('modeling');
-  const visibleElements = getVisibleElements(elementRegistry).filter(
-    (el: any) =>
-      !el.type.includes('SequenceFlow') &&
-      !el.type.includes('MessageFlow') &&
-      !el.type.includes('Association') &&
-      el.type !== 'bpmn:BoundaryEvent'
-  );
-  for (const el of visibleElements) {
-    const snappedX = Math.round(el.x / pixelGridSnap) * pixelGridSnap;
-    const snappedY = Math.round(el.y / pixelGridSnap) * pixelGridSnap;
-    if (snappedX !== el.x || snappedY !== el.y) {
-      modeling.moveElements([el], { x: snappedX - el.x, y: snappedY - el.y });
-    }
-  }
-}
-
-/** Compute layout displacement stats between original and laid-out element positions. */
-function computeDisplacementStats(
-  originalPositions: Map<string, { x: number; y: number }>,
-  elementRegistry: any
-): {
-  movedCount: number;
-  maxDisplacement: number;
-  avgDisplacement: number;
-  displacements: Array<{ id: string; dx: number; dy: number; distance: number }>;
-} {
-  const elements = getVisibleElements(elementRegistry).filter(
-    (el: any) =>
-      !el.type.includes('SequenceFlow') &&
-      !el.type.includes('MessageFlow') &&
-      !el.type.includes('Association')
-  );
-
-  const displacements: Array<{ id: string; dx: number; dy: number; distance: number }> = [];
-  let maxDisplacement = 0;
-  let totalDisplacement = 0;
-  let movedCount = 0;
-
-  for (const el of elements) {
-    const orig = originalPositions.get(el.id);
-    if (!orig) continue;
-    const dx = (el.x ?? 0) - orig.x;
-    const dy = (el.y ?? 0) - orig.y;
-    const distance = Math.round(Math.sqrt(dx * dx + dy * dy));
-    if (distance > 1) {
-      movedCount++;
-      displacements.push({ id: el.id, dx: Math.round(dx), dy: Math.round(dy), distance });
-      if (distance > maxDisplacement) maxDisplacement = distance;
-      totalDisplacement += distance;
-    }
-  }
-
-  return {
-    movedCount,
-    maxDisplacement,
-    avgDisplacement: movedCount > 0 ? Math.round(totalDisplacement / movedCount) : 0,
-    displacements: displacements.sort((a, b) => b.distance - a.distance).slice(0, 10),
-  };
 }
 
 /** Perform a dry-run layout: clone → layout → diff → discard clone. */
@@ -220,66 +157,6 @@ async function handleDryRunLayout(args: LayoutDiagramArgs): Promise<ToolResult> 
   }
 }
 
-/** Build the structured layout result JSON with crossing metrics and lane metrics. */
-function buildLayoutResult(params: {
-  diagramId: string;
-  scopeElementId?: string;
-  elementIds?: string[];
-  elementCount: number;
-  labelsMoved: number;
-  layoutResult: { crossingFlows?: number; crossingFlowPairs?: Array<[string, string]> };
-  elementRegistry: any;
-  usedDeterministic?: boolean;
-}): ToolResult {
-  const {
-    diagramId,
-    scopeElementId,
-    elementIds,
-    elementCount,
-    labelsMoved,
-    layoutResult,
-    elementRegistry,
-    usedDeterministic,
-  } = params;
-  const crossingCount = layoutResult.crossingFlows ?? 0;
-  const crossingPairs = layoutResult.crossingFlowPairs ?? [];
-  const laneCrossingMetrics = computeLaneCrossingMetrics(elementRegistry);
-
-  return jsonResult({
-    success: true,
-    elementCount,
-    labelsMoved,
-    ...(usedDeterministic ? { layoutStrategy: 'deterministic' } : {}),
-    ...(crossingCount > 0
-      ? {
-          crossingFlows: crossingCount,
-          crossingFlowPairs: crossingPairs,
-          warning: `${crossingCount} crossing sequence flow(s) detected — consider restructuring the process`,
-        }
-      : {}),
-    ...(laneCrossingMetrics
-      ? {
-          laneCrossingMetrics: {
-            totalLaneFlows: laneCrossingMetrics.totalLaneFlows,
-            crossingLaneFlows: laneCrossingMetrics.crossingLaneFlows,
-            laneCoherenceScore: laneCrossingMetrics.laneCoherenceScore,
-            ...(laneCrossingMetrics.crossingFlowIds
-              ? { crossingFlowIds: laneCrossingMetrics.crossingFlowIds }
-              : {}),
-          },
-        }
-      : {}),
-    message: `Layout applied to diagram ${diagramId}${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}${elementIds ? ` (${elementIds.length} elements)` : ''}${usedDeterministic ? ' (deterministic)' : ''} — ${elementCount} elements arranged`,
-    nextSteps: [
-      {
-        tool: 'export_bpmn',
-        description:
-          'Diagram layout is complete. Use export_bpmn with format and filePath to save the diagram.',
-      },
-    ],
-  });
-}
-
 /** Run the appropriate layout algorithm based on strategy and args. */
 async function executeLayout(
   diagram: any,
@@ -360,6 +237,9 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
   const labelsMoved = await adjustDiagramLabels(diagram);
   const flowLabelsMoved = await adjustFlowLabels(diagram);
 
+  // Check DI integrity: warn about elements missing visual representation
+  const diWarnings = checkDiIntegrity(diagram, elementRegistry);
+
   const result = buildLayoutResult({
     diagramId,
     scopeElementId,
@@ -369,6 +249,7 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
     layoutResult,
     elementRegistry,
     usedDeterministic,
+    diWarnings,
   });
   return appendLintFeedback(result, diagram);
 }
