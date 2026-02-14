@@ -99,7 +99,12 @@ export interface Modeling {
     target: BpmnElement | Record<string, unknown>,
     hints?: Record<string, unknown>
   ): BpmnElement;
-  moveElements(elements: BpmnElement[], delta: { x: number; y: number }): void;
+  moveElements(
+    elements: BpmnElement[],
+    delta: { x: number; y: number },
+    newParent?: BpmnElement | Record<string, unknown>,
+    hints?: Record<string, unknown>
+  ): void;
   layoutConnection(connection: BpmnElement, hints?: Record<string, unknown>): void;
   updateWaypoints(
     connection: BpmnElement,

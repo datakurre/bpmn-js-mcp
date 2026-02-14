@@ -137,7 +137,7 @@ export default function detectSingleOrganizationCollaboration() {
       `Pools ${poolNames} ${reason}, suggesting they belong to the same organization. ` +
         'Consider using lanes within a single pool instead of separate pools. ' +
         'Lanes model role separation within one process; pools model separate organizations. ' +
-        'Use create_bpmn_lanes to create lanes, or convert_collaboration_to_lanes if available.'
+        'Use convert_bpmn_collaboration_to_lanes to convert, or suggest_bpmn_pool_vs_lanes to analyze first.'
     );
   }
 

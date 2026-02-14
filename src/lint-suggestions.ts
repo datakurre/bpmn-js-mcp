@@ -91,7 +91,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/lane-missing-start-or-end':
     'Assign start and end events to appropriate lanes using move_bpmn_element with laneId',
   'bpmn-mcp/pool-size-insufficient':
-    'Use move_bpmn_element with width/height to resize the pool{elementRef}, or run layout_bpmn_diagram to re-arrange all elements',
+    'Use resize_bpmn_pool_to_fit to auto-resize the pool{elementRef}, or use move_bpmn_element with width/height to manually resize',
   'bpmn-mcp/message-flow-necessity':
     'If the connected pools represent roles within the same organization, consider using a single pool with lanes and sequence flows instead of message flows{elementRef}',
   'bpmn-mcp/unaligned-message-events':
@@ -119,7 +119,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/lane-overcrowding':
     'Redistribute elements across lanes using move_bpmn_element with laneId, or split the lane into more specific roles using create_bpmn_lanes',
   'bpmn-mcp/prefer-lanes-over-pools':
-    'Consider converting separate pools into lanes within a single pool. Use create_bpmn_lanes within a single participant instead of multiple expanded pools',
+    'Consider converting separate pools into lanes within a single pool. Use suggest_bpmn_pool_vs_lanes to analyze, then convert_bpmn_collaboration_to_lanes to convert',
   'bpmn-mcp/role-mismatch-with-lane':
     'Use set_bpmn_element_properties to update camunda:assignee or camunda:candidateGroups to match the lane role, or move the element to the correct lane with move_bpmn_element{elementRef}',
   'bpmn-mcp/lane-candidate-detection':
@@ -131,7 +131,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/collaboration-pattern-mismatch':
     'Review the collaboration structure. In Camunda 7 / Operaton, use one expanded executable pool with collapsed partner pools for external systems',
   'bpmn-mcp/detect-single-organization-collaboration':
-    'Consider converting to a single pool with lanes. Roles within the same organization should use lanes, not separate pools. Use create_bpmn_lanes instead',
+    'Convert to a single pool with lanes using convert_bpmn_collaboration_to_lanes. Roles within the same organization should use lanes, not separate pools',
   'bpmn-mcp/message-flow-crossing-excessive':
     'Reorder participants or reposition elements to reduce message flow crossings. Use move_bpmn_element or layout_bpmn_diagram',
   'bpmn-mcp/missing-di-shape':

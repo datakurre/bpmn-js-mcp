@@ -179,6 +179,18 @@ import {
   handleValidateLaneOrganization,
   TOOL_DEFINITION as VALIDATE_LANE_ORGANIZATION_DEF,
 } from './collaboration/validate-lane-organization';
+import {
+  handleConvertCollaborationToLanes,
+  TOOL_DEFINITION as CONVERT_COLLABORATION_TO_LANES_DEF,
+} from './collaboration/convert-collaboration-to-lanes';
+import {
+  handleResizePoolToFit,
+  TOOL_DEFINITION as RESIZE_POOL_TO_FIT_DEF,
+} from './collaboration/resize-pool-to-fit';
+import {
+  handleSuggestPoolVsLanes,
+  TOOL_DEFINITION as SUGGEST_POOL_VS_LANES_DEF,
+} from './collaboration/suggest-pool-vs-lanes';
 
 // ── Unified tool registry ──────────────────────────────────────────────────
 //
@@ -228,6 +240,9 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: HANDOFF_TO_LANE_DEF, handler: handleHandoffToLane },
   { definition: SUGGEST_LANE_ORGANIZATION_DEF, handler: handleSuggestLaneOrganization },
   { definition: VALIDATE_LANE_ORGANIZATION_DEF, handler: handleValidateLaneOrganization },
+  { definition: CONVERT_COLLABORATION_TO_LANES_DEF, handler: handleConvertCollaborationToLanes },
+  { definition: RESIZE_POOL_TO_FIT_DEF, handler: handleResizePoolToFit },
+  { definition: SUGGEST_POOL_VS_LANES_DEF, handler: handleSuggestPoolVsLanes },
   { definition: DUPLICATE_ELEMENT_DEF, handler: handleDuplicateElement },
   { definition: INSERT_ELEMENT_DEF, handler: handleInsertElement },
   { definition: REPLACE_ELEMENT_DEF, handler: handleReplaceElement },
@@ -314,6 +329,9 @@ export {
   handleHandoffToLane,
   handleSuggestLaneOrganization,
   handleValidateLaneOrganization,
+  handleConvertCollaborationToLanes,
+  handleResizePoolToFit,
+  handleSuggestPoolVsLanes,
   handleSummarizeDiagram,
   handleListProcessVariables,
   handleSetConnectionWaypoints,
