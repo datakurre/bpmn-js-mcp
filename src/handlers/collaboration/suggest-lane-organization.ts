@@ -10,6 +10,7 @@
 import { type ToolResult } from '../../types';
 import { requireDiagram, jsonResult, validateArgs } from '../helpers';
 import { getService } from '../../bpmn-types';
+import { findProcess } from './collaboration-utils';
 
 export interface SuggestLaneOrganizationArgs {
   diagramId: string;
@@ -160,16 +161,6 @@ function categorizeElement(type: string): string | null {
 }
 
 /** Find the process business object from the diagram. */
-function findProcess(elementRegistry: any, canvas: any, participantId?: string): any | null {
-  if (participantId) {
-    const p = elementRegistry.get(participantId);
-    if (p?.businessObject?.processRef) return p.businessObject.processRef;
-  }
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
-  if (participants.length > 0) return participants[0].businessObject?.processRef;
-  return canvas.getRootElement()?.businessObject ?? null;
-}
-
 /** Calculate coherence score for suggested lane assignments. */
 function calculateCoherence(
   sequenceFlows: any[],

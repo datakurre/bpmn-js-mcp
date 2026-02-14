@@ -9,6 +9,7 @@
 import { type ToolResult } from '../../types';
 import { requireDiagram, jsonResult, validateArgs } from '../helpers';
 import { getService } from '../../bpmn-types';
+import { findProcess } from './collaboration-utils';
 
 export interface ValidateLaneOrganizationArgs {
   diagramId: string;
@@ -69,16 +70,6 @@ function getAllLanes(laneSets: any[]): any[] {
 }
 
 /** Find the process business object from diagram services. */
-function findProcess(elementRegistry: any, canvas: any, participantId?: string): any | null {
-  if (participantId) {
-    const p = elementRegistry.get(participantId);
-    if (p?.businessObject?.processRef) return p.businessObject.processRef;
-  }
-  const participants = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
-  if (participants.length > 0) return participants[0].businessObject?.processRef;
-  return canvas.getRootElement()?.businessObject ?? null;
-}
-
 /** Filter flow elements into flow nodes (non-flow) and sequence flows. */
 function partitionFlowElements(flowElements: any[]): { flowNodes: any[]; sequenceFlows: any[] } {
   const flowNodes = flowElements.filter(

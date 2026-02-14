@@ -17,6 +17,7 @@ import {
 import { appendLintFeedback } from '../../linter';
 import { ELEMENT_SIZES, calculateOptimalPoolSize } from '../../constants';
 import { handleCreateLanes } from './create-lanes';
+import { ensureProcessRef } from './collaboration-utils';
 
 /** Height of a collapsed participant pool (thin bar, no internal flow). */
 const COLLAPSED_POOL_HEIGHT = 60;
@@ -103,6 +104,10 @@ function createParticipantShape(
     width: p.width || createdElement.width,
     height: poolHeight,
   });
+
+  const moddle = diagram.modeler.get('moddle');
+  const canvasForRef = diagram.modeler.get('canvas');
+  ensureProcessRef(moddle, canvasForRef, createdElement, p.collapsed);
 
   if (p.processId && createdElement.businessObject?.processRef) {
     createdElement.businessObject.processRef.id = p.processId;

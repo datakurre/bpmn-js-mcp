@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleCreateCollaboration } from '../../../src/handlers';
+import { handleCreateCollaboration, handleAddElement } from '../../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../../helpers';
+import { getDiagram } from '../../../src/diagram-manager';
 
 describe('create_bpmn_collaboration', () => {
   beforeEach(() => {
@@ -106,5 +107,46 @@ describe('create_bpmn_collaboration', () => {
 
     expect(res.success).toBe(true);
     expect(res.lanesCreated).toBeUndefined();
+  });
+
+  test('all expanded participants have processRef for element association', async () => {
+    const diagramId = await createDiagram();
+
+    const collab = parseResult(
+      await handleCreateCollaboration({
+        diagramId,
+        participants: [{ name: 'Pool A' }, { name: 'Pool B' }, { name: 'Pool C' }],
+      })
+    );
+
+    const diagram = getDiagram(diagramId)!;
+    const reg = diagram.modeler.get('elementRegistry') as any;
+
+    // Every expanded pool should have a processRef
+    for (const pId of collab.participantIds) {
+      const participant = reg.get(pId);
+      expect(participant.businessObject.processRef).toBeDefined();
+      expect(participant.businessObject.processRef.id).toBeTruthy();
+    }
+
+    // Elements added to each pool should end up in that pool's process
+    for (const pId of collab.participantIds) {
+      const task = parseResult(
+        await handleAddElement({
+          diagramId,
+          elementType: 'bpmn:UserTask',
+          name: `Task in ${pId}`,
+          participantId: pId,
+        })
+      );
+      expect(task.elementId).toBeTruthy();
+    }
+
+    // Verify flowElements are in the correct processes
+    for (const pId of collab.participantIds) {
+      const participant = reg.get(pId);
+      const process = participant.businessObject.processRef;
+      expect(process.flowElements?.length).toBeGreaterThanOrEqual(1);
+    }
   });
 });

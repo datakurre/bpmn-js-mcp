@@ -23,6 +23,7 @@ import { getService } from '../../bpmn-types';
 import { appendLintFeedback } from '../../linter';
 import { ELEMENT_SIZES, calculateOptimalPoolSize } from '../../constants';
 import { handleCreateLanes } from './create-lanes';
+import { ensureProcessRef } from './collaboration-utils';
 
 /** Height of a collapsed participant pool. */
 const COLLAPSED_POOL_HEIGHT = 60;
@@ -126,9 +127,12 @@ function createPoolShape(diagram: any, id: string, name: string, args: CreatePar
     height: poolHeight,
   });
 
-  if (args.processId) {
-    const processRef = (created.businessObject as any)?.processRef;
-    if (processRef) processRef.id = args.processId;
+  const moddle = getService(diagram.modeler, 'moddle');
+  const canvasForRef = getService(diagram.modeler, 'canvas');
+  ensureProcessRef(moddle, canvasForRef, created, args.collapsed);
+
+  if (args.processId && created.businessObject?.processRef) {
+    (created.businessObject.processRef as any).id = args.processId;
   }
 
   return created;
