@@ -16,7 +16,7 @@ import {
 import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { requireDiagram, requireElement, jsonResult, syncXml, validateArgs } from '../helpers';
 import { appendLintFeedback } from '../../linter';
-import { getTypeSpecificHints, getNamingHint } from '../type-hints';
+import { getTypeSpecificHints, getNamingHint } from '../hints';
 
 export interface ReplaceElementArgs {
   diagramId: string;

@@ -27,7 +27,7 @@ import {
   createAndPlaceElement,
   avoidCollision,
 } from './add-element-helpers';
-import { getTypeSpecificHints, getNamingHint } from '../type-hints';
+import { getTypeSpecificHints, getNamingHint } from '../hints';
 import { validateElementType, ALLOWED_ELEMENT_TYPES } from '../element-type-validation';
 import { illegalCombinationError, typeMismatchError, duplicateError } from '../../errors';
 

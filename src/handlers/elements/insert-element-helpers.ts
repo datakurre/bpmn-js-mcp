@@ -11,7 +11,7 @@ import {
   generateFlowId,
   fixConnectionId,
 } from '../helpers';
-import { getTypeSpecificHints } from '../type-hints';
+import { getTypeSpecificHints } from '../hints';
 import { resizeParentContainers } from './add-element-helpers';
 
 /**

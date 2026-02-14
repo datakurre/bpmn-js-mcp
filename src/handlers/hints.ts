@@ -1,17 +1,25 @@
 /**
  * @internal
- * Type-specific tool-discovery hints for AI callers.
+ * AI-caller hints: type-specific next-step suggestions and
+ * contextual property hints.
  *
- * Returns a `nextSteps` object mapping element types to relevant
- * follow-up tool suggestions.  Appended to add_bpmn_element and
- * replace_bpmn_element responses.
+ * Merged from type-hints.ts (add/replace/insert element responses)
+ * and property-hints.ts (set-properties responses).
  */
+
+// ---------------------------------------------------------------------------
+// Shared hint interface
+// ---------------------------------------------------------------------------
 
 /** Hint record with a short description and the tool name to call. */
 export interface Hint {
   tool: string;
   description: string;
 }
+
+// ---------------------------------------------------------------------------
+// Type-specific hints (returned by add / replace / insert element)
+// ---------------------------------------------------------------------------
 
 /** Map from element type patterns to suggested next-step hints. */
 const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
@@ -236,4 +244,120 @@ export function getNamingHint(elementType: string, name?: string): { namingHint?
     }
   }
   return {};
+}
+
+// ---------------------------------------------------------------------------
+// Property-specific hints (returned by set-properties)
+// ---------------------------------------------------------------------------
+
+/** Hint for event subprocess triggered-by-event setup. */
+function hintTriggeredByEvent(props: Record<string, any>, hints: Hint[]): void {
+  if (props['triggeredByEvent'] === true) {
+    hints.push({
+      tool: 'add_bpmn_element',
+      description:
+        'Add a start event with an event definition (timer, message, error, signal) inside the event subprocess',
+    });
+  }
+}
+
+/** Hint for async-before on external tasks / Java delegates. */
+function hintAsyncBefore(
+  props: Record<string, any>,
+  camundaProps: Record<string, any>,
+  element: any,
+  hints: Hint[]
+): void {
+  if (
+    (camundaProps['camunda:topic'] || camundaProps['camunda:class']) &&
+    !props['camunda:asyncBefore'] &&
+    !element.businessObject?.asyncBefore
+  ) {
+    hints.push({
+      tool: 'set_bpmn_element_properties',
+      description:
+        'Consider setting camunda:asyncBefore=true for reliable execution with external tasks or Java delegates',
+    });
+  }
+}
+
+/** Hint for DMN decision ref binding on BusinessRuleTask. */
+function hintDmnBinding(camundaProps: Record<string, any>, elType: string, hints: Hint[]): void {
+  if (
+    camundaProps['camunda:decisionRef'] &&
+    elType === 'bpmn:BusinessRuleTask' &&
+    !camundaProps['camunda:decisionRefBinding']
+  ) {
+    hints.push({
+      tool: 'set_bpmn_element_properties',
+      description:
+        "Consider setting camunda:decisionRefBinding ('latest', 'deployment', 'version') and camunda:mapDecisionResult ('singleEntry', 'singleResult', 'collectEntries', 'resultList') to control DMN evaluation behavior. When binding='version', also set camunda:decisionRefVersion.",
+    });
+  }
+}
+
+/** Hint for calledElementBinding on CallActivity. */
+function hintCalledElementBinding(
+  props: Record<string, any>,
+  camundaProps: Record<string, any>,
+  elType: string,
+  hints: Hint[]
+): void {
+  if (
+    (props['calledElement'] || camundaProps['camunda:calledElement']) &&
+    elType === 'bpmn:CallActivity' &&
+    !camundaProps['camunda:calledElementBinding']
+  ) {
+    hints.push({
+      tool: 'set_bpmn_element_properties',
+      description:
+        "Consider setting camunda:calledElementBinding ('latest', 'deployment', 'version', 'versionTag') to control which version of the called process is used",
+    });
+  }
+}
+
+/** Hint for historyTimeToLive after setting isExecutable. */
+function hintHistoryTtl(props: Record<string, any>, element: any, hints: Hint[]): void {
+  if (props['isExecutable'] !== true) return;
+  const bo = element.businessObject;
+  const hasHttl = bo?.historyTimeToLive || bo?.$attrs?.['camunda:historyTimeToLive'];
+  if (!hasHttl) {
+    hints.push({
+      tool: 'set_bpmn_element_properties',
+      description:
+        'Consider setting camunda:historyTimeToLive (e.g. "P180D") to control how long process history data is retained. Required by Camunda 7.20+ by default.',
+    });
+  }
+}
+
+/** Hint for formRefBinding when formRef is set. */
+function hintFormRefBinding(camundaProps: Record<string, any>, hints: Hint[]): void {
+  if (camundaProps['camunda:formRef'] && !camundaProps['camunda:formRefBinding']) {
+    hints.push({
+      tool: 'set_bpmn_element_properties',
+      description:
+        "Consider setting camunda:formRefBinding ('latest', 'deployment', 'version') to control which Camunda Form version is used",
+    });
+  }
+}
+
+/**
+ * Build contextual next-step hints based on properties that were set.
+ */
+export function buildPropertyHints(
+  props: Record<string, any>,
+  camundaProps: Record<string, any>,
+  element: any
+): Hint[] {
+  const hints: Hint[] = [];
+  const elType = element.type || element.businessObject?.$type || '';
+
+  hintTriggeredByEvent(props, hints);
+  hintAsyncBefore(props, camundaProps, element, hints);
+  hintDmnBinding(camundaProps, elType, hints);
+  hintCalledElementBinding(props, camundaProps, elType, hints);
+  hintHistoryTtl(props, element, hints);
+  hintFormRefBinding(camundaProps, hints);
+
+  return hints;
 }

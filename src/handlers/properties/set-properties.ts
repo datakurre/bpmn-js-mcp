@@ -20,7 +20,7 @@ import {
   upsertExtensionElement,
 } from '../helpers';
 import { appendLintFeedback } from '../../linter';
-import { buildPropertyHints } from '../property-hints';
+import { buildPropertyHints } from '../hints';
 
 export interface SetPropertiesArgs {
   diagramId: string;
