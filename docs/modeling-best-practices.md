@@ -176,3 +176,60 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 - Consider adding a rework annotation or intermediate task on the No-path (e.g., "Rework details") for clearer readability when the business process allows it.
 - Loopback to the first user task is fine for simple "go back and edit" flows. For complex multi-step forms, consider using a subprocess with an error boundary event instead.
 - Label the gateway as a question (e.g., "Confirmed?", "Details correct?") and the outgoing flows as answers ("Yes" / "No").
+
+## Pool and lane sizing
+
+**Pool dimensions:**
+
+- Default pool width of 600px is too small for most processes. Scale by element count: `max(1200, elementCount × 150)`.
+- Pool height should accommodate all lanes with margins: `laneCount × 250` is a good starting point.
+- For collaboration diagrams with message flows, allow extra vertical space (≥200px) between pools.
+- Collapsed pools (non-executable partner pools) should be ~120px tall — just a thin bar.
+
+**Lane dimensions:**
+
+- Lane height should fit all assigned elements with breathing room: `max(250, ceil(elementsInLane / 4) × 150)`.
+- Keep lane heights roughly proportional to their element count — empty lanes look awkward at 250px when neighbors are 600px.
+- After assigning elements and running layout, use `move_bpmn_element` to resize pools/lanes that are too tight.
+
+**Sizing workflow:**
+
+1. Build the process flow first (tasks, gateways, events, connections).
+2. Wrap in a collaboration (`wrap_bpmn_process_in_collaboration`) with a generous participant width (e.g., 1500px).
+3. Create lanes (`create_bpmn_lanes`) and assign elements.
+4. Run `layout_bpmn_diagram` — this positions elements within lanes.
+5. If elements overflow, resize the participant with `move_bpmn_element` (set `width`/`height`).
+6. Run `validate_bpmn_diagram` — the `pool-size-insufficient` rule warns when pools are too small.
+
+## Troubleshooting common issues
+
+**Elements extend beyond the pool or lane boundaries:**
+
+- Run `validate_bpmn_diagram` — the `elements-outside-participant-bounds` rule detects this.
+- Use `move_bpmn_element` with `width`/`height` to resize the participant or lane.
+- Re-run `layout_bpmn_diagram` after resizing to reposition elements within the new bounds.
+
+**Message flows create visual clutter with long diagonal crossings:**
+
+- Reorder pools to minimise message-flow crossings (place frequently-communicating pools adjacent).
+- Use `align_bpmn_elements` to vertically align paired send/receive tasks at the same X coordinate.
+- For complex collaborations, collapse non-executable pools (set `collapsed: true`) — they become thin bars.
+
+**Layout produces zigzag cross-lane flows:**
+
+- Check `validate_bpmn_lane_organization` — it reports a lane coherence score and suggests element re-assignments.
+- Move tasks that cause excessive lane crossings into the same lane as their neighbours.
+- Run `suggest_bpmn_lane_organization` for AI-assisted lane assignment recommendations.
+- Consider whether lanes are the right structure — if roles interleave heavily, a flat process (no lanes) may be clearer.
+
+**Duplicate DI shapes or missing shapes after modifications:**
+
+- This is handled automatically — `export_bpmn` deduplicates DI elements before export.
+- The `missing-di-shape` bpmnlint rule catches elements without visual representation.
+- Running `layout_bpmn_diagram` auto-repairs missing DI shapes.
+
+**Inserted element lands in the wrong lane:**
+
+- When `insert_bpmn_element` splits a cross-lane flow, the new element is placed at the midpoint between source and target, which may fall into an unrelated lane.
+- After insertion, use `assign_bpmn_elements_to_lane` to move the element to the correct lane.
+- Alternatively, use `add_bpmn_element` with explicit `x`/`y` coordinates followed by manual connection.
