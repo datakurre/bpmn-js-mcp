@@ -122,6 +122,82 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     args: { laneId: '<target-lane-id>' },
     requiresElementId: true,
   },
+  'bpmn-mcp/service-task-missing-implementation': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { 'camunda:type': 'external', 'camunda:topic': '<topic-name>' } },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/timer-missing-definition': {
+    tool: 'set_bpmn_event_definition',
+    args: {
+      eventDefinitionType: 'bpmn:TimerEventDefinition',
+      properties: { timeDuration: 'PT15M' },
+    },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/call-activity-missing-called-element': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { calledElement: '<process-id>' } },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/dangling-boundary-event': {
+    tool: 'connect_bpmn_elements',
+    args: { targetElementId: '<target>' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/receive-task-missing-message': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { messageRef: '<message-id>' } },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/empty-subprocess': {
+    tool: 'add_bpmn_element',
+    args: { elementType: 'bpmn:StartEvent' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/user-task-missing-assignee': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { 'camunda:candidateGroups': '<group-name>' } },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/implicit-merge': {
+    tool: 'add_bpmn_element',
+    args: { elementType: 'bpmn:ExclusiveGateway' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/loop-without-limit': {
+    tool: 'set_bpmn_loop_characteristics',
+    args: { loopType: 'standard', loopMaximum: 10 },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/implicit-split': {
+    tool: 'add_bpmn_element',
+    args: { elementType: 'bpmn:ExclusiveGateway' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/elements-outside-participant-bounds': {
+    tool: 'layout_bpmn_diagram',
+    args: {},
+  },
+  'bpmn-mcp/missing-di-shape': {
+    tool: 'layout_bpmn_diagram',
+    args: {},
+  },
+  'bpmn-mcp/event-subprocess-missing-trigger': {
+    tool: 'set_bpmn_event_definition',
+    args: { eventDefinitionType: 'bpmn:ErrorEventDefinition' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/compensation-missing-association': {
+    tool: 'connect_bpmn_elements',
+    args: { targetElementId: '<compensation-handler>' },
+    requiresElementId: true,
+  },
+  'bpmn-mcp/role-mismatch-with-lane': {
+    tool: 'set_bpmn_element_properties',
+    args: { properties: { 'camunda:candidateGroups': '<lane-matching-group>' } },
+    requiresElementId: true,
+  },
 };
 
 /**

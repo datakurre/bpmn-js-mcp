@@ -112,6 +112,30 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
     'Connect the boundary event{elementRef} to a downstream element using connect_bpmn_elements, or remove it with delete_bpmn_element',
   'bpmn-mcp/receive-task-missing-message':
     'Use manage_bpmn_root_elements to create a message definition, then set_bpmn_element_properties to assign messageRef{elementRef}',
+  'bpmn-mcp/inconsistent-lane-naming':
+    'Rename lanes to follow a consistent naming convention (e.g. role-based or department-based) using set_bpmn_element_properties',
+  'bpmn-mcp/subprocess-expansion-issue':
+    'Use move_bpmn_element with width/height to resize the subprocess{elementRef}, or run layout_bpmn_diagram to re-arrange elements',
+  'bpmn-mcp/lane-overcrowding':
+    'Redistribute elements across lanes using move_bpmn_element with laneId, or split the lane into more specific roles using create_bpmn_lanes',
+  'bpmn-mcp/prefer-lanes-over-pools':
+    'Consider converting separate pools into lanes within a single pool. Use create_bpmn_lanes within a single participant instead of multiple expanded pools',
+  'bpmn-mcp/role-mismatch-with-lane':
+    'Use set_bpmn_element_properties to update camunda:assignee or camunda:candidateGroups to match the lane role, or move the element to the correct lane with move_bpmn_element{elementRef}',
+  'bpmn-mcp/lane-candidate-detection':
+    'Consider adding lanes to organize tasks by role — use create_bpmn_lanes followed by assign_bpmn_elements_to_lane',
+  'bpmn-mcp/lane-without-assignments':
+    'Assign elements to the lane using assign_bpmn_elements_to_lane, or remove the empty lane with delete_bpmn_element{elementRef}',
+  'bpmn-mcp/long-message-flow-path':
+    'Reposition the message flow endpoints closer together using move_bpmn_element, or run layout_bpmn_diagram to re-arrange pools',
+  'bpmn-mcp/collaboration-pattern-mismatch':
+    'Review the collaboration structure. In Camunda 7 / Operaton, use one expanded executable pool with collapsed partner pools for external systems',
+  'bpmn-mcp/detect-single-organization-collaboration':
+    'Consider converting to a single pool with lanes. Roles within the same organization should use lanes, not separate pools. Use create_bpmn_lanes instead',
+  'bpmn-mcp/message-flow-crossing-excessive':
+    'Reorder participants or reposition elements to reduce message flow crossings. Use move_bpmn_element or layout_bpmn_diagram',
+  'bpmn-mcp/missing-di-shape':
+    'Run layout_bpmn_diagram to regenerate diagram layout including missing DI shapes, or re-export with export_bpmn{elementRef}',
 };
 
 /**

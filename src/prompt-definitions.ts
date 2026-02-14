@@ -179,6 +179,106 @@ const addParallelTasksPattern: PromptDefinition = {
   },
 };
 
+// ── Decision gateway with loopback prompt ──────────────────────────────────
+
+const addDecisionGatewayPattern: PromptDefinition = {
+  name: 'add-decision-gateway-pattern',
+  title: 'Add decision gateway with optional loopback',
+  description:
+    'Add a decision gateway (exclusive gateway) pattern after a task, with a "Yes" path ' +
+    'continuing forward and a "No" path looping back to a previous task for rework. ' +
+    'Includes proper conditions, default flow, labels, and layout guidance.',
+  arguments: [
+    {
+      name: 'diagramId',
+      description: 'The diagram ID',
+      required: true,
+    },
+    {
+      name: 'afterElementId',
+      description: 'The ID of the task after which to add the decision gateway',
+      required: true,
+    },
+    {
+      name: 'loopbackTargetId',
+      description:
+        'The ID of the task to loop back to on "No" (e.g. the task that needs rework). ' +
+        'If omitted, the "No" path ends at an end event instead of looping back.',
+      required: false,
+    },
+    {
+      name: 'conditionVariable',
+      description:
+        'The process variable to check in the gateway condition (e.g. "approved", "confirmed")',
+      required: false,
+    },
+  ],
+  getMessages: (args) => {
+    const diagramId = args.diagramId || DEFAULT_DIAGRAM_ID;
+    const afterId = args.afterElementId || DEFAULT_ELEMENT_ID;
+    const loopbackId = args.loopbackTargetId;
+    const variable = args.conditionVariable || 'confirmed';
+    const gatewayQuestion = variable.charAt(0).toUpperCase() + variable.slice(1) + '?';
+    return [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text:
+            `Add a decision gateway after element "${afterId}" in diagram "${diagramId}" ` +
+            `checking the "${variable}" variable` +
+            (loopbackId ? ` with a loopback to "${loopbackId}" on "No"` : '') +
+            `.\n\n` +
+            `Follow these steps:\n\n` +
+            `1. **Add exclusive gateway**: Use \`add_bpmn_element\` with:\n` +
+            `   - elementType: "bpmn:ExclusiveGateway"\n` +
+            `   - name: "${gatewayQuestion}"\n` +
+            `   - afterElementId: "${afterId}"\n` +
+            `2. **Add "Yes" path** (happy path — continues forward):\n` +
+            `   - Add the next task or connect to the existing downstream element\n` +
+            `   - Use \`connect_bpmn_elements\` with:\n` +
+            `     - conditionExpression: '\${${variable} == true}'\n` +
+            `     - label: "Yes"\n` +
+            `   - Mark this as the default flow with isDefault: true\n` +
+            `3. **Add "No" path**` +
+            (loopbackId
+              ? ` (loopback to rework):\n` +
+                `   - Use \`connect_bpmn_elements\` from the gateway to "${loopbackId}" with:\n` +
+                `     - conditionExpression: '\${${variable} == false}'\n` +
+                `     - label: "No"\n`
+              : ` (rejection/alternative):\n` +
+                `   - Add a task or end event for the "No" path\n` +
+                `   - Use \`connect_bpmn_elements\` with:\n` +
+                `     - conditionExpression: '\${${variable} == false}'\n` +
+                `     - label: "No"\n`) +
+            `4. **Layout**: Run \`layout_bpmn_diagram\` with:\n` +
+            `   - preserveHappyPath: true (keeps the "Yes" path straight)\n` +
+            `   - simplifyRoutes: true (cleans up edge routing)\n` +
+            `   - compactness: "spacious" (gives room for the loopback)\n` +
+            `5. **Label cleanup**: Run \`adjust_bpmn_labels\` to position flow labels clearly\n\n` +
+            `**Layout geometry for decision gateway patterns:**\n` +
+            `- The "Yes" path should go straight right (same Y as the gateway)\n` +
+            (loopbackId
+              ? `- The "No" loopback should route below the main path: down → left → up\n` +
+                `  (a clean U-shape below the happy path row)\n`
+              : `- The "No" path should branch downward from the gateway\n`) +
+            `- Keep the gateway aligned horizontally with surrounding elements\n\n` +
+            `**Best practices:**\n` +
+            `- Name the gateway as a yes/no question ("${gatewayQuestion}")\n` +
+            `- Label outgoing flows as answers ("Yes", "No")\n` +
+            `- Always set condition expressions on non-default outgoing flows\n` +
+            `- Always mark one flow as the default (taken when no condition matches)\n` +
+            (loopbackId
+              ? `- For loopbacks, consider adding a rework annotation or intermediate task ` +
+                `on the "No" path for clarity (e.g. "Revise Details")\n`
+              : '') +
+            `- Use \`validate_bpmn_diagram\` to check for missing conditions or default flows`,
+        },
+      },
+    ];
+  },
+};
+
 // ── Lane-based process prompt ──────────────────────────────────────────────
 
 const createLaneBasedProcess: PromptDefinition = {
@@ -260,5 +360,6 @@ const createLaneBasedProcess: PromptDefinition = {
 export const ADDITIONAL_PROMPTS: PromptDefinition[] = [
   addErrorHandlingPattern,
   addParallelTasksPattern,
+  addDecisionGatewayPattern,
   createLaneBasedProcess,
 ];
