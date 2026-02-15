@@ -25,9 +25,23 @@ export type LaneNodeAssignments = Map<string, Set<string>>;
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { MIN_LANE_HEIGHT, POOL_LABEL_BAND, LANE_VERTICAL_PADDING } from './constants';
+import { deduplicateWaypoints } from './edge-routing-helpers';
+import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
 
 /** Margin (px) inside lane edges for clamping waypoints. */
 const LANE_CLAMP_MARGIN = 5;
+
+/** Returns true for types that should not be assigned to lanes. */
+function isLaneOrInfrastructure(type: string): boolean {
+  return (
+    isLane(type) ||
+    isInfrastructure(type) ||
+    isConnection(type) ||
+    isArtifact(type) ||
+    type === 'bpmn:BoundaryEvent' ||
+    type === 'label'
+  );
+}
 
 /**
  * Saved lane metadata: original Y-position (from DI coordinates)
@@ -133,6 +147,40 @@ export function repositionLanes(
     // Skip if no lane has any assigned nodes
     const hasNodes = Array.from(laneNodeMap.values()).some((s) => s.size > 0);
     if (!hasNodes) continue;
+
+    // Detect flow nodes inside the pool that aren't assigned to any lane.
+    // This can happen when elements are added after lanes are created, or
+    // when a lane is deleted and its nodes become orphaned.
+    // Auto-assign orphaned nodes to the nearest lane (by Y-centre distance).
+    const allAssignedIds = new Set<string>();
+    for (const ids of laneNodeMap.values()) {
+      for (const id of ids) allAssignedIds.add(id);
+    }
+
+    const unassigned = elementRegistry.filter(
+      (el) => el.parent === pool && !isLaneOrInfrastructure(el.type) && !allAssignedIds.has(el.id)
+    );
+
+    if (unassigned.length > 0) {
+      // Auto-assign each orphan to the nearest lane by Y-centre distance
+      for (const orphan of unassigned) {
+        const orphanCy = orphan.y + (orphan.height || 0) / 2;
+        let bestLane: BpmnElement | null = null;
+        let bestDist = Infinity;
+        for (const lane of orderedLanes) {
+          const laneCy = lane.y + lane.height / 2;
+          const d = Math.abs(orphanCy - laneCy);
+          if (d < bestDist) {
+            bestDist = d;
+            bestLane = lane;
+          }
+        }
+        if (bestLane) {
+          const set = laneNodeMap.get(bestLane.id);
+          if (set) set.add(orphan.id);
+        }
+      }
+    }
 
     // Optimize lane order to minimise cross-lane flows if requested
     if (laneStrategy === 'optimize' && orderedLanes.length > 1) {
@@ -292,9 +340,9 @@ function buildLaneNodeMap(
       }
     }
 
-    if (nodeIds.size > 0) {
-      map.set(lane.id, nodeIds);
-    }
+    // Always register the lane, even if empty — consistent with the
+    // saved-assignment path so empty lanes get positioned correctly.
+    map.set(lane.id, nodeIds);
   }
 
   return map;
@@ -531,5 +579,135 @@ function clampWaypointsPreservingOrthogonality(
     }
 
     i = j;
+  }
+}
+
+// ── Cross-lane staircase routing ────────────────────────────────────────────
+
+/**
+ * Route cross-lane sequence flows as orthogonal staircases through lane
+ * boundaries.
+ *
+ * After lane repositioning, cross-lane flows may have stale waypoints
+ * from the pre-lane ELK pass. This function rebuilds them as clean
+ * staircase routes:
+ *
+ * - **Single-lane crossing:** Z-shape (horizontal → vertical at gap
+ *   midpoint → horizontal).
+ * - **Multi-lane crossing:** stepped staircase with a vertical transition
+ *   at each intermediate lane boundary, producing a "staircase" pattern
+ *   that makes the lane crossing visually explicit.
+ *
+ * Only cross-lane flows (source and target in different lanes) are
+ * affected. Intra-lane flows and flows between elements outside any lane
+ * are left unchanged.
+ */
+export function routeCrossLaneStaircase(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
+  const lanes = elementRegistry.filter((el: BpmnElement) => el.type === 'bpmn:Lane');
+  if (lanes.length < 2) return;
+
+  // Build node → lane mapping
+  const nodeToLane = new Map<string, BpmnElement>();
+  for (const lane of lanes) {
+    const bo = lane.businessObject;
+    const refs = (bo?.flowNodeRef || []) as Array<{ id: string }>;
+    for (const ref of refs) {
+      const shape = elementRegistry.get(ref.id);
+      if (shape) nodeToLane.set(shape.id, lane);
+    }
+  }
+
+  // Sort lanes by Y-position (top to bottom)
+  const sortedLanes = [...lanes].sort((a, b) => a.y - b.y);
+
+  const connections = elementRegistry.filter((el: BpmnElement) => el.type === 'bpmn:SequenceFlow');
+
+  for (const conn of connections) {
+    if (!conn.source || !conn.target || !conn.waypoints || conn.waypoints.length < 2) continue;
+
+    const srcLane = nodeToLane.get(conn.source.id);
+    const tgtLane = nodeToLane.get(conn.target.id);
+
+    // Only reroute cross-lane flows
+    if (!srcLane || !tgtLane || srcLane.id === tgtLane.id) continue;
+
+    const src = conn.source;
+    const tgt = conn.target;
+    const srcCy = src.y + (src.height || 0) / 2;
+    const tgtCy = tgt.y + (tgt.height || 0) / 2;
+    const srcRight = src.x + (src.width || 0);
+    const tgtLeft = tgt.x;
+
+    // Only handle forward flows (target to the right of source)
+    if (tgtLeft <= srcRight) continue;
+
+    // Determine which lanes are crossed (in top-to-bottom order)
+    const srcLaneIdx = sortedLanes.findIndex((l) => l.id === srcLane.id);
+    const tgtLaneIdx = sortedLanes.findIndex((l) => l.id === tgtLane.id);
+    if (srcLaneIdx < 0 || tgtLaneIdx < 0) continue;
+
+    const crossCount = Math.abs(tgtLaneIdx - srcLaneIdx);
+
+    if (crossCount <= 1) {
+      // Single lane crossing: simple Z-shape at the gap midpoint
+      const midX = Math.round((srcRight + tgtLeft) / 2);
+      const wps = [
+        { x: Math.round(srcRight), y: Math.round(srcCy) },
+        { x: midX, y: Math.round(srcCy) },
+        { x: midX, y: Math.round(tgtCy) },
+        { x: Math.round(tgtLeft), y: Math.round(tgtCy) },
+      ];
+      modeling.updateWaypoints(conn, deduplicateWaypoints(wps));
+    } else {
+      // Multi-lane crossing: build a staircase through each intermediate
+      // lane boundary. Each "step" transitions vertically at an evenly
+      // spaced X coordinate between source and target.
+      const goingDown = tgtLaneIdx > srcLaneIdx;
+      const startIdx = goingDown ? srcLaneIdx : tgtLaneIdx;
+      const endIdx = goingDown ? tgtLaneIdx : srcLaneIdx;
+
+      // Collect Y coordinates of lane boundaries we need to cross
+      const boundaryYs: number[] = [];
+      for (let i = startIdx; i < endIdx; i++) {
+        const laneBottom = sortedLanes[i].y + sortedLanes[i].height;
+        boundaryYs.push(laneBottom);
+      }
+
+      // If going up (target above source), reverse the boundaries
+      if (!goingDown) boundaryYs.reverse();
+
+      // Build staircase waypoints
+      const wps: Array<{ x: number; y: number }> = [];
+      const totalSteps = boundaryYs.length;
+      let currentY = Math.round(srcCy);
+
+      // Start: exit source horizontally
+      wps.push({ x: Math.round(srcRight), y: currentY });
+
+      for (let step = 0; step < totalSteps; step++) {
+        // X position for this vertical transition: evenly spread between source and target
+        const t = (step + 1) / (totalSteps + 1);
+        const stepX = Math.round(srcRight + t * (tgtLeft - srcRight));
+
+        // Horizontal segment to the step X
+        wps.push({ x: stepX, y: currentY });
+
+        // Vertical transition through the lane boundary
+        currentY = Math.round(boundaryYs[step]);
+        wps.push({ x: stepX, y: currentY });
+      }
+
+      // Final horizontal segment to target
+      wps.push({ x: Math.round(tgtLeft), y: Math.round(tgtCy) });
+
+      // Only apply if we have a valid route
+      const cleaned = deduplicateWaypoints(wps);
+      if (cleaned.length >= 2) {
+        modeling.updateWaypoints(conn, cleaned);
+      }
+    }
   }
 }

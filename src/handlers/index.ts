@@ -13,7 +13,7 @@
  * └──────────────────────────────────────────────────────────────────┘
  */
 
-import { type ToolResult } from '../types';
+import { type ToolResult, type ToolContext } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { ERR_INTERNAL } from '../errors';
 
@@ -161,7 +161,7 @@ import { handleOptimizeLaneAssignments } from './collaboration/optimize-lane-ass
 
 interface ToolRegistration {
   readonly definition: { readonly name: string; readonly [key: string]: unknown };
-  readonly handler: (args: any) => Promise<ToolResult>;
+  readonly handler: (args: any, context?: ToolContext) => Promise<ToolResult>;
 }
 
 const TOOL_REGISTRY: ToolRegistration[] = [
@@ -202,24 +202,128 @@ const TOOL_REGISTRY: ToolRegistration[] = [
 
 // ── Auto-derived exports ───────────────────────────────────────────────────
 
-/** MCP tool definitions (passed to ListTools). */
-export const TOOL_DEFINITIONS = TOOL_REGISTRY.map((r) => r.definition);
+/**
+ * Tools that only read diagram state — no idempotency caching needed.
+ * Derived from handler files tagged `// @readonly`.
+ */
+const READONLY_TOOLS = new Set([
+  'export_bpmn',
+  'list_bpmn_diagrams',
+  'list_bpmn_process_variables',
+  'validate_bpmn_diagram',
+  'list_bpmn_elements',
+  'get_bpmn_element_properties',
+  'analyze_bpmn_lanes',
+]);
+
+/** Property definition for `_clientRequestId` injected into mutating tools. */
+const CLIENT_REQUEST_ID_PROP = {
+  type: 'string',
+  description:
+    'Optional client-provided request ID for idempotent retry. ' +
+    'If the same ID is sent again, the server returns the cached result ' +
+    'without re-executing the operation.',
+} as const;
+
+/**
+ * MCP tool definitions (passed to ListTools).
+ *
+ * Mutating tools are augmented with an optional `_clientRequestId` property
+ * so callers can safely retry on network errors.
+ */
+export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.map(
+  (r) => {
+    if (READONLY_TOOLS.has(r.definition.name as string)) return r.definition;
+
+    // Augment mutating tool definitions with _clientRequestId
+    const def = r.definition as Record<string, any>;
+    const schema = def.inputSchema as Record<string, any> | undefined;
+    if (!schema?.properties) return r.definition;
+
+    return {
+      ...def,
+      name: def.name as string,
+      inputSchema: {
+        ...schema,
+        properties: {
+          ...schema.properties,
+          _clientRequestId: CLIENT_REQUEST_ID_PROP,
+        },
+      },
+    };
+  }
+);
+
+// ── Idempotency cache ──────────────────────────────────────────────────────
+
+/**
+ * Bounded cache mapping `_clientRequestId` → `ToolResult` for safe retries.
+ *
+ * Entries are evicted FIFO once the cache exceeds `MAX_IDEMPOTENCY_CACHE`.
+ * Only mutating tools participate; read-only tools are always re-executed.
+ */
+const MAX_IDEMPOTENCY_CACHE = 1000;
+const idempotencyCache = new Map<string, ToolResult>();
+
+/** Clear the idempotency cache (exposed for tests). */
+export function clearIdempotencyCache(): void {
+  idempotencyCache.clear();
+}
 
 /** Dispatch map: tool-name → handler. Auto-derived from TOOL_REGISTRY. */
-const dispatchMap: Record<string, (args: any) => Promise<ToolResult>> = {};
+const dispatchMap: Record<string, (args: any, context?: ToolContext) => Promise<ToolResult>> = {};
 for (const { definition, handler } of TOOL_REGISTRY) {
   dispatchMap[definition.name] = handler;
 }
 
-/** Route a CallTool request to the correct handler. */
-export async function dispatchToolCall(name: string, args: any): Promise<ToolResult> {
+/**
+ * Route a CallTool request to the correct handler.
+ *
+ * For mutating tools, supports idempotent retry via `_clientRequestId`:
+ * if the same ID is seen again the cached result is returned immediately.
+ *
+ * @param context  Optional execution context (progress notifications, etc.)
+ */
+export async function dispatchToolCall(
+  name: string,
+  args: any,
+  context?: ToolContext
+): Promise<ToolResult> {
   const handler = dispatchMap[name];
   if (!handler) {
     throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
 
+  // Idempotency: check cache for mutating tools with a client request ID
+  const clientRequestId: string | undefined = args?._clientRequestId;
+  const isMutating = !READONLY_TOOLS.has(name);
+
+  if (clientRequestId && isMutating) {
+    const cached = idempotencyCache.get(clientRequestId);
+    if (cached) return cached;
+  }
+
+  // Strip _clientRequestId before passing to the handler
+  let cleanArgs = args;
+  if (clientRequestId) {
+    cleanArgs = { ...args };
+    delete cleanArgs._clientRequestId;
+  }
+
   try {
-    return await handler(args);
+    const result = await handler(cleanArgs, context);
+
+    // Cache result for idempotent retries
+    if (clientRequestId && isMutating) {
+      if (idempotencyCache.size >= MAX_IDEMPOTENCY_CACHE) {
+        // Evict oldest entry (FIFO — Map iterates in insertion order)
+        const oldest = idempotencyCache.keys().next().value;
+        if (oldest !== undefined) idempotencyCache.delete(oldest);
+      }
+      idempotencyCache.set(clientRequestId, result);
+    }
+
+    return result;
   } catch (error: any) {
     if (error instanceof McpError) throw error;
     throw new McpError(ErrorCode.InternalError, `Error executing ${name}: ${error.message}`, {

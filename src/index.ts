@@ -32,7 +32,7 @@ import { type ToolModule } from './module';
 import { bpmnModule } from './bpmn-module';
 import { enablePersistence } from './persistence';
 import { setServerHintLevel } from './linter';
-import type { HintLevel } from './types';
+import type { HintLevel, ToolContext } from './types';
 import { RESOURCE_TEMPLATES, listResources, readResource } from './resources';
 import { listPrompts, getPrompt } from './prompts';
 
@@ -124,11 +124,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: modules.flatMap((m) => m.toolDefinitions),
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const { name, arguments: args } = request.params;
 
+  // Build a ToolContext with progress notification capability when the
+  // client supplied a progressToken in the request's _meta.
+  const progressToken = request.params._meta?.progressToken;
+  const context: ToolContext = {};
+  if (progressToken !== undefined && extra?.sendNotification) {
+    context.sendProgress = async (
+      progress: number,
+      total?: number,
+      message?: string
+    ): Promise<void> => {
+      await extra.sendNotification({
+        method: 'notifications/progress' as const,
+        params: { progressToken, progress, total, message },
+      });
+    };
+  }
+
   for (const mod of modules) {
-    const result = mod.dispatch(name, args);
+    const result = mod.dispatch(name, args, context);
     if (result) return result;
   }
 

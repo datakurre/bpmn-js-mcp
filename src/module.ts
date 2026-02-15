@@ -8,7 +8,7 @@
  * their combined tool surface over stdio.
  */
 
-import { type ToolResult } from './types';
+import { type ToolResult, type ToolContext } from './types';
 
 /** A pluggable module that contributes MCP tools. */
 export interface ToolModule {
@@ -23,6 +23,8 @@ export interface ToolModule {
    *
    * Returns a `ToolResult` if the tool name belongs to this module,
    * or `undefined` to let the next module try.
+   *
+   * @param context  Optional execution context (progress notifications, etc.)
    */
-  dispatch(toolName: string, args: any): Promise<ToolResult> | undefined;
+  dispatch(toolName: string, args: any, context?: ToolContext): Promise<ToolResult> | undefined;
 }

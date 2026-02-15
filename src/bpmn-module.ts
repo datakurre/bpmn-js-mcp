@@ -5,7 +5,7 @@
  * aggregate tools from multiple editor back-ends (BPMN, DMN, Forms, …).
  */
 
-import { type ToolResult } from './types';
+import { type ToolResult, type ToolContext } from './types';
 import { type ToolModule } from './module';
 import { TOOL_DEFINITIONS, dispatchToolCall } from './handlers';
 
@@ -16,8 +16,12 @@ export const bpmnModule: ToolModule = {
   name: 'bpmn',
   toolDefinitions: TOOL_DEFINITIONS,
 
-  dispatch(toolName: string, args: Record<string, unknown>): Promise<ToolResult> | undefined {
+  dispatch(
+    toolName: string,
+    args: Record<string, unknown>,
+    context?: ToolContext
+  ): Promise<ToolResult> | undefined {
     if (!toolNames.has(toolName)) return undefined;
-    return dispatchToolCall(toolName, args);
+    return dispatchToolCall(toolName, args, context);
   },
 };

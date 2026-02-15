@@ -11,7 +11,7 @@
  */
 // @readonly
 
-import { type ToolResult } from '../../types';
+import { type ToolResult, type ToolContext } from '../../types';
 import { exportFailedError } from '../../errors';
 import {
   requireDiagram,
@@ -258,7 +258,10 @@ async function writeExportToFile(filePath: string, content: ToolResult['content'
   fs.writeFileSync(filePath, content[0].text, 'utf-8');
 }
 
-export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult> {
+export async function handleExportBpmn(
+  args: ExportBpmnArgs,
+  context?: ToolContext
+): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'format']);
   const {
     diagramId,
@@ -273,9 +276,13 @@ export async function handleExportBpmn(args: ExportBpmnArgs): Promise<ToolResult
   // Scoped export (subprocess / participant)
   if (elementId) return handleScopedExport(diagram, elementId, format);
 
+  await context?.sendProgress?.(0, 100, 'Validating diagram…');
+
   // Lint gate check
   const lintCheck = await checkLintGate(diagram, skipLint, lintMinSeverity);
   if (lintCheck.blocked) return { content: lintCheck.content! };
+
+  await context?.sendProgress?.(50, 100, 'Exporting diagram…');
 
   // Perform export
   const content = await performExport(diagram, format);

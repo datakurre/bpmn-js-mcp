@@ -12,7 +12,7 @@
  */
 // @mutating
 
-import { type ToolResult, type HintLevel } from '../../types';
+import { type ToolResult, type HintLevel, type ToolContext } from '../../types';
 import { storeDiagram, generateDiagramId, createModelerFromXml } from '../../diagram-manager';
 import { jsonResult, syncXml } from '../helpers';
 import { appendLintFeedback } from '../../linter';
@@ -36,54 +36,65 @@ function xmlHasDiagramDI(xml: string): boolean {
   return xml.includes('bpmndi:BPMNShape') || xml.includes('bpmndi:BPMNEdge');
 }
 
-export async function handleImportXml(args: ImportXmlArgs): Promise<ToolResult> {
+/** Resolve XML content from args.xml or args.filePath. Returns null + error result on failure. */
+function resolveXml(args: ImportXmlArgs): { xml: string } | { error: ToolResult } {
+  if (args.filePath) {
+    if (!fs.existsSync(args.filePath)) {
+      return { error: { content: [{ type: 'text', text: `File not found: ${args.filePath}` }] } };
+    }
+    return { xml: fs.readFileSync(args.filePath, 'utf-8') };
+  }
+  if (args.xml) return { xml: args.xml };
+  return {
+    error: { content: [{ type: 'text', text: 'Either xml or filePath must be provided.' }] },
+  };
+}
+
+export async function handleImportXml(
+  args: ImportXmlArgs,
+  context?: ToolContext
+): Promise<ToolResult> {
   const { autoLayout, filePath, draftMode } = args;
 
-  // Resolve XML content from either args.xml or args.filePath
-  let xml: string;
-  if (filePath) {
-    if (!fs.existsSync(filePath)) {
-      return {
-        content: [{ type: 'text', text: `File not found: ${filePath}` }],
-      };
-    }
-    xml = fs.readFileSync(filePath, 'utf-8');
-  } else if (args.xml) {
-    xml = args.xml;
-  } else {
-    return {
-      content: [{ type: 'text', text: 'Either xml or filePath must be provided.' }],
-    };
-  }
+  const resolved = resolveXml(args);
+  if ('error' in resolved) return resolved.error;
+
+  let { xml } = resolved;
   const diagramId = generateDiagramId();
+  const progress = context?.sendProgress;
 
   // Determine whether to run auto-layout
   const shouldLayout = autoLayout === true || (autoLayout === undefined && !xmlHasDiagramDI(xml));
 
-  let finalXml = xml;
+  await progress?.(0, 100, 'Parsing BPMN XML…');
+
   if (shouldLayout) {
+    await progress?.(10, 100, 'Generating initial DI coordinates…');
     // Step 1: bpmn-auto-layout generates DI (BPMNShape/BPMNEdge) for XML that lacks it
     const { layoutProcess } = await import('bpmn-auto-layout');
-    finalXml = await layoutProcess(xml);
+    xml = await layoutProcess(xml);
   }
 
-  const modeler = await createModelerFromXml(finalXml);
+  await progress?.(30, 100, 'Creating modeler…');
+  const modeler = await createModelerFromXml(xml);
 
   // Resolve effective hint level: explicit hintLevel > draftMode > server default
   const hintLevel: HintLevel | undefined = args.hintLevel ?? (draftMode ? 'none' : undefined);
   const diagram = {
     modeler,
-    xml: finalXml,
+    xml,
     draftMode: draftMode ?? false,
     hintLevel,
   };
 
   if (shouldLayout) {
+    await progress?.(50, 100, 'Running ELK auto-layout…');
     // Step 2: ELK layered algorithm improves layout quality
     await elkLayout(diagram);
     await syncXml(diagram);
   }
 
+  await progress?.(90, 100, 'Storing diagram…');
   storeDiagram(diagramId, diagram);
 
   const result = jsonResult({

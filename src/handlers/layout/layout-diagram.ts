@@ -11,7 +11,7 @@
  */
 // @mutating
 
-import { type ToolResult, type DiagramState } from '../../types';
+import { type ToolResult, type DiagramState, type ToolContext } from '../../types';
 import {
   requireDiagram,
   jsonResult,
@@ -264,7 +264,75 @@ async function handleLabelsOnlyMode(diagramId: string): Promise<ToolResult> {
   });
 }
 
-export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<ToolResult> {
+/** Post-layout processing: pixel snap, DI cleanup, labels, pool autosize. */
+async function postProcessLayout(
+  diagram: any,
+  args: LayoutDiagramArgs,
+  context?: ToolContext
+): Promise<{
+  elements: any[];
+  labelsMoved: number;
+  poolExpansionApplied: boolean;
+  diWarnings: string[];
+  repairs: string[];
+}> {
+  const { diagramId, scopeElementId } = args;
+  const { elementIds } = args;
+  const pixelGridSnap = typeof args.gridSnap === 'number' ? args.gridSnap : undefined;
+  const progress = context?.sendProgress;
+
+  await progress?.(60, 100, 'Post-processing layout…');
+
+  if (pixelGridSnap && pixelGridSnap > 0) applyPixelGridSnap(diagram, pixelGridSnap);
+  deduplicateDiInModeler(diagram);
+
+  if (!elementIds && !scopeElementId) {
+    diagram.pinnedElements = undefined;
+  }
+
+  await syncXml(diagram);
+  resetMutationCounter(diagram);
+
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  const elements = getVisibleElements(elementRegistry).filter(
+    (el: any) =>
+      !el.type.includes('SequenceFlow') &&
+      !el.type.includes('MessageFlow') &&
+      !el.type.includes('Association')
+  );
+
+  await progress?.(70, 100, 'Adjusting labels…');
+  await centerFlowLabels(diagram);
+  const elLabelsMoved = await adjustDiagramLabels(diagram);
+  const flowLabelsMoved = await adjustFlowLabels(diagram);
+
+  await progress?.(85, 100, 'Resizing pools…');
+  let poolExpansionApplied = false;
+  const shouldAutosize =
+    args.poolExpansion === true ||
+    (args.poolExpansion === undefined && isCollaboration(elementRegistry));
+  if (shouldAutosize) {
+    const poolResult = await handleAutosizePoolsAndLanes({ diagramId });
+    const poolData = JSON.parse(poolResult.content[0].text as string);
+    poolExpansionApplied = (poolData.resizedCount ?? 0) > 0;
+    alignCollapsedPoolsAfterAutosize(elementRegistry, getService(diagram.modeler, 'modeling'));
+  }
+
+  const diWarnings = checkDiIntegrity(diagram, elementRegistry);
+
+  return {
+    elements,
+    labelsMoved: elLabelsMoved + flowLabelsMoved,
+    poolExpansionApplied,
+    diWarnings,
+    repairs: [],
+  };
+}
+
+export async function handleLayoutDiagram(
+  args: LayoutDiagramArgs,
+  context?: ToolContext
+): Promise<ToolResult> {
   if (args.labelsOnly) return handleLabelsOnlyMode(args.diagramId);
   if (args.autosizeOnly) return handleAutosizePoolsAndLanes({ diagramId: args.diagramId });
 
@@ -272,8 +340,10 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
 
   const { diagramId, scopeElementId } = args;
   let { elementIds } = args;
-  const pixelGridSnap = typeof args.gridSnap === 'number' ? args.gridSnap : undefined;
   const diagram = requireDiagram(diagramId);
+  const progress = context?.sendProgress;
+
+  await progress?.(0, 100, 'Preparing layout…');
 
   // For partial layout, filter out pinned elements
   const pinnedSkipped: string[] = [];
@@ -292,65 +362,23 @@ export async function handleLayoutDiagram(args: LayoutDiagramArgs): Promise<Tool
   // Repair missing DI shapes before layout so ELK can position all elements
   const repairs = await repairMissingDiShapes(diagram);
 
+  await progress?.(10, 100, 'Running ELK layout…');
   const { layoutResult, usedDeterministic } = await executeLayout(diagram, layoutArgs);
 
-  if (pixelGridSnap && pixelGridSnap > 0) applyPixelGridSnap(diagram, pixelGridSnap);
-
-  // Remove duplicate DI entries that may have been created during layout
-  deduplicateDiInModeler(diagram);
-
-  // Full layout clears pinned state — all elements have been repositioned
-  if (!elementIds && !scopeElementId) {
-    diagram.pinnedElements = undefined;
-  }
-
-  await syncXml(diagram);
-  resetMutationCounter(diagram);
-
-  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
-  const elements = getVisibleElements(elementRegistry).filter(
-    (el: any) =>
-      !el.type.includes('SequenceFlow') &&
-      !el.type.includes('MessageFlow') &&
-      !el.type.includes('Association')
-  );
-
-  // Adjust labels after layout
-  await centerFlowLabels(diagram);
-  const labelsMoved = await adjustDiagramLabels(diagram);
-  const flowLabelsMoved = await adjustFlowLabels(diagram);
-
-  // Auto-resize pools/lanes after layout.
-  // When poolExpansion is not explicitly set, auto-enable when pools exist.
-  let poolExpansionApplied = false;
-  const shouldAutosize =
-    args.poolExpansion === true ||
-    (args.poolExpansion === undefined && isCollaboration(elementRegistry));
-  if (shouldAutosize) {
-    const poolResult = await handleAutosizePoolsAndLanes({ diagramId });
-    const poolData = JSON.parse(poolResult.content[0].text as string);
-    poolExpansionApplied = (poolData.resizedCount ?? 0) > 0;
-
-    // Re-align collapsed pools to match expanded pool width after autosize
-    alignCollapsedPoolsAfterAutosize(elementRegistry, getService(diagram.modeler, 'modeling'));
-  }
-
-  // Check DI integrity: warn about elements missing visual representation
-  const diWarnings = checkDiIntegrity(diagram, elementRegistry);
-  // Include repair messages alongside DI warnings
-  const allDiWarnings = [...repairs, ...diWarnings];
+  const postResult = await postProcessLayout(diagram, layoutArgs, context);
+  const allDiWarnings = [...repairs, ...postResult.diWarnings];
 
   const result = buildLayoutResult({
     diagramId,
     scopeElementId,
     elementIds,
-    elementCount: elementIds ? elementIds.length : elements.length,
-    labelsMoved: labelsMoved + flowLabelsMoved,
+    elementCount: elementIds ? elementIds.length : postResult.elements.length,
+    labelsMoved: postResult.labelsMoved,
     layoutResult,
-    elementRegistry,
+    elementRegistry: getService(diagram.modeler, 'elementRegistry'),
     usedDeterministic,
     diWarnings: allDiWarnings,
-    poolExpansionApplied,
+    poolExpansionApplied: postResult.poolExpansionApplied,
     pinnedSkipped,
   });
   return appendLintFeedback(result, diagram);

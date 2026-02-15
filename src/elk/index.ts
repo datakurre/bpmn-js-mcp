@@ -57,7 +57,12 @@ import {
   reorderCollapsedPoolsBelow,
   compactPools,
 } from './position-application';
-import { repositionLanes, saveLaneNodeAssignments, clampFlowsToLaneBounds } from './lane-layout';
+import {
+  repositionLanes,
+  saveLaneNodeAssignments,
+  clampFlowsToLaneBounds,
+  routeCrossLaneStaircase,
+} from './lane-layout';
 import {
   repositionBoundaryEvents,
   saveBoundaryEventData,
@@ -438,6 +443,9 @@ export async function elkLayout(
 
   // Clamp intra-lane flow waypoints to stay within lane bounds
   clampFlowsToLaneBounds(elementRegistry, modeling);
+
+  // Route cross-lane flows as clean staircase shapes through lane boundaries
+  routeCrossLaneStaircase(elementRegistry, modeling);
 
   // Attempt to reduce edge crossings by nudging waypoints
   reduceCrossings(elementRegistry, modeling);
