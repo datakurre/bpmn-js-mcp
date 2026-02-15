@@ -65,7 +65,10 @@ import {
   handleDuplicateElement,
   TOOL_DEFINITION as DUPLICATE_ELEMENT_DEF,
 } from './elements/duplicate-element';
-import { handleInsertElement } from './elements/insert-element';
+import {
+  handleInsertElement,
+  TOOL_DEFINITION as INSERT_ELEMENT_DEF,
+} from './elements/insert-element';
 import {
   handleReplaceElement,
   TOOL_DEFINITION as REPLACE_ELEMENT_DEF,
@@ -133,7 +136,10 @@ import {
 
 // ── Collaboration: pools, root elements ────────────────────────────────────
 
-import { handleCreateCollaboration } from './collaboration/create-collaboration';
+import {
+  handleCreateCollaboration,
+  TOOL_DEFINITION as CREATE_COLLABORATION_DEF,
+} from './collaboration/create-collaboration';
 import {
   handleManageRootElements,
   TOOL_DEFINITION as MANAGE_ROOT_ELEMENTS_DEF,
@@ -150,7 +156,10 @@ import {
   handleWrapProcessInCollaboration,
   TOOL_DEFINITION as WRAP_PROCESS_IN_COLLABORATION_DEF,
 } from './collaboration/wrap-process-in-collaboration';
-import { handleSplitParticipantIntoLanes } from './collaboration/split-participant-into-lanes';
+import {
+  handleSplitParticipantIntoLanes,
+  TOOL_DEFINITION as SPLIT_PARTICIPANT_INTO_LANES_DEF,
+} from './collaboration/split-participant-into-lanes';
 import {
   handleCreateParticipant,
   TOOL_DEFINITION as CREATE_PARTICIPANT_DEF,
@@ -171,7 +180,10 @@ import {
   handleConvertCollaborationToLanes,
   TOOL_DEFINITION as CONVERT_COLLABORATION_TO_LANES_DEF,
 } from './collaboration/convert-collaboration-to-lanes';
-import { handleResizePoolToFit } from './collaboration/resize-pool-to-fit';
+import {
+  handleResizePoolToFit,
+  TOOL_DEFINITION as RESIZE_POOL_TO_FIT_DEF,
+} from './collaboration/resize-pool-to-fit';
 import {
   handleSuggestPoolVsLanes,
   TOOL_DEFINITION as SUGGEST_POOL_VS_LANES_DEF,
@@ -184,7 +196,10 @@ import {
   handleAutosizePoolsAndLanes,
   TOOL_DEFINITION as AUTOSIZE_POOLS_AND_LANES_DEF,
 } from './collaboration/autosize-pools-and-lanes';
-import { handleOptimizeLaneAssignments } from './collaboration/optimize-lane-assignments';
+import {
+  handleOptimizeLaneAssignments,
+  TOOL_DEFINITION as OPTIMIZE_LANE_ASSIGNMENTS_DEF,
+} from './collaboration/optimize-lane-assignments';
 
 // ── Unified tool registry ──────────────────────────────────────────────────
 //
@@ -224,10 +239,12 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: BATCH_OPERATIONS_DEF, handler: handleBatchOperations },
   { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners },
   { definition: SET_CALL_ACTIVITY_VARIABLES_DEF, handler: handleSetCallActivityVariables },
+  { definition: CREATE_COLLABORATION_DEF, handler: handleCreateCollaboration },
   { definition: MANAGE_ROOT_ELEMENTS_DEF, handler: handleManageRootElements },
   { definition: CREATE_LANES_DEF, handler: handleCreateLanes },
   { definition: ASSIGN_ELEMENTS_TO_LANE_DEF, handler: handleAssignElementsToLane },
   { definition: WRAP_PROCESS_IN_COLLABORATION_DEF, handler: handleWrapProcessInCollaboration },
+  { definition: SPLIT_PARTICIPANT_INTO_LANES_DEF, handler: handleSplitParticipantIntoLanes },
   { definition: CREATE_PARTICIPANT_DEF, handler: handleCreateParticipant },
   { definition: HANDOFF_TO_LANE_DEF, handler: handleHandoffToLane },
   { definition: SUGGEST_LANE_ORGANIZATION_DEF, handler: handleSuggestLaneOrganization },
@@ -239,7 +256,10 @@ const TOOL_REGISTRY: ToolRegistration[] = [
     handler: handleRedistributeElementsAcrossLanes,
   },
   { definition: AUTOSIZE_POOLS_AND_LANES_DEF, handler: handleAutosizePoolsAndLanes },
+  { definition: RESIZE_POOL_TO_FIT_DEF, handler: handleResizePoolToFit },
+  { definition: OPTIMIZE_LANE_ASSIGNMENTS_DEF, handler: handleOptimizeLaneAssignments },
   { definition: DUPLICATE_ELEMENT_DEF, handler: handleDuplicateElement },
+  { definition: INSERT_ELEMENT_DEF, handler: handleInsertElement },
   { definition: REPLACE_ELEMENT_DEF, handler: handleReplaceElement },
   { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain },
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
