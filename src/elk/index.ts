@@ -26,6 +26,7 @@
  * 8.7. Separate overlapping collinear gateway flows → separateOverlappingGatewayFlows()
  * 8.8. Route loopback (backward) flows below main path → routeLoopbacksBelow()
  * 9. Final orthogonal snap → snapAllConnectionsOrthogonal()
+ * 9.5. Clamp intra-lane flow waypoints to lane bounds → clampFlowsToLaneBounds()
  * 10. Reduce edge crossings → reduceCrossings()
  * 11. Detect crossing flows → detectCrossingFlows()
  */
@@ -56,7 +57,7 @@ import {
   reorderCollapsedPoolsBelow,
   compactPools,
 } from './position-application';
-import { repositionLanes, saveLaneNodeAssignments } from './lane-layout';
+import { repositionLanes, saveLaneNodeAssignments, clampFlowsToLaneBounds } from './lane-layout';
 import {
   repositionBoundaryEvents,
   saveBoundaryEventData,
@@ -434,6 +435,9 @@ export async function elkLayout(
   finaliseBoundaryTargets(ctx);
   applyEdgeRoutes(ctx);
   repairAndSimplifyEdges(ctx);
+
+  // Clamp intra-lane flow waypoints to stay within lane bounds
+  clampFlowsToLaneBounds(elementRegistry, modeling);
 
   // Attempt to reduce edge crossings by nudging waypoints
   reduceCrossings(elementRegistry, modeling);

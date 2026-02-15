@@ -26,6 +26,9 @@ export type LaneNodeAssignments = Map<string, Set<string>>;
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { MIN_LANE_HEIGHT, POOL_LABEL_BAND, LANE_VERTICAL_PADDING } from './constants';
 
+/** Margin (px) inside lane edges for clamping waypoints. */
+const LANE_CLAMP_MARGIN = 5;
+
 /**
  * Saved lane metadata: original Y-position (from DI coordinates)
  * and assigned flow node IDs.
@@ -424,4 +427,109 @@ function bruteForceOptimal(
 
   permute([...lanes], 0);
   return bestOrder;
+}
+
+// ── Intra-lane flow clamping ────────────────────────────────────────────────
+
+/**
+ * Clamp intra-lane sequence flow waypoints to stay within their lane's
+ * Y-bounds.  Cross-lane flows (source and target in different lanes) are
+ * left unchanged.
+ *
+ * After ELK layout and lane repositioning, edge routes are computed from
+ * ELK sections that predate lane repositioning.  Intermediate waypoints
+ * may therefore escape the lane band.  This pass clamps them back in.
+ *
+ * To preserve orthogonal routing, consecutive waypoints that form a
+ * horizontal segment are clamped to the same Y value.
+ */
+export function clampFlowsToLaneBounds(elementRegistry: ElementRegistry, modeling: Modeling): void {
+  const lanes = elementRegistry.filter((el: BpmnElement) => el.type === 'bpmn:Lane');
+  if (lanes.length === 0) return;
+
+  // Build node → lane map from flowNodeRef
+  const nodeToLane = new Map<string, BpmnElement>();
+  for (const lane of lanes) {
+    const bo = lane.businessObject;
+    const refs = (bo?.flowNodeRef || []) as Array<{ id: string }>;
+    for (const ref of refs) {
+      const shape = elementRegistry.get(ref.id);
+      if (shape) {
+        nodeToLane.set(shape.id, lane);
+      }
+    }
+  }
+
+  const connections = elementRegistry.filter((el: BpmnElement) => el.type === 'bpmn:SequenceFlow');
+
+  for (const conn of connections) {
+    if (!conn.source || !conn.target || !conn.waypoints || conn.waypoints.length < 2) continue;
+
+    const srcLane = nodeToLane.get(conn.source.id);
+    const tgtLane = nodeToLane.get(conn.target.id);
+
+    // Only clamp intra-lane flows
+    if (!srcLane || !tgtLane || srcLane.id !== tgtLane.id) continue;
+
+    const lane = srcLane;
+    const minY = lane.y + LANE_CLAMP_MARGIN;
+    const maxY = lane.y + lane.height - LANE_CLAMP_MARGIN;
+
+    // Check if any waypoint is outside bounds
+    let needsClamping = false;
+    for (const wp of conn.waypoints) {
+      if (wp.y < minY || wp.y > maxY) {
+        needsClamping = true;
+        break;
+      }
+    }
+    if (!needsClamping) continue;
+
+    // Clamp waypoints while preserving orthogonal segments.
+    // Group consecutive waypoints with the same Y into horizontal segments
+    // and clamp them to the same Y value.
+    const wps: Array<{ x: number; y: number }> = conn.waypoints.map(
+      (wp: { x: number; y: number }) => ({ x: wp.x, y: wp.y })
+    );
+
+    clampWaypointsPreservingOrthogonality(wps, minY, maxY);
+    modeling.updateWaypoints(conn, wps);
+  }
+}
+
+/**
+ * Clamp waypoint Y-values to [minY, maxY] while preserving horizontal
+ * segment alignment.  Consecutive waypoints within 2px Y-tolerance are
+ * treated as a horizontal segment and clamped to the same Y.
+ */
+function clampWaypointsPreservingOrthogonality(
+  wps: Array<{ x: number; y: number }>,
+  minY: number,
+  maxY: number
+): void {
+  const HORIZONTAL_TOLERANCE = 2;
+
+  // Identify horizontal segments: groups of consecutive points at ~same Y
+  let i = 0;
+  while (i < wps.length) {
+    // Find the extent of this horizontal segment
+    let j = i + 1;
+    while (j < wps.length && Math.abs(wps[j].y - wps[i].y) <= HORIZONTAL_TOLERANCE) {
+      j++;
+    }
+
+    // All waypoints from i to j-1 form a horizontal segment
+    // Use the average Y, then clamp
+    let avgY = 0;
+    for (let k = i; k < j; k++) avgY += wps[k].y;
+    avgY /= j - i;
+
+    const clampedY = Math.max(minY, Math.min(maxY, avgY));
+
+    for (let k = i; k < j; k++) {
+      wps[k].y = clampedY;
+    }
+
+    i = j;
+  }
 }
