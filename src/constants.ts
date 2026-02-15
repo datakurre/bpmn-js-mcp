@@ -88,10 +88,10 @@ export const ELEMENT_LABEL_DISTANCE = 10;
 
 /**
  * Extra distance for labels placed below events.
- * Start/End event labels placed at the default gap look vertically
- * too close, so we add extra spacing for the bottom position.
+ * Set to 0 for optimal visual spacing — event labels use only
+ * ELEMENT_LABEL_DISTANCE for their bottom gap.
  */
-export const ELEMENT_LABEL_BOTTOM_EXTRA = 5;
+export const ELEMENT_LABEL_BOTTOM_EXTRA = 0;
 
 /** Default external label dimensions (matches bpmn-js). */
 export const DEFAULT_LABEL_SIZE = { width: 90, height: 20 };

@@ -138,9 +138,9 @@ describe('label-utils', () => {
       const candidates = getLabelCandidatePositions(element);
       const bottom = candidates.find((c) => c.orientation === 'bottom')!;
 
-      // Bottom gap should be ELEMENT_LABEL_DISTANCE + ELEMENT_LABEL_BOTTOM_EXTRA = 15
+      // Bottom gap should be ELEMENT_LABEL_DISTANCE + ELEMENT_LABEL_BOTTOM_EXTRA = 10
       const actualGap = bottom.rect.y - (element.y + element.height);
-      expect(actualGap).toBe(15); // 10 + 5
+      expect(actualGap).toBe(10); // 10 + 0
     });
 
     test('candidates have proper width and height', () => {

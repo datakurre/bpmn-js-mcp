@@ -40,13 +40,14 @@
       <bpmn:incoming>Flow_RegistrationStarted_to_FillRegistrationForm</bpmn:incoming>
       <bpmn:outgoing>Flow_FillRegistrationForm_to_ValidateEmail</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:serviceTask id="ServiceTask_ValidateEmail" name="Validate Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="email-validation" camunda:retryTimeCycle="R3/PT5M">
+    <bpmn:serviceTask id="ServiceTask_ValidateEmail" name="Validate Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="email-validation">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="emailAddress">${email}</camunda:inputParameter>
           <camunda:outputParameter name="emailValid">${validationResult}</camunda:outputParameter>
           <camunda:outputParameter name="validationTimestamp">${now()}</camunda:outputParameter>
         </camunda:inputOutput>
+        <camunda:FailedJobRetryTimeCycle>R3/PT5M</camunda:FailedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_FillRegistrationForm_to_ValidateEmail</bpmn:incoming>
       <bpmn:outgoing>Flow_ValidateEmail_to_RegistrationType</bpmn:outgoing>
@@ -116,7 +117,7 @@
       <bpmn:outgoing>Flow_xnh8bik</bpmn:outgoing>
       <bpmn:outgoing>Flow_twdjs7e</bpmn:outgoing>
     </bpmn:parallelGateway>
-    <bpmn:serviceTask id="ServiceTask_SendConfirmationEmail" name="Send Confirmation Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="send-email" camunda:retryTimeCycle="R3/PT10M">
+    <bpmn:serviceTask id="ServiceTask_SendConfirmationEmail" name="Send Confirmation Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="send-email">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="recipientEmail">${email}</camunda:inputParameter>
@@ -125,11 +126,12 @@
           <camunda:outputParameter name="emailSent">${sent}</camunda:outputParameter>
           <camunda:outputParameter name="confirmationNumber">${confirmationId}</camunda:outputParameter>
         </camunda:inputOutput>
+        <camunda:FailedJobRetryTimeCycle>R3/PT10M</camunda:FailedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_xnh8bik</bpmn:incoming>
       <bpmn:outgoing>Flow_1y57t27</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="ServiceTask_CreateBadge" name="Create Badge" camunda:asyncBefore="true" camunda:type="external" camunda:topic="badge-generation" camunda:retryTimeCycle="R3/PT5M">
+    <bpmn:serviceTask id="ServiceTask_CreateBadge" name="Create Badge" camunda:asyncBefore="true" camunda:type="external" camunda:topic="badge-generation">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="attendeeName">${firstName + ' ' + lastName}</camunda:inputParameter>
@@ -138,6 +140,7 @@
           <camunda:outputParameter name="badgeId">${badgeNumber}</camunda:outputParameter>
           <camunda:outputParameter name="qrCode">${qrCodeData}</camunda:outputParameter>
         </camunda:inputOutput>
+        <camunda:FailedJobRetryTimeCycle>R3/PT5M</camunda:FailedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_twdjs7e</bpmn:incoming>
       <bpmn:outgoing>Flow_adib9x2</bpmn:outgoing>
@@ -176,7 +179,7 @@
       <bpmn:incoming>Flow_in5kznh</bpmn:incoming>
       <bpmn:outgoing>Flow_ReviewAndConfirm_to_ProcessPayment</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:serviceTask id="ServiceTask_ProcessPayment" name="Process Payment" camunda:asyncBefore="true" camunda:type="external" camunda:topic="payment-processing" camunda:retryTimeCycle="R5/PT15M">
+    <bpmn:serviceTask id="ServiceTask_ProcessPayment" name="Process Payment" camunda:asyncBefore="true" camunda:type="external" camunda:topic="payment-processing">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="amount">${registrationType == 'vip' ? 999 : 299}</camunda:inputParameter>
@@ -186,6 +189,7 @@
           <camunda:outputParameter name="transactionId">${txnId}</camunda:outputParameter>
           <camunda:outputParameter name="paymentDate">${now()}</camunda:outputParameter>
         </camunda:inputOutput>
+        <camunda:FailedJobRetryTimeCycle>R5/PT15M</camunda:FailedJobRetryTimeCycle>
         <camunda:executionListener delegateExpression="${paymentLogger}" event="start" />
         <camunda:executionListener delegateExpression="${paymentLogger}" event="end" />
         <camunda:errorEventDefinition id="ErrorEventDefinition_PaymentFailed" errorRef="Error_PaymentFailed" />
