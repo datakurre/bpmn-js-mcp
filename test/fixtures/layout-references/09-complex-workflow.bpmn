@@ -47,7 +47,7 @@
           <camunda:outputParameter name="emailValid">${validationResult}</camunda:outputParameter>
           <camunda:outputParameter name="validationTimestamp">${now()}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:FailedJobRetryTimeCycle>R3/PT5M</camunda:FailedJobRetryTimeCycle>
+        <camunda:failedJobRetryTimeCycle>R3/PT5M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_FillRegistrationForm_to_ValidateEmail</bpmn:incoming>
       <bpmn:outgoing>Flow_ValidateEmail_to_RegistrationType</bpmn:outgoing>
@@ -126,7 +126,7 @@
           <camunda:outputParameter name="emailSent">${sent}</camunda:outputParameter>
           <camunda:outputParameter name="confirmationNumber">${confirmationId}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:FailedJobRetryTimeCycle>R3/PT10M</camunda:FailedJobRetryTimeCycle>
+        <camunda:failedJobRetryTimeCycle>R3/PT10M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_xnh8bik</bpmn:incoming>
       <bpmn:outgoing>Flow_1y57t27</bpmn:outgoing>
@@ -140,7 +140,7 @@
           <camunda:outputParameter name="badgeId">${badgeNumber}</camunda:outputParameter>
           <camunda:outputParameter name="qrCode">${qrCodeData}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:FailedJobRetryTimeCycle>R3/PT5M</camunda:FailedJobRetryTimeCycle>
+        <camunda:failedJobRetryTimeCycle>R3/PT5M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_twdjs7e</bpmn:incoming>
       <bpmn:outgoing>Flow_adib9x2</bpmn:outgoing>
@@ -189,7 +189,7 @@
           <camunda:outputParameter name="transactionId">${txnId}</camunda:outputParameter>
           <camunda:outputParameter name="paymentDate">${now()}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:FailedJobRetryTimeCycle>R5/PT15M</camunda:FailedJobRetryTimeCycle>
+        <camunda:failedJobRetryTimeCycle>R5/PT15M</camunda:failedJobRetryTimeCycle>
         <camunda:executionListener delegateExpression="${paymentLogger}" event="start" />
         <camunda:executionListener delegateExpression="${paymentLogger}" event="end" />
         <camunda:errorEventDefinition id="ErrorEventDefinition_PaymentFailed" errorRef="Error_PaymentFailed" />
@@ -258,7 +258,7 @@
       <bpmndi:BPMNShape id="StartEvent_RegistrationStarted_di" bpmnElement="StartEvent_RegistrationStarted">
         <dc:Bounds x="192" y="122" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="179" y="173" width="62" height="27" />
+          <dc:Bounds x="179" y="168" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_FillRegistrationForm_di" bpmnElement="UserTask_FillRegistrationForm">
@@ -293,9 +293,9 @@
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_PaymentSuccessful_di" bpmnElement="Gateway_PaymentSuccessful" isMarkerVisible="true">
-        <dc:Bounds x="1743" y="115" width="50" height="50" />
+        <dc:Bounds x="1748" y="115" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1738" y="78" width="60" height="27" />
+          <dc:Bounds x="1743" y="78" width="60" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_SelectSessions_di" bpmnElement="UserTask_SelectSessions">
@@ -306,12 +306,6 @@
         <dc:Bounds x="1128" y="100" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="EndEvent_RegistrationFailed_di" bpmnElement="EndEvent_RegistrationFailed">
-        <dc:Bounds x="1848" y="122" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1835" y="173" width="62" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_SelectPremiumPackage_di" bpmnElement="UserTask_SelectPremiumPackage">
         <dc:Bounds x="728" y="210" width="100" height="80" />
         <bpmndi:BPMNLabel />
@@ -321,21 +315,27 @@
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_RegistrationComplete_di" bpmnElement="EndEvent_RegistrationComplete">
-        <dc:Bounds x="1944" y="122" width="36" height="36" />
+        <dc:Bounds x="1858" y="122" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1931" y="173" width="62" height="27" />
+          <dc:Bounds x="1845" y="168" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_RegistrationExpired_di" bpmnElement="EndEvent_RegistrationExpired">
         <dc:Bounds x="1530" y="247" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1517" y="298" width="62" height="27" />
+          <dc:Bounds x="1517" y="293" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_PaymentErrorOccurred_di" bpmnElement="EndEvent_PaymentErrorOccurred">
         <dc:Bounds x="1700" y="247" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1681" y="298" width="74" height="27" />
+          <dc:Bounds x="1681" y="293" width="74" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_RegistrationFailed_di" bpmnElement="EndEvent_RegistrationFailed">
+        <dc:Bounds x="1858" y="247" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1845" y="293" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_2Hours_di" bpmnElement="Event_2Hours">
@@ -366,7 +366,7 @@
         <di:waypoint x="663" y="140" />
         <di:waypoint x="728" y="140" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="670" y="148" width="45" height="14" />
+          <dc:Bounds x="671" y="148" width="45" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_06b4eru_di" bpmnElement="Flow_VIP">
@@ -418,22 +418,21 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_19v6676_di" bpmnElement="Flow_ProcessPayment_to_PaymentSuccessful">
         <di:waypoint x="1678" y="140" />
-        <di:waypoint x="1743" y="140" />
+        <di:waypoint x="1748" y="140" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0obuez6_di" bpmnElement="Flow_Yes">
-        <di:waypoint x="1793" y="140" />
-        <di:waypoint x="1793" y="120" />
-        <di:waypoint x="1944" y="120" />
-        <di:waypoint x="1944" y="140" />
+        <di:waypoint x="1798" y="140" />
+        <di:waypoint x="1858" y="140" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1859" y="168" width="19" height="14" />
+          <dc:Bounds x="1816" y="148" width="19" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1b0curb_di" bpmnElement="Flow_No">
-        <di:waypoint x="1793" y="140" />
-        <di:waypoint x="1848" y="140" />
+        <di:waypoint x="1773" y="165" />
+        <di:waypoint x="1773" y="265" />
+        <di:waypoint x="1858" y="265" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1811" y="148" width="15" height="14" />
+          <dc:Bounds x="1751" y="209" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0cl91ul_di" bpmnElement="Flow_0cl91ul">

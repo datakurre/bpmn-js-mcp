@@ -45,13 +45,13 @@
       <bpmndi:BPMNShape id="Event_1tfz1g5_di" bpmnElement="Event_1tfz1g5">
         <dc:Bounds x="192" y="244" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="198" y="295" width="24" height="14" />
+          <dc:Bounds x="198" y="290" width="24" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_183di0m_di" bpmnElement="Event_183di0m">
         <dc:Bounds x="668" y="244" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="662" y="295" width="48" height="14" />
+          <dc:Bounds x="662" y="290" width="48" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0huua6i_di" bpmnElement="Activity_0gqc9jk">
