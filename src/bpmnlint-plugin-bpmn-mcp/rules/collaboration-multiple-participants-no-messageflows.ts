@@ -7,8 +7,7 @@
  * participants should be merged into a single process.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 export default function collaborationMultipleParticipantsNoMessageflows() {
   function check(node: any, reporter: any) {

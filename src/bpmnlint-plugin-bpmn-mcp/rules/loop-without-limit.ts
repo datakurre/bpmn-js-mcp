@@ -12,8 +12,7 @@
  * Without a limit, a loop can spin indefinitely at runtime.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /**
  * Detect whether a gateway that feeds back to an earlier node has any

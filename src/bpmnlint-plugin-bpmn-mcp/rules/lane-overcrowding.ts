@@ -12,8 +12,7 @@
  * bpmn-js headless quirk where elements may appear in multiple lanes.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Approximate vertical space needed per flow node in a lane (element height + gap). */
 const VERTICAL_SPACE_PER_ELEMENT = 80;

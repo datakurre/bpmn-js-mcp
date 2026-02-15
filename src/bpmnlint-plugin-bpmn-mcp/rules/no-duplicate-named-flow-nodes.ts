@@ -11,8 +11,7 @@
  * Unnamed elements are ignored (they are flagged by label-required instead).
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 export default function noDuplicateNamedFlowNodes() {
   function check(node: any, reporter: any) {

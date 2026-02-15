@@ -22,8 +22,7 @@
  * - Loop completion conditions
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Common JUEL keywords and built-in variables to ignore. */
 const JUEL_BUILTINS = new Set([

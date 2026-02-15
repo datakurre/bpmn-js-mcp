@@ -124,7 +124,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: modules.flatMap((m) => m.toolDefinitions),
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request: any): Promise<any> => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   for (const mod of modules) {
@@ -145,8 +145,8 @@ server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
   resourceTemplates: RESOURCE_TEMPLATES,
 }));
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request: any) => {
-  const uri: string = request.params.uri;
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const uri = request.params.uri;
   return readResource(uri);
 });
 
@@ -156,7 +156,7 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => ({
   prompts: listPrompts(),
 }));
 
-server.setRequestHandler(GetPromptRequestSchema, async (request: any) => {
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   return getPrompt(name, args || {});
 });

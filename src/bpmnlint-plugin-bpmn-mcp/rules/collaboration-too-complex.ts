@@ -7,8 +7,7 @@
  * decomposition into separate deployable processes.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 const DEFAULT_MAX_PARTICIPANTS = 3;
 const DEFAULT_MAX_ELEMENTS = 50;

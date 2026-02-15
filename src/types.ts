@@ -46,5 +46,6 @@ export interface DiagramState {
 
 /** Shape of the JSON returned by tool handlers that wrap results. */
 export interface ToolResult {
+  [key: string]: unknown;
   content: Array<{ type: string; text: string }>;
 }

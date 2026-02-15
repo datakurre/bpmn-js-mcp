@@ -9,8 +9,7 @@
  * Also checks task-to-task message flows for horizontal misalignment.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 interface Bounds {
   x: number;

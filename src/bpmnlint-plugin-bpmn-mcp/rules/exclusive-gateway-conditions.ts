@@ -11,8 +11,7 @@
  * no configured default.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 function ruleFactory() {
   function check(node: any, reporter: any) {

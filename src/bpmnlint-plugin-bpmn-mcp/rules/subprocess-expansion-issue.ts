@@ -10,8 +10,7 @@
  * with reasonable spacing.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Minimum width for an expanded subprocess to be usable. */
 const MIN_EXPANDED_WIDTH = 300;

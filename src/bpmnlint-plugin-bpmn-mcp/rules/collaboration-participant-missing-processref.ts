@@ -10,8 +10,7 @@
  * since they intentionally have no internal process.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /**
  * Check the BPMNShape DI to determine if a participant is collapsed.

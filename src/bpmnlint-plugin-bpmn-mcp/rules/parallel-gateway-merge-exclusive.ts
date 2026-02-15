@@ -12,8 +12,7 @@
  * gateway, not a parallel one.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 const GATEWAY_TYPES = [
   'bpmn:ExclusiveGateway',

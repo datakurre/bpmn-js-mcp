@@ -10,8 +10,7 @@
  * the modeler should consider organizing elements into lanes by role.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Minimum distinct roles before suggesting lanes. */
 const MIN_DISTINCT_ROLES = 2;

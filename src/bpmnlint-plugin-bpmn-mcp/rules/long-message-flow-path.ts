@@ -9,8 +9,7 @@
  * Length is computed from the DI waypoints. Flows without DI are skipped.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Maximum message flow path length in pixels before warning. */
 const MAX_MESSAGE_FLOW_LENGTH = 500;

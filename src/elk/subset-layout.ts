@@ -25,7 +25,10 @@ import {
   fixDisconnectedEdges,
   simplifyCollinearWaypoints,
   snapEndpointsToElementCentres,
+  rebuildOffRowGatewayRoutes,
+  separateOverlappingGatewayFlows,
   removeMicroBends,
+  routeLoopbacksBelow,
   buildZShapeRoute,
 } from './edge-routing';
 import { snapAllConnectionsOrthogonal } from './snap-alignment';
@@ -270,8 +273,11 @@ export async function elkLayoutSubset(
   // they only modify connections that actually need fixing.
   fixDisconnectedEdges(elementRegistry, modeling);
   snapEndpointsToElementCentres(elementRegistry, modeling);
+  rebuildOffRowGatewayRoutes(elementRegistry, modeling);
+  separateOverlappingGatewayFlows(elementRegistry, modeling);
   simplifyCollinearWaypoints(elementRegistry, modeling);
   removeMicroBends(elementRegistry, modeling);
+  routeLoopbacksBelow(elementRegistry, modeling);
   snapAllConnectionsOrthogonal(elementRegistry, modeling);
 
   // Report crossing flows for the laid-out region

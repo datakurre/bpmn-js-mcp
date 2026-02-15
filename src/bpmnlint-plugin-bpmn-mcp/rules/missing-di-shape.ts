@@ -10,8 +10,7 @@
  * accidentally drop DI entries for process elements.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Types that are flow node elements and must have a DI shape. */
 const FLOW_NODE_TYPES = [

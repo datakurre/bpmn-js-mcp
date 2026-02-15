@@ -14,8 +14,7 @@
  * - Label shapes (they can legitimately overlap connections)
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Bounds rectangle. */
 interface Bounds {

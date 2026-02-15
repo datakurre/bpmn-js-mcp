@@ -10,8 +10,7 @@
  * lanes to clarify responsibilities.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Minimum number of user/manual tasks before suggesting lanes. */
 const MIN_TASKS_FOR_LANE_SUGGESTION = 3;

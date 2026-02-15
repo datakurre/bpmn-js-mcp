@@ -13,8 +13,7 @@
  * - Inconsistent capitalisation across sibling lanes
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Patterns that indicate a generic/placeholder lane name. */
 const GENERIC_PATTERNS = [

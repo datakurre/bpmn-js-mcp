@@ -10,8 +10,7 @@
  * the `lane-candidate-detection` rule is more appropriate.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /**
  * Extract the primary role (assignee or first candidateGroup) from a node.

@@ -8,8 +8,7 @@
  * Only applies to processes that actually have lanes defined.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Threshold: warn when more than this fraction of flows cross lanes. */
 const CROSSING_THRESHOLD = 0.5;

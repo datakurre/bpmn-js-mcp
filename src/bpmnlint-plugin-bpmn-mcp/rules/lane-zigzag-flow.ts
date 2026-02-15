@@ -12,8 +12,7 @@
  * be moved to LaneA.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /**
  * Build a map of elementId → lane for fast lookup across all lane sets.

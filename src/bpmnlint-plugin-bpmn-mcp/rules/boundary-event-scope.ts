@@ -16,8 +16,7 @@
  * a scope-limited cancellation pattern that should be an event subprocess.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 function hasEventDefinitionOfType(node: any, defType: string): boolean {
   const eventDefs = node.eventDefinitions || [];

@@ -10,8 +10,7 @@
  * typically organisational placeholders).
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Task types that should have role assignments when placed in lanes. */
 const ROLE_TASK_TYPES = ['bpmn:UserTask', 'bpmn:ManualTask'];

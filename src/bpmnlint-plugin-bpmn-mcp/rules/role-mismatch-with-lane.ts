@@ -15,8 +15,7 @@
  * are placed in a named lane.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /**
  * Normalise a string for fuzzy comparison: lowercase, strip common separators.

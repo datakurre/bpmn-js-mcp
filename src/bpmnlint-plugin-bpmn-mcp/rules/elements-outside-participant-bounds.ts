@@ -11,8 +11,7 @@
  * DI shapes are skipped.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Bounds rectangle { x, y, width, height }. */
 interface Bounds {

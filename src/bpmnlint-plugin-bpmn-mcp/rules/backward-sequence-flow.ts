@@ -9,8 +9,7 @@
  * not accessible from the business object in bpmn-js >= 7.x).
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 function ruleFactory() {
   // eslint-disable-next-line sonarjs/cognitive-complexity

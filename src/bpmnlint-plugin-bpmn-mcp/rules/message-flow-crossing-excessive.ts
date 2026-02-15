@@ -9,8 +9,7 @@
  * intersection tests on the BPMNEdge waypoints.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /** Maximum allowed crossings per message flow before warning. */
 const MAX_CROSSINGS = 2;

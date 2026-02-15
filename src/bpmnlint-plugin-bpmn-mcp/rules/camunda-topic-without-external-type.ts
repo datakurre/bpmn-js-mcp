@@ -5,8 +5,7 @@
  * Without camunda:type="external", the Camunda 7 (Operaton) engine ignores the topic.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 function ruleFactory() {
   function check(node: any, reporter: any) {

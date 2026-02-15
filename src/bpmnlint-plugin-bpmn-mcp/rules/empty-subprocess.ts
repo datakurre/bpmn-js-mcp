@@ -10,8 +10,7 @@
  * subprocesses may be intentionally minimal.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 /**
  * Check the BPMNShape DI to determine if a subprocess is expanded.

@@ -12,8 +12,7 @@
  * all duplicates and lets the modeler decide.
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 export default function duplicateEdgesSameWaypoints() {
   function check(node: any, reporter: any) {

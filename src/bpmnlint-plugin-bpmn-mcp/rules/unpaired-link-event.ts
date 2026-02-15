@@ -12,8 +12,7 @@
  * 3. Link events have names (unnamed links cannot be matched)
  */
 
-const isType = (node: any, type: string): boolean =>
-  node.$instanceOf ? node.$instanceOf(type) : node.$type === type;
+import { isType } from '../utils';
 
 function getLinkEventDefinition(element: any): any | null {
   const eventDefs = element.eventDefinitions || [];
