@@ -94,7 +94,7 @@ export default function collaborationPatternMismatch() {
             `only message events (no tasks). In Camunda 7, only one pool is executable — ` +
             `consider collapsing this pool to represent an external message endpoint. ` +
             `Use set_bpmn_element_properties with { isExpanded: false } or redesign ` +
-            `using create_bpmn_collaboration with collapsed: true.`
+            `using create_bpmn_participant with collapsed: true.`
         );
       }
     }

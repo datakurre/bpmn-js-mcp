@@ -180,7 +180,7 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
     match: (t) => t === 'bpmn:Lane',
     hints: [
       {
-        tool: 'create_bpmn_collaboration',
+        tool: 'create_bpmn_participant',
         description:
           'Consider using pools (participants) with message flows instead of lanes for cross-organizational processes. Lanes are for role-based swimlanes within a single pool.',
       },

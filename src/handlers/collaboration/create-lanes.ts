@@ -4,6 +4,9 @@
  * Creates a bpmn:LaneSet with multiple bpmn:Lane elements inside a
  * participant pool.  Each lane gets proper DI bounds and is sized to
  * divide the pool height evenly (or as specified).
+ *
+ * When distributeStrategy is set, automatically splits existing elements
+ * into the created lanes (merged from split_bpmn_participant_into_lanes).
  */
 // @mutating
 
@@ -21,16 +24,24 @@ import {
 import { appendLintFeedback } from '../../linter';
 import { autoDistributeElements, type AutoDistributeResult } from './auto-distribute';
 import { calculateOptimalPoolSize } from '../../constants';
+import { handleAssignElementsToLane } from './assign-elements-to-lane';
+import {
+  getChildFlowElements,
+  buildByTypeLaneDefs,
+  buildCreateLanesNextSteps,
+} from './by-type-distribution';
 
 export interface CreateLanesArgs {
   diagramId: string;
   /** The participant (pool) to add lanes to. */
   participantId: string;
-  /** Lane definitions — at least 2 lanes required. */
-  lanes: Array<{
+  /** Lane definitions — at least 2 lanes required (unless distributeStrategy generates them). */
+  lanes?: Array<{
     name: string;
     /** Optional explicit height (px). If omitted, pool height is divided evenly. */
     height?: number;
+    /** For 'manual' distributeStrategy: element IDs to assign to this lane. */
+    elementIds?: string[];
   }>;
   /**
    * When true, automatically assigns existing elements in the participant to the
@@ -39,6 +50,13 @@ export interface CreateLanesArgs {
    * type-based grouping (human tasks vs automated tasks).
    */
   autoDistribute?: boolean;
+  /**
+   * When set, automatically splits existing elements into the created lanes.
+   * - 'by-type': categorize by BPMN type (UserTask → "Human Tasks", ServiceTask → "Automated Tasks").
+   *   Lanes param is auto-generated from element types.
+   * - 'manual': use explicit elementIds in each lane definition.
+   */
+  distributeStrategy?: 'by-type' | 'manual';
 }
 
 /** Minimum lane height in pixels. */
@@ -59,7 +77,7 @@ function computeLaneGeometry(
   poolX: number,
   poolWidth: number,
   poolHeight: number,
-  lanes: CreateLanesArgs['lanes']
+  lanes: NonNullable<CreateLanesArgs['lanes']>
 ): LaneGeometry {
   const laneX = poolX + LANE_HEADER_OFFSET;
   const laneWidth = poolWidth - LANE_HEADER_OFFSET;
@@ -107,40 +125,167 @@ function createSingleLane(
   return created.id;
 }
 
-/** Build the next-steps hints for the response. */
-function buildNextSteps(distributeResult?: AutoDistributeResult) {
-  const steps = [];
-  if (distributeResult && distributeResult.assignedCount > 0) {
-    steps.push({
-      tool: 'layout_bpmn_diagram',
-      description: 'Run layout to organize elements within their assigned lanes.',
-    });
-  }
-  steps.push(
-    {
-      tool: 'add_bpmn_element',
-      description:
-        'Add elements to a specific lane using the laneId parameter for automatic vertical centering',
-    },
-    {
-      tool: 'move_bpmn_element',
-      description: 'Move existing elements into lanes using the laneId parameter',
-    },
-    {
-      tool: 'assign_bpmn_elements_to_lane',
-      description: 'Bulk-assign multiple existing elements to a lane',
-    }
-  );
-  return steps;
+// ── Strategy resolution ────────────────────────────────────────────────────
+
+interface StrategyResult {
+  lanes: NonNullable<CreateLanesArgs['lanes']>;
+  distributeAssignments?: Array<{ name: string; elementIds: string[] }>;
 }
 
-export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'participantId', 'lanes']);
-  const { diagramId, participantId, lanes, autoDistribute = false } = args;
+function resolveDistributeStrategy(
+  args: CreateLanesArgs,
+  elementRegistry: any
+): StrategyResult | ToolResult {
+  const { distributeStrategy, participantId } = args;
+  let lanes = args.lanes;
+  let distributeAssignments: Array<{ name: string; elementIds: string[] }> | undefined;
+
+  if (distributeStrategy === 'by-type') {
+    const childElements = getChildFlowElements(elementRegistry, participantId);
+    if (childElements.length === 0) {
+      return jsonResult({
+        success: false,
+        message: `Participant "${participantId}" has no elements to distribute into lanes.`,
+      });
+    }
+    const generated = buildByTypeLaneDefs(childElements, elementRegistry);
+    lanes = generated;
+    distributeAssignments = generated;
+  } else if (distributeStrategy === 'manual') {
+    if (!lanes || lanes.length < 2) {
+      throw missingRequiredError([
+        'lanes (at least 2 required for manual distributeStrategy, each with elementIds)',
+      ]);
+    }
+    for (const l of lanes) {
+      if (!l.elementIds || l.elementIds.length === 0) {
+        throw missingRequiredError([`elementIds in lane "${l.name}"`]);
+      }
+    }
+    distributeAssignments = lanes as Array<{ name: string; elementIds: string[] }>;
+  }
 
   if (!lanes || lanes.length < 2) {
     throw missingRequiredError(['lanes (at least 2 lanes required)']);
   }
+  return { lanes, distributeAssignments };
+}
+
+function isEarlyReturn(result: StrategyResult | ToolResult): result is ToolResult {
+  return 'content' in result;
+}
+
+// ── Pool resizing & lane creation ──────────────────────────────────────────
+
+function resizePoolIfNeeded(
+  modeling: any,
+  participant: any,
+  lanes: NonNullable<CreateLanesArgs['lanes']>,
+  geometry: LaneGeometry
+): void {
+  const poolHeight = participant.height || 250;
+  const optimalSize = calculateOptimalPoolSize(0, lanes.length);
+  const effectivePoolHeight = Math.max(poolHeight, optimalSize.height);
+  if (effectivePoolHeight > poolHeight || geometry.totalLaneHeight > poolHeight) {
+    modeling.resizeShape(participant, {
+      x: participant.x,
+      y: participant.y,
+      width: participant.width || 600,
+      height: Math.max(effectivePoolHeight, geometry.totalLaneHeight),
+    });
+  }
+}
+
+function createAllLanes(
+  diagram: any,
+  participant: any,
+  lanes: NonNullable<CreateLanesArgs['lanes']>,
+  geometry: LaneGeometry
+): string[] {
+  const createdIds: string[] = [];
+  let currentY = participant.y;
+  for (const laneDef of lanes) {
+    createdIds.push(createSingleLane(diagram, participant, laneDef, geometry, currentY));
+    currentY += laneDef.height || geometry.autoHeight;
+  }
+  return createdIds;
+}
+
+// ── Strategy assignment execution ──────────────────────────────────────────
+
+async function executeStrategyAssignments(
+  distributeAssignments: Array<{ name: string; elementIds: string[] }>,
+  createdIds: string[],
+  diagramId: string
+): Promise<Record<string, string[]>> {
+  const assignments: Record<string, string[]> = {};
+  for (let i = 0; i < Math.min(distributeAssignments.length, createdIds.length); i++) {
+    const da = distributeAssignments[i];
+    if (da.elementIds && da.elementIds.length > 0) {
+      await handleAssignElementsToLane({
+        diagramId,
+        laneId: createdIds[i],
+        elementIds: da.elementIds,
+        reposition: true,
+      });
+      assignments[createdIds[i]] = da.elementIds;
+    }
+  }
+  return assignments;
+}
+
+// ── Result building ────────────────────────────────────────────────────────
+
+function buildCreateLanesResult(
+  participantId: string,
+  createdIds: string[],
+  lanes: NonNullable<CreateLanesArgs['lanes']>,
+  distributeStrategy: string | undefined,
+  strategyAssignments: Record<string, string[]>,
+  distributeResult: AutoDistributeResult | undefined
+): ToolResult {
+  let message = `Created ${createdIds.length} lanes in participant ${participantId}: ${createdIds.join(', ')}`;
+  if (distributeResult && distributeResult.assignedCount > 0) {
+    message += ` (auto-distributed ${distributeResult.assignedCount} element(s))`;
+  }
+  if (distributeStrategy && Object.keys(strategyAssignments).length > 0) {
+    const totalAssigned = Object.values(strategyAssignments).reduce(
+      (sum, ids) => sum + ids.length,
+      0
+    );
+    message += ` (${distributeStrategy} strategy: assigned ${totalAssigned} element(s))`;
+  }
+
+  const resultData: Record<string, any> = {
+    success: true,
+    participantId,
+    laneIds: createdIds,
+    laneCount: createdIds.length,
+    laneNames: lanes.map((l) => l.name),
+    message,
+    ...(distributeStrategy ? { strategy: distributeStrategy } : {}),
+    ...(Object.keys(strategyAssignments).length > 0 ? { assignments: strategyAssignments } : {}),
+  };
+
+  if (distributeResult) {
+    resultData.autoDistribute = {
+      assignedCount: distributeResult.assignedCount,
+      assignments: distributeResult.assignments,
+      ...(distributeResult.unassigned.length > 0
+        ? { unassigned: distributeResult.unassigned }
+        : {}),
+    };
+  }
+
+  resultData.nextSteps = buildCreateLanesNextSteps(distributeResult?.assignedCount);
+  return jsonResult(resultData);
+}
+
+// ── Main handler ───────────────────────────────────────────────────────────
+
+export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'participantId']);
+  const { diagramId, participantId, autoDistribute = false, distributeStrategy } = args;
 
   const diagram = requireDiagram(diagramId);
   const modeling = getService(diagram.modeler, 'modeling');
@@ -163,33 +308,19 @@ export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResu
     );
   }
 
-  const poolX = participant.x;
-  const poolY = participant.y;
+  // Resolve strategy and lanes
+  const resolved = resolveDistributeStrategy(args, elementRegistry);
+  if (isEarlyReturn(resolved)) return resolved;
+  const { lanes, distributeAssignments } = resolved;
+
   const poolWidth = participant.width || 600;
   const poolHeight = participant.height || 250;
-
-  // Calculate optimal height to fit all lanes with adequate space
   const optimalSize = calculateOptimalPoolSize(0, lanes.length);
   const effectivePoolHeight = Math.max(poolHeight, optimalSize.height);
-  const geometry = computeLaneGeometry(poolX, poolWidth, effectivePoolHeight, lanes);
+  const geometry = computeLaneGeometry(participant.x, poolWidth, effectivePoolHeight, lanes);
 
-  // Resize pool if lanes need more space than currently available
-  if (effectivePoolHeight > poolHeight || geometry.totalLaneHeight > poolHeight) {
-    const newHeight = Math.max(effectivePoolHeight, geometry.totalLaneHeight);
-    modeling.resizeShape(participant, {
-      x: poolX,
-      y: poolY,
-      width: poolWidth,
-      height: newHeight,
-    });
-  }
-
-  const createdIds: string[] = [];
-  let currentY = poolY;
-  for (const laneDef of lanes) {
-    createdIds.push(createSingleLane(diagram, participant, laneDef, geometry, currentY));
-    currentY += laneDef.height || geometry.autoHeight;
-  }
+  resizePoolIfNeeded(modeling, participant, lanes, geometry);
+  const createdIds = createAllLanes(diagram, participant, lanes, geometry);
 
   // Auto-distribute existing elements to lanes if requested
   const distributeResult = autoDistribute
@@ -201,34 +332,21 @@ export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResu
       )
     : undefined;
 
+  // Execute strategy assignments
+  const strategyAssignments = distributeAssignments
+    ? await executeStrategyAssignments(distributeAssignments, createdIds, diagramId)
+    : {};
+
   await syncXml(diagram);
 
-  let message = `Created ${createdIds.length} lanes in participant ${participantId}: ${createdIds.join(', ')}`;
-  if (distributeResult && distributeResult.assignedCount > 0) {
-    message += ` (auto-distributed ${distributeResult.assignedCount} element(s))`;
-  }
-
-  const resultData: Record<string, any> = {
-    success: true,
+  const result = buildCreateLanesResult(
     participantId,
-    laneIds: createdIds,
-    laneCount: createdIds.length,
-    message,
-  };
-
-  if (distributeResult) {
-    resultData.autoDistribute = {
-      assignedCount: distributeResult.assignedCount,
-      assignments: distributeResult.assignments,
-      ...(distributeResult.unassigned.length > 0
-        ? { unassigned: distributeResult.unassigned }
-        : {}),
-    };
-  }
-
-  resultData.nextSteps = buildNextSteps(distributeResult);
-
-  const result = jsonResult(resultData);
+    createdIds,
+    lanes,
+    distributeStrategy,
+    strategyAssignments,
+    distributeResult
+  );
   return appendLintFeedback(result, diagram);
 }
 
@@ -239,7 +357,10 @@ export const TOOL_DEFINITION = {
     'the specified lanes, dividing the pool height evenly (or using explicit heights). ' +
     'Lanes represent roles or departments within a single organization/process. ' +
     'Use lanes for role separation within one pool; use separate pools (participants) ' +
-    'for separate organizations with message flows. Requires at least 2 lanes.',
+    'for separate organizations with message flows. Requires at least 2 lanes when ' +
+    'defined manually. Alternatively, use distributeStrategy to auto-generate lanes: ' +
+    '"by-type" groups elements into Human Tasks vs Automated Tasks lanes; "manual" uses ' +
+    'elementIds in each lane definition to assign elements explicitly.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -250,7 +371,9 @@ export const TOOL_DEFINITION = {
       },
       lanes: {
         type: 'array',
-        description: 'Lane definitions (at least 2)',
+        description:
+          'Lane definitions (at least 2). Optional when distributeStrategy is "by-type" ' +
+          '(lanes are auto-generated from element types).',
         items: {
           type: 'object',
           properties: {
@@ -259,6 +382,12 @@ export const TOOL_DEFINITION = {
               type: 'number',
               description:
                 'Optional lane height in pixels. If omitted, the pool height is divided evenly among lanes without explicit heights.',
+            },
+            elementIds: {
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                'Element IDs to assign to this lane (used with distributeStrategy "manual").',
             },
           },
           required: ['name'],
@@ -275,7 +404,15 @@ export const TOOL_DEFINITION = {
           'Flow-control elements (gateways, events) are assigned to their most-connected ' +
           "neighbor's lane. Run layout_bpmn_diagram afterwards for clean positioning.",
       },
+      distributeStrategy: {
+        type: 'string',
+        enum: ['by-type', 'manual'],
+        description:
+          'Auto-generate and distribute elements to lanes. "by-type": auto-creates lanes ' +
+          'based on element types (Human Tasks, Automated Tasks). "manual": uses elementIds ' +
+          'in each lane definition to assign elements. When omitted, lanes are created without distribution.',
+      },
     },
-    required: ['diagramId', 'participantId', 'lanes'],
+    required: ['diagramId', 'participantId'],
   },
 } as const;

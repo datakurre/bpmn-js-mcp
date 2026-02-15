@@ -5,7 +5,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(50);
+    expect(TOOL_DEFINITIONS.length).toBe(44);
   });
 
   test.each([
@@ -31,7 +31,6 @@ describe('tool-definitions', () => {
     'set_bpmn_loop_characteristics',
     'adjust_bpmn_labels',
     'set_bpmn_script',
-    'create_bpmn_collaboration',
     'bpmn_history',
     'diff_bpmn_diagrams',
     'batch_bpmn_operations',
@@ -41,9 +40,7 @@ describe('tool-definitions', () => {
     'create_bpmn_lanes',
     'assign_bpmn_elements_to_lane',
     'wrap_bpmn_process_in_collaboration',
-    'split_bpmn_participant_into_lanes',
     'duplicate_bpmn_element',
-    'insert_bpmn_element',
     'replace_bpmn_element',
     'add_bpmn_element_chain',
     'create_bpmn_participant',
@@ -51,10 +48,7 @@ describe('tool-definitions', () => {
     'suggest_bpmn_lane_organization',
     'validate_bpmn_lane_organization',
     'convert_bpmn_collaboration_to_lanes',
-    'resize_bpmn_pool_to_fit',
     'suggest_bpmn_pool_vs_lanes',
-    'optimize_bpmn_lane_assignments',
-    'summarize_bpmn_diagram',
     'list_bpmn_process_variables',
     'set_bpmn_connection_waypoints',
   ])("includes tool '%s'", (name) => {

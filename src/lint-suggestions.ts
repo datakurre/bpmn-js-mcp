@@ -91,7 +91,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/lane-missing-start-or-end':
     'Assign start and end events to appropriate lanes using move_bpmn_element with laneId',
   'bpmn-mcp/pool-size-insufficient':
-    'Use resize_bpmn_pool_to_fit to auto-resize the pool{elementRef}, or use move_bpmn_element with width/height to manually resize',
+    'Use autosize_bpmn_pools_and_lanes with participantId to auto-resize the pool{elementRef}, or use move_bpmn_element with width/height to manually resize',
   'bpmn-mcp/message-flow-necessity':
     'If the connected pools represent roles within the same organization, consider using a single pool with lanes and sequence flows instead of message flows{elementRef}',
   'bpmn-mcp/unaligned-message-events':

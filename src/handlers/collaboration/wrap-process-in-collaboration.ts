@@ -224,7 +224,7 @@ export async function handleWrapProcessInCollaboration(
   const existing = elementRegistry.filter((el: any) => el.type === BPMN_PARTICIPANT);
   if (existing.length > 0) {
     throw semanticViolationError(
-      'Diagram already contains participants. Use create_bpmn_collaboration for adding more pools, ' +
+      'Diagram already contains participants. Use create_bpmn_participant for adding more pools, ' +
         'or delete existing participants first.'
     );
   }

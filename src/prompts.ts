@@ -101,9 +101,9 @@ const PROMPTS: PromptDefinition[] = [
               `- Partner pools must be COLLAPSED (thin bars)\n` +
               `- Use message flows between expanded pool elements and collapsed pools\n\n` +
               `Follow these steps:\n\n` +
-              `1. **Review current state**: Use \`summarize_bpmn_diagram\` on "${diagramId}" ` +
+              `1. **Review current state**: Use \`list_bpmn_diagrams\` with diagramId "${diagramId}" ` +
               `to understand the existing process structure.\n` +
-              `2. **Create collaboration**: Use \`create_bpmn_collaboration\` with:\n` +
+              `2. **Create collaboration**: Use \`create_bpmn_participant\` with participants array:\n` +
               `   - First participant: the existing process name (expanded, executable)\n` +
               `   - Additional participants: ${partners} (each with \`collapsed: true\`)\n` +
               `3. **Recreate the process**: Add all elements from the original process into the ` +

@@ -4,6 +4,9 @@
  * Rebalances element placement across existing lanes when lanes become
  * overcrowded or when elements are not optimally assigned. Uses role-based
  * matching, flow-neighbor analysis, and lane capacity balancing.
+ *
+ * When validate=true, combines validation + redistribution into a single
+ * operation (previously the separate optimize_bpmn_lane_assignments tool).
  */
 // @mutating
 
@@ -19,13 +22,20 @@ import {
 import { typeMismatchError } from '../../errors';
 import { appendLintFeedback } from '../../linter';
 import { extractPrimaryRole, isFlowControl } from './auto-distribute';
+import {
+  findParticipantWithLanes,
+  validateAndRedistribute,
+  buildRedistributeResult,
+} from './validate-and-redistribute';
 
 export interface RedistributeElementsAcrossLanesArgs {
   diagramId: string;
-  participantId: string;
+  participantId?: string;
   strategy?: 'role-based' | 'balance' | 'minimize-crossings';
   reposition?: boolean;
   dryRun?: boolean;
+  /** When true, runs validation before and after redistribution (merged optimize flow). */
+  validate?: boolean;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -262,62 +272,34 @@ function collectMoves(
   return moves;
 }
 
-// ── Result builder ─────────────────────────────────────────────────────────
-
-function buildRedistributeResult(
-  moves: MoveRecord[],
-  totalElements: number,
-  dryRun: boolean,
-  strategy: string,
-  participantId: string,
-  pool: any
-): ToolResult {
-  const msg = dryRun
-    ? `Dry run: would move ${moves.length} of ${totalElements} element(s) using "${strategy}" strategy.`
-    : `Moved ${moves.length} of ${totalElements} element(s) using "${strategy}" strategy.`;
-  return jsonResult({
-    success: true,
-    dryRun,
-    strategy,
-    participantId,
-    participantName: pool.businessObject?.name || participantId,
-    movedCount: moves.length,
-    totalElements,
-    moves,
-    message: msg,
-    nextSteps:
-      moves.length > 0
-        ? [
-            {
-              tool: 'layout_bpmn_diagram',
-              description: 'Re-layout diagram after lane redistribution',
-            },
-            {
-              tool: 'validate_bpmn_lane_organization',
-              description: 'Check if the new lane organization is coherent',
-            },
-          ]
-        : [],
-  });
-}
-
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleRedistributeElementsAcrossLanes(
   args: RedistributeElementsAcrossLanesArgs
 ): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'participantId']);
+  validateArgs(args, ['diagramId']);
   const {
     diagramId,
-    participantId,
     strategy = 'role-based',
     reposition = true,
     dryRun = false,
+    validate = false,
   } = args;
 
   const diagram = requireDiagram(diagramId);
   const reg = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
+
+  // Auto-detect participantId when omitted
+  const participantId = args.participantId || findParticipantWithLanes(reg);
+  if (!participantId) {
+    return jsonResult({
+      success: false,
+      message:
+        'No participant with at least 2 lanes found. ' +
+        'Use create_bpmn_lanes to add lanes first, or specify participantId explicitly.',
+    });
+  }
 
   const pool = requireElement(reg, participantId);
   if (pool.type !== 'bpmn:Participant') {
@@ -332,6 +314,26 @@ export async function handleRedistributeElementsAcrossLanes(
     });
   }
 
+  // ── Validate mode: run validation before and after ──────────────────────
+  if (validate) {
+    const result = await validateAndRedistribute(
+      diagram,
+      diagramId,
+      participantId,
+      lanes,
+      getFlowNodes(reg, participantId),
+      strategy,
+      reposition,
+      dryRun,
+      reg,
+      modeling,
+      buildCurrentLaneMap,
+      collectMoves
+    );
+    return dryRun ? result : appendLintFeedback(result, diagram);
+  }
+
+  // ── Standard redistribution (no validation wrapper) ─────────────────────
   const laneMap = buildCurrentLaneMap(lanes);
   const flowNodes = getFlowNodes(reg, participantId);
   const moves = collectMoves(flowNodes, strategy, lanes, laneMap, dryRun, reposition, modeling);
@@ -359,6 +361,8 @@ export const TOOL_DEFINITION = {
     'Rebalance element placement across existing lanes in a pool. Analyzes assignee/role patterns, ' +
     'flow-neighbor connections, and lane capacity to produce a better distribution. ' +
     'Use when lanes become overcrowded or when elements are not optimally assigned after initial creation. ' +
+    'Set validate=true to run lane validation before and after redistribution, reporting before/after ' +
+    'coherence metrics and skipping changes when organization is already good (the optimize flow). ' +
     'Supports dry-run mode to preview changes before applying them.',
   inputSchema: {
     type: 'object',
@@ -366,7 +370,9 @@ export const TOOL_DEFINITION = {
       diagramId: { type: 'string', description: 'The diagram ID' },
       participantId: {
         type: 'string',
-        description: 'The ID of the participant (pool) whose lanes to rebalance',
+        description:
+          'The ID of the participant (pool) whose lanes to rebalance. ' +
+          'When omitted, auto-detects the first participant with at least 2 lanes.',
       },
       strategy: {
         type: 'string',
@@ -386,7 +392,15 @@ export const TOOL_DEFINITION = {
         type: 'boolean',
         description: 'When true, returns the redistribution plan without applying any changes.',
       },
+      validate: {
+        type: 'boolean',
+        description:
+          'When true, runs lane validation before and after redistribution. ' +
+          'Skips changes if organization is already good (coherence ≥ 70%). ' +
+          'Reports before/after coherence metrics showing the improvement. ' +
+          'Uses minimize-crossings strategy by default in validate mode.',
+      },
     },
-    required: ['diagramId', 'participantId'],
+    required: ['diagramId'],
   },
 } as const;

@@ -81,7 +81,7 @@ export default function multipleExpandedPools() {
         node.id,
         `${expanded.length} expanded pools found (${names}). ` +
           'In Camunda 7 / Operaton, only one pool can be deployed and executed. ' +
-          'Make non-executable pools collapsed (set collapsed: true in create_bpmn_collaboration) — ' +
+          'Make non-executable pools collapsed (set collapsed: true in create_bpmn_participant) — ' +
           'collapsed pools have no internal flow and exist only to document message flow endpoints.'
       );
     }

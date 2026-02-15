@@ -43,9 +43,9 @@ const WORKFLOW_CONTEXT_GUIDANCE: Record<
       'Create a participant, add lanes for each role (e.g. Requester, Approver, Finance), ' +
       'and assign elements to lanes.',
     step: {
-      tool: 'create_bpmn_collaboration',
+      tool: 'create_bpmn_participant',
       description:
-        'Create a single expanded pool with lanes for role separation (use the lanes parameter).',
+        'Create a single expanded pool with lanes for role separation, then use create_bpmn_lanes.',
     },
   },
   'multi-organization': {
@@ -54,9 +54,9 @@ const WORKFLOW_CONTEXT_GUIDANCE: Record<
       'with one executable pool and collapsed partner pools for external parties. ' +
       'Connect them with message flows.',
     step: {
-      tool: 'create_bpmn_collaboration',
+      tool: 'create_bpmn_participant',
       description:
-        'Create a collaboration with one expanded pool (your process) and collapsed pools for external partners.',
+        'Create a collaboration with participants array: one expanded pool (your process) and collapsed pools for external partners.',
     },
   },
   'multi-system': {
@@ -65,9 +65,9 @@ const WORKFLOW_CONTEXT_GUIDANCE: Record<
       'Only one pool is executable (Camunda 7); others are collapsed message flow endpoints. ' +
       'For simple integrations, consider ServiceTask with external topic instead.',
     step: {
-      tool: 'create_bpmn_collaboration',
+      tool: 'create_bpmn_participant',
       description:
-        'Create a collaboration with expanded pool for your process and collapsed pools for external systems.',
+        'Create a collaboration with participants array: expanded pool for your process and collapsed pools for external systems.',
     },
   },
 };

@@ -321,6 +321,6 @@ describe('lane hint', () => {
     const result = await addEl(diagramId, 'bpmn:Lane', 'Manager');
 
     expect(result.nextSteps).toBeDefined();
-    expect(result.nextSteps.some((h: any) => h.tool === 'create_bpmn_collaboration')).toBe(true);
+    expect(result.nextSteps.some((h: any) => h.tool === 'create_bpmn_participant')).toBe(true);
   });
 });

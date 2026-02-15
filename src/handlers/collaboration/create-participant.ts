@@ -1,13 +1,11 @@
 /**
  * Handler for create_bpmn_participant tool.
  *
- * Creates a single participant (pool) in a diagram. If the diagram already
- * has a collaboration, the new participant is added to it. If the diagram
- * is a plain process, it is first wrapped in a collaboration.
+ * Creates participant(s) (pools) in a diagram. Supports both single-pool
+ * creation (via `name`) and multi-pool collaboration creation (via
+ * `participants` array, merged from the former create_bpmn_collaboration tool).
  *
- * This solves the gap where create_bpmn_collaboration requires at least 2
- * participants, and add_bpmn_element with type bpmn:Participant does not
- * support processId or isExecutable options.
+ * If the diagram is a plain process, it is first wrapped in a collaboration.
  */
 // @mutating
 
@@ -25,6 +23,7 @@ import { appendLintFeedback } from '../../linter';
 import { ELEMENT_SIZES, calculateOptimalPoolSize } from '../../constants';
 import { handleCreateLanes } from './create-lanes';
 import { ensureProcessRef } from './collaboration-utils';
+import { handleCreateCollaboration } from './create-collaboration';
 
 /** Height of a collapsed participant pool. */
 const COLLAPSED_POOL_HEIGHT = 60;
@@ -32,8 +31,8 @@ const BPMN_PARTICIPANT = 'bpmn:Participant';
 
 export interface CreateParticipantArgs {
   diagramId: string;
-  /** Name for the participant/pool. */
-  name: string;
+  /** Name for the participant/pool (single-pool mode). */
+  name?: string;
   /** Optional explicit participant element ID. */
   participantId?: string;
   /** Optional process ID for the participant's process reference. */
@@ -50,6 +49,18 @@ export interface CreateParticipantArgs {
   y?: number;
   /** Optional lanes to create within this participant (requires at least 2). */
   lanes?: Array<{ name: string; height?: number }>;
+  /** Multi-pool mode: create multiple participants at once (collaboration). Min 2. */
+  participants?: Array<{
+    name: string;
+    participantId?: string;
+    processId?: string;
+    collapsed?: boolean;
+    width?: number;
+    height?: number;
+    x?: number;
+    y?: number;
+    lanes?: Array<{ name: string; height?: number }>;
+  }>;
 }
 
 /**
@@ -161,8 +172,26 @@ async function tryCreateLanes(
 }
 
 export async function handleCreateParticipant(args: CreateParticipantArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'name']);
-  const { diagramId, name: participantName } = args;
+  validateArgs(args, ['diagramId']);
+
+  // Multi-pool mode: delegate to create-collaboration handler
+  if (args.participants && args.participants.length >= 2) {
+    return handleCreateCollaboration({
+      diagramId: args.diagramId,
+      participants: args.participants,
+    });
+  }
+
+  // Single-pool mode: requires name
+  const participantName = args.name;
+  if (!participantName) {
+    throw new Error(
+      'Missing required parameter: name (required for single-pool mode). ' +
+        'Use "participants" array with at least 2 entries for multi-pool collaboration.'
+    );
+  }
+
+  const { diagramId } = args;
   const diagram = requireDiagram(diagramId);
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
@@ -201,15 +230,23 @@ export async function handleCreateParticipant(args: CreateParticipantArgs): Prom
 export const TOOL_DEFINITION = {
   name: 'create_bpmn_participant',
   description:
-    'Create a single participant (pool) in a BPMN diagram. If the diagram is a plain process, ' +
-    'it will be converted to a collaboration automatically. Supports setting a custom process ID, ' +
-    'collapsed mode (thin bar for external partners), and optional lane creation. ' +
-    'Use this to add pools one at a time, unlike create_bpmn_collaboration which requires at least 2.',
+    'Create participant(s) (pools) in a BPMN diagram. Supports two modes:\n' +
+    '**Single pool** (name): Creates one participant. If the diagram is a plain process, ' +
+    'it will be converted to a collaboration automatically.\n' +
+    '**Multi-pool collaboration** (participants array): Creates multiple participants at once ' +
+    '(minimum 2). **Camunda 7 / Operaton pattern:** Only one pool can be deployed and executed — ' +
+    'additional pools must be **collapsed** (set collapsed: true) and serve only to document ' +
+    'message flow endpoints. **Lanes vs Pools:** If you need role separation within a single ' +
+    'organization/process (e.g. Requester, Approver, Finance), use **lanes** inside one expanded ' +
+    'pool — NOT multiple expanded pools.',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
-      name: { type: 'string', description: 'Participant/pool name' },
+      name: {
+        type: 'string',
+        description: 'Participant/pool name (for single-pool mode)',
+      },
       participantId: {
         type: 'string',
         description: 'Optional explicit element ID. If omitted, a descriptive ID is generated.',
@@ -224,18 +261,9 @@ export const TOOL_DEFINITION = {
         description:
           'If true, creates a collapsed pool (thin bar). Use for non-executable partner pools.',
       },
-      width: {
-        type: 'number',
-        description: 'Pool width in pixels (default: 600)',
-      },
-      height: {
-        type: 'number',
-        description: 'Pool height in pixels (default: 250)',
-      },
-      x: {
-        type: 'number',
-        description: 'X coordinate (default: 300)',
-      },
+      width: { type: 'number', description: 'Pool width in pixels (default: 600)' },
+      height: { type: 'number', description: 'Pool height in pixels (default: 250)' },
+      x: { type: 'number', description: 'X coordinate (default: 300)' },
       y: {
         type: 'number',
         description: 'Y coordinate (default: auto-positioned below existing participants)',
@@ -256,7 +284,68 @@ export const TOOL_DEFINITION = {
         },
         minItems: 2,
       },
+      participants: {
+        type: 'array',
+        description:
+          'Multi-pool mode: create multiple participants at once (collaboration). ' +
+          'Requires at least 2 entries. When provided, single-pool parameters (name, collapsed, etc.) are ignored.',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Participant/pool name' },
+            participantId: {
+              type: 'string',
+              description: 'Optional explicit ID for the participant element.',
+            },
+            processId: {
+              type: 'string',
+              description: 'Optional custom process ID for the participant',
+            },
+            collapsed: {
+              type: 'boolean',
+              description:
+                'If true, creates a collapsed pool (thin bar, no internal flow). Use for non-executable partner pools.',
+            },
+            width: { type: 'number', description: 'Optional pool width in pixels (default: 600)' },
+            height: {
+              type: 'number',
+              description: 'Optional pool height in pixels (default: 250)',
+            },
+            x: {
+              type: 'number',
+              description: 'Optional X coordinate for pool center (default: 300)',
+            },
+            y: {
+              type: 'number',
+              description: 'Optional Y coordinate for pool center (default: auto-stacked)',
+            },
+            lanes: {
+              type: 'array',
+              description:
+                'Optional lanes to create within this participant (requires at least 2). Ignored for collapsed pools.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: {
+                    type: 'string',
+                    description: 'Lane name (typically a role or department)',
+                  },
+                  height: {
+                    type: 'number',
+                    description:
+                      'Optional lane height. If omitted, the pool height is divided evenly.',
+                  },
+                },
+                required: ['name'],
+              },
+              minItems: 2,
+            },
+          },
+          required: ['name'],
+        },
+        minItems: 2,
+      },
     },
-    required: ['diagramId', 'name'],
+    required: ['diagramId'],
   },
 } as const;

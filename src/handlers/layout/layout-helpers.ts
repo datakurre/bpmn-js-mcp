@@ -161,8 +161,8 @@ function buildNextSteps(
       description: `Lane coherence score is ${laneCrossingMetrics.laneCoherenceScore}% (below 70%). Run validate_bpmn_lane_organization for detailed lane improvement suggestions.`,
     });
     steps.push({
-      tool: 'optimize_bpmn_lane_assignments',
-      description: `Lane coherence is low (${laneCrossingMetrics.laneCoherenceScore}%). Run optimize_bpmn_lane_assignments to automatically minimize cross-lane flows.`,
+      tool: 'redistribute_bpmn_elements_across_lanes',
+      description: `Lane coherence is low (${laneCrossingMetrics.laneCoherenceScore}%). Run redistribute_bpmn_elements_across_lanes with validate: true to automatically minimize cross-lane flows.`,
     });
   }
 

@@ -1,15 +1,22 @@
 /**
  * Handler for autosize_bpmn_pools_and_lanes tool.
  *
- * Dynamically resizes ALL pools and their lanes in a diagram to fit
- * contained elements with proper spacing. Unlike resize_bpmn_pool_to_fit
- * (which targets a single pool), this tool handles the entire diagram and
- * also calculates dynamic pool widths based on element count and nesting.
+ * Dynamically resizes pools and their lanes in a diagram to fit
+ * contained elements with proper spacing. When participantId is given,
+ * only that single pool is resized; otherwise all pools are processed.
  */
 // @mutating
 
 import { type ToolResult } from '../../types';
-import { requireDiagram, jsonResult, syncXml, validateArgs, getService } from '../helpers';
+import {
+  requireDiagram,
+  requireElement,
+  jsonResult,
+  syncXml,
+  validateArgs,
+  getService,
+} from '../helpers';
+import { typeMismatchError } from '../../errors';
 import { appendLintFeedback } from '../../linter';
 import {
   MIN_POOL_WIDTH,
@@ -21,6 +28,8 @@ import {
 
 export interface AutosizePoolsAndLanesArgs {
   diagramId: string;
+  /** When set, only resize this single participant (pool). When omitted, resize all pools. */
+  participantId?: string;
   /** Minimum margin around elements inside pools/lanes (pixels). Default: 50. */
   padding?: number;
   /** When true (default), also resizes lanes proportionally based on content. */
@@ -273,6 +282,7 @@ export async function handleAutosizePoolsAndLanes(
   validateArgs(args, ['diagramId']);
   const {
     diagramId,
+    participantId,
     padding = DEFAULT_PADDING,
     resizeLanes: doLanes = true,
     targetAspectRatio,
@@ -280,6 +290,33 @@ export async function handleAutosizePoolsAndLanes(
   const diagram = requireDiagram(diagramId);
   const reg = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
+
+  // When participantId is specified, only resize that single pool
+  if (participantId) {
+    const pool = requireElement(reg, participantId);
+    if (pool.type !== 'bpmn:Participant') {
+      throw typeMismatchError(participantId, pool.type, ['bpmn:Participant']);
+    }
+    const pr = processPool(pool, reg, modeling, padding, doLanes, targetAspectRatio);
+    await syncXml(diagram);
+
+    const result = jsonResult({
+      success: true,
+      participantId: pr.participantId,
+      participantName: pr.participantName,
+      resized: pr.resized,
+      elementCount: pr.elementCount,
+      oldBounds: { width: pr.oldWidth, height: pr.oldHeight },
+      newBounds: { width: pr.newWidth, height: pr.newHeight },
+      ...(pr.laneResizes.length > 0 ? { laneResizes: pr.laneResizes } : {}),
+      message: pr.resized
+        ? `Resized pool "${pr.participantName}" from ${pr.oldWidth}×${pr.oldHeight} to ${pr.newWidth}×${pr.newHeight} to fit ${pr.elementCount} elements.` +
+          (pr.laneResizes.length > 0 ? ` Resized ${pr.laneResizes.length} lane(s).` : '')
+        : `Pool "${pr.participantName}" already fits all ${pr.elementCount} elements.`,
+    });
+    return appendLintFeedback(result, diagram);
+  }
+
   const pools = reg.filter((el: any) => el.type === 'bpmn:Participant');
 
   if (pools.length === 0) {
@@ -323,14 +360,20 @@ export async function handleAutosizePoolsAndLanes(
 export const TOOL_DEFINITION = {
   name: 'autosize_bpmn_pools_and_lanes',
   description:
-    'Dynamically resize all pools and their lanes in a diagram to fit contained elements ' +
-    'with proper spacing. Calculates optimal pool width based on element count and content extent. ' +
-    'Lane heights are proportionally distributed based on their content. ' +
-    'Unlike resize_bpmn_pool_to_fit (which targets one pool), this handles the entire diagram at once.',
+    'Resize pools and their lanes to fit contained elements with proper spacing. ' +
+    'When participantId is given, resizes only that single pool. When omitted, resizes all pools. ' +
+    'Calculates optimal pool width based on element count and content extent. ' +
+    'Lane heights are proportionally distributed based on their content.',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
+      participantId: {
+        type: 'string',
+        description:
+          'Optional. The ID of a single participant (pool) to resize. ' +
+          'When omitted, all pools in the diagram are resized.',
+      },
       padding: {
         type: 'number',
         description:

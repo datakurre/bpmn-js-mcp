@@ -20,8 +20,8 @@ describe('create_bpmn_diagram workflowContext', () => {
     expect(res.structureGuidance).toBeDefined();
     expect(res.structureGuidance).toContain('lane');
 
-    // Should suggest create_bpmn_collaboration with lanes as first step
-    const collabStep = res.nextSteps.find((s: any) => s.tool === 'create_bpmn_collaboration');
+    // Should suggest create_bpmn_participant with lanes as first step
+    const collabStep = res.nextSteps.find((s: any) => s.tool === 'create_bpmn_participant');
     expect(collabStep).toBeDefined();
     expect(collabStep.description).toContain('lanes');
   });
@@ -38,7 +38,7 @@ describe('create_bpmn_diagram workflowContext', () => {
     expect(res.workflowContext).toBe('multi-organization');
     expect(res.structureGuidance).toContain('collaboration');
 
-    const collabStep = res.nextSteps.find((s: any) => s.tool === 'create_bpmn_collaboration');
+    const collabStep = res.nextSteps.find((s: any) => s.tool === 'create_bpmn_participant');
     expect(collabStep).toBeDefined();
     expect(collabStep.description).toContain('collapsed');
   });
