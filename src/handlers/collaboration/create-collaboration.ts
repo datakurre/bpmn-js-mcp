@@ -208,7 +208,8 @@ export async function handleCreateCollaboration(
   return appendLintFeedback(result, diagram);
 }
 
-export const TOOL_DEFINITION = {
+/** @deprecated Not registered as an MCP tool — subsumed by create_bpmn_participant. */
+const _UNUSED_TOOL_DEFINITION = {
   name: 'create_bpmn_collaboration',
   description:
     'Create a collaboration diagram with multiple participants (pools). ' +

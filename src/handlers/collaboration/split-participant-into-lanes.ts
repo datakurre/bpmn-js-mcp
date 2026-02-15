@@ -333,7 +333,8 @@ export async function handleSplitParticipantIntoLanes(
   return appendLintFeedback(result, diagram);
 }
 
-export const TOOL_DEFINITION = {
+/** @deprecated Not registered as an MCP tool — subsumed by create_bpmn_lanes. */
+const _UNUSED_TOOL_DEFINITION = {
   name: 'split_bpmn_participant_into_lanes',
   description:
     'Automatically split an existing participant pool into lanes and distribute elements. ' +

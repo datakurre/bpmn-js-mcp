@@ -268,9 +268,10 @@ export async function handleResizePoolToFit(args: ResizePoolToFitArgs): Promise<
   return appendLintFeedback(result, diagram);
 }
 
-// ── Tool definition ──────────────────────────────────────────────────────
+// ── Tool definition (deprecated — subsumed by autosize_bpmn_pools_and_lanes) ──
 
-export const TOOL_DEFINITION = {
+/** @deprecated Not registered as an MCP tool. */
+const _UNUSED_TOOL_DEFINITION = {
   name: 'resize_bpmn_pool_to_fit',
   description:
     'Resize a participant pool (and optionally its lanes) to fit all contained elements ' +

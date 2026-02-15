@@ -188,9 +188,10 @@ export async function handleOptimizeLaneAssignments(
   return dryRun ? result : appendLintFeedback(result, diagram);
 }
 
-// ── Tool definition ────────────────────────────────────────────────────────
+// ── Tool definition (deprecated — subsumed by redistribute_bpmn_elements_across_lanes) ──
 
-export const TOOL_DEFINITION = {
+/** @deprecated Not registered as an MCP tool. */
+const _UNUSED_TOOL_DEFINITION = {
   name: 'optimize_bpmn_lane_assignments',
   description:
     'Automatically optimize element assignments across lanes to minimize cross-lane flows ' +
