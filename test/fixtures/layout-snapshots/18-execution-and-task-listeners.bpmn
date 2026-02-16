@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Listeners" name="Execution and Task Listeners" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Process Started">
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start">
+          <camunda:script scriptFormat="groovy">
+            execution.setVariable('startTime', new Date())
+          </camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="InitTask" name="Initialize" camunda:class="com.example.Initializer">
+      <bpmn:extensionElements>
+        <camunda:executionListener class="com.example.AuditListener" event="start">
+          <camunda:field name="action" />
+        </camunda:executionListener>
+        <camunda:executionListener delegateExpression="${metricsCollector}" event="end" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="ReviewTask" name="Review Data" camunda:assignee="reviewer" camunda:dueDate="${dateTime().plusDays(2).toDate()}">
+      <bpmn:extensionElements>
+        <camunda:taskListener class="com.example.TaskCreatedListener" event="create">
+          <camunda:field name="notificationType" />
+        </camunda:taskListener>
+        <camunda:taskListener expression="${notifier.onAssignment(task)}" event="assignment" />
+        <camunda:taskListener delegateExpression="${completionHandler}" event="complete" />
+        <camunda:taskListener event="timeout" id="TimeoutListener">
+          <camunda:script scriptFormat="groovy">
+            task.setVariable('timedOut', true)
+            task.getExecution().setVariable('escalationNeeded', true)
+          </camunda:script>
+        </camunda:taskListener>
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="javascript">
+            var duration = new Date() - execution.getVariable('startTime');
+            execution.setVariable('reviewDuration', duration);
+          </camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="FinalizeTask" name="Finalize" camunda:expression="${finalizer.run(execution)}" camunda:resultVariable="result">
+      <bpmn:extensionElements>
+        <camunda:executionListener expression="${logger.info(&#39;Finalizing process&#39;)}" event="start" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Done">
+      <bpmn:extensionElements>
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="groovy">
+            execution.setVariable('endTime', new Date())
+          </camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="InitTask" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="InitTask" targetRef="ReviewTask" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="ReviewTask" targetRef="FinalizeTask" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="FinalizeTask" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_Listeners">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_Listeners" bpmnElement="Process_Listeners">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="160" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="InitTask_di" bpmnElement="InitTask">
+        <dc:Bounds x="288" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReviewTask_di" bpmnElement="ReviewTask">
+        <dc:Bounds x="448" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="FinalizeTask_di" bpmnElement="FinalizeTask">
+        <dc:Bounds x="608" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="768" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="773" y="160" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="448" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="548" y="132" />
+        <di:waypoint x="608" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="708" y="132" />
+        <di:waypoint x="768" y="132" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

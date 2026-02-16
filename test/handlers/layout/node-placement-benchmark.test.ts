@@ -1,5 +1,5 @@
 /**
- * Benchmark: ELK node-placement strategies on 07-complex-workflow.bpmn.
+ * Benchmark: ELK node-placement strategies on 19-complex-workflow-patterns.bpmn.
  *
  * Compares NETWORK_SIMPLEX, BRANDES_KOEPF, and LINEAR_SEGMENTS to
  * determine which produces the best layout for BPMN diagrams.
@@ -7,7 +7,7 @@
  * Metrics per strategy:
  * - Y-variance of main-path elements (lower = better straight-line alignment)
  * - Total diagram width and height
- * - Whether parallel branches (Process Payment, Reserve Inventory) are on distinct Y rows
+ * - Whether parallel branches (Check Inventory, Calculate Shipping) are on distinct Y rows
  * - Whether all main-path flows are orthogonal
  *
  * These are benchmark tests, skipped in CI.
@@ -66,50 +66,56 @@ describe.skipIf(!!process.env.CI)('ELK node-placement strategy benchmarks', () =
     return true;
   }
 
-  // ── Element IDs in 07-complex-workflow.bpmn ────────────────────────────────
+  // ── Element IDs in 19-complex-workflow-patterns.bpmn ───────────────────────
   //
-  // Event_1kc0fqv    → StartEvent "Order Placed"
-  // Activity_0glogve → ServiceTask "Validate Order"
-  // Gateway_0ircx6m  → ExclusiveGateway "Valid?"
-  // Gateway_0g0pyit  → ParallelGateway (fork)
-  // Activity_0rnc8vk → ServiceTask "Process Payment"
-  // Activity_0mr8w51 → ServiceTask "Reserve Inventory"
-  // Gateway_0rzojmn  → ParallelGateway (join)
-  // Activity_1kdlney → UserTask "Ship Order"
-  // Event_1hm7wwe    → EndEvent "Order Fulfilled"
-  // Activity_02pkc1i → SendTask "Send Rejection"
-  // Event_01cpts6    → EndEvent "Order Rejected"
+  // Start              → StartEvent
+  // TimerStart         → StartEvent (timer, R/P1D)
+  // GW_Merge1          → ExclusiveGateway (merge after starts)
+  // ClassifyOrder      → UserTask "Classify Order"
+  // GW_OrderType       → ExclusiveGateway "Order Type?"
+  // GW_Fork1           → ParallelGateway (fork — standard path)
+  // CheckInventory     → ServiceTask "Check Inventory"
+  // CalculateShipping  → ServiceTask "Calculate Shipping"
+  // GW_Join1           → ParallelGateway (join)
+  // ExpressProcess     → ServiceTask "Express Process"
+  // Sub_CustomProcess  → SubProcess (collapsed)
+  // GW_FinalMerge      → ExclusiveGateway (final merge)
+  // FinalConfirm       → UserTask "Final Confirm"
+  // End                → EndEvent
 
   /** Main-path element IDs in left-to-right order. */
   const MAIN_PATH_IDS = [
-    'Event_1kc0fqv', // StartEvent "Order Placed"
-    'Activity_0glogve', // ServiceTask "Validate Order"
-    'Gateway_0ircx6m', // ExclusiveGateway "Valid?"
-    'Gateway_0g0pyit', // ParallelGateway (fork)
-    'Gateway_0rzojmn', // ParallelGateway (join)
-    'Activity_1kdlney', // UserTask "Ship Order"
-    'Event_1hm7wwe', // EndEvent "Order Fulfilled"
+    'Start', // StartEvent
+    'GW_Merge1', // ExclusiveGateway (merge)
+    'ClassifyOrder', // UserTask "Classify Order"
+    'GW_OrderType', // ExclusiveGateway "Order Type?"
+    'GW_FinalMerge', // ExclusiveGateway (final merge)
+    'FinalConfirm', // UserTask "Final Confirm"
+    'End', // EndEvent
   ];
 
   /** Main-path flow IDs for orthogonality checks. */
   const MAIN_PATH_FLOW_IDS = new Set([
-    'Flow_0710ei0', // Order Placed → Validate Order
-    'Flow_007jsi5', // Validate Order → Valid?
-    'Flow_0f3s1zc', // Valid? → fork (Yes)
-    'Flow_0mgoijn', // fork → Process Payment
-    'Flow_0rpogl4', // fork → Reserve Inventory
-    'Flow_033c36g', // Process Payment → join
-    'Flow_11j4u79', // Reserve Inventory → join
-    'Flow_1gzog11', // join → Ship Order
-    'Flow_12mfwdq', // Ship Order → Order Fulfilled
+    'Flow1', // Start → GW_Merge1
+    'FlowTimer', // TimerStart → GW_Merge1
+    'Flow2', // GW_Merge1 → ClassifyOrder
+    'Flow3', // ClassifyOrder → GW_OrderType
+    'FlowStandard', // GW_OrderType → GW_Fork1
+    'FlowA', // GW_Fork1 → CheckInventory
+    'FlowB', // GW_Fork1 → CalculateShipping
+    'FlowA2', // CheckInventory → GW_Join1
+    'FlowB2', // CalculateShipping → GW_Join1
+    'FlowJoined', // GW_Join1 → GW_FinalMerge
+    'Flow4', // GW_FinalMerge → FinalConfirm
+    'Flow5', // FinalConfirm → End
   ]);
 
   /**
-   * Import 07-complex-workflow.bpmn, apply a node-placement strategy, run layout,
-   * and collect quality metrics.
+   * Import 19-complex-workflow-patterns.bpmn, apply a node-placement strategy,
+   * run layout, and collect quality metrics.
    */
   async function runWithStrategy(strategy: Strategy): Promise<StrategyMetrics> {
-    const { diagramId, registry } = await importReference('07-complex-workflow');
+    const { diagramId, registry } = await importReference('19-complex-workflow-patterns');
 
     // Patch ELK options with the target strategy
     ELK_LAYOUT_OPTIONS['elk.layered.nodePlacement.strategy'] = strategy;
@@ -155,10 +161,10 @@ describe.skipIf(!!process.env.CI)('ELK node-placement strategy benchmarks', () =
     const diagramHeight = maxY - minY;
 
     // Parallel branches on distinct Y rows
-    const payment = reg.get('Activity_0rnc8vk');
-    const inventory = reg.get('Activity_0mr8w51');
+    const inventory = reg.get('CheckInventory');
+    const shipping = reg.get('CalculateShipping');
     const parallelBranchesDistinct =
-      payment && inventory ? Math.abs(centreY(payment) - centreY(inventory)) > 10 : false;
+      inventory && shipping ? Math.abs(centreY(inventory) - centreY(shipping)) > 10 : false;
 
     // Orthogonality of main-path flows
     const connections = reg.filter((el: any) => el.type === 'bpmn:SequenceFlow');

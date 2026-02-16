@@ -68,18 +68,26 @@ interface DiagramConfig {
 const DIAGRAMS: DiagramConfig[] = [
   // References now equal ELK-generated snapshots — tight tolerances expected.
   // Small tolerance (5px) accounts for rounding differences across runs.
-  { name: '01-linear-flow', tolerance: 5, minMatchRate: 1.0 },
+  { name: '01-linear-flow-all-task-types', tolerance: 5, minMatchRate: 1.0 },
   { name: '02-exclusive-gateway', tolerance: 5, minMatchRate: 1.0 },
-  { name: '03-parallel-fork-join', tolerance: 5, minMatchRate: 1.0 },
-  { name: '04-nested-subprocess', tolerance: 5, minMatchRate: 1.0 },
-  { name: '05-collaboration', tolerance: 5, minMatchRate: 1.0 },
-  { name: '06-boundary-events', tolerance: 5, minMatchRate: 1.0 },
-  { name: '07-complex-workflow', tolerance: 5, minMatchRate: 1.0 },
-  { name: '08-collaboration-collapsed', tolerance: 5, minMatchRate: 1.0 },
-  { name: '10-pool-with-lanes', tolerance: 5, minMatchRate: 1.0 },
-
-  // 09 has minor non-determinism in end event placement across runs
-  { name: '09-complex-workflow', tolerance: 50, minMatchRate: 0.85 },
+  { name: '03-parallel-gateway', tolerance: 5, minMatchRate: 1.0 },
+  { name: '04-inclusive-gateway', tolerance: 5, minMatchRate: 1.0 },
+  { name: '05-event-based-gateway', tolerance: 5, minMatchRate: 1.0 },
+  { name: '06-subprocess-with-boundary-events', tolerance: 5, minMatchRate: 1.0 },
+  { name: '07-call-activity', tolerance: 5, minMatchRate: 1.0 },
+  { name: '08-boundary-events-all-types', tolerance: 5, minMatchRate: 1.0 },
+  { name: '09-intermediate-events', tolerance: 5, minMatchRate: 1.0 },
+  { name: '10-event-subprocess', tolerance: 5, minMatchRate: 1.0 },
+  { name: '11-collaboration-multi-pool', tolerance: 5, minMatchRate: 1.0 },
+  { name: '12-pool-with-lanes', tolerance: 5, minMatchRate: 1.0 },
+  { name: '13-multi-instance-and-loops', tolerance: 5, minMatchRate: 1.0 },
+  { name: '14-data-artifacts-and-annotations', tolerance: 5, minMatchRate: 1.0 },
+  { name: '15-camunda-forms-and-extensions', tolerance: 5, minMatchRate: 1.0 },
+  { name: '16-signal-and-escalation-events', tolerance: 5, minMatchRate: 1.0 },
+  { name: '17-error-handling-patterns', tolerance: 5, minMatchRate: 1.0 },
+  { name: '18-execution-and-task-listeners', tolerance: 5, minMatchRate: 1.0 },
+  { name: '19-complex-workflow-patterns', tolerance: 50, minMatchRate: 0.85 },
+  { name: '20-compensation-and-cancel-patterns', tolerance: 5, minMatchRate: 1.0 },
 ];
 
 // ── Tests ──────────────────────────────────────────────────────────────────

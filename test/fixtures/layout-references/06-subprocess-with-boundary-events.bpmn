@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:error id="Error_Validation" name="ValidationError" errorCode="ERR_VALIDATION" />
+  <bpmn:process id="Process_Subprocess" name="Expanded Subprocess with Boundary Events" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Claim Filed">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess1" name="Process Claim">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+      <bpmn:startEvent id="SubStart">
+        <bpmn:outgoing>SubFlow1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="ReviewClaim" name="Review Claim" camunda:candidateGroups="claims-team">
+        <bpmn:incoming>SubFlow1</bpmn:incoming>
+        <bpmn:outgoing>SubFlow2</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:serviceTask id="ValidateClaim" name="Validate Claim" camunda:type="external" camunda:topic="claim-validate">
+        <bpmn:incoming>SubFlow2</bpmn:incoming>
+        <bpmn:outgoing>SubFlow3</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:userTask id="ApproveClaim" name="Approve Claim" camunda:candidateGroups="claims-managers">
+        <bpmn:incoming>SubFlow3</bpmn:incoming>
+        <bpmn:outgoing>SubFlow4</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="SubEnd">
+        <bpmn:incoming>SubFlow4</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="SubFlow1" sourceRef="SubStart" targetRef="ReviewClaim" />
+      <bpmn:sequenceFlow id="SubFlow2" sourceRef="ReviewClaim" targetRef="ValidateClaim" />
+      <bpmn:sequenceFlow id="SubFlow3" sourceRef="ValidateClaim" targetRef="ApproveClaim" />
+      <bpmn:sequenceFlow id="SubFlow4" sourceRef="ApproveClaim" targetRef="SubEnd" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="ErrorBoundary" name="Validation Failed" attachedToRef="SubProcess1">
+      <bpmn:outgoing>FlowErr</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrDef1" errorRef="Error_Validation" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="TimerBoundary" name="SLA Exceeded" cancelActivity="false" attachedToRef="SubProcess1">
+      <bpmn:outgoing>FlowTimer</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef1">
+        <bpmn:timeDuration>P3D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="PayClaim" name="Pay Claim" camunda:type="external" camunda:topic="claim-pay">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="HandleError" name="Handle Error" camunda:candidateGroups="claims-team">
+      <bpmn:incoming>FlowErr</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="EscalateTask" name="Escalate" camunda:delegateExpression="${escalationService}">
+      <bpmn:incoming>FlowTimer</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="EndOK" name="Claim Paid">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndError" name="Claim Rejected">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEscalated" name="Escalated">
+      <bpmn:incoming>Flow5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="SubProcess1" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="SubProcess1" targetRef="PayClaim" />
+    <bpmn:sequenceFlow id="FlowErr" sourceRef="ErrorBoundary" targetRef="HandleError" />
+    <bpmn:sequenceFlow id="FlowTimer" sourceRef="TimerBoundary" targetRef="EscalateTask" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="PayClaim" targetRef="EndOK" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="HandleError" targetRef="EndError" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="EscalateTask" targetRef="EndEscalated" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_Subprocess">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_Subprocess" bpmnElement="Process_Subprocess">
+      <bpmndi:BPMNShape id="PayClaim_di" bpmnElement="PayClaim">
+        <dc:Bounds x="458" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndOK_di" bpmnElement="EndOK">
+        <dc:Bounds x="618" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="609" y="150" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EscalateTask_di" bpmnElement="EscalateTask">
+        <dc:Bounds x="458" y="212" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="HandleError_di" bpmnElement="HandleError">
+        <dc:Bounds x="458" y="332" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEscalated_di" bpmnElement="EndEscalated">
+        <dc:Bounds x="618" y="234" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="612" y="270" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndError_di" bpmnElement="EndError">
+        <dc:Bounds x="618" y="354" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="599" y="390" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="182" y="90" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess1_di" bpmnElement="SubProcess1">
+        <dc:Bounds x="288" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerBoundary_di" bpmnElement="TimerBoundary">
+        <dc:Bounds x="280" y="154" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="262" y="190" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ErrorBoundary_di" bpmnElement="ErrorBoundary">
+        <dc:Bounds x="360" y="154" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="337" y="190" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="458" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowErr_di" bpmnElement="FlowErr">
+        <di:waypoint x="378" y="190" />
+        <di:waypoint x="378" y="372" />
+        <di:waypoint x="458" y="372" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowTimer_di" bpmnElement="FlowTimer">
+        <di:waypoint x="298" y="190" />
+        <di:waypoint x="298" y="252" />
+        <di:waypoint x="458" y="252" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="558" y="132" />
+        <di:waypoint x="618" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="558" y="372" />
+        <di:waypoint x="618" y="372" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="558" y="252" />
+        <di:waypoint x="618" y="252" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="SubProcess1">
+      <bpmndi:BPMNShape id="SubStart_di" bpmnElement="SubStart">
+        <dc:Bounds x="180" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReviewClaim_di" bpmnElement="ReviewClaim">
+        <dc:Bounds x="298" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ValidateClaim_di" bpmnElement="ValidateClaim">
+        <dc:Bounds x="448" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ApproveClaim_di" bpmnElement="ApproveClaim">
+        <dc:Bounds x="598" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubEnd_di" bpmnElement="SubEnd">
+        <dc:Bounds x="780" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SubFlow1_di" bpmnElement="SubFlow1">
+        <di:waypoint x="216" y="200" />
+        <di:waypoint x="298" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow2_di" bpmnElement="SubFlow2">
+        <di:waypoint x="398" y="200" />
+        <di:waypoint x="448" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow3_di" bpmnElement="SubFlow3">
+        <di:waypoint x="548" y="200" />
+        <di:waypoint x="598" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SubFlow4_di" bpmnElement="SubFlow4">
+        <di:waypoint x="698" y="200" />
+        <di:waypoint x="780" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

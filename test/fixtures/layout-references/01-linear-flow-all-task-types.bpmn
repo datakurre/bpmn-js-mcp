@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js-mcp" exporterVersion="1.0.0">
+  <bpmn:process id="Process_LinearFlow" name="Linear Flow - All Task Types" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Order Received">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask1" name="Review Order" camunda:assignee="${initiator}" camunda:candidateGroups="order-reviewers">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="ServiceTask1" name="Validate Payment" camunda:class="com.example.PaymentValidator">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:scriptTask id="ScriptTask1" name="Calculate Totals" scriptFormat="groovy" camunda:resultVariable="orderTotal">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+      <bpmn:script>def total = items.sum { it.price * it.quantity }</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:businessRuleTask id="BRTask1" name="Apply Discounts" camunda:decisionRef="discount-rules" camunda:mapDecisionResult="singleEntry">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sendTask id="SendTask1" name="Send Confirmation" camunda:delegateExpression="${emailSender}">
+      <bpmn:incoming>Flow5</bpmn:incoming>
+      <bpmn:outgoing>Flow6</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:manualTask id="ManualTask1" name="Pack Items">
+      <bpmn:incoming>Flow6</bpmn:incoming>
+      <bpmn:outgoing>Flow7</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:receiveTask id="ReceiveTask1" name="Await Pickup" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow7</bpmn:incoming>
+      <bpmn:outgoing>Flow8</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:endEvent id="End" name="Order Complete">
+      <bpmn:incoming>Flow8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="UserTask1" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="UserTask1" targetRef="ServiceTask1" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="ServiceTask1" targetRef="ScriptTask1" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="ScriptTask1" targetRef="BRTask1" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="BRTask1" targetRef="SendTask1" />
+    <bpmn:sequenceFlow id="Flow6" sourceRef="SendTask1" targetRef="ManualTask1" />
+    <bpmn:sequenceFlow id="Flow7" sourceRef="ManualTask1" targetRef="ReceiveTask1" />
+    <bpmn:sequenceFlow id="Flow8" sourceRef="ReceiveTask1" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_LinearFlow">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_LinearFlow" bpmnElement="Process_LinearFlow">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="150" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask1_di" bpmnElement="UserTask1">
+        <dc:Bounds x="288" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask1_di" bpmnElement="ServiceTask1">
+        <dc:Bounds x="448" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTask1_di" bpmnElement="ScriptTask1">
+        <dc:Bounds x="608" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BRTask1_di" bpmnElement="BRTask1">
+        <dc:Bounds x="768" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendTask1_di" bpmnElement="SendTask1">
+        <dc:Bounds x="928" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ManualTask1_di" bpmnElement="ManualTask1">
+        <dc:Bounds x="1088" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReceiveTask1_di" bpmnElement="ReceiveTask1">
+        <dc:Bounds x="1248" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="1408" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1387" y="150" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="448" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="548" y="132" />
+        <di:waypoint x="608" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="708" y="132" />
+        <di:waypoint x="768" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="868" y="132" />
+        <di:waypoint x="928" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow6_di" bpmnElement="Flow6">
+        <di:waypoint x="1028" y="132" />
+        <di:waypoint x="1088" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow7_di" bpmnElement="Flow7">
+        <di:waypoint x="1188" y="132" />
+        <di:waypoint x="1248" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow8_di" bpmnElement="Flow8">
+        <di:waypoint x="1348" y="132" />
+        <di:waypoint x="1408" y="132" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

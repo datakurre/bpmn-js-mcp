@@ -85,7 +85,7 @@ export { clearDiagrams };
 const REFERENCES_DIR = resolve(__dirname, '..', 'fixtures', 'layout-references');
 
 /**
- * Import a reference BPMN by short name (e.g. '01-linear-flow').
+ * Import a reference BPMN by short name (e.g. '01-linear-flow-all-task-types').
  * Returns the diagramId and the elementRegistry.
  */
 export async function importReference(name: string) {

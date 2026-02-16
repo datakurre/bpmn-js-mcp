@@ -411,10 +411,10 @@ describe('Layout quality regression', () => {
   // ── Reference BPMN position tracking ─────────────────────────────────
 
   describe('reference position tracking', () => {
-    test('01-linear-flow: positions converge toward reference', async () => {
-      const { diagramId, registry } = await importReference('01-linear-flow');
+    test('01-linear-flow-all-task-types: positions converge toward reference', async () => {
+      const { diagramId, registry } = await importReference('01-linear-flow-all-task-types');
       await handleLayoutDiagram({ diagramId });
-      const { matchRate } = comparePositions(registry, '01-linear-flow', 10);
+      const { matchRate } = comparePositions(registry, '01-linear-flow-all-task-types', 10);
       // Track progress — always passes
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
@@ -426,17 +426,17 @@ describe('Layout quality regression', () => {
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    test('03-parallel-fork-join: positions converge toward reference', async () => {
-      const { diagramId, registry } = await importReference('03-parallel-fork-join');
+    test('03-parallel-gateway: positions converge toward reference', async () => {
+      const { diagramId, registry } = await importReference('03-parallel-gateway');
       await handleLayoutDiagram({ diagramId });
-      const { matchRate } = comparePositions(registry, '03-parallel-fork-join', 10);
+      const { matchRate } = comparePositions(registry, '03-parallel-gateway', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
 
-    test('06-boundary-events: positions converge toward reference', async () => {
-      const { diagramId, registry } = await importReference('06-boundary-events');
+    test('08-boundary-events-all-types: positions converge toward reference', async () => {
+      const { diagramId, registry } = await importReference('08-boundary-events-all-types');
       await handleLayoutDiagram({ diagramId });
-      const { matchRate } = comparePositions(registry, '06-boundary-events', 10);
+      const { matchRate } = comparePositions(registry, '08-boundary-events-all-types', 10);
       expect(matchRate).toBeGreaterThanOrEqual(0);
     });
   });

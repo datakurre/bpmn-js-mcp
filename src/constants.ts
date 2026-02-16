@@ -236,6 +236,7 @@ export function getElementSize(elementType: string): { width: number; height: nu
   if (elementType.includes('Event')) return ELEMENT_SIZES.event;
   if (elementType === 'bpmn:SubProcess') return ELEMENT_SIZES.subprocess;
   if (elementType === 'bpmn:Participant') return ELEMENT_SIZES.participant;
+  if (elementType === 'bpmn:Lane') return { width: 600, height: 150 };
   if (elementType === 'bpmn:TextAnnotation') return ELEMENT_SIZES.textAnnotation;
   if (elementType === 'bpmn:DataObjectReference') return ELEMENT_SIZES.dataObject;
   if (elementType === 'bpmn:DataStoreReference') return ELEMENT_SIZES.dataStore;

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:message id="Message_Response" name="CustomerResponse" />
+  <bpmn:process id="Process_EventBasedGateway" name="Event-Based Gateway - Wait for Response" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Inquiry Sent">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sendTask id="SendInquiry" name="Send Inquiry" camunda:delegateExpression="${inquirySender}">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:eventBasedGateway id="EBG" name="Await Response">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Msg</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Timer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="MsgCatch" name="Response Received">
+      <bpmn:incoming>Flow_Msg</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef1" messageRef="Message_Response" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="TimerCatch" name="Timeout (48h)">
+      <bpmn:incoming>Flow_Timer</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef1">
+        <bpmn:timeDuration>PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="ProcessResponse" name="Process Response" camunda:type="external" camunda:topic="process-response">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="HandleTimeout" name="Handle Timeout" camunda:candidateGroups="support">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+      <bpmn:outgoing>Flow6</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndOK" name="Response Processed">
+      <bpmn:incoming>Flow5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndTimeout" name="Timed Out">
+      <bpmn:incoming>Flow6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="SendInquiry" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="SendInquiry" targetRef="EBG" />
+    <bpmn:sequenceFlow id="Flow_Msg" sourceRef="EBG" targetRef="MsgCatch" />
+    <bpmn:sequenceFlow id="Flow_Timer" sourceRef="EBG" targetRef="TimerCatch" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="MsgCatch" targetRef="ProcessResponse" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="TimerCatch" targetRef="HandleTimeout" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="ProcessResponse" targetRef="EndOK" />
+    <bpmn:sequenceFlow id="Flow6" sourceRef="HandleTimeout" targetRef="EndTimeout" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_EventBasedGateway">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_EventBasedGateway" bpmnElement="Process_EventBasedGateway">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="181" y="158" width="59" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendInquiry_di" bpmnElement="SendInquiry">
+        <dc:Bounds x="288" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EBG_di" bpmnElement="EBG">
+        <dc:Bounds x="448" y="115" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="433" y="91" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MsgCatch_di" bpmnElement="MsgCatch">
+        <dc:Bounds x="558" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="550" y="158" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerCatch_di" bpmnElement="TimerCatch">
+        <dc:Bounds x="558" y="190" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="542" y="226" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ProcessResponse_di" bpmnElement="ProcessResponse">
+        <dc:Bounds x="654" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="HandleTimeout_di" bpmnElement="HandleTimeout">
+        <dc:Bounds x="654" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndOK_di" bpmnElement="EndOK">
+        <dc:Bounds x="814" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="806" y="158" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndTimeout_di" bpmnElement="EndTimeout">
+        <dc:Bounds x="814" y="252" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="806" y="288" width="52" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="140" />
+        <di:waypoint x="288" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="140" />
+        <di:waypoint x="448" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Msg_di" bpmnElement="Flow_Msg">
+        <di:waypoint x="498" y="140" />
+        <di:waypoint x="558" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Timer_di" bpmnElement="Flow_Timer">
+        <di:waypoint x="473" y="165" />
+        <di:waypoint x="473" y="208" />
+        <di:waypoint x="558" y="208" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="594" y="140" />
+        <di:waypoint x="654" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="594" y="208" />
+        <di:waypoint x="624" y="208" />
+        <di:waypoint x="624" y="270" />
+        <di:waypoint x="654" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="754" y="140" />
+        <di:waypoint x="814" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow6_di" bpmnElement="Flow6">
+        <di:waypoint x="754" y="270" />
+        <di:waypoint x="814" y="270" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

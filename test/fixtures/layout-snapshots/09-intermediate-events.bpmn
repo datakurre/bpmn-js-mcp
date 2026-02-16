@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:message id="Message_Invoice" name="InvoiceMessage" />
+  <bpmn:signal id="Signal_Complete" name="CompletionSignal" />
+  <bpmn:process id="Process_IntermediateEvents" name="Intermediate Events - Catch and Throw" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Order Started">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="PrepareOrder" name="Prepare Order" camunda:type="external" camunda:topic="order-prepare">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="TimerWait" name="Wait 30min">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TD1">
+        <bpmn:timeDuration>PT30M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="CheckStock" name="Check Stock" camunda:class="com.example.StockChecker">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="MsgWait" name="Invoice Received">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MD1" messageRef="Message_Invoice" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateThrowEvent id="SignalThrow" name="Notify Completion">
+      <bpmn:incoming>Flow5</bpmn:incoming>
+      <bpmn:outgoing>Flow6</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SD1" signalRef="Signal_Complete" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="LinkThrow" name="Go to Shipping">
+      <bpmn:incoming>Flow6</bpmn:incoming>
+      <bpmn:linkEventDefinition id="LD1" name="ShippingLink" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateCatchEvent id="LinkCatch" name="From Ordering">
+      <bpmn:outgoing>Flow7</bpmn:outgoing>
+      <bpmn:linkEventDefinition id="LD2" name="ShippingLink" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="ShipOrder" name="Ship Order" camunda:type="external" camunda:topic="order-ship">
+      <bpmn:incoming>Flow7</bpmn:incoming>
+      <bpmn:outgoing>Flow8</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="ConditionalWait" name="Stock Replenished">
+      <bpmn:incoming>Flow8</bpmn:incoming>
+      <bpmn:outgoing>Flow9</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition id="CD1">
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">${stockLevel &gt; 0}</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End" name="Order Shipped">
+      <bpmn:incoming>Flow9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="PrepareOrder" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="PrepareOrder" targetRef="TimerWait" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="TimerWait" targetRef="CheckStock" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="CheckStock" targetRef="MsgWait" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="MsgWait" targetRef="SignalThrow" />
+    <bpmn:sequenceFlow id="Flow6" sourceRef="SignalThrow" targetRef="LinkThrow" />
+    <bpmn:sequenceFlow id="Flow7" sourceRef="LinkCatch" targetRef="ShipOrder" />
+    <bpmn:sequenceFlow id="Flow8" sourceRef="ShipOrder" targetRef="ConditionalWait" />
+    <bpmn:sequenceFlow id="Flow9" sourceRef="ConditionalWait" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_IntermediateEvents">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_IntermediateEvents" bpmnElement="Process_IntermediateEvents">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="214" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="177" y="260" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="PrepareOrder_di" bpmnElement="PrepareOrder">
+        <dc:Bounds x="288" y="192" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerWait_di" bpmnElement="TimerWait">
+        <dc:Bounds x="448" y="214" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="438" y="260" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CheckStock_di" bpmnElement="CheckStock">
+        <dc:Bounds x="640" y="192" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MsgWait_di" bpmnElement="MsgWait">
+        <dc:Bounds x="800" y="214" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="776" y="260" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SignalThrow_di" bpmnElement="SignalThrow">
+        <dc:Bounds x="896" y="214" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="871" y="260" width="87" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LinkThrow_di" bpmnElement="LinkThrow">
+        <dc:Bounds x="992" y="214" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="974" y="260" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LinkCatch_di" bpmnElement="LinkCatch">
+        <dc:Bounds x="192" y="128" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="174" y="174" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ShipOrder_di" bpmnElement="ShipOrder">
+        <dc:Bounds x="288" y="62" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ConditionalWait_di" bpmnElement="ConditionalWait">
+        <dc:Bounds x="448" y="128" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="435" y="174" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="544" y="128" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="526" y="174" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="232" />
+        <di:waypoint x="288" y="232" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="232" />
+        <di:waypoint x="448" y="232" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="484" y="232" />
+        <di:waypoint x="640" y="232" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="740" y="232" />
+        <di:waypoint x="800" y="232" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="836" y="232" />
+        <di:waypoint x="896" y="232" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow6_di" bpmnElement="Flow6">
+        <di:waypoint x="932" y="232" />
+        <di:waypoint x="992" y="232" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow7_di" bpmnElement="Flow7">
+        <di:waypoint x="228" y="146" />
+        <di:waypoint x="258" y="146" />
+        <di:waypoint x="258" y="102" />
+        <di:waypoint x="288" y="102" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow8_di" bpmnElement="Flow8">
+        <di:waypoint x="388" y="102" />
+        <di:waypoint x="418" y="102" />
+        <di:waypoint x="418" y="146" />
+        <di:waypoint x="448" y="146" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow9_di" bpmnElement="Flow9">
+        <di:waypoint x="484" y="146" />
+        <di:waypoint x="544" y="146" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

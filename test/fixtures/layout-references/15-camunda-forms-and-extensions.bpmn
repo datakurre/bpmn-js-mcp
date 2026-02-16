@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_CamundaForms" name="Camunda Forms and Extensions" isExecutable="true" camunda:candidateStarterGroups="managers,admins" camunda:versionTag="1.2.0" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Submit Request" camunda:formKey="embedded:app:forms/start-form.html" camunda:initiator="initiator">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="requestType" label="Request Type" type="enum" defaultValue="standard">
+            <camunda:value id="standard" name="Standard" />
+            <camunda:value id="urgent" name="Urgent" />
+            <camunda:value id="bulk" name="Bulk" />
+          </camunda:formField>
+          <camunda:formField id="description" label="Description" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required" />
+              <camunda:constraint name="maxlength" config="500" />
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="amount" label="Amount" type="long">
+            <camunda:validation>
+              <camunda:constraint name="min" config="1" />
+              <camunda:constraint name="max" config="100000" />
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="dueDate" label="Due Date" type="date" />
+          <camunda:formField id="isUrgent" label="Urgent?" type="boolean" defaultValue="false" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="ApproveRequest" name="Approve Request" camunda:formRef="approval-form" camunda:formRefBinding="latest" camunda:candidateGroups="approvers" camunda:dueDate="${dateTime().plusDays(3).toDate()}" camunda:followUpDate="${dateTime().plusDays(1).toDate()}" camunda:priority="50">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="CallAPI" name="Call External API" camunda:type="external" camunda:topic="api-call">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">https://api.example.com/orders</camunda:inputParameter>
+            <camunda:inputParameter name="method">POST</camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+                <camunda:entry key="Authorization">${authToken}</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">${orderJson}</camunda:inputParameter>
+            <camunda:outputParameter name="responseCode">${statusCode}</camunda:outputParameter>
+            <camunda:outputParameter name="responseBody">${response}</camunda:outputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="orderData">
+            <camunda:script scriptFormat="groovy">
+              import groovy.json.JsonOutput
+              JsonOutput.toJson([id: orderId, type: requestType])
+            </camunda:script>
+          </camunda:inputParameter>
+          <camunda:inputParameter name="recipients">
+            <camunda:list>
+              <camunda:value>admin@example.com</camunda:value>
+              <camunda:value>${initiator}@example.com</camunda:value>
+            </camunda:list>
+          </camunda:inputParameter>
+          <camunda:outputParameter name="apiResult">${response}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:properties>
+          <camunda:property name="retryCount" value="3" />
+          <camunda:property name="timeout" value="30000" />
+          <camunda:property name="environment" value="production" />
+        </camunda:properties>
+        <camunda:failedJobRetryTimeCycle>R3/PT5M</camunda:failedJobRetryTimeCycle>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="SendNotification" name="Send Email" camunda:delegateExpression="${emailSender}">
+      <bpmn:extensionElements>
+        <camunda:field name="to">
+          <camunda:expression>${initiator}@company.com</camunda:expression>
+        </camunda:field>
+        <camunda:field name="subject">
+          <camunda:string>Request ${requestType} - #${orderId}</camunda:string>
+        </camunda:field>
+        <camunda:field name="body">
+          <camunda:expression>${templateEngine.render('notification', execution)}</camunda:expression>
+        </camunda:field>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateName">order-confirmation</camunda:inputParameter>
+          <camunda:outputParameter name="emailSent">${success}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Done">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="ApproveRequest" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="ApproveRequest" targetRef="CallAPI" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="CallAPI" targetRef="SendNotification" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="SendNotification" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_CamundaForms">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_CamundaForms" bpmnElement="Process_CamundaForms">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="150" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ApproveRequest_di" bpmnElement="ApproveRequest">
+        <dc:Bounds x="288" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallAPI_di" bpmnElement="CallAPI">
+        <dc:Bounds x="448" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendNotification_di" bpmnElement="SendNotification">
+        <dc:Bounds x="608" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="768" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="773" y="150" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="448" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="548" y="132" />
+        <di:waypoint x="608" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="708" y="132" />
+        <di:waypoint x="768" y="132" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

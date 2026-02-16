@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:message id="Message_Order" name="OrderMessage" />
+  <bpmn:message id="Message_Confirm" name="ConfirmationMessage" />
+  <bpmn:collaboration id="Collab1">
+    <bpmn:participant id="Pool_Customer" name="Customer Portal" processRef="Process_Customer" />
+    <bpmn:participant id="Pool_Backend" name="Order Service" processRef="Process_Backend" />
+    <bpmn:participant id="Pool_External" name="Payment Gateway" />
+    <bpmn:messageFlow id="MF1" name="Place Order" sourceRef="SendOrder" targetRef="MsgStart" />
+    <bpmn:messageFlow id="MF2" name="Confirmation" sourceRef="SendConfirm" targetRef="ReceiveConfirm" />
+    <bpmn:messageFlow id="MF3" name="Charge" sourceRef="CallPayment" targetRef="Pool_External" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Customer" name="Customer Process" isExecutable="false">
+    <bpmn:startEvent id="CustStart" name="Customer Visits">
+      <bpmn:outgoing>CF1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="BrowseItems" name="Browse Items">
+      <bpmn:incoming>CF1</bpmn:incoming>
+      <bpmn:outgoing>CF2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="SendOrder" name="Send Order">
+      <bpmn:incoming>CF2</bpmn:incoming>
+      <bpmn:outgoing>CF3</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:intermediateCatchEvent id="ReceiveConfirm" name="Get Confirmation">
+      <bpmn:incoming>CF3</bpmn:incoming>
+      <bpmn:outgoing>CF4</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="CMD1" messageRef="Message_Confirm" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="CustEnd" name="Order Placed">
+      <bpmn:incoming>CF4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="CF1" sourceRef="CustStart" targetRef="BrowseItems" />
+    <bpmn:sequenceFlow id="CF2" sourceRef="BrowseItems" targetRef="SendOrder" />
+    <bpmn:sequenceFlow id="CF3" sourceRef="SendOrder" targetRef="ReceiveConfirm" />
+    <bpmn:sequenceFlow id="CF4" sourceRef="ReceiveConfirm" targetRef="CustEnd" />
+  </bpmn:process>
+  <bpmn:process id="Process_Backend" name="Backend Process" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="MsgStart" name="Order Received">
+      <bpmn:outgoing>BF1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="BMD1" messageRef="Message_Order" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="ValidateOrder" name="Validate Order" camunda:type="external" camunda:topic="order-validate">
+      <bpmn:incoming>BF1</bpmn:incoming>
+      <bpmn:outgoing>BF2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="CallPayment" name="Process Payment" camunda:type="external" camunda:topic="payment-process">
+      <bpmn:incoming>BF2</bpmn:incoming>
+      <bpmn:outgoing>BF3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="SendConfirm" name="Send Confirmation" camunda:delegateExpression="${confirmSender}">
+      <bpmn:incoming>BF3</bpmn:incoming>
+      <bpmn:outgoing>BF4</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="BackEnd" name="Order Processed">
+      <bpmn:incoming>BF4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="BF1" sourceRef="MsgStart" targetRef="ValidateOrder" />
+    <bpmn:sequenceFlow id="BF2" sourceRef="ValidateOrder" targetRef="CallPayment" />
+    <bpmn:sequenceFlow id="BF3" sourceRef="CallPayment" targetRef="SendConfirm" />
+    <bpmn:sequenceFlow id="BF4" sourceRef="SendConfirm" targetRef="BackEnd" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_Customer">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_Customer" bpmnElement="Process_Customer">
+      <bpmndi:BPMNShape id="CustStart_di" bpmnElement="CustStart">
+        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="150" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BrowseItems_di" bpmnElement="BrowseItems">
+        <dc:Bounds x="288" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendOrder_di" bpmnElement="SendOrder">
+        <dc:Bounds x="448" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReceiveConfirm_di" bpmnElement="ReceiveConfirm">
+        <dc:Bounds x="608" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="584" y="150" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CustEnd_di" bpmnElement="CustEnd">
+        <dc:Bounds x="704" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="689" y="90" width="65" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="CF1_di" bpmnElement="CF1">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="CF2_di" bpmnElement="CF2">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="448" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="CF3_di" bpmnElement="CF3">
+        <di:waypoint x="548" y="132" />
+        <di:waypoint x="608" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="CF4_di" bpmnElement="CF4">
+        <di:waypoint x="644" y="132" />
+        <di:waypoint x="704" y="132" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

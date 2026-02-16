@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_ParallelGateway" name="Parallel Gateway - Fork and Join" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Order Placed">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Fork" name="Split">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A</bpmn:outgoing>
+      <bpmn:outgoing>Flow_B</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="ChargePayment" name="Charge Payment" camunda:type="external" camunda:topic="payment-charge">
+      <bpmn:incoming>Flow_A</bpmn:incoming>
+      <bpmn:outgoing>FlowA2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ReserveInventory" name="Reserve Inventory" camunda:type="external" camunda:topic="inventory-reserve">
+      <bpmn:incoming>Flow_B</bpmn:incoming>
+      <bpmn:outgoing>FlowB2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="NotifyWarehouse" name="Notify Warehouse" camunda:delegateExpression="${warehouseNotifier}">
+      <bpmn:incoming>Flow_C</bpmn:incoming>
+      <bpmn:outgoing>FlowC2</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:parallelGateway id="Join">
+      <bpmn:incoming>FlowA2</bpmn:incoming>
+      <bpmn:incoming>FlowB2</bpmn:incoming>
+      <bpmn:incoming>FlowC2</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="ConfirmOrder" name="Confirm Order" camunda:assignee="${initiator}">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End" name="Order Confirmed">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="Fork" />
+    <bpmn:sequenceFlow id="Flow_A" sourceRef="Fork" targetRef="ChargePayment" />
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="Fork" targetRef="ReserveInventory" />
+    <bpmn:sequenceFlow id="Flow_C" sourceRef="Fork" targetRef="NotifyWarehouse" />
+    <bpmn:sequenceFlow id="FlowA2" sourceRef="ChargePayment" targetRef="Join" />
+    <bpmn:sequenceFlow id="FlowB2" sourceRef="ReserveInventory" targetRef="Join" />
+    <bpmn:sequenceFlow id="FlowC2" sourceRef="NotifyWarehouse" targetRef="Join" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="Join" targetRef="ConfirmOrder" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="ConfirmOrder" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_ParallelGateway">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_ParallelGateway" bpmnElement="Process_ParallelGateway">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="244" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="178" y="280" width="65" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Fork_di" bpmnElement="Fork">
+        <dc:Bounds x="283" y="237" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="297" y="213" width="22" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Join_di" bpmnElement="Join">
+        <dc:Bounds x="563" y="237" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ConfirmOrder_di" bpmnElement="ConfirmOrder">
+        <dc:Bounds x="678" y="222" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="838" y="244" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="815" y="280" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ChargePayment_di" bpmnElement="ChargePayment">
+        <dc:Bounds x="398" y="222" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReserveInventory_di" bpmnElement="ReserveInventory">
+        <dc:Bounds x="398" y="332" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="NotifyWarehouse_di" bpmnElement="NotifyWarehouse">
+        <dc:Bounds x="398" y="442" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="262" />
+        <di:waypoint x="283" y="262" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_di" bpmnElement="Flow_A">
+        <di:waypoint x="333" y="262" />
+        <di:waypoint x="398" y="262" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B_di" bpmnElement="Flow_B">
+        <di:waypoint x="308" y="287" />
+        <di:waypoint x="308" y="372" />
+        <di:waypoint x="398" y="372" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_di" bpmnElement="Flow_C">
+        <di:waypoint x="308" y="287" />
+        <di:waypoint x="308" y="482" />
+        <di:waypoint x="398" y="482" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowA2_di" bpmnElement="FlowA2">
+        <di:waypoint x="498" y="262" />
+        <di:waypoint x="563" y="262" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowB2_di" bpmnElement="FlowB2">
+        <di:waypoint x="498" y="372" />
+        <di:waypoint x="588" y="372" />
+        <di:waypoint x="588" y="287" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowC2_di" bpmnElement="FlowC2">
+        <di:waypoint x="498" y="482" />
+        <di:waypoint x="588" y="482" />
+        <di:waypoint x="588" y="287" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="613" y="262" />
+        <di:waypoint x="678" y="262" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="778" y="262" />
+        <di:waypoint x="838" y="262" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

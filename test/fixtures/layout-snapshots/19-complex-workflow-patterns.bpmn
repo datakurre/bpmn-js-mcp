@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Complex" name="Complex Workflow Patterns" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Order Received">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:startEvent id="TimerStart" name="Daily Batch">
+      <bpmn:outgoing>FlowTimer</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TED_Start">
+        <bpmn:timeCycle>R/P1D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="GW_Merge1">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:incoming>FlowTimer</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ClassifyOrder" name="Classify Order" camunda:class="com.example.OrderClassifier">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_OrderType" name="Order type?" default="FlowDefault">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>FlowStandard</bpmn:outgoing>
+      <bpmn:outgoing>FlowExpress</bpmn:outgoing>
+      <bpmn:outgoing>FlowDefault</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:parallelGateway id="GW_Fork1" name="Parallel Start">
+      <bpmn:incoming>FlowStandard</bpmn:incoming>
+      <bpmn:outgoing>FlowA</bpmn:outgoing>
+      <bpmn:outgoing>FlowB</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="CheckInventory" name="Check Inventory" camunda:candidateGroups="warehouse">
+      <bpmn:incoming>FlowA</bpmn:incoming>
+      <bpmn:outgoing>FlowA2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="CalculateShipping" name="Calculate Shipping" camunda:type="external" camunda:topic="shipping-calc">
+      <bpmn:incoming>FlowB</bpmn:incoming>
+      <bpmn:outgoing>FlowB2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="GW_Join1" name="Parallel End">
+      <bpmn:incoming>FlowA2</bpmn:incoming>
+      <bpmn:incoming>FlowB2</bpmn:incoming>
+      <bpmn:outgoing>FlowJoined</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="ExpressProcess" name="Express Process" camunda:delegateExpression="${expressHandler}">
+      <bpmn:incoming>FlowExpress</bpmn:incoming>
+      <bpmn:outgoing>FlowExp2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:subProcess id="Sub_CustomProcess" name="Custom Processing">
+      <bpmn:incoming>FlowDefault</bpmn:incoming>
+      <bpmn:outgoing>FlowSub</bpmn:outgoing>
+      <bpmn:startEvent id="SubStart">
+        <bpmn:outgoing>SF1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:exclusiveGateway id="GW_SubCheck" name="Valid?">
+        <bpmn:incoming>SF1</bpmn:incoming>
+        <bpmn:outgoing>SF_Yes</bpmn:outgoing>
+        <bpmn:outgoing>SF_No</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:serviceTask id="SubProcess1" name="Process Custom" camunda:class="com.example.CustomProcessor">
+        <bpmn:incoming>SF_Yes</bpmn:incoming>
+        <bpmn:outgoing>SF2</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:userTask id="SubReview" name="Manual Review" camunda:assignee="admin">
+        <bpmn:incoming>SF_No</bpmn:incoming>
+        <bpmn:outgoing>SF3</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:exclusiveGateway id="GW_SubMerge">
+        <bpmn:incoming>SF2</bpmn:incoming>
+        <bpmn:incoming>SF3</bpmn:incoming>
+        <bpmn:outgoing>SF4</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:endEvent id="SubEnd">
+        <bpmn:incoming>SF4</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="SF1" sourceRef="SubStart" targetRef="GW_SubCheck" />
+      <bpmn:sequenceFlow id="SF_Yes" name="Yes" sourceRef="GW_SubCheck" targetRef="SubProcess1">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isValid}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SF_No" name="No" sourceRef="GW_SubCheck" targetRef="SubReview">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!isValid}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="SF2" sourceRef="SubProcess1" targetRef="GW_SubMerge" />
+      <bpmn:sequenceFlow id="SF3" sourceRef="SubReview" targetRef="GW_SubMerge" />
+      <bpmn:sequenceFlow id="SF4" sourceRef="GW_SubMerge" targetRef="SubEnd" />
+    </bpmn:subProcess>
+    <bpmn:exclusiveGateway id="GW_FinalMerge">
+      <bpmn:incoming>FlowJoined</bpmn:incoming>
+      <bpmn:incoming>FlowExp2</bpmn:incoming>
+      <bpmn:incoming>FlowSub</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="FinalConfirm" name="Send Confirmation" camunda:class="com.example.Confirmer">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Order Complete">
+      <bpmn:incoming>Flow5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="GW_Merge1" />
+    <bpmn:sequenceFlow id="FlowTimer" sourceRef="TimerStart" targetRef="GW_Merge1" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="GW_Merge1" targetRef="ClassifyOrder" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="ClassifyOrder" targetRef="GW_OrderType" />
+    <bpmn:sequenceFlow id="FlowStandard" name="Standard" sourceRef="GW_OrderType" targetRef="GW_Fork1">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${orderType == 'standard'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="FlowExpress" name="Express" sourceRef="GW_OrderType" targetRef="ExpressProcess">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${orderType == 'express'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="FlowDefault" name="Custom" sourceRef="GW_OrderType" targetRef="Sub_CustomProcess" />
+    <bpmn:sequenceFlow id="FlowA" sourceRef="GW_Fork1" targetRef="CheckInventory" />
+    <bpmn:sequenceFlow id="FlowB" sourceRef="GW_Fork1" targetRef="CalculateShipping" />
+    <bpmn:sequenceFlow id="FlowA2" sourceRef="CheckInventory" targetRef="GW_Join1" />
+    <bpmn:sequenceFlow id="FlowB2" sourceRef="CalculateShipping" targetRef="GW_Join1" />
+    <bpmn:sequenceFlow id="FlowJoined" sourceRef="GW_Join1" targetRef="GW_FinalMerge" />
+    <bpmn:sequenceFlow id="FlowExp2" sourceRef="ExpressProcess" targetRef="GW_FinalMerge" />
+    <bpmn:sequenceFlow id="FlowSub" sourceRef="Sub_CustomProcess" targetRef="GW_FinalMerge" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="GW_FinalMerge" targetRef="FinalConfirm" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="FinalConfirm" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_Complex">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_Complex" bpmnElement="Process_Complex">
+      <bpmndi:BPMNShape id="ClassifyOrder_di" bpmnElement="ClassifyOrder">
+        <dc:Bounds x="398" y="277" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Merge1_di" bpmnElement="GW_Merge1" isMarkerVisible="true">
+        <dc:Bounds x="283" y="292" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_OrderType_di" bpmnElement="GW_OrderType" isMarkerVisible="true">
+        <dc:Bounds x="563" y="292" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="558.5" y="268" width="59" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_FinalMerge_di" bpmnElement="GW_FinalMerge" isMarkerVisible="true">
+        <dc:Bounds x="1133" y="292" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="FinalConfirm_di" bpmnElement="FinalConfirm">
+        <dc:Bounds x="1248" y="277" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="1408" y="299" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1387" y="345" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="299" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="275" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Fork1_di" bpmnElement="GW_Fork1">
+        <dc:Bounds x="708" y="292" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="701.5" y="268" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CheckInventory_di" bpmnElement="CheckInventory">
+        <dc:Bounds x="848" y="277" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CalculateShipping_di" bpmnElement="CalculateShipping">
+        <dc:Bounds x="848" y="387" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ExpressProcess_di" bpmnElement="ExpressProcess">
+        <dc:Bounds x="848" y="497" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Join1_di" bpmnElement="GW_Join1">
+        <dc:Bounds x="1013" y="292" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1008" y="268" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerStart_di" bpmnElement="TimerStart">
+        <dc:Bounds x="192" y="365" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="182" y="411" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_CustomProcess_di" bpmnElement="Sub_CustomProcess">
+        <dc:Bounds x="683" y="372" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="317" />
+        <di:waypoint x="283" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowTimer_di" bpmnElement="FlowTimer">
+        <di:waypoint x="228" y="383" />
+        <di:waypoint x="308" y="383" />
+        <di:waypoint x="308" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="333" y="317" />
+        <di:waypoint x="398" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="498" y="317" />
+        <di:waypoint x="563" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowStandard_di" bpmnElement="FlowStandard">
+        <di:waypoint x="613" y="317" />
+        <di:waypoint x="708" y="317" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="636" y="325" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowExpress_di" bpmnElement="FlowExpress">
+        <di:waypoint x="588" y="342" />
+        <di:waypoint x="588" y="537" />
+        <di:waypoint x="848" y="537" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="543" y="433" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowDefault_di" bpmnElement="FlowDefault">
+        <di:waypoint x="588" y="342" />
+        <di:waypoint x="588" y="412" />
+        <di:waypoint x="683" y="412" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="529" y="370" width="38" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowA_di" bpmnElement="FlowA">
+        <di:waypoint x="758" y="317" />
+        <di:waypoint x="848" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowB_di" bpmnElement="FlowB">
+        <di:waypoint x="733" y="342" />
+        <di:waypoint x="733" y="427" />
+        <di:waypoint x="848" y="427" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowA2_di" bpmnElement="FlowA2">
+        <di:waypoint x="948" y="317" />
+        <di:waypoint x="1013" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowB2_di" bpmnElement="FlowB2">
+        <di:waypoint x="948" y="427" />
+        <di:waypoint x="1038" y="427" />
+        <di:waypoint x="1038" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowJoined_di" bpmnElement="FlowJoined">
+        <di:waypoint x="1063" y="317" />
+        <di:waypoint x="1133" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowExp2_di" bpmnElement="FlowExp2">
+        <di:waypoint x="948" y="537" />
+        <di:waypoint x="1158" y="537" />
+        <di:waypoint x="1158" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowSub_di" bpmnElement="FlowSub">
+        <di:waypoint x="783" y="412" />
+        <di:waypoint x="1158" y="412" />
+        <di:waypoint x="1158" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="1183" y="317" />
+        <di:waypoint x="1248" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="1348" y="317" />
+        <di:waypoint x="1408" y="317" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="Sub_CustomProcess">
+      <bpmndi:BPMNShape id="SubStart_di" bpmnElement="SubStart">
+        <dc:Bounds x="180" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_SubCheck_di" bpmnElement="GW_SubCheck" isMarkerVisible="true">
+        <dc:Bounds x="323" y="175" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="332" y="151" width="31" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess1_di" bpmnElement="SubProcess1">
+        <dc:Bounds x="448" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubReview_di" bpmnElement="SubReview">
+        <dc:Bounds x="448" y="250" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_SubMerge_di" bpmnElement="GW_SubMerge" isMarkerVisible="true">
+        <dc:Bounds x="623" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubEnd_di" bpmnElement="SubEnd">
+        <dc:Bounds x="780" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SF1_di" bpmnElement="SF1">
+        <di:waypoint x="216" y="200" />
+        <di:waypoint x="323" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Yes_di" bpmnElement="SF_Yes">
+        <di:waypoint x="373" y="200" />
+        <di:waypoint x="448" y="200" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="399" y="208" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_No_di" bpmnElement="SF_No">
+        <di:waypoint x="348" y="225" />
+        <di:waypoint x="348" y="290" />
+        <di:waypoint x="448" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="326" y="251" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF2_di" bpmnElement="SF2">
+        <di:waypoint x="548" y="200" />
+        <di:waypoint x="623" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF3_di" bpmnElement="SF3">
+        <di:waypoint x="548" y="290" />
+        <di:waypoint x="648" y="290" />
+        <di:waypoint x="648" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF4_di" bpmnElement="SF4">
+        <di:waypoint x="673" y="200" />
+        <di:waypoint x="780" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

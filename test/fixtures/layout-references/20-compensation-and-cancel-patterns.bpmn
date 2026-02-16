@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:error id="Error_BookingFailed" name="Booking Failed" errorCode="ERR_BOOKING" />
+  <bpmn:process id="Process_Compensation" name="Compensation and Cancel Patterns" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Travel Booking Started">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="Sub_BookTrip" name="Book Trip">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+      <bpmn:startEvent id="SubStart">
+        <bpmn:outgoing>SF1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="BookFlight" name="Book Flight" camunda:class="com.example.FlightBooker">
+        <bpmn:incoming>SF1</bpmn:incoming>
+        <bpmn:outgoing>SF2</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:boundaryEvent id="BE_CompFlight" attachedToRef="BookFlight">
+        <bpmn:compensateEventDefinition id="CED_Flight" />
+      </bpmn:boundaryEvent>
+      <bpmn:serviceTask id="CancelFlight" name="Cancel Flight" isForCompensation="true" camunda:class="com.example.FlightCanceller" />
+      <bpmn:serviceTask id="BookHotel" name="Book Hotel" camunda:class="com.example.HotelBooker">
+        <bpmn:incoming>SF2</bpmn:incoming>
+        <bpmn:outgoing>SF3</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:boundaryEvent id="BE_CompHotel" attachedToRef="BookHotel">
+        <bpmn:compensateEventDefinition id="CED_Hotel" />
+      </bpmn:boundaryEvent>
+      <bpmn:serviceTask id="CancelHotel" name="Cancel Hotel" isForCompensation="true" camunda:class="com.example.HotelCanceller" />
+      <bpmn:serviceTask id="BookCar" name="Book Rental Car" camunda:class="com.example.CarBooker">
+        <bpmn:incoming>SF3</bpmn:incoming>
+        <bpmn:outgoing>SF4</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:boundaryEvent id="BE_CompCar" attachedToRef="BookCar">
+        <bpmn:compensateEventDefinition id="CED_Car" />
+      </bpmn:boundaryEvent>
+      <bpmn:serviceTask id="CancelCar" name="Cancel Car" isForCompensation="true" camunda:class="com.example.CarCanceller" />
+      <bpmn:endEvent id="SubEnd">
+        <bpmn:incoming>SF4</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:endEvent id="SubErrorEnd" name="Booking Error">
+        <bpmn:incoming>SF_Error</bpmn:incoming>
+        <bpmn:errorEventDefinition id="EED_SubEnd" errorRef="Error_BookingFailed" />
+      </bpmn:endEvent>
+      <bpmn:boundaryEvent id="BE_CarError" name="Car Unavailable" attachedToRef="BookCar">
+        <bpmn:outgoing>SF_CompensateAll</bpmn:outgoing>
+        <bpmn:errorEventDefinition id="EED_Car" />
+      </bpmn:boundaryEvent>
+      <bpmn:intermediateThrowEvent id="CompensateAll" name="Undo Bookings">
+        <bpmn:incoming>SF_CompensateAll</bpmn:incoming>
+        <bpmn:outgoing>SF_Error</bpmn:outgoing>
+        <bpmn:compensateEventDefinition id="CED_All" />
+      </bpmn:intermediateThrowEvent>
+      <bpmn:sequenceFlow id="SF1" sourceRef="SubStart" targetRef="BookFlight" />
+      <bpmn:sequenceFlow id="SF2" sourceRef="BookFlight" targetRef="BookHotel" />
+      <bpmn:sequenceFlow id="SF3" sourceRef="BookHotel" targetRef="BookCar" />
+      <bpmn:sequenceFlow id="SF4" sourceRef="BookCar" targetRef="SubEnd" />
+      <bpmn:sequenceFlow id="SF_CompensateAll" sourceRef="BE_CarError" targetRef="CompensateAll" />
+      <bpmn:sequenceFlow id="SF_Error" sourceRef="CompensateAll" targetRef="SubErrorEnd" />
+      <bpmn:association id="Assoc_Flight" associationDirection="One" sourceRef="BE_CompFlight" targetRef="CancelFlight" />
+      <bpmn:association id="Assoc_Hotel" associationDirection="One" sourceRef="BE_CompHotel" targetRef="CancelHotel" />
+      <bpmn:association id="Assoc_Car" associationDirection="One" sourceRef="BE_CompCar" targetRef="CancelCar" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="BE_BookingError" name="Booking Failed" attachedToRef="Sub_BookTrip">
+      <bpmn:outgoing>FlowErr</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="EED_Booking" errorRef="Error_BookingFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="NotifyCustomer" name="Notify Customer" camunda:candidateGroups="support">
+      <bpmn:incoming>FlowErr</bpmn:incoming>
+      <bpmn:outgoing>FlowNotify</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndCancelled" name="Booking Cancelled">
+      <bpmn:incoming>FlowNotify</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="SendConfirmation" name="Send Confirmation" camunda:delegateExpression="${confirmationSender}">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Trip Booked">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="Sub_BookTrip" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="Sub_BookTrip" targetRef="SendConfirmation" />
+    <bpmn:sequenceFlow id="FlowErr" sourceRef="BE_BookingError" targetRef="NotifyCustomer" />
+    <bpmn:sequenceFlow id="FlowNotify" sourceRef="NotifyCustomer" targetRef="EndCancelled" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="SendConfirmation" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_Compensation">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_Compensation" bpmnElement="Process_Compensation">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="127" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="172" y="163" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendConfirmation_di" bpmnElement="SendConfirmation">
+        <dc:Bounds x="458" y="105" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="NotifyCustomer_di" bpmnElement="NotifyCustomer">
+        <dc:Bounds x="458" y="225" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="618" y="127" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="606" y="163" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndCancelled_di" bpmnElement="EndCancelled">
+        <dc:Bounds x="618" y="247" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="612" y="283" width="49" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_BookTrip_di" bpmnElement="Sub_BookTrip">
+        <dc:Bounds x="288" y="105" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_BookingError_di" bpmnElement="BE_BookingError">
+        <dc:Bounds x="320" y="167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="302" y="203" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="145" />
+        <di:waypoint x="288" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="145" />
+        <di:waypoint x="458" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowErr_di" bpmnElement="FlowErr">
+        <di:waypoint x="338" y="203" />
+        <di:waypoint x="338" y="265" />
+        <di:waypoint x="458" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowNotify_di" bpmnElement="FlowNotify">
+        <di:waypoint x="558" y="265" />
+        <di:waypoint x="618" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="558" y="145" />
+        <di:waypoint x="618" y="145" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="Sub_BookTrip">
+      <bpmndi:BPMNShape id="SubStart_di" bpmnElement="SubStart">
+        <dc:Bounds x="212" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BookFlight_di" bpmnElement="BookFlight">
+        <dc:Bounds x="330" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CancelFlight_di" bpmnElement="CancelFlight">
+        <dc:Bounds x="180" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BookHotel_di" bpmnElement="BookHotel">
+        <dc:Bounds x="480" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CancelHotel_di" bpmnElement="CancelHotel">
+        <dc:Bounds x="180" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BookCar_di" bpmnElement="BookCar">
+        <dc:Bounds x="630" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CancelCar_di" bpmnElement="CancelCar">
+        <dc:Bounds x="180" y="580" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubEnd_di" bpmnElement="SubEnd">
+        <dc:Bounds x="812" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubErrorEnd_di" bpmnElement="SubErrorEnd">
+        <dc:Bounds x="962" y="322" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CompensateAll_di" bpmnElement="CompensateAll">
+        <dc:Bounds x="812" y="322" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_CarError_di" bpmnElement="BE_CarError">
+        <dc:Bounds x="622" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_CompCar_di" bpmnElement="BE_CompCar">
+        <dc:Bounds x="702" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_CompHotel_di" bpmnElement="BE_CompHotel">
+        <dc:Bounds x="512" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_CompFlight_di" bpmnElement="BE_CompFlight">
+        <dc:Bounds x="362" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SF1_di" bpmnElement="SF1">
+        <di:waypoint x="248" y="200" />
+        <di:waypoint x="330" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF2_di" bpmnElement="SF2">
+        <di:waypoint x="430" y="200" />
+        <di:waypoint x="480" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF3_di" bpmnElement="SF3">
+        <di:waypoint x="580" y="200" />
+        <di:waypoint x="630" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF4_di" bpmnElement="SF4">
+        <di:waypoint x="730" y="200" />
+        <di:waypoint x="812" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_CompensateAll_di" bpmnElement="SF_CompensateAll">
+        <di:waypoint x="640" y="258" />
+        <di:waypoint x="640" y="340" />
+        <di:waypoint x="812" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Error_di" bpmnElement="SF_Error">
+        <di:waypoint x="830" y="340" />
+        <di:waypoint x="980" y="340" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -448,6 +448,10 @@ export async function elkLayout(
   gridSnapAndResolveOverlaps(ctx);
   repositionArtifacts(elementRegistry, modeling);
   alignHappyPathAndOffPathEvents(ctx);
+  // Resolve any overlaps introduced by happy-path alignment (e.g. multiple start events)
+  forEachScope(elementRegistry, (scope) => {
+    resolveOverlaps(elementRegistry, modeling, scope);
+  });
   finalisePoolsAndLanes(ctx);
   finaliseBoundaryTargets(ctx);
   applyEdgeRoutes(ctx);

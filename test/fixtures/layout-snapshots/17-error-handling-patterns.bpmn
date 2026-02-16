@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:error id="Error_Validation" name="Validation Error" errorCode="ERR_VALIDATION" camunda:errorMessage="Input validation failed" />
+  <bpmn:error id="Error_Timeout" name="Timeout Error" errorCode="ERR_TIMEOUT" />
+  <bpmn:error id="Error_System" name="System Error" errorCode="ERR_SYSTEM" />
+  <bpmn:process id="Process_ErrorHandling" name="Error Handling Patterns" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Request Received">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="ValidateInput" name="Validate Input" camunda:class="com.example.InputValidator">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="BE_ValidationError" name="Validation Failed" attachedToRef="ValidateInput">
+      <bpmn:outgoing>FlowValErr</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="EED_Validation" errorRef="Error_Validation" camunda:errorCodeVariable="errorCode" camunda:errorMessageVariable="errorMsg" />
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="FixInput" name="Fix Input Data" camunda:candidateGroups="dataEntry">
+      <bpmn:incoming>FlowValErr</bpmn:incoming>
+      <bpmn:outgoing>FlowRetry</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="ProcessRequest" name="Process Request" camunda:type="external" camunda:topic="request-processing">
+      <bpmn:extensionElements>
+        <camunda:failedJobRetryTimeCycle>R5/PT2M</camunda:failedJobRetryTimeCycle>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:incoming>FlowRetry</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="BE_Timeout" name="30min Timeout" attachedToRef="ProcessRequest">
+      <bpmn:outgoing>FlowTimeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TED_Timeout">
+        <bpmn:timeDuration>PT30M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="BE_SystemError" name="System Error" attachedToRef="ProcessRequest">
+      <bpmn:outgoing>FlowSysErr</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="EED_System" errorRef="Error_System" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="LogTimeout" name="Log Timeout" camunda:expression="${logger.warn(&#39;timeout&#39;, execution)}" camunda:resultVariable="logged">
+      <bpmn:incoming>FlowTimeout</bpmn:incoming>
+      <bpmn:outgoing>FlowToErr</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="AlertOps" name="Alert Operations" camunda:delegateExpression="${opsAlerter}">
+      <bpmn:incoming>FlowSysErr</bpmn:incoming>
+      <bpmn:outgoing>FlowOpsErr</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndError" name="Failed">
+      <bpmn:incoming>FlowToErr</bpmn:incoming>
+      <bpmn:incoming>FlowOpsErr</bpmn:incoming>
+      <bpmn:errorEventDefinition id="EED_End" errorRef="Error_Timeout" />
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="SendResult" name="Send Result" camunda:class="com.example.ResultSender">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Completed">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="ValidateInput" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="ValidateInput" targetRef="ProcessRequest" />
+    <bpmn:sequenceFlow id="FlowValErr" sourceRef="BE_ValidationError" targetRef="FixInput" />
+    <bpmn:sequenceFlow id="FlowRetry" name="Retry" sourceRef="FixInput" targetRef="ProcessRequest" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="ProcessRequest" targetRef="SendResult" />
+    <bpmn:sequenceFlow id="FlowTimeout" sourceRef="BE_Timeout" targetRef="LogTimeout" />
+    <bpmn:sequenceFlow id="FlowSysErr" sourceRef="BE_SystemError" targetRef="AlertOps" />
+    <bpmn:sequenceFlow id="FlowToErr" sourceRef="LogTimeout" targetRef="EndError" />
+    <bpmn:sequenceFlow id="FlowOpsErr" sourceRef="AlertOps" targetRef="EndError" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="SendResult" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_ErrorHandling">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_ErrorHandling" bpmnElement="Process_ErrorHandling">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="170" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="165" y="216" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ValidateInput_di" bpmnElement="ValidateInput">
+        <dc:Bounds x="288" y="148" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="FixInput_di" bpmnElement="FixInput">
+        <dc:Bounds x="458" y="106" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ProcessRequest_di" bpmnElement="ProcessRequest">
+        <dc:Bounds x="618" y="148" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AlertOps_di" bpmnElement="AlertOps">
+        <dc:Bounds x="948" y="153" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LogTimeout_di" bpmnElement="LogTimeout">
+        <dc:Bounds x="948" y="273" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndError_di" bpmnElement="EndError">
+        <dc:Bounds x="1108" y="295" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1111" y="341" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendResult_di" bpmnElement="SendResult">
+        <dc:Bounds x="788" y="148" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="1108" y="170" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1099" y="216" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_ValidationError_di" bpmnElement="BE_ValidationError">
+        <dc:Bounds x="320" y="210" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="297" y="246" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_SystemError_di" bpmnElement="BE_SystemError">
+        <dc:Bounds x="610" y="210" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="535" y="221" width="65" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_Timeout_di" bpmnElement="BE_Timeout">
+        <dc:Bounds x="690" y="210" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="603" y="261" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="188" />
+        <di:waypoint x="288" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="188" />
+        <di:waypoint x="618" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowValErr_di" bpmnElement="FlowValErr">
+        <di:waypoint x="338" y="210" />
+        <di:waypoint x="338" y="146" />
+        <di:waypoint x="458" y="146" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowRetry_di" bpmnElement="FlowRetry">
+        <di:waypoint x="548" y="146" />
+        <di:waypoint x="563" y="146" />
+        <di:waypoint x="563" y="188" />
+        <di:waypoint x="608" y="188" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="535" y="160" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="718" y="188" />
+        <di:waypoint x="788" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowTimeout_di" bpmnElement="FlowTimeout">
+        <di:waypoint x="708" y="246" />
+        <di:waypoint x="708" y="313" />
+        <di:waypoint x="948" y="313" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowSysErr_di" bpmnElement="FlowSysErr">
+        <di:waypoint x="628" y="210" />
+        <di:waypoint x="628" y="193" />
+        <di:waypoint x="948" y="193" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowToErr_di" bpmnElement="FlowToErr">
+        <di:waypoint x="1048" y="313" />
+        <di:waypoint x="1108" y="313" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowOpsErr_di" bpmnElement="FlowOpsErr">
+        <di:waypoint x="1048" y="193" />
+        <di:waypoint x="1078" y="193" />
+        <di:waypoint x="1078" y="313" />
+        <di:waypoint x="1108" y="313" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="888" y="188" />
+        <di:waypoint x="1108" y="188" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

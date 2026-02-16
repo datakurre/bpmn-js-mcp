@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:signal id="Signal_Inventory" name="InventoryUpdated" />
+  <bpmn:signal id="Signal_Shutdown" name="SystemShutdown" />
+  <bpmn:escalation id="Escalation_SLA" name="SLA Breach" escalationCode="SLA_BREACH" />
+  <bpmn:escalation id="Escalation_Priority" name="Priority Escalation" escalationCode="PRIORITY_ESC" />
+  <bpmn:process id="Process_SignalEscalation" name="Signal and Escalation Events" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="SignalStart" name="Inventory Updated">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SED_Start" signalRef="Signal_Inventory" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="CheckStock" name="Check Stock Level" camunda:class="com.example.StockChecker">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_StockLevel" name="Stock sufficient?">
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="ThrowSignal" name="Notify Partners">
+      <bpmn:incoming>Flow_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SED_Throw" signalRef="Signal_Inventory" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:userTask id="ReorderTask" name="Approve Reorder" camunda:candidateGroups="procurement">
+      <bpmn:incoming>Flow_No</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateThrowEvent id="ThrowEscalation" name="Escalate SLA">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+      <bpmn:escalationEventDefinition id="EED_Throw" escalationRef="Escalation_SLA" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="GW_Merge">
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:incoming>Flow5</bpmn:incoming>
+      <bpmn:outgoing>Flow6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:subProcess id="Sub_Fulfillment" name="Order Fulfillment">
+      <bpmn:incoming>Flow6</bpmn:incoming>
+      <bpmn:outgoing>Flow7</bpmn:outgoing>
+      <bpmn:startEvent id="SubStart">
+        <bpmn:outgoing>SF1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="ProcessOrder" name="Process Order" camunda:type="external" camunda:topic="fulfillment">
+        <bpmn:incoming>SF1</bpmn:incoming>
+        <bpmn:outgoing>SF2</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:endEvent id="SubEnd">
+        <bpmn:incoming>SF2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:endEvent id="SubEscEnd" name="SLA Exceeded">
+        <bpmn:incoming>SF3</bpmn:incoming>
+        <bpmn:escalationEventDefinition id="EED_SubEnd" escalationRef="Escalation_Priority" />
+      </bpmn:endEvent>
+      <bpmn:boundaryEvent id="BE_Timer" name="24h" cancelActivity="false" attachedToRef="ProcessOrder">
+        <bpmn:outgoing>SF3</bpmn:outgoing>
+        <bpmn:timerEventDefinition id="TED_BE">
+          <bpmn:timeDuration>PT24H</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:boundaryEvent>
+      <bpmn:sequenceFlow id="SF1" sourceRef="SubStart" targetRef="ProcessOrder" />
+      <bpmn:sequenceFlow id="SF2" sourceRef="ProcessOrder" targetRef="SubEnd" />
+      <bpmn:sequenceFlow id="SF3" sourceRef="BE_Timer" targetRef="SubEscEnd" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="BE_Escalation" name="Priority Escalated" attachedToRef="Sub_Fulfillment">
+      <bpmn:outgoing>FlowEsc</bpmn:outgoing>
+      <bpmn:escalationEventDefinition id="EED_BE" escalationRef="Escalation_Priority" />
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="HandleEscalation" name="Handle Escalation" camunda:assignee="manager">
+      <bpmn:incoming>FlowEsc</bpmn:incoming>
+      <bpmn:outgoing>Flow8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="CatchSignal" name="Await Shutdown">
+      <bpmn:incoming>Flow7</bpmn:incoming>
+      <bpmn:outgoing>Flow9</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SED_Catch" signalRef="Signal_Shutdown" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="GW_Final">
+      <bpmn:incoming>Flow8</bpmn:incoming>
+      <bpmn:incoming>Flow9</bpmn:incoming>
+      <bpmn:outgoing>Flow10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End" name="Complete">
+      <bpmn:incoming>Flow10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="SignalStart" targetRef="CheckStock" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="CheckStock" targetRef="GW_StockLevel" />
+    <bpmn:sequenceFlow id="Flow_Yes" name="Yes" sourceRef="GW_StockLevel" targetRef="ThrowSignal">
+      <bpmn:conditionExpression xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="bpmn:tFormalExpression">${stockSufficient}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="GW_StockLevel" targetRef="ReorderTask">
+      <bpmn:conditionExpression xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="bpmn:tFormalExpression">${!stockSufficient}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow3" sourceRef="ThrowSignal" targetRef="GW_Merge" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="ReorderTask" targetRef="ThrowEscalation" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="ThrowEscalation" targetRef="GW_Merge" />
+    <bpmn:sequenceFlow id="Flow6" sourceRef="GW_Merge" targetRef="Sub_Fulfillment" />
+    <bpmn:sequenceFlow id="Flow7" sourceRef="Sub_Fulfillment" targetRef="CatchSignal" />
+    <bpmn:sequenceFlow id="FlowEsc" sourceRef="BE_Escalation" targetRef="HandleEscalation" />
+    <bpmn:sequenceFlow id="Flow8" sourceRef="HandleEscalation" targetRef="GW_Final" />
+    <bpmn:sequenceFlow id="Flow9" sourceRef="CatchSignal" targetRef="GW_Final" />
+    <bpmn:sequenceFlow id="Flow10" sourceRef="GW_Final" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_SignalEscalation">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_SignalEscalation" bpmnElement="Process_SignalEscalation">
+      <bpmndi:BPMNShape id="SignalStart_di" bpmnElement="SignalStart">
+        <dc:Bounds x="192" y="170" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="165" y="206" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CheckStock_di" bpmnElement="CheckStock">
+        <dc:Bounds x="288" y="148" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_StockLevel_di" bpmnElement="GW_StockLevel" isMarkerVisible="true">
+        <dc:Bounds x="453" y="163" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="437" y="223" width="81" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReorderTask_di" bpmnElement="ReorderTask">
+        <dc:Bounds x="568" y="156" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Merge_di" bpmnElement="GW_Merge" isMarkerVisible="true">
+        <dc:Bounds x="819" y="163" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ThrowSignal_di" bpmnElement="ThrowSignal">
+        <dc:Bounds x="728" y="170" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="710" y="206" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ThrowEscalation_di" bpmnElement="ThrowEscalation">
+        <dc:Bounds x="728" y="236" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="713" y="272" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchSignal_di" bpmnElement="CatchSignal">
+        <dc:Bounds x="1136" y="170" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1115" y="206" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="HandleEscalation_di" bpmnElement="HandleEscalation">
+        <dc:Bounds x="1104" y="236" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Final_di" bpmnElement="GW_Final" isMarkerVisible="true">
+        <dc:Bounds x="1259" y="163" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="1364" y="170" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1358" y="206" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_Fulfillment_di" bpmnElement="Sub_Fulfillment">
+        <dc:Bounds x="934" y="148" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_Escalation_di" bpmnElement="BE_Escalation">
+        <dc:Bounds x="966" y="210" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="941" y="246" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="188" />
+        <di:waypoint x="288" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="188" />
+        <di:waypoint x="453" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Yes_di" bpmnElement="Flow_Yes">
+        <di:waypoint x="503" y="188" />
+        <di:waypoint x="728" y="188" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="608" y="163" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_No_di" bpmnElement="Flow_No">
+        <di:waypoint x="503" y="188" />
+        <di:waypoint x="568" y="188" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="529" y="165" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="764" y="188" />
+        <di:waypoint x="819" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="668" y="196" />
+        <di:waypoint x="698" y="196" />
+        <di:waypoint x="698" y="254" />
+        <di:waypoint x="728" y="254" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="764" y="254" />
+        <di:waypoint x="844" y="254" />
+        <di:waypoint x="844" y="213" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow6_di" bpmnElement="Flow6">
+        <di:waypoint x="869" y="188" />
+        <di:waypoint x="934" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow7_di" bpmnElement="Flow7">
+        <di:waypoint x="1034" y="188" />
+        <di:waypoint x="1136" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="FlowEsc_di" bpmnElement="FlowEsc">
+        <di:waypoint x="984" y="246" />
+        <di:waypoint x="984" y="276" />
+        <di:waypoint x="1104" y="276" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow8_di" bpmnElement="Flow8">
+        <di:waypoint x="1204" y="276" />
+        <di:waypoint x="1284" y="276" />
+        <di:waypoint x="1284" y="213" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow9_di" bpmnElement="Flow9">
+        <di:waypoint x="1172" y="188" />
+        <di:waypoint x="1259" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow10_di" bpmnElement="Flow10">
+        <di:waypoint x="1309" y="188" />
+        <di:waypoint x="1364" y="188" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="Sub_Fulfillment">
+      <bpmndi:BPMNShape id="SubStart_di" bpmnElement="SubStart">
+        <dc:Bounds x="180" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ProcessOrder_di" bpmnElement="ProcessOrder">
+        <dc:Bounds x="298" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubEnd_di" bpmnElement="SubEnd">
+        <dc:Bounds x="480" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubEscEnd_di" bpmnElement="SubEscEnd">
+        <dc:Bounds x="480" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="462" y="258" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_Timer_di" bpmnElement="BE_Timer">
+        <dc:Bounds x="330" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SF1_di" bpmnElement="SF1">
+        <di:waypoint x="216" y="200" />
+        <di:waypoint x="298" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF2_di" bpmnElement="SF2">
+        <di:waypoint x="398" y="200" />
+        <di:waypoint x="480" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF3_di" bpmnElement="SF3">
+        <di:waypoint x="348" y="258" />
+        <di:waypoint x="348" y="240" />
+        <di:waypoint x="480" y="240" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

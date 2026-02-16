@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_CallActivity" name="Call Activity with Variable Mappings" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start" name="Process Started">
+      <bpmn:outgoing>Flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="EnterData" name="Enter Data" camunda:assignee="${initiator}">
+      <bpmn:incoming>Flow1</bpmn:incoming>
+      <bpmn:outgoing>Flow2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:callActivity id="CallPayment" name="Process Payment" calledElement="PaymentProcess">
+      <bpmn:extensionElements>
+        <camunda:in source="orderId" target="orderId" />
+        <camunda:in source="amount" target="paymentAmount" />
+        <camunda:out source="paymentResult" target="paymentStatus" />
+        <camunda:out source="transactionId" target="txnId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow2</bpmn:incoming>
+      <bpmn:outgoing>Flow3</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="CallShipping" name="Arrange Shipping" calledElement="ShippingProcess" camunda:calledElementBinding="version" camunda:calledElementVersion="2">
+      <bpmn:extensionElements>
+        <camunda:in variables="all" />
+        <camunda:out local="true" variables="all" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow3</bpmn:incoming>
+      <bpmn:outgoing>Flow4</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:serviceTask id="Finalize" name="Finalize Order" camunda:class="com.example.OrderFinalizer">
+      <bpmn:incoming>Flow4</bpmn:incoming>
+      <bpmn:outgoing>Flow5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Order Finalized">
+      <bpmn:incoming>Flow5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="EnterData" />
+    <bpmn:sequenceFlow id="Flow2" sourceRef="EnterData" targetRef="CallPayment" />
+    <bpmn:sequenceFlow id="Flow3" sourceRef="CallPayment" targetRef="CallShipping" />
+    <bpmn:sequenceFlow id="Flow4" sourceRef="CallShipping" targetRef="Finalize" />
+    <bpmn:sequenceFlow id="Flow5" sourceRef="Finalize" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_CallActivity">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_CallActivity" bpmnElement="Process_CallActivity">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="150" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EnterData_di" bpmnElement="EnterData">
+        <dc:Bounds x="288" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallPayment_di" bpmnElement="CallPayment">
+        <dc:Bounds x="448" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallShipping_di" bpmnElement="CallShipping">
+        <dc:Bounds x="608" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Finalize_di" bpmnElement="Finalize">
+        <dc:Bounds x="768" y="92" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="928" y="114" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="908" y="150" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="448" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
+        <di:waypoint x="548" y="132" />
+        <di:waypoint x="608" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+        <di:waypoint x="708" y="132" />
+        <di:waypoint x="768" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
+        <di:waypoint x="868" y="132" />
+        <di:waypoint x="928" y="132" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
