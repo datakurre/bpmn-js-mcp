@@ -504,8 +504,8 @@ describe.skipIf(!!process.env.CI)('ELK layout benchmarks', () => {
     });
 
     test('happy path elements stay on same row with preserveHappyPath', async () => {
-      // Start → Task → Gateway → [Yes→End1 (default), No→Extra→End2]
-      // The happy path (Start→Task→Gateway→End1 via default) should share Y
+      // Start → Task → Gateway → [Yes→End1 (conditioned), No→Extra→End2 (default)]
+      // The happy path (Start→Task→Gateway→End1 via conditioned branch) should share Y
       const diagramId = await createDiagram('Happy Path Test');
       const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
       const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Review' });
@@ -516,8 +516,8 @@ describe.skipIf(!!process.env.CI)('ELK layout benchmarks', () => {
 
       await connect(diagramId, start, task);
       await connect(diagramId, task, gw);
-      await connect(diagramId, gw, endOk, { label: 'Yes', isDefault: true });
-      await connect(diagramId, gw, extraTask, { label: 'No' });
+      await connect(diagramId, gw, endOk, { label: 'Yes' });
+      await connect(diagramId, gw, extraTask, { label: 'No', isDefault: true });
       await connect(diagramId, extraTask, endFail);
 
       // Layout with happy path preservation (default: true)

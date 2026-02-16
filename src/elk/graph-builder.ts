@@ -2,7 +2,7 @@
  * ELK graph construction from bpmn-js element registry.
  */
 
-import type { ElkNode, ElkExtendedEdge } from 'elkjs';
+import type { ElkNode, ElkExtendedEdge, ElkPort } from 'elkjs';
 import type { BpmnElement } from '../bpmn-types';
 import {
   ELK_LAYOUT_OPTIONS,
@@ -43,6 +43,10 @@ export function buildContainerGraph(
   if (children.length === 0) return { children, edges: [], hasDiverseY };
 
   const edges = buildEdges(allElements, container, childShapes, nodeIds);
+
+  // Add ELK port constraints to split decision gateways for deterministic
+  // branch ordering (happy-path exits EAST, off-path exits SOUTH).
+  addGatewayPorts(children, edges, childShapes);
 
   return { children, edges, hasDiverseY };
 }
@@ -527,6 +531,81 @@ function detectBackEdges(connections: BpmnElement[], nodeIds: Set<string>): Set<
   }
 
   return backEdges;
+}
+
+// ── Gateway port constraints ────────────────────────────────────────────
+
+/**
+ * Add ELK port constraints to split decision gateways (exclusive/inclusive
+ * with ≥2 outgoing edges) for deterministic branch ordering.
+ *
+ * The happy-path edge (first after reorderGatewayEdgesForHappyPath) exits
+ * via an EAST port, keeping its target on the main row.  Off-path edges
+ * exit via SOUTH ports, pushing their targets below.
+ *
+ * Mutates `children` (adds ports to gateway nodes) and `edges` (updates
+ * source references to port IDs).
+ */
+function addGatewayPorts(
+  children: ElkNode[],
+  edges: ElkExtendedEdge[],
+  childShapes: BpmnElement[]
+): void {
+  const nodeMap = new Map<string, ElkNode>();
+  for (const child of children) {
+    nodeMap.set(child.id, child);
+  }
+
+  // Identify exclusive/inclusive gateway shapes
+  const gwIds = new Set<string>();
+  for (const shape of childShapes) {
+    if (shape.type === 'bpmn:ExclusiveGateway' || shape.type === 'bpmn:InclusiveGateway') {
+      gwIds.add(shape.id);
+    }
+  }
+  if (gwIds.size === 0) return;
+
+  // Group real (non-synthetic) outgoing edges by gateway source.
+  // Edges are in happy-path-first order from reorderGatewayEdgesForHappyPath.
+  const gwOutgoing = new Map<string, ElkExtendedEdge[]>();
+  for (const edge of edges) {
+    if (edge.id.startsWith('__')) continue;
+    const srcId = edge.sources[0];
+    if (gwIds.has(srcId)) {
+      const list = gwOutgoing.get(srcId) || [];
+      list.push(edge);
+      gwOutgoing.set(srcId, list);
+    }
+  }
+
+  for (const [gwId, outEdges] of gwOutgoing) {
+    if (outEdges.length < 2) continue;
+    const node = nodeMap.get(gwId);
+    if (!node) continue;
+
+    // First edge = happy path → EAST port (stays on main row).
+    // Remaining edges = off-path → SOUTH ports (placed below).
+    const ports: ElkPort[] = [];
+    for (let i = 0; i < outEdges.length; i++) {
+      const portId = `${gwId}__port_${i}`;
+      ports.push({
+        id: portId,
+        width: 1,
+        height: 1,
+        layoutOptions: {
+          'elk.port.side': i === 0 ? 'EAST' : 'SOUTH',
+          'elk.port.index': String(i),
+        },
+      });
+      outEdges[i].sources = [portId];
+    }
+
+    node.ports = (node.ports || []).concat(ports);
+    node.layoutOptions = {
+      ...node.layoutOptions,
+      'elk.portConstraints': 'FIXED_ORDER',
+    };
+  }
 }
 
 // ── Positive label regex (matches happy-path condition names) ───────────

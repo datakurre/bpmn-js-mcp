@@ -437,8 +437,8 @@ describe('Layout comparison: ELK quality metrics', () => {
 
     await connect(diagramId, start, task);
     await connect(diagramId, task, gw);
-    await connect(diagramId, gw, endOk, { label: 'Yes', isDefault: true });
-    await connect(diagramId, gw, rework, { label: 'No' });
+    await connect(diagramId, gw, endOk, { label: 'Yes' });
+    await connect(diagramId, gw, rework, { label: 'No', isDefault: true });
     await connect(diagramId, rework, endFail);
 
     await handleLayoutDiagram({ diagramId });

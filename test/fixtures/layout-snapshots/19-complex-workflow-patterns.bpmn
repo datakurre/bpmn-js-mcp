@@ -142,7 +142,7 @@
       <bpmndi:BPMNShape id="GW_OrderType_di" bpmnElement="GW_OrderType" isMarkerVisible="true">
         <dc:Bounds x="563" y="95" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="558" y="71" width="59" height="14" />
+          <dc:Bounds x="558.5" y="71" width="59" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="GW_Fork1_di" bpmnElement="GW_Fork1">
@@ -202,7 +202,7 @@
         <di:waypoint x="613" y="120" />
         <di:waypoint x="708" y="120" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="634" y="128" width="45" height="14" />
+          <dc:Bounds x="636" y="128" width="45" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowExpress_di" bpmnElement="FlowExpress">
