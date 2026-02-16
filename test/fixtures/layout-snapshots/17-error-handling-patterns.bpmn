@@ -155,10 +155,24 @@
       <bpmndi:BPMNEdge id="FlowTimeout_di" bpmnElement="FlowTimeout">
         <di:waypoint x="708" y="178" />
         <di:waypoint x="708" y="245" />
+        <di:waypoint x="708" y="255" />
+        <di:waypoint x="1063" y="255" />
+        <di:waypoint x="1063" y="245" />
         <di:waypoint x="948" y="245" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowToErr_di" bpmnElement="FlowToErr">
         <di:waypoint x="1048" y="245" />
+        <di:waypoint x="933" y="245" />
+        <di:waypoint x="933" y="145" />
+        <di:waypoint x="1063" y="145" />
+        <di:waypoint x="1063" y="245" />
+        <di:waypoint x="933" y="245" />
+        <di:waypoint x="933" y="145" />
+        <di:waypoint x="1063" y="145" />
+        <di:waypoint x="1063" y="245" />
+        <di:waypoint x="933" y="245" />
+        <di:waypoint x="933" y="145" />
+        <di:waypoint x="1078" y="145" />
         <di:waypoint x="1078" y="245" />
         <di:waypoint x="1078" y="320" />
         <di:waypoint x="1108" y="320" />
@@ -166,10 +180,24 @@
       <bpmndi:BPMNEdge id="FlowSysErr_di" bpmnElement="FlowSysErr">
         <di:waypoint x="628" y="178" />
         <di:waypoint x="628" y="200" />
+        <di:waypoint x="628" y="190" />
+        <di:waypoint x="1063" y="190" />
+        <di:waypoint x="1063" y="200" />
         <di:waypoint x="948" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowOpsErr_di" bpmnElement="FlowOpsErr">
         <di:waypoint x="1048" y="200" />
+        <di:waypoint x="933" y="200" />
+        <di:waypoint x="933" y="190" />
+        <di:waypoint x="1063" y="190" />
+        <di:waypoint x="1063" y="200" />
+        <di:waypoint x="933" y="200" />
+        <di:waypoint x="933" y="190" />
+        <di:waypoint x="1063" y="190" />
+        <di:waypoint x="1063" y="200" />
+        <di:waypoint x="933" y="200" />
+        <di:waypoint x="933" y="190" />
+        <di:waypoint x="1078" y="190" />
         <di:waypoint x="1078" y="200" />
         <di:waypoint x="1078" y="320" />
         <di:waypoint x="1108" y="320" />

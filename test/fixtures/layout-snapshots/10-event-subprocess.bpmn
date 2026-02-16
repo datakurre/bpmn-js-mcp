@@ -144,10 +144,32 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="EFlow1_di" bpmnElement="EFlow1">
         <di:waypoint x="216" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="231" y="167" />
+        <di:waypoint x="231" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="231" y="167" />
+        <di:waypoint x="231" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="298" y="167" />
         <di:waypoint x="298" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="EFlow2_di" bpmnElement="EFlow2">
         <di:waypoint x="398" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="413" y="145" />
+        <di:waypoint x="413" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="413" y="145" />
+        <di:waypoint x="413" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="255" />
+        <di:waypoint x="448" y="255" />
         <di:waypoint x="448" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="EFlow3_di" bpmnElement="EFlow3">
@@ -169,10 +191,32 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="TFlow1_di" bpmnElement="TFlow1">
         <di:waypoint x="216" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="231" y="167" />
+        <di:waypoint x="231" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="231" y="167" />
+        <di:waypoint x="231" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="298" y="167" />
         <di:waypoint x="298" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="TFlow2_di" bpmnElement="TFlow2">
         <di:waypoint x="398" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="413" y="145" />
+        <di:waypoint x="413" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="413" y="145" />
+        <di:waypoint x="413" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="255" />
+        <di:waypoint x="480" y="255" />
         <di:waypoint x="480" y="200" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
@@ -190,10 +234,32 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="CFlow1_di" bpmnElement="CFlow1">
         <di:waypoint x="216" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="231" y="167" />
+        <di:waypoint x="231" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="231" y="167" />
+        <di:waypoint x="231" y="200" />
+        <di:waypoint x="165" y="200" />
+        <di:waypoint x="165" y="167" />
+        <di:waypoint x="298" y="167" />
         <di:waypoint x="298" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="CFlow2_di" bpmnElement="CFlow2">
         <di:waypoint x="398" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="413" y="145" />
+        <di:waypoint x="413" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="413" y="145" />
+        <di:waypoint x="413" y="200" />
+        <di:waypoint x="283" y="200" />
+        <di:waypoint x="283" y="255" />
+        <di:waypoint x="480" y="255" />
         <di:waypoint x="480" y="200" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>

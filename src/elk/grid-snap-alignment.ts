@@ -478,3 +478,81 @@ export function alignHappyPath(
     }
   }
 }
+
+/**
+ * Post-ELK happy-path branch pinning pass.
+ *
+ * For each exclusive/inclusive gateway with 2 outgoing branches, checks
+ * whether the happy-path branch target is below the off-path target.
+ * If so, swaps their Y positions (including all BFS-reachable successors
+ * in the off-path sub-flow) so the happy path stays on the top row and
+ * exceptions/rejections descend.
+ *
+ * Runs after alignHappyPath so the main row is already established.
+ * Handles intermediate events and tasks — not limited to end events.
+ */
+export function pinHappyPathBranches(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  happyPathEdgeIds?: Set<string>,
+  container?: BpmnElement
+): void {
+  if (!happyPathEdgeIds || happyPathEdgeIds.size === 0) return;
+
+  const allElements: BpmnElement[] = elementRegistry.getAll();
+
+  // Derive happy-path node IDs from edge IDs
+  const happyPathNodeIds = new Set<string>();
+  for (const el of allElements) {
+    if (isConnection(el.type) && happyPathEdgeIds.has(el.id)) {
+      if (el.source) happyPathNodeIds.add(el.source.id);
+      if (el.target) happyPathNodeIds.add(el.target.id);
+    }
+  }
+
+  // Scope to container
+  let parentFilter: BpmnElement | undefined = container;
+  if (!parentFilter) {
+    parentFilter = elementRegistry.filter(
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+    )[0];
+  }
+
+  // Find exclusive/inclusive split gateways with exactly 2 outgoing flows
+  const gateways = allElements.filter(
+    (el) =>
+      (el.type === 'bpmn:ExclusiveGateway' || el.type === 'bpmn:InclusiveGateway') &&
+      (!parentFilter || el.parent === parentFilter)
+  );
+
+  for (const gw of gateways) {
+    const outgoing = allElements.filter(
+      (conn) => isConnection(conn.type) && conn.source?.id === gw.id && !!conn.target
+    );
+
+    if (outgoing.length !== 2) continue;
+
+    const [conn1, conn2] = outgoing;
+    const target1 = conn1.target!;
+    const target2 = conn2.target!;
+
+    // Determine which is on-path and which is off-path
+    const t1OnPath = happyPathNodeIds.has(target1.id);
+    const t2OnPath = happyPathNodeIds.has(target2.id);
+    if (t1OnPath === t2OnPath) continue; // both on or both off — skip
+
+    const onPathTarget = t1OnPath ? target1 : target2;
+    const offPathTarget = t1OnPath ? target2 : target1;
+
+    const onPathCy = onPathTarget.y + (onPathTarget.height || 0) / 2;
+    const offPathCy = offPathTarget.y + (offPathTarget.height || 0) / 2;
+
+    // If happy-path target is below the off-path target, swap Y positions
+    if (onPathCy > offPathCy + MIN_MOVE_THRESHOLD) {
+      const dy = Math.round(offPathCy - onPathCy);
+      // Move on-path up and off-path down
+      modeling.moveElements([onPathTarget], { x: 0, y: dy });
+      modeling.moveElements([offPathTarget], { x: 0, y: -dy });
+    }
+  }
+}

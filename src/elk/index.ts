@@ -98,8 +98,10 @@ import {
   gridSnapExpandedSubprocesses,
   alignHappyPath,
   alignOffPathEndEvents,
+  pinHappyPathBranches,
 } from './grid-snap';
 import { detectCrossingFlows, reduceCrossings } from './crossing-detection';
+import { avoidElementIntersections } from './element-avoidance';
 import { resolveOverlaps } from './overlap-resolution';
 import type { ElkLayoutOptions } from './types';
 
@@ -280,6 +282,11 @@ function alignHappyPathAndOffPathEvents(ctx: LayoutContext): void {
 
   forEachScope(ctx.elementRegistry, (scope) => {
     alignOffPathEndEvents(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
+  });
+
+  // Pin happy-path branches above off-path branches at exclusive/inclusive gateways
+  forEachScope(ctx.elementRegistry, (scope) => {
+    pinHappyPathBranches(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
   });
 }
 
@@ -479,9 +486,13 @@ export async function elkLayout(
   // Attempt to reduce edge crossings by nudging waypoints
   reduceCrossings(elementRegistry, modeling);
 
-  // TODO: avoidElementIntersections — needs a safe waypoint update mechanism
-  // that doesn't trigger bpmn-js label adjustment errors.  The current
-  // modeling.updateWaypoints call crashes on certain geometries.
+  // Reroute connections that pass through unrelated element bounding boxes.
+  // Uses modeling.updateWaypoints with try/catch — bpmn-js's LineAttachmentUtil
+  // can throw on geometrically difficult paths (those connections are skipped).
+  avoidElementIntersections(elementRegistry, modeling);
+
+  // Re-run crossing reduction — avoidance detours may introduce new crossings
+  reduceCrossings(elementRegistry, modeling);
 
   const crossingFlowsResult = detectCrossingFlows(elementRegistry);
   return {

@@ -7,7 +7,7 @@
  * detour waypoints around the obstructing element.
  */
 
-import type { BpmnElement, ElementRegistry } from '../bpmn-types';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { type Point, type Rect, segmentIntersectsRect, cloneWaypoints } from '../geometry';
 import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
 
@@ -24,7 +24,10 @@ const MAX_ITERATIONS = 3;
  * shapes.  When an intersection is detected, reroutes the segment around the
  * obstructing element using an H-V-H or V-H-V detour.
  */
-export function avoidElementIntersections(elementRegistry: ElementRegistry): void {
+export function avoidElementIntersections(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling
+): void {
   const allElements: BpmnElement[] = elementRegistry.getAll();
 
   // Collect all shapes that can obstruct flows
@@ -49,6 +52,13 @@ export function avoidElementIntersections(elementRegistry: ElementRegistry): voi
     const sourceId = conn.source?.id;
     const targetId = conn.target?.id;
     if (!sourceId || !targetId) continue;
+
+    // Skip connections from/to gateways with high fan-out/in — fan-out/fan-in
+    // patterns inherently have connections that pass near branch elements.
+    // Rerouting these creates more crossings than it solves.
+    const source = conn.source;
+    const target = conn.target;
+    if (source?.type?.includes('Gateway') || target?.type?.includes('Gateway')) continue;
 
     // Collect boundary events attached to source/target (they overlap by design)
     const attachedBoundaryIds = new Set<string>();
@@ -112,15 +122,17 @@ export function avoidElementIntersections(elementRegistry: ElementRegistry): voi
       // Deduplicate consecutive identical waypoints
       wps = deduplicateWps(wps);
 
-      // Direct waypoint update — bypass modeling.updateWaypoints to avoid
-      // bpmn-js label adjustment errors on geometrically difficult paths.
-      conn.waypoints = wps;
-      if (conn.di?.waypoint) {
-        conn.di.waypoint = wps.map((wp: Point) => ({
-          $type: 'dc:Point',
-          x: wp.x,
-          y: wp.y,
-        }));
+      // Use modeling.updateWaypoints for proper DI/moddle integration.
+      // Wrapped in try/catch because bpmn-js's LineAttachmentUtil can throw
+      // on geometrically difficult paths (circle → line intersections).
+      // Also skip if any waypoint has NaN coordinates (degenerate geometry).
+      const hasNaN = wps.some((wp: Point) => isNaN(wp.x) || isNaN(wp.y));
+      if (hasNaN) continue;
+
+      try {
+        modeling.updateWaypoints(conn, wps);
+      } catch {
+        // Silently skip — leave the original waypoints unchanged
       }
     }
   }
@@ -144,6 +156,11 @@ function computeDetour(
   const obY = obstacle.y;
   const obW = obstacle.width || 0;
   const obH = obstacle.height || 0;
+
+  // Guard against degenerate geometry (NaN or undefined coordinates)
+  if (isNaN(obX) || isNaN(obY) || isNaN(p1.x) || isNaN(p1.y) || isNaN(p2.x) || isNaN(p2.y)) {
+    return null;
+  }
 
   const isHorizontal = Math.abs(p1.y - p2.y) < Math.abs(p1.x - p2.x);
 

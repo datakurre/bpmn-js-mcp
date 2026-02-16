@@ -24,3 +24,5 @@ export {
   separateOverlappingGatewayFlows,
   routeLoopbacksBelow,
 } from './edge-routing-fix';
+
+export { avoidElementIntersections } from './element-avoidance';

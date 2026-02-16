@@ -134,6 +134,17 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowErr_di" bpmnElement="FlowErr">
         <di:waypoint x="378" y="178" />
+        <di:waypoint x="378" y="65" />
+        <di:waypoint x="273" y="65" />
+        <di:waypoint x="273" y="178" />
+        <di:waypoint x="378" y="178" />
+        <di:waypoint x="378" y="65" />
+        <di:waypoint x="273" y="65" />
+        <di:waypoint x="273" y="178" />
+        <di:waypoint x="378" y="178" />
+        <di:waypoint x="378" y="145" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="283" y="360" />
         <di:waypoint x="378" y="360" />
         <di:waypoint x="458" y="360" />
       </bpmndi:BPMNEdge>
@@ -143,6 +154,18 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowTimer_di" bpmnElement="FlowTimer">
         <di:waypoint x="298" y="178" />
+        <di:waypoint x="298" y="65" />
+        <di:waypoint x="273" y="65" />
+        <di:waypoint x="273" y="178" />
+        <di:waypoint x="298" y="178" />
+        <di:waypoint x="298" y="65" />
+        <di:waypoint x="273" y="65" />
+        <di:waypoint x="273" y="178" />
+        <di:waypoint x="298" y="178" />
+        <di:waypoint x="298" y="145" />
+        <di:waypoint x="283" y="145" />
+        <di:waypoint x="283" y="255" />
+        <di:waypoint x="298" y="255" />
         <di:waypoint x="298" y="240" />
         <di:waypoint x="458" y="240" />
       </bpmndi:BPMNEdge>
@@ -175,10 +198,24 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="SubFlow2_di" bpmnElement="SubFlow2">
         <di:waypoint x="398" y="200" />
+        <di:waypoint x="398" y="185" />
+        <di:waypoint x="573" y="185" />
+        <di:waypoint x="573" y="200" />
         <di:waypoint x="448" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="SubFlow3_di" bpmnElement="SubFlow3">
         <di:waypoint x="548" y="200" />
+        <di:waypoint x="443" y="200" />
+        <di:waypoint x="443" y="185" />
+        <di:waypoint x="573" y="185" />
+        <di:waypoint x="573" y="200" />
+        <di:waypoint x="443" y="200" />
+        <di:waypoint x="443" y="185" />
+        <di:waypoint x="573" y="185" />
+        <di:waypoint x="573" y="200" />
+        <di:waypoint x="443" y="200" />
+        <di:waypoint x="443" y="185" />
+        <di:waypoint x="598" y="185" />
         <di:waypoint x="598" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="SubFlow4_di" bpmnElement="SubFlow4">

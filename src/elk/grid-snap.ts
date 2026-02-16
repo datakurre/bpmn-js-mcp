@@ -16,5 +16,6 @@ export {
   alignBoundarySubFlowEndEvents,
   alignOffPathEndEvents,
   alignHappyPath,
+  pinHappyPathBranches,
 } from './grid-snap-alignment';
 export { gridSnapExpandedSubprocesses } from './grid-snap-subprocess';
