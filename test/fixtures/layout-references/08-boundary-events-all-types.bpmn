@@ -114,15 +114,6 @@
           <dc:Bounds x="1417" y="68" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="NotifyManager_di" bpmnElement="NotifyManager">
-        <dc:Bounds x="1522" y="156" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="EndEscalated_di" bpmnElement="EndEscalated">
-        <dc:Bounds x="1682" y="178" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1658" y="214" width="84" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="SendReminder_di" bpmnElement="SendReminder">
         <dc:Bounds x="458" y="404" width="100" height="80" />
       </bpmndi:BPMNShape>
@@ -151,7 +142,7 @@
         <dc:Bounds x="990" y="284" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="LogCancel_di" bpmnElement="LogCancel">
-        <dc:Bounds x="990" y="460" width="100" height="80" />
+        <dc:Bounds x="990" y="404" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Escalation_di" bpmnElement="Task_Escalation">
         <dc:Bounds x="1256" y="284" width="100" height="80" />
@@ -159,19 +150,28 @@
       <bpmndi:BPMNShape id="EndSysError_di" bpmnElement="EndSysError">
         <dc:Bounds x="894" y="426" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="877" y="402" width="69" height="14" />
+          <dc:Bounds x="877" y="472" width="69" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndCancel_di" bpmnElement="EndCancel">
-        <dc:Bounds x="1160" y="482" width="36" height="36" />
+        <dc:Bounds x="1160" y="426" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1146" y="528" width="64" height="27" />
+          <dc:Bounds x="1146" y="472" width="64" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndAbort_di" bpmnElement="EndAbort">
-        <dc:Bounds x="1129" y="431" width="36" height="36" />
+        <dc:Bounds x="1112" y="431" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1127" y="477" width="39" height="14" />
+          <dc:Bounds x="1110" y="477" width="39" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="NotifyManager_di" bpmnElement="NotifyManager">
+        <dc:Bounds x="1522" y="497" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEscalated_di" bpmnElement="EndEscalated">
+        <dc:Bounds x="1682" y="519" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1658" y="555" width="84" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BoundError_di" bpmnElement="BoundError">
@@ -193,9 +193,9 @@
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BoundSignal_di" bpmnElement="BoundSignal">
-        <dc:Bounds x="1039" y="266" width="36" height="36" />
+        <dc:Bounds x="1022" y="346" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1027" y="242" width="60" height="14" />
+          <dc:Bounds x="1010" y="392" width="60" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BoundEscalation_di" bpmnElement="BoundEscalation">
@@ -250,26 +250,26 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBM_di" bpmnElement="FlowBM">
         <di:waypoint x="774" y="382" />
-        <di:waypoint x="774" y="500" />
-        <di:waypoint x="990" y="500" />
+        <di:waypoint x="774" y="444" />
+        <di:waypoint x="990" y="444" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBM2_di" bpmnElement="FlowBM2">
-        <di:waypoint x="1090" y="500" />
-        <di:waypoint x="1160" y="500" />
+        <di:waypoint x="1090" y="444" />
+        <di:waypoint x="1160" y="444" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBS_di" bpmnElement="FlowBS">
-        <di:waypoint x="1057" y="302" />
-        <di:waypoint x="1057" y="449" />
-        <di:waypoint x="1129" y="449" />
+        <di:waypoint x="1040" y="382" />
+        <di:waypoint x="1040" y="449" />
+        <di:waypoint x="1112" y="449" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBEsc_di" bpmnElement="FlowBEsc">
-        <di:waypoint x="1306" y="346" />
-        <di:waypoint x="1306" y="196" />
-        <di:waypoint x="1522" y="196" />
+        <di:waypoint x="1306" y="382" />
+        <di:waypoint x="1306" y="537" />
+        <di:waypoint x="1522" y="537" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBEsc2_di" bpmnElement="FlowBEsc2">
-        <di:waypoint x="1622" y="196" />
-        <di:waypoint x="1682" y="196" />
+        <di:waypoint x="1622" y="537" />
+        <di:waypoint x="1682" y="537" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

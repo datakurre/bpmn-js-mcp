@@ -123,9 +123,6 @@
           <dc:Bounds x="609" y="402" width="74" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="NotifyManager_di" bpmnElement="NotifyManager">
-        <dc:Bounds x="1522" y="240" width="100" height="80" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
         <dc:Bounds x="192" y="306" width="36" height="36" />
         <bpmndi:BPMNLabel>
@@ -162,16 +159,19 @@
           <dc:Bounds x="1146" y="472" width="64" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="EndEscalated_di" bpmnElement="EndEscalated">
-        <dc:Bounds x="1682" y="262" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1658" y="298" width="84" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndAbort_di" bpmnElement="EndAbort">
         <dc:Bounds x="1112" y="431" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="1110" y="477" width="39" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="NotifyManager_di" bpmnElement="NotifyManager">
+        <dc:Bounds x="1522" y="497" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEscalated_di" bpmnElement="EndEscalated">
+        <dc:Bounds x="1682" y="519" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1658" y="555" width="84" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BoundError_di" bpmnElement="BoundError">
@@ -263,13 +263,13 @@
         <di:waypoint x="1112" y="449" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBEsc_di" bpmnElement="FlowBEsc">
-        <di:waypoint x="1306" y="346" />
-        <di:waypoint x="1306" y="280" />
-        <di:waypoint x="1522" y="280" />
+        <di:waypoint x="1306" y="382" />
+        <di:waypoint x="1306" y="537" />
+        <di:waypoint x="1522" y="537" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowBEsc2_di" bpmnElement="FlowBEsc2">
-        <di:waypoint x="1622" y="280" />
-        <di:waypoint x="1682" y="280" />
+        <di:waypoint x="1622" y="537" />
+        <di:waypoint x="1682" y="537" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

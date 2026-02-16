@@ -79,23 +79,11 @@
       <bpmndi:BPMNShape id="ValidateInput_di" bpmnElement="ValidateInput">
         <dc:Bounds x="288" y="148" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="FixInput_di" bpmnElement="FixInput">
-        <dc:Bounds x="458" y="106" width="100" height="80" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ProcessRequest_di" bpmnElement="ProcessRequest">
         <dc:Bounds x="618" y="148" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="AlertOps_di" bpmnElement="AlertOps">
-        <dc:Bounds x="948" y="153" width="100" height="80" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="LogTimeout_di" bpmnElement="LogTimeout">
         <dc:Bounds x="948" y="273" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="EndError_di" bpmnElement="EndError">
-        <dc:Bounds x="1108" y="295" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1111" y="271" width="30" height="14" />
-        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="SendResult_di" bpmnElement="SendResult">
         <dc:Bounds x="788" y="148" width="100" height="80" />
@@ -105,6 +93,18 @@
         <bpmndi:BPMNLabel>
           <dc:Bounds x="1099" y="206" width="54" height="14" />
         </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="AlertOps_di" bpmnElement="AlertOps">
+        <dc:Bounds x="948" y="228" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndError_di" bpmnElement="EndError">
+        <dc:Bounds x="1108" y="370" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1111" y="346" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="FixInput_di" bpmnElement="FixInput">
+        <dc:Bounds x="458" y="275" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BE_ValidationError_di" bpmnElement="BE_ValidationError">
         <dc:Bounds x="320" y="210" width="36" height="36" />
@@ -133,17 +133,17 @@
         <di:waypoint x="618" y="188" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowValErr_di" bpmnElement="FlowValErr">
-        <di:waypoint x="338" y="210" />
-        <di:waypoint x="338" y="146" />
-        <di:waypoint x="458" y="146" />
+        <di:waypoint x="338" y="246" />
+        <di:waypoint x="338" y="315" />
+        <di:waypoint x="458" y="315" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowRetry_di" bpmnElement="FlowRetry">
-        <di:waypoint x="548" y="146" />
-        <di:waypoint x="563" y="146" />
-        <di:waypoint x="563" y="188" />
-        <di:waypoint x="608" y="188" />
+        <di:waypoint x="558" y="315" />
+        <di:waypoint x="588" y="315" />
+        <di:waypoint x="588" y="188" />
+        <di:waypoint x="618" y="188" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="535" y="160" width="27" height="14" />
+          <dc:Bounds x="565" y="245" width="27" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
@@ -156,19 +156,21 @@
         <di:waypoint x="948" y="313" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowSysErr_di" bpmnElement="FlowSysErr">
-        <di:waypoint x="628" y="210" />
-        <di:waypoint x="628" y="193" />
-        <di:waypoint x="948" y="193" />
+        <di:waypoint x="628" y="246" />
+        <di:waypoint x="628" y="268" />
+        <di:waypoint x="948" y="268" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowToErr_di" bpmnElement="FlowToErr">
         <di:waypoint x="1048" y="313" />
-        <di:waypoint x="1108" y="313" />
+        <di:waypoint x="1078" y="313" />
+        <di:waypoint x="1078" y="388" />
+        <di:waypoint x="1108" y="388" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="FlowOpsErr_di" bpmnElement="FlowOpsErr">
-        <di:waypoint x="1048" y="193" />
-        <di:waypoint x="1078" y="193" />
-        <di:waypoint x="1078" y="313" />
-        <di:waypoint x="1108" y="313" />
+        <di:waypoint x="1048" y="268" />
+        <di:waypoint x="1078" y="268" />
+        <di:waypoint x="1078" y="388" />
+        <di:waypoint x="1108" y="388" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
         <di:waypoint x="888" y="188" />

@@ -71,6 +71,7 @@ import {
   identifyBoundaryLeafTargets,
   repositionBoundaryEventTargets,
   alignOffPathEndEventsToSecondRow,
+  pushBoundaryTargetsBelowHappyPath,
 } from './boundary-events';
 import {
   snapSameLayerElements,
@@ -303,6 +304,15 @@ function finaliseBoundaryTargets(ctx: LayoutContext): void {
   repositionBoundaryEvents(ctx.elementRegistry, ctx.modeling, ctx.boundarySnapshots);
 
   repositionBoundaryEventTargets(ctx.elementRegistry, ctx.modeling, ctx.boundaryLeafTargetIds);
+
+  // Push non-leaf boundary event targets that ELK placed above the happy
+  // path down below it (e.g. retry/fix tasks attached via boundary events).
+  pushBoundaryTargetsBelowHappyPath(
+    ctx.elementRegistry,
+    ctx.modeling,
+    ctx.boundaryLeafTargetIds,
+    ctx.happyPathEdgeIds
+  );
 
   alignOffPathEndEventsToSecondRow(
     ctx.elementRegistry,

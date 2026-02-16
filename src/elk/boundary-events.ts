@@ -504,6 +504,130 @@ export function alignOffPathEndEventsToSecondRow(
 }
 
 /**
+ * Push boundary event targets that ELK placed above the happy path down
+ * below it.
+ *
+ * When a boundary event sits on the bottom border of its host, its
+ * exception flow should exit downward.  However, ELK's proxy edges
+ * may place the target node above the happy path (e.g. in fixture 17,
+ * "Fix Input Data" ends up at y=106 above the main path at y=148).
+ *
+ * This function detects such mis-placements and moves the entire
+ * exception sub-flow (target + all successors not on the happy path)
+ * below the happy-path row.  Only affects targets that are NOT already
+ * handled by `repositionBoundaryEventTargets` (i.e. not in the
+ * excludedIds set).
+ */
+export function pushBoundaryTargetsBelowHappyPath(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  excludedIds: Set<string>,
+  happyPathEdgeIds?: Set<string>
+): void {
+  if (!happyPathEdgeIds || happyPathEdgeIds.size === 0) return;
+
+  // Compute happy-path node IDs and median Y
+  const happyPathNodeIds = new Set<string>();
+  const allElements: BpmnElement[] = elementRegistry.getAll();
+  for (const el of allElements) {
+    if (
+      (el.type === 'bpmn:SequenceFlow' || el.type === 'bpmn:MessageFlow') &&
+      happyPathEdgeIds.has(el.id)
+    ) {
+      if (el.source) happyPathNodeIds.add(el.source.id);
+      if (el.target) happyPathNodeIds.add(el.target.id);
+    }
+  }
+
+  const happyShapes = allElements.filter(
+    (el) => happyPathNodeIds.has(el.id) && el.width !== undefined
+  );
+  if (happyShapes.length === 0) return;
+  const happyCentres = happyShapes.map((el) => el.y + (el.height || 0) / 2);
+  happyCentres.sort((a: number, b: number) => a - b);
+  const happyMedianCy = happyCentres[Math.floor(happyCentres.length / 2)];
+
+  // Build outgoing adjacency for walking exception chains
+  const outgoingAdj = new Map<string, BpmnElement[]>();
+  for (const el of allElements) {
+    if (el.type === 'bpmn:SequenceFlow' && el.source && el.target) {
+      const list = outgoingAdj.get(el.source.id) || [];
+      list.push(el);
+      outgoingAdj.set(el.source.id, list);
+    }
+  }
+
+  // Find boundary events on the bottom border
+  const boundaryEvents = elementRegistry.filter(
+    (el) => el.type === BPMN_BOUNDARY_EVENT_TYPE && !!el.host
+  );
+
+  for (const be of boundaryEvents) {
+    const host = be.host!;
+    const border = detectCurrentBorder(be, host);
+    if (border !== 'bottom') continue;
+
+    const outgoing: BpmnElement[] = be.outgoing || [];
+    for (const flow of outgoing) {
+      const target = flow.target;
+      if (!target || excludedIds.has(target.id)) continue;
+      if (happyPathNodeIds.has(target.id)) continue;
+
+      const targetCy = target.y + (target.height || 0) / 2;
+
+      // Target is above or at the happy path — should be below
+      if (targetCy < happyMedianCy + BOUNDARY_TARGET_ROW_BUFFER) {
+        // Mirror below: push to same distance below as it is above
+        const distAbove = happyMedianCy - targetCy;
+        const desiredCy = happyMedianCy + distAbove + BOUNDARY_TARGET_Y_OFFSET;
+        const dy = Math.round(desiredCy - targetCy);
+
+        if (dy > 2) {
+          // Collect the entire exception sub-flow chain (target + successors
+          // not on the happy path) and move them all by the same delta.
+          const chain = collectExceptionChain(target, happyPathNodeIds, outgoingAdj);
+          for (const el of chain) {
+            modeling.moveElements([el], { x: 0, y: dy });
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Walk forward from a starting element, collecting all non-happy-path
+ * successor nodes.  Stops at happy-path nodes or already-visited nodes.
+ */
+function collectExceptionChain(
+  start: BpmnElement,
+  happyPathNodeIds: Set<string>,
+  outgoingAdj: Map<string, BpmnElement[]>
+): BpmnElement[] {
+  const result: BpmnElement[] = [];
+  const visited = new Set<string>();
+  const queue = [start];
+
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    if (visited.has(node.id)) continue;
+    visited.add(node.id);
+    result.push(node);
+
+    // Follow outgoing flows to non-happy-path successors
+    const flows = outgoingAdj.get(node.id) || [];
+    for (const flow of flows) {
+      const next = flow.target;
+      if (next && !happyPathNodeIds.has(next.id) && !visited.has(next.id)) {
+        queue.push(next);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Detect which border a boundary event currently sits on relative to its host.
  * Returns 'top', 'bottom', 'left', or 'right' based on proximity.
  */
