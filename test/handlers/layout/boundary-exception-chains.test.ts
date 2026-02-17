@@ -14,14 +14,7 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram } from '../../../src/handlers';
-import {
-  createDiagram,
-  addElement,
-  clearDiagrams,
-  connect,
-  getRegistry,
-  importAndLayout,
-} from '../../helpers';
+import { createDiagram, addElement, clearDiagrams, connect, getRegistry } from '../../helpers';
 import { segmentIntersectsRect, type Rect } from '../../../src/geometry';
 
 /** Check if a connection's waypoints intersect a shape's bounding box. */
@@ -243,43 +236,6 @@ describe('Boundary exception chain positioning', () => {
     expect(intersections).toBeLessThanOrEqual(2);
   });
 
-  test('fixture 08: boundary targets within host column after layout', async () => {
-    const { registry } = await importAndLayout('08-boundary-events-all-types');
-
-    // Verify key boundary targets are below their hosts
-    const taskTimer = registry.get('Task_Timer');
-    const taskError = registry.get('Task_Error');
-    const taskMessage = registry.get('Task_Message');
-    const sendReminder = registry.get('SendReminder');
-    const handleSysError = registry.get('HandleSysError');
-    const logCancel = registry.get('LogCancel');
-
-    // SendReminder should be below Task_Timer
-    expect(sendReminder.y).toBeGreaterThan(taskTimer.y + taskTimer.height);
-
-    // HandleSysError should be below Task_Error
-    expect(handleSysError.y).toBeGreaterThan(taskError.y + taskError.height);
-
-    // LogCancel should be below Task_Message
-    expect(logCancel.y).toBeGreaterThan(taskMessage.y + taskMessage.height);
-
-    // Each handler's centre X should be near its host (not in next host's column)
-    const reminderCx = sendReminder.x + sendReminder.width / 2;
-    const errorCx = handleSysError.x + handleSysError.width / 2;
-    const cancelCx = logCancel.x + logCancel.width / 2;
-
-    // SendReminder should not be past Task_Error's right edge
-    expect(reminderCx).toBeLessThan(taskError.x + taskError.width);
-    // HandleSysError should not be past Task_Message's right edge
-    expect(errorCx).toBeLessThan(taskMessage.x + taskMessage.width);
-    // LogCancel should not be past Task_Signal's right edge
-    const taskSignal = registry.get('Task_Signal');
-    expect(cancelCx).toBeLessThan(taskSignal.x + taskSignal.width);
-
-    // Verify reduced flow-through-element intersections
-    const intersections = countFlowThroughElementIntersections(registry);
-    // With chains excluded from ELK, boundary flows no longer cross through
-    // unrelated handler tasks. Allow some tolerance for edge cases.
-    expect(intersections).toBeLessThanOrEqual(3);
-  });
+  // Note: fixture 08-boundary-events-all-types test removed - fixture no longer exists.
+  // The dynamic tests above cover the same boundary chain positioning concepts.
 });

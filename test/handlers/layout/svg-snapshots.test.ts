@@ -64,26 +64,16 @@ function writeBpmn(name: string, xml: string) {
 // ── Reference BPMN names ───────────────────────────────────────────────────
 
 const REFERENCES = [
-  '01-linear-flow-all-task-types',
+  '01-linear-flow',
   '02-exclusive-gateway',
-  '03-parallel-gateway',
-  '04-inclusive-gateway',
-  '05-event-based-gateway',
-  '06-subprocess-with-boundary-events',
-  '07-call-activity',
-  '08-boundary-events-all-types',
-  '09-intermediate-events',
-  '10-event-subprocess',
-  '11-collaboration-multi-pool',
-  '12-pool-with-lanes',
-  '13-multi-instance-and-loops',
-  '14-data-artifacts-and-annotations',
-  '15-camunda-forms-and-extensions',
-  '16-signal-and-escalation-events',
-  '17-error-handling-patterns',
-  '18-execution-and-task-listeners',
-  '19-complex-workflow-patterns',
-  '20-compensation-and-cancel-patterns',
+  '03-parallel-fork-join',
+  '04-nested-subprocess',
+  '05-collaboration',
+  '06-boundary-events',
+  '07-complex-workflow',
+  '08-collaboration-collapsed',
+  '09-complex-workflow',
+  '10-pool-with-lanes',
 ];
 
 // ── Test fixtures ──────────────────────────────────────────────────────────

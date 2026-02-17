@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
   <bpmn:process id="Process_Conference_Registration_Process" name="Conference Registration Process" isExecutable="true" camunda:historyTimeToLive="P180D">
     <bpmn:startEvent id="Event_1l18z3u" name="Order Received">
       <bpmn:outgoing>Flow_1o0buuy</bpmn:outgoing>
@@ -27,41 +27,41 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Conference_Registration_Process">
       <bpmndi:BPMNShape id="Event_1l18z3u_di" bpmnElement="Event_1l18z3u">
-        <dc:Bounds x="192" y="114" width="36" height="36" />
+        <dc:Bounds x="192" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="171" y="165" width="78" height="14" />
+          <dc:Bounds x="172" y="145" width="78" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0bdlayk_di" bpmnElement="Event_0bdlayk">
-        <dc:Bounds x="768" y="114" width="36" height="36" />
+        <dc:Bounds x="768" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="746.5" y="165" width="79" height="14" />
+          <dc:Bounds x="747" y="145" width="79" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_17tx0sz_di" bpmnElement="Activity_01aji74">
-        <dc:Bounds x="288" y="92" width="100" height="80" />
+        <dc:Bounds x="288" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0juaule_di" bpmnElement="Activity_0jy2ses">
-        <dc:Bounds x="608" y="92" width="100" height="80" />
+        <dc:Bounds x="608" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1m57423_di" bpmnElement="Activity_1p2y7u9">
-        <dc:Bounds x="448" y="92" width="100" height="80" />
+        <dc:Bounds x="448" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1o0buuy_di" bpmnElement="Flow_1o0buuy">
-        <di:waypoint x="228" y="132" />
-        <di:waypoint x="288" y="132" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0qgziru_di" bpmnElement="Flow_0qgziru">
-        <di:waypoint x="388" y="132" />
-        <di:waypoint x="448" y="132" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_00k1pv3_di" bpmnElement="Flow_00k1pv3">
-        <di:waypoint x="548" y="132" />
-        <di:waypoint x="608" y="132" />
+        <di:waypoint x="228" y="120" />
+        <di:waypoint x="288" y="120" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0wkgksp_di" bpmnElement="Flow_0wkgksp">
-        <di:waypoint x="708" y="132" />
-        <di:waypoint x="768" y="132" />
+        <di:waypoint x="708" y="120" />
+        <di:waypoint x="768" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0qgziru_di" bpmnElement="Flow_0qgziru">
+        <di:waypoint x="388" y="120" />
+        <di:waypoint x="448" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_00k1pv3_di" bpmnElement="Flow_00k1pv3">
+        <di:waypoint x="548" y="120" />
+        <di:waypoint x="608" y="120" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
