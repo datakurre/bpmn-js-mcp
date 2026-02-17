@@ -1,122 +1,120 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js-mcp" exporterVersion="1.0.0">
-  <bpmn:process id="Process_ExclusiveGateway" name="Exclusive Gateway - Approval Flow" isExecutable="true" camunda:historyTimeToLive="P180D">
-    <bpmn:startEvent id="Start" name="Request Submitted" camunda:initiator="submitter">
-      <bpmn:outgoing>Flow1</bpmn:outgoing>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Conference_Registration_Process" name="Conference Registration Process" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Event_0dskcoo" name="Request Received">
+      <bpmn:outgoing>Flow_0tql777</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:userTask id="ReviewTask" name="Review Request" camunda:candidateGroups="reviewers">
+    <bpmn:exclusiveGateway id="Gateway_0jdocql" name="Approved?" default="Flow_0pkj4i7">
+      <bpmn:incoming>Flow_0uy0kub</bpmn:incoming>
+      <bpmn:outgoing>Flow_1vd4vzj</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0pkj4i7</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0tql777" sourceRef="Event_0dskcoo" targetRef="Activity_1a279je" />
+    <bpmn:sequenceFlow id="Flow_1vd4vzj" name="Yes" sourceRef="Gateway_0jdocql" targetRef="Activity_1ra1cd4">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approve == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:exclusiveGateway id="Gateway_1hd85cz" name="Merge">
+      <bpmn:incoming>Flow_109need</bpmn:incoming>
+      <bpmn:incoming>Flow_1mt6667</bpmn:incoming>
+      <bpmn:outgoing>Flow_1juidsl</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_109need" sourceRef="Activity_1ra1cd4" targetRef="Gateway_1hd85cz" />
+    <bpmn:endEvent id="Event_0a768vd" name="Done">
+      <bpmn:incoming>Flow_1juidsl</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1juidsl" sourceRef="Gateway_1hd85cz" targetRef="Event_0a768vd" />
+    <bpmn:sequenceFlow id="Flow_0pkj4i7" name="No" sourceRef="Gateway_0jdocql" targetRef="Activity_0ryvb1v" />
+    <bpmn:sequenceFlow id="Flow_1mt6667" sourceRef="Activity_0ryvb1v" targetRef="Gateway_1hd85cz" />
+    <bpmn:userTask id="Activity_1ra1cd4" name="Fulfill Request">
+      <bpmn:incoming>Flow_1vd4vzj</bpmn:incoming>
+      <bpmn:outgoing>Flow_109need</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Activity_0ryvb1v" name="Send Rejection">
+      <bpmn:incoming>Flow_0pkj4i7</bpmn:incoming>
+      <bpmn:outgoing>Flow_1mt6667</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_0uy0kub" sourceRef="Activity_1a279je" targetRef="Gateway_0jdocql" />
+    <bpmn:userTask id="Activity_1a279je" name="Review Request">
       <bpmn:extensionElements>
         <camunda:formData>
-          <camunda:formField id="approved" label="Approve?" type="boolean" defaultValue="false" />
-          <camunda:formField id="reason" label="Reason" type="string">
-            <camunda:validation>
-              <camunda:constraint name="required" />
-              <camunda:constraint name="minlength" config="10" />
-            </camunda:validation>
-          </camunda:formField>
+          <camunda:formField id="approve" type="boolean" />
         </camunda:formData>
       </bpmn:extensionElements>
-      <bpmn:incoming>Flow1</bpmn:incoming>
-      <bpmn:outgoing>Flow2</bpmn:outgoing>
+      <bpmn:incoming>Flow_0tql777</bpmn:incoming>
+      <bpmn:outgoing>Flow_0uy0kub</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:exclusiveGateway id="GW_Split" name="Approved?" default="Flow_No">
-      <bpmn:incoming>Flow2</bpmn:incoming>
-      <bpmn:outgoing>Flow_Yes</bpmn:outgoing>
-      <bpmn:outgoing>Flow_No</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="ProcessApproval" name="Process Approval" camunda:expression="${approvalService.process(execution)}" camunda:resultVariable="result">
-      <bpmn:incoming>Flow_Yes</bpmn:incoming>
-      <bpmn:outgoing>Flow3</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:sendTask id="NotifyRejection" name="Notify Rejection" camunda:delegateExpression="${rejectionNotifier}">
-      <bpmn:incoming>Flow_No</bpmn:incoming>
-      <bpmn:outgoing>Flow4</bpmn:outgoing>
-    </bpmn:sendTask>
-    <bpmn:exclusiveGateway id="GW_Merge">
-      <bpmn:incoming>Flow3</bpmn:incoming>
-      <bpmn:incoming>Flow4</bpmn:incoming>
-      <bpmn:outgoing>Flow5</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-    <bpmn:endEvent id="End" name="Request Handled">
-      <bpmn:incoming>Flow5</bpmn:incoming>
-    </bpmn:endEvent>
-    <bpmn:sequenceFlow id="Flow1" sourceRef="Start" targetRef="ReviewTask" />
-    <bpmn:sequenceFlow id="Flow2" sourceRef="ReviewTask" targetRef="GW_Split" />
-    <bpmn:sequenceFlow id="Flow_Yes" name="Yes" sourceRef="GW_Split" targetRef="ProcessApproval">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == true}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="GW_Split" targetRef="NotifyRejection" />
-    <bpmn:sequenceFlow id="Flow3" sourceRef="ProcessApproval" targetRef="GW_Merge" />
-    <bpmn:sequenceFlow id="Flow4" sourceRef="NotifyRejection" targetRef="GW_Merge" />
-    <bpmn:sequenceFlow id="Flow5" sourceRef="GW_Merge" targetRef="End" />
   </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_ExclusiveGateway">
-    <bpmndi:BPMNPlane id="BPMNPlane_Process_ExclusiveGateway" bpmnElement="Process_ExclusiveGateway">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
-        <dc:Bounds x="192" y="102" width="36" height="36" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Conference_Registration_Process">
+      <bpmndi:BPMNShape id="Event_0dskcoo_di" bpmnElement="Event_0dskcoo">
+        <dc:Bounds x="192" y="122" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="185" y="138" width="50" height="27" />
+          <dc:Bounds x="165" y="173" width="90" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="ReviewTask_di" bpmnElement="ReviewTask">
-        <dc:Bounds x="288" y="80" width="100" height="80" />
+      <bpmndi:BPMNShape id="Activity_1twoqdy_di" bpmnElement="Activity_1a279je">
+        <dc:Bounds x="288" y="100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="GW_Split_di" bpmnElement="GW_Split" isMarkerVisible="true">
-        <dc:Bounds x="453" y="95" width="50" height="50" />
+      <bpmndi:BPMNShape id="Gateway_0jdocql_di" bpmnElement="Gateway_0jdocql" isMarkerVisible="true">
+        <dc:Bounds x="453" y="115" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="451" y="71" width="54" height="14" />
+          <dc:Bounds x="451" y="91" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="ProcessApproval_di" bpmnElement="ProcessApproval">
-        <dc:Bounds x="728" y="80" width="100" height="80" />
+      <bpmndi:BPMNShape id="Gateway_1hd85cz_di" bpmnElement="Gateway_1hd85cz" isMarkerVisible="true">
+        <dc:Bounds x="733" y="115" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="742" y="91" width="32" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="NotifyRejection_di" bpmnElement="NotifyRejection">
+      <bpmndi:BPMNShape id="Event_0a768vd_di" bpmnElement="Event_0a768vd">
+        <dc:Bounds x="838" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="843" y="173" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_14dl9pz_di" bpmnElement="Activity_1ra1cd4">
+        <dc:Bounds x="568" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0hlyukl_di" bpmnElement="Activity_0ryvb1v">
         <dc:Bounds x="568" y="210" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="GW_Merge_di" bpmnElement="GW_Merge" isMarkerVisible="true">
-        <dc:Bounds x="893" y="95" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
-        <dc:Bounds x="998" y="102" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="974" y="138" width="85" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow1_di" bpmnElement="Flow1">
-        <di:waypoint x="228" y="120" />
-        <di:waypoint x="288" y="120" />
+      <bpmndi:BPMNEdge id="Flow_0tql777_di" bpmnElement="Flow_0tql777">
+        <di:waypoint x="228" y="140" />
+        <di:waypoint x="288" y="140" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow2_di" bpmnElement="Flow2">
-        <di:waypoint x="388" y="120" />
-        <di:waypoint x="453" y="120" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_Yes_di" bpmnElement="Flow_Yes">
-        <di:waypoint x="503" y="120" />
-        <di:waypoint x="728" y="120" />
+      <bpmndi:BPMNEdge id="Flow_1vd4vzj_di" bpmnElement="Flow_1vd4vzj">
+        <di:waypoint x="503" y="140" />
+        <di:waypoint x="568" y="140" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="606" y="128" width="19" height="14" />
+          <dc:Bounds x="524" y="148" width="19" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_No_di" bpmnElement="Flow_No">
-        <di:waypoint x="478" y="145" />
+      <bpmndi:BPMNEdge id="Flow_109need_di" bpmnElement="Flow_109need">
+        <di:waypoint x="668" y="140" />
+        <di:waypoint x="733" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1juidsl_di" bpmnElement="Flow_1juidsl">
+        <di:waypoint x="783" y="140" />
+        <di:waypoint x="838" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0pkj4i7_di" bpmnElement="Flow_0pkj4i7">
+        <di:waypoint x="478" y="165" />
         <di:waypoint x="478" y="250" />
         <di:waypoint x="568" y="250" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="456" y="193" width="15" height="14" />
+          <dc:Bounds x="456" y="201" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow3_di" bpmnElement="Flow3">
-        <di:waypoint x="828" y="120" />
-        <di:waypoint x="893" y="120" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow4_di" bpmnElement="Flow4">
+      <bpmndi:BPMNEdge id="Flow_1mt6667_di" bpmnElement="Flow_1mt6667">
         <di:waypoint x="668" y="250" />
-        <di:waypoint x="918" y="250" />
-        <di:waypoint x="918" y="145" />
+        <di:waypoint x="758" y="250" />
+        <di:waypoint x="758" y="165" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow5_di" bpmnElement="Flow5">
-        <di:waypoint x="943" y="120" />
-        <di:waypoint x="998" y="120" />
+      <bpmndi:BPMNEdge id="Flow_0uy0kub_di" bpmnElement="Flow_0uy0kub">
+        <di:waypoint x="388" y="140" />
+        <di:waypoint x="453" y="140" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

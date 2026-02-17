@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
   <bpmn:process id="Process_Conference_Registration_Process" name="Conference Registration Process" isExecutable="true" camunda:historyTimeToLive="P180D">
     <bpmn:startEvent id="Event_1tfz1g5" name="Start">
       <bpmn:outgoing>Flow_0unmvmt</bpmn:outgoing>
@@ -15,13 +15,13 @@
     <bpmn:sequenceFlow id="Flow_1osiy83" sourceRef="Gateway_11h8qzw" targetRef="Activity_0z4100l" />
     <bpmn:sequenceFlow id="Flow_1o47ijw" sourceRef="Activity_0z4100l" targetRef="Gateway_1osli9i" />
     <bpmn:sequenceFlow id="Flow_0ptr1x9" sourceRef="Activity_0p6g9d6" targetRef="Gateway_1osli9i" />
-    <bpmn:parallelGateway id="Gateway_11h8qzw">
+    <bpmn:parallelGateway id="Gateway_11h8qzw" name="Fork">
       <bpmn:incoming>Flow_0unmvmt</bpmn:incoming>
       <bpmn:outgoing>Flow_06usge8</bpmn:outgoing>
       <bpmn:outgoing>Flow_10wu7ue</bpmn:outgoing>
       <bpmn:outgoing>Flow_1osiy83</bpmn:outgoing>
     </bpmn:parallelGateway>
-    <bpmn:parallelGateway id="Gateway_1osli9i">
+    <bpmn:parallelGateway id="Gateway_1osli9i" name="Join">
       <bpmn:incoming>Flow_1m1en8z</bpmn:incoming>
       <bpmn:incoming>Flow_1o47ijw</bpmn:incoming>
       <bpmn:incoming>Flow_0ptr1x9</bpmn:incoming>
@@ -45,26 +45,32 @@
       <bpmndi:BPMNShape id="Event_1tfz1g5_di" bpmnElement="Event_1tfz1g5">
         <dc:Bounds x="192" y="244" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="198" y="290" width="24" height="14" />
+          <dc:Bounds x="198" y="287" width="24" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_183di0m_di" bpmnElement="Event_183di0m">
         <dc:Bounds x="668" y="244" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="662" y="290" width="48" height="14" />
+          <dc:Bounds x="662" y="287" width="48" height="14" />
         </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0huua6i_di" bpmnElement="Activity_0gqc9jk">
-        <dc:Bounds x="398" y="222" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_1xhtgf9_di" bpmnElement="Gateway_11h8qzw">
         <dc:Bounds x="283" y="237" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="268" y="233" width="23" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_0svterc_di" bpmnElement="Gateway_1osli9i">
         <dc:Bounds x="563" y="237" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="609" y="233" width="21" height="14" />
+        </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1g903ta_di" bpmnElement="Activity_0z4100l">
         <dc:Bounds x="398" y="112" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0huua6i_di" bpmnElement="Activity_0gqc9jk">
+        <dc:Bounds x="398" y="222" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1dgff2c_di" bpmnElement="Activity_0p6g9d6">
         <dc:Bounds x="398" y="332" width="100" height="80" />

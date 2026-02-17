@@ -49,7 +49,7 @@
       <bpmndi:BPMNShape id="Event_0rkf2lz_di" bpmnElement="Event_0rkf2lz">
         <dc:Bounds x="272" y="199" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="261" y="245" width="59" height="14" />
+          <dc:Bounds x="261" y="250" width="59" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0oa8qrz_di" bpmnElement="Activity_0umkpno">
@@ -58,7 +58,7 @@
       <bpmndi:BPMNShape id="Event_0qsv9hq_di" bpmnElement="Event_0qsv9hq">
         <dc:Bounds x="688" y="449" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="664" y="495" width="85" height="14" />
+          <dc:Bounds x="664" y="500" width="85" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0n7jjtv_di" bpmnElement="Activity_1mlpqg7">

@@ -43,13 +43,13 @@
       <bpmndi:BPMNShape id="Event_0tndxmk_di" bpmnElement="Event_0tndxmk">
         <dc:Bounds x="242" y="194" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="231" y="240" width="59" height="14" />
+          <dc:Bounds x="231" y="245" width="59" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1ou3j4g_di" bpmnElement="Event_1ou3j4g">
         <dc:Bounds x="498" y="194" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="489" y="240" width="54" height="14" />
+          <dc:Bounds x="489" y="245" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_11iv5jf_di" bpmnElement="Activity_0ry0qlf">
@@ -71,13 +71,13 @@
       <bpmndi:BPMNShape id="BPMNShape_1cluaew" bpmnElement="Event_0f70ujx">
         <dc:Bounds x="498" y="494" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="474" y="540" width="85" height="14" />
+          <dc:Bounds x="474" y="545" width="85" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1ykqk19_di" bpmnElement="Event_0156z5p">
         <dc:Bounds x="242" y="494" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="233" y="540" width="54" height="14" />
+          <dc:Bounds x="233" y="545" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0lm6ihw_di" bpmnElement="Activity_1e3ihgs">

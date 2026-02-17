@@ -72,7 +72,7 @@
       <bpmndi:BPMNShape id="Event_1kc0fqv_di" bpmnElement="Event_1kc0fqv">
         <dc:Bounds x="192" y="236" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="178" y="282" width="65" height="14" />
+          <dc:Bounds x="178" y="287" width="65" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_0ircx6m_di" bpmnElement="Gateway_0ircx6m" isMarkerVisible="true">
@@ -84,7 +84,7 @@
       <bpmndi:BPMNShape id="Event_1hm7wwe_di" bpmnElement="Event_1hm7wwe">
         <dc:Bounds x="1128" y="236" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1111" y="282" width="70" height="14" />
+          <dc:Bounds x="1111" y="287" width="70" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1vv8j79_di" bpmnElement="Activity_0glogve">
@@ -113,7 +113,7 @@
       <bpmndi:BPMNShape id="Event_01cpts6_di" bpmnElement="Event_01cpts6">
         <dc:Bounds x="1128" y="456" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1109" y="502" width="75" height="14" />
+          <dc:Bounds x="1109" y="507" width="75" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_0710ei0_di" bpmnElement="Flow_0710ei0">

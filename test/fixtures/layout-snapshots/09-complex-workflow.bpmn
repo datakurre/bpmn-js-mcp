@@ -40,14 +40,13 @@
       <bpmn:incoming>Flow_RegistrationStarted_to_FillRegistrationForm</bpmn:incoming>
       <bpmn:outgoing>Flow_FillRegistrationForm_to_ValidateEmail</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:serviceTask id="ServiceTask_ValidateEmail" name="Validate Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="email-validation">
+    <bpmn:serviceTask id="ServiceTask_ValidateEmail" name="Validate Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="email-validation" camunda:retryTimeCycle="R3/PT5M">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="emailAddress">${email}</camunda:inputParameter>
           <camunda:outputParameter name="emailValid">${validationResult}</camunda:outputParameter>
           <camunda:outputParameter name="validationTimestamp">${now()}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:failedJobRetryTimeCycle>R3/PT5M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_FillRegistrationForm_to_ValidateEmail</bpmn:incoming>
       <bpmn:outgoing>Flow_ValidateEmail_to_RegistrationType</bpmn:outgoing>
@@ -117,7 +116,7 @@
       <bpmn:outgoing>Flow_xnh8bik</bpmn:outgoing>
       <bpmn:outgoing>Flow_twdjs7e</bpmn:outgoing>
     </bpmn:parallelGateway>
-    <bpmn:serviceTask id="ServiceTask_SendConfirmationEmail" name="Send Confirmation Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="send-email">
+    <bpmn:serviceTask id="ServiceTask_SendConfirmationEmail" name="Send Confirmation Email" camunda:asyncBefore="true" camunda:type="external" camunda:topic="send-email" camunda:retryTimeCycle="R3/PT10M">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="recipientEmail">${email}</camunda:inputParameter>
@@ -126,12 +125,11 @@
           <camunda:outputParameter name="emailSent">${sent}</camunda:outputParameter>
           <camunda:outputParameter name="confirmationNumber">${confirmationId}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:failedJobRetryTimeCycle>R3/PT10M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_xnh8bik</bpmn:incoming>
       <bpmn:outgoing>Flow_1y57t27</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="ServiceTask_CreateBadge" name="Create Badge" camunda:asyncBefore="true" camunda:type="external" camunda:topic="badge-generation">
+    <bpmn:serviceTask id="ServiceTask_CreateBadge" name="Create Badge" camunda:asyncBefore="true" camunda:type="external" camunda:topic="badge-generation" camunda:retryTimeCycle="R3/PT5M">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="attendeeName">${firstName + ' ' + lastName}</camunda:inputParameter>
@@ -140,7 +138,6 @@
           <camunda:outputParameter name="badgeId">${badgeNumber}</camunda:outputParameter>
           <camunda:outputParameter name="qrCode">${qrCodeData}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:failedJobRetryTimeCycle>R3/PT5M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_twdjs7e</bpmn:incoming>
       <bpmn:outgoing>Flow_adib9x2</bpmn:outgoing>
@@ -179,7 +176,7 @@
       <bpmn:incoming>Flow_in5kznh</bpmn:incoming>
       <bpmn:outgoing>Flow_ReviewAndConfirm_to_ProcessPayment</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:serviceTask id="ServiceTask_ProcessPayment" name="Process Payment" camunda:asyncBefore="true" camunda:type="external" camunda:topic="payment-processing">
+    <bpmn:serviceTask id="ServiceTask_ProcessPayment" name="Process Payment" camunda:asyncBefore="true" camunda:type="external" camunda:topic="payment-processing" camunda:retryTimeCycle="R5/PT15M">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="amount">${registrationType == 'vip' ? 999 : 299}</camunda:inputParameter>
@@ -189,7 +186,6 @@
           <camunda:outputParameter name="transactionId">${txnId}</camunda:outputParameter>
           <camunda:outputParameter name="paymentDate">${now()}</camunda:outputParameter>
         </camunda:inputOutput>
-        <camunda:failedJobRetryTimeCycle>R5/PT15M</camunda:failedJobRetryTimeCycle>
         <camunda:executionListener delegateExpression="${paymentLogger}" event="start" />
         <camunda:executionListener delegateExpression="${paymentLogger}" event="end" />
         <camunda:errorEventDefinition id="ErrorEventDefinition_PaymentFailed" errorRef="Error_PaymentFailed" />
@@ -258,7 +254,7 @@
       <bpmndi:BPMNShape id="StartEvent_RegistrationStarted_di" bpmnElement="StartEvent_RegistrationStarted">
         <dc:Bounds x="192" y="122" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="179" y="168" width="62" height="27" />
+          <dc:Bounds x="179" y="173" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_FillRegistrationForm_di" bpmnElement="UserTask_FillRegistrationForm">
@@ -317,25 +313,25 @@
       <bpmndi:BPMNShape id="EndEvent_RegistrationComplete_di" bpmnElement="EndEvent_RegistrationComplete">
         <dc:Bounds x="1858" y="122" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1845" y="168" width="62" height="27" />
+          <dc:Bounds x="1845" y="173" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_RegistrationExpired_di" bpmnElement="EndEvent_RegistrationExpired">
         <dc:Bounds x="1530" y="247" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1517" y="293" width="62" height="27" />
+          <dc:Bounds x="1517" y="298" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_PaymentErrorOccurred_di" bpmnElement="EndEvent_PaymentErrorOccurred">
         <dc:Bounds x="1700" y="247" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1681" y="293" width="74" height="27" />
+          <dc:Bounds x="1681" y="298" width="74" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_RegistrationFailed_di" bpmnElement="EndEvent_RegistrationFailed">
         <dc:Bounds x="1858" y="247" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1845" y="293" width="62" height="27" />
+          <dc:Bounds x="1845" y="298" width="62" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_2Hours_di" bpmnElement="Event_2Hours">
@@ -432,7 +428,7 @@
         <di:waypoint x="1773" y="265" />
         <di:waypoint x="1858" y="265" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1751" y="209" width="15" height="14" />
+          <dc:Bounds x="1751" y="208" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0cl91ul_di" bpmnElement="Flow_0cl91ul">
