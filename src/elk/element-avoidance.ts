@@ -70,14 +70,35 @@ export function avoidElementIntersections(
       }
     }
 
+    // Determine if this connection is inside an expanded subprocess.
+    // If both source and target share the same subprocess parent, only
+    // consider obstacles that are also direct children of that subprocess.
+    // This prevents flows inside a subprocess from routing around the
+    // subprocess container or siblings at the outer level.
+    const sourceParent = source?.parent;
+    const targetParent = target?.parent;
+    const isInsideSubprocess =
+      sourceParent &&
+      targetParent &&
+      sourceParent.id === targetParent.id &&
+      sourceParent.type === 'bpmn:SubProcess';
+
     // Filter shapes that could be obstructing this connection
-    const obstacles = shapes.filter(
-      (s) =>
-        s.id !== sourceId &&
-        s.id !== targetId &&
-        !attachedBoundaryIds.has(s.id) &&
-        !isArtifact(s.type)
-    );
+    const obstacles = shapes.filter((s) => {
+      if (s.id === sourceId || s.id === targetId) return false;
+      if (attachedBoundaryIds.has(s.id)) return false;
+      if (isArtifact(s.type)) return false;
+
+      // For connections inside a subprocess, only consider obstacles
+      // that are also inside the same subprocess (direct children).
+      // This prevents routing around the subprocess container itself
+      // or elements at outer nesting levels.
+      if (isInsideSubprocess && s.parent?.id !== sourceParent.id) {
+        return false;
+      }
+
+      return true;
+    });
 
     if (obstacles.length === 0) continue;
 
