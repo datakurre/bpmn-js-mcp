@@ -441,7 +441,12 @@ export function reorderCollapsedPoolsBelow(
   expanded.sort((a, b) => a.y - b.y);
   const topmostExpandedY = expanded[0].y;
   if (topmostExpandedY > ORIGIN_OFFSET_Y + RESIZE_SIGNIFICANCE_THRESHOLD) {
-    const dy = Math.round(ORIGIN_OFFSET_Y - topmostExpandedY);
+    // Target ORIGIN_OFFSET_Y + 2 to match the 2px natural ELK top margin that
+    // the expanded pool would have had if it weren't displaced by the collapsed
+    // pool ordering.  Targeting exactly ORIGIN_OFFSET_Y=80 gives y=80, but the
+    // Camunda Modeler reference has y=82 (80 + 2px ELK padding).
+    const targetY = ORIGIN_OFFSET_Y + 2;
+    const dy = Math.round(targetY - topmostExpandedY);
     for (const pool of expanded) {
       const currentPool = elementRegistry.get(pool.id)!;
       modeling.moveElements([currentPool], { x: 0, y: dy });
