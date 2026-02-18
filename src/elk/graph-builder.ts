@@ -135,14 +135,14 @@ function buildChildNodes(
         height: shape.height || BPMN_TASK_HEIGHT,
       };
 
-      // Pin start events to the first layer and end events to the last layer.
-      // ELK's layering heuristic usually gets this right, but being explicit
-      // prevents edge-case misordering (e.g. start events with incoming
-      // message flows or end events with attached boundary-event proxy edges).
+      // Pin start events to the first layer. End events are naturally last in
+      // the graph (no outgoing edges), so ELK places them last without an
+      // explicit constraint. Pinning end events to LAST can conflict with
+      // gateway SOUTH-port constraints — when an off-path branch leads to an
+      // end event, the LAST constraint forces it into the main row's last
+      // layer rather than letting the SOUTH port push it to the row below.
       if (shape.type === BPMN_START_EVENT) {
         node.layoutOptions = { 'elk.layered.layering.layerConstraint': 'FIRST' };
-      } else if (shape.type === BPMN_END_EVENT) {
-        node.layoutOptions = { 'elk.layered.layering.layerConstraint': 'LAST' };
       }
 
       children.push(node);
@@ -536,12 +536,72 @@ function detectBackEdges(connections: BpmnElement[], nodeIds: Set<string>): Set<
 // ── Gateway port constraints ────────────────────────────────────────────
 
 /**
+ * Detect "balanced diamond" gateways: all outgoing branches from a split
+ * gateway converge to the SAME immediate merge gateway within 1 hop
+ * (split → task/event → merge).  For these, port constraints cause ELK to
+ * assign the branches to different layers; without constraints, ELK
+ * correctly places both tasks in the same layer.
+ *
+ * Returns a Set of gateway IDs that are balanced diamonds.
+ */
+function detectBalancedDiamonds(gwIds: Set<string>, edges: ElkExtendedEdge[]): Set<string> {
+  const balancedDiamonds = new Set<string>();
+
+  // Build adjacency: for each real edge, map source→targets and target←sources
+  const outAdj = new Map<string, string[]>(); // nodeId → [targetId]
+  const inAdj = new Map<string, string[]>(); // nodeId → [sourceId]
+  for (const edge of edges) {
+    if (edge.id.startsWith('__')) continue;
+    const src = edge.sources[0];
+    const tgt = edge.targets[0];
+    if (!src || !tgt) continue;
+    if (!outAdj.has(src)) outAdj.set(src, []);
+    outAdj.get(src)!.push(tgt);
+    if (!inAdj.has(tgt)) inAdj.set(tgt, []);
+    inAdj.get(tgt)!.push(src);
+  }
+
+  for (const gwId of gwIds) {
+    const directTargets = outAdj.get(gwId) || [];
+    if (directTargets.length < 2) continue;
+
+    // For each direct target, find where it flows next (1-hop)
+    const mergeTargets = new Set<string>();
+    for (const branchNode of directTargets) {
+      const nextNodes = outAdj.get(branchNode) || [];
+      for (const n of nextNodes) mergeTargets.add(n);
+    }
+
+    // Balanced diamond: all branches converge to the SAME single merge node
+    if (mergeTargets.size !== 1) continue;
+    const [mergeId] = mergeTargets;
+
+    // Every direct target of the split gateway must flow into the merge node
+    const allConverge = directTargets.every((branchNode) => {
+      const nextNodes = outAdj.get(branchNode) || [];
+      return nextNodes.includes(mergeId);
+    });
+
+    if (allConverge) {
+      balancedDiamonds.add(gwId);
+    }
+  }
+
+  return balancedDiamonds;
+}
+
+/**
  * Add ELK port constraints to split decision gateways (exclusive/inclusive
  * with ≥2 outgoing edges) for deterministic branch ordering.
  *
- * The happy-path edge (first after reorderGatewayEdgesForHappyPath) exits
- * via an EAST port, keeping its target on the main row.  Off-path edges
- * exit via SOUTH ports, pushing their targets below.
+ * Off-path edges exit via SOUTH ports, pushing their targets below the
+ * happy-path branch.  The happy-path edge (i=0) has no explicit port —
+ * it exits the gateway naturally to the EAST in LTR layout.
+ *
+ * Exception: "balanced diamond" gateways (all branches converge to the same
+ * immediate merge gateway within 1 hop) are skipped — port constraints cause
+ * ELK to place branches in different layers for these patterns, while no
+ * constraints correctly places them in the same layer.
  *
  * Mutates `children` (adds ports to gateway nodes) and `edges` (updates
  * source references to port IDs).
@@ -565,6 +625,9 @@ function addGatewayPorts(
   }
   if (gwIds.size === 0) return;
 
+  // Detect balanced diamond patterns — skip port constraints for these.
+  const balancedDiamonds = detectBalancedDiamonds(gwIds, edges);
+
   // Group real (non-synthetic) outgoing edges by gateway source.
   // Edges are in happy-path-first order from reorderGatewayEdgesForHappyPath.
   const gwOutgoing = new Map<string, ElkExtendedEdge[]>();
@@ -583,27 +646,35 @@ function addGatewayPorts(
     const node = nodeMap.get(gwId);
     if (!node) continue;
 
-    // First edge = happy path → EAST port (stays on main row).
-    // Remaining edges = off-path → SOUTH ports (placed below).
+    // Skip port constraints for balanced diamonds — ELK places both branches
+    // in the same layer without constraints, which is the correct behavior.
+    if (balancedDiamonds.has(gwId)) continue;
+
+    // Happy-path edge (i=0) gets no explicit port — it exits the gateway
+    // naturally to the EAST in LTR layout.  Off-path edges (i≥1) get SOUTH
+    // ports so ELK routes them downward.
     const ports: ElkPort[] = [];
     for (let i = 0; i < outEdges.length; i++) {
+      if (i === 0) continue; // Happy path: no port constraint, natural east exit
       const portId = `${gwId}__port_${i}`;
       ports.push({
         id: portId,
         width: 1,
         height: 1,
         layoutOptions: {
-          'elk.port.side': i === 0 ? 'EAST' : 'SOUTH',
+          'elk.port.side': 'SOUTH',
           'elk.port.index': String(i),
         },
       });
       outEdges[i].sources = [portId];
     }
 
+    if (ports.length === 0) continue; // Only happy-path edge, no south ports needed
+
     node.ports = (node.ports || []).concat(ports);
     node.layoutOptions = {
       ...node.layoutOptions,
-      'elk.portConstraints': 'FIXED_ORDER',
+      'elk.portConstraints': 'FIXED_SIDE',
     };
   }
 }

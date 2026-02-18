@@ -22,6 +22,7 @@ import {
 } from '../helpers';
 import { lintDiagramFlat } from '../../linter';
 import { handleScopedExport } from './export-scoped';
+import { normalizePlaneElementOrder } from './export-helpers';
 
 export interface ExportBpmnArgs {
   diagramId: string;
@@ -226,6 +227,7 @@ async function performExport(diagram: any, format: string): Promise<ToolResult['
   const content: ToolResult['content'] = [];
 
   if (format === 'both') {
+    normalizePlaneElementOrder(diagram.modeler);
     const { xml } = await diagram.modeler.saveXML({ format: true });
     const xmlOutput = deduplicateDiElements(xml || '');
     validateXmlOutput(xmlOutput);
@@ -234,10 +236,12 @@ async function performExport(diagram: any, format: string): Promise<ToolResult['
     content.push({ type: 'text', text: xmlOutput });
     content.push({ type: 'text', text: adjustedSvg });
   } else if (format === 'svg') {
+    normalizePlaneElementOrder(diagram.modeler);
     const { svg } = await diagram.modeler.saveSVG();
     const adjustedSvg = adjustSvgViewBox(svg || '', diagram);
     content.push({ type: 'text', text: adjustedSvg });
   } else {
+    normalizePlaneElementOrder(diagram.modeler);
     const { xml } = await diagram.modeler.saveXML({ format: true });
     const xmlOutput = deduplicateDiElements(xml || '');
     validateXmlOutput(xmlOutput);
