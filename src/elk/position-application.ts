@@ -19,6 +19,7 @@ import {
   POOL_COMPACT_RIGHT_PADDING,
   POOL_LABEL_BAND,
   NORMALISE_ORIGIN_Y,
+  ORIGIN_OFFSET_Y,
 } from './constants';
 import { buildCompoundNode } from './graph-builder';
 import { applyElkEdgeRoutes } from './edge-routing';
@@ -429,10 +430,36 @@ export function reorderCollapsedPoolsBelow(
 
   if (expanded.length === 0 || collapsed.length === 0) return;
 
+  // ── Step 1: Raise expanded pools so the topmost one starts near ORIGIN_OFFSET_Y.
+  //
+  // ELK may place collapsed pools above expanded pools in the Y-axis (collapsed
+  // pools are small and ELK treats them as lighter nodes).  After
+  // applyElkPositions, the expanded pool can be pushed below the collapsed
+  // pool's y-range.  Move expanded pools UP so the topmost one starts at
+  // ORIGIN_OFFSET_Y, matching the Camunda Modeler convention where the
+  // executable (expanded) pool sits at the top.
+  expanded.sort((a, b) => a.y - b.y);
+  const topmostExpandedY = expanded[0].y;
+  if (topmostExpandedY > ORIGIN_OFFSET_Y + RESIZE_SIGNIFICANCE_THRESHOLD) {
+    const dy = Math.round(ORIGIN_OFFSET_Y - topmostExpandedY);
+    for (const pool of expanded) {
+      const currentPool = elementRegistry.get(pool.id)!;
+      modeling.moveElements([currentPool], { x: 0, y: dy });
+    }
+  }
+
+  // Re-read positions after potential move
+  expanded.sort((a, b) => {
+    const cur = elementRegistry.get(a.id)!;
+    const curB = elementRegistry.get(b.id)!;
+    return cur.y - curB.y;
+  });
+
   // Find the bottommost expanded pool
   let maxExpandedBottom = -Infinity;
   for (const p of expanded) {
-    const bottom = p.y + (p.height || 0);
+    const currentPool = elementRegistry.get(p.id)!;
+    const bottom = currentPool.y + (currentPool.height || 0);
     if (bottom > maxExpandedBottom) maxExpandedBottom = bottom;
   }
 
@@ -446,8 +473,9 @@ export function reorderCollapsedPoolsBelow(
   let expandedMinX = Infinity;
   let expandedMaxRight = -Infinity;
   for (const p of expanded) {
-    if (p.x < expandedMinX) expandedMinX = p.x;
-    const right = p.x + (p.width || 0);
+    const currentPool = elementRegistry.get(p.id)!;
+    if (currentPool.x < expandedMinX) expandedMinX = currentPool.x;
+    const right = currentPool.x + (currentPool.width || 0);
     if (right > expandedMaxRight) expandedMaxRight = right;
   }
   const expandedWidth = expandedMaxRight - expandedMinX;
@@ -459,12 +487,12 @@ export function reorderCollapsedPoolsBelow(
     // Snap x/width to match expanded pool edges
     const dx = Math.round(expandedMinX - pool.x);
     const dy = Math.round(nextY - pool.y);
-    const needsMove = Math.abs(dx) > 2 || (pool.y < nextY && Math.abs(dy) > 2);
+    const needsMove = Math.abs(dx) > 2 || Math.abs(dy) > 2;
 
     if (needsMove) {
       modeling.moveElements([pool], {
         x: Math.abs(dx) > 2 ? dx : 0,
-        y: pool.y < nextY && Math.abs(dy) > 2 ? dy : 0,
+        y: Math.abs(dy) > 2 ? dy : 0,
       });
     }
 
