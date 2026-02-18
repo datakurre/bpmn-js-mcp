@@ -19,6 +19,7 @@ import {
   POOL_COMPACT_RIGHT_PADDING,
   POOL_LABEL_BAND,
   NORMALISE_ORIGIN_Y,
+  NORMALISE_LARGE_THRESHOLD,
   ORIGIN_OFFSET_Y,
 } from './constants';
 import { buildCompoundNode } from './graph-builder';
@@ -557,13 +558,21 @@ export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Mode
     if (el.y < topY) topY = el.y;
   }
 
-  // Only shift elements UP to NORMALISE_ORIGIN_Y (when ELK placed them too high).
-  // Never shift DOWN: if ELK gives a larger top margin (e.g. for boundary-event
-  // processes where it reserves extra space), that margin is intentional and
-  // correct.  Forcing elements down to 92 when they naturally sit at 105 breaks
-  // the boundary-event layout.
+  // Shift elements to anchor the top at NORMALISE_ORIGIN_Y, but only when
+  // the displacement is clearly outside the expected ELK natural range:
+  //
+  //  • topY < NORMALISE_ORIGIN_Y - 2: ELK placed elements above the target
+  //    (shouldn't happen with normal ELK padding, but guard anyway).
+  //  • topY > NORMALISE_ORIGIN_Y + NORMALISE_LARGE_THRESHOLD: ELK placed the
+  //    layout far too low — typically caused by SOUTH-port gateway constraints
+  //    reserving a virtual upper row in the ELK graph.  Shift up to target.
+  //
+  // Do NOT shift when 92 ≤ topY ≤ 92+40: ELK gave a larger-than-usual but
+  // intentional top margin (e.g. boundary-event processes, parallel gateways).
+  // Forcing those down to 92 breaks the spacing ELK reserved for exceptions.
   const delta = NORMALISE_ORIGIN_Y - topY;
-  if (delta > 2) {
+  const shouldShift = delta > 2 || topY - NORMALISE_ORIGIN_Y > NORMALISE_LARGE_THRESHOLD;
+  if (shouldShift) {
     try {
       modeling.moveElements(flowElements, { x: 0, y: delta });
     } catch {

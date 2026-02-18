@@ -76,6 +76,21 @@ export const ORIGIN_OFFSET_Y = 80;
 export const NORMALISE_ORIGIN_Y = 92;
 
 /**
+ * Large displacement threshold (px) for normaliseOrigin().
+ *
+ * When the topmost element is MORE than this many pixels below NORMALISE_ORIGIN_Y,
+ * it signals ELK placed the entire layout far too low (e.g. due to gateway port
+ * constraints reserving a virtual upper row).  In that case normaliseOrigin()
+ * shifts everything up to NORMALISE_ORIGIN_Y.
+ *
+ * Must be larger than the natural ELK top-margin variation (≈20px for processes
+ * with boundary events or parallel gateways) and smaller than the artificial
+ * displacement (≈56–130px for layouts with SOUTH-port gateways).  40px works
+ * for all current reference fixtures.
+ */
+export const NORMALISE_LARGE_THRESHOLD = 40;
+
+/**
  * Tolerance (px) for snapping near-orthogonal segments to strict orthogonal.
  * Covers ELK rounding offsets and gateway port placement differences.
  */
