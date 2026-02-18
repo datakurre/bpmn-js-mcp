@@ -58,9 +58,22 @@ export const PARTICIPANT_PADDING = '[top=80,left=50,bottom=80,right=40]';
  */
 export const PARTICIPANT_WITH_LANES_PADDING = '[top=80,left=80,bottom=80,right=40]';
 
-/** Offset from origin so the diagram has comfortable breathing room. */
+/** Offset from origin so the diagram has comfortable breathing room.
+ *
+ * ORIGIN_OFFSET_X / ORIGIN_OFFSET_Y are the ELK coordinate mapping
+ * offsets used in applyElkPositions and applyEdgeRoutes.  They place the
+ * raw ELK output starting at (ORIGIN_OFFSET_X, ORIGIN_OFFSET_Y).
+ *
+ * NORMALISE_ORIGIN_Y is used by normaliseOrigin() to re-anchor the final
+ * diagram so the topmost plain-process element sits at this Y value.
+ * 92 matches Camunda Modeler's default top margin for plain processes,
+ * producing 12px more breathing room than the raw ELK output (y=80).
+ * Collaborations skip normaliseOrigin entirely — their pool positions are
+ * anchored by centreElementsInPools + enforceExpandedPoolGap.
+ */
 export const ORIGIN_OFFSET_X = 180;
 export const ORIGIN_OFFSET_Y = 80;
+export const NORMALISE_ORIGIN_Y = 92;
 
 /**
  * Tolerance (px) for snapping near-orthogonal segments to strict orthogonal.

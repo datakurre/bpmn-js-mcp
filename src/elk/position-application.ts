@@ -18,7 +18,7 @@ import {
   COLLAPSED_POOL_DEFAULT_HEIGHT,
   POOL_COMPACT_RIGHT_PADDING,
   POOL_LABEL_BAND,
-  ORIGIN_OFFSET_Y,
+  NORMALISE_ORIGIN_Y,
 } from './constants';
 import { buildCompoundNode } from './graph-builder';
 import { applyElkEdgeRoutes } from './edge-routing';
@@ -524,7 +524,7 @@ export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Mode
     if (el.y < topY) topY = el.y;
   }
 
-  const delta = ORIGIN_OFFSET_Y - topY;
+  const delta = NORMALISE_ORIGIN_Y - topY;
   if (Math.abs(delta) > 2) {
     try {
       modeling.moveElements(flowElements, { x: 0, y: delta });
