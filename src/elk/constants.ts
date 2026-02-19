@@ -411,6 +411,13 @@ export const LOOPBACK_ABOVE_MARGIN = 30;
 /** Horizontal margin (px) outside source/target for loopback vertical segments. */
 export const LOOPBACK_HORIZONTAL_MARGIN = 15;
 
+/**
+ * Vertical margin (px) below the pool bottom for cross-lane backward flow
+ * routing (F3). Backward cross-lane flows route below all pool lanes to avoid
+ * overlapping the main process content.
+ */
+export const CROSS_LANE_BACKWARD_MARGIN = 40;
+
 // ── Lane layout constants ───────────────────────────────────────────────
 
 /** Minimum lane height (px) inside a participant pool. */

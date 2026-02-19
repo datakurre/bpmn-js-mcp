@@ -24,7 +24,14 @@
 export type LaneNodeAssignments = Map<string, Set<string>>;
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
-import { MIN_LANE_HEIGHT, POOL_LABEL_BAND, LANE_VERTICAL_PADDING } from './constants';
+import {
+  MIN_LANE_HEIGHT,
+  POOL_LABEL_BAND,
+  LANE_VERTICAL_PADDING,
+  CROSS_LANE_BACKWARD_MARGIN,
+  LOOPBACK_HORIZONTAL_MARGIN,
+  DIFFERENT_ROW_MIN_Y,
+} from './constants';
 import { deduplicateWaypoints } from './edge-routing-helpers';
 import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
 
@@ -187,7 +194,11 @@ export function repositionLanes(
       orderedLanes = optimizeLaneOrder(orderedLanes, laneNodeMap, elementRegistry);
     }
 
-    // Compute the height of node content in each lane (single-row height)
+    // F2: Compute actual Y-span of lane content for correct multi-row heights.
+    // The previous approach used max(element_height) which under-sized lanes
+    // containing stacked elements (e.g. a subprocess above a task).  Using
+    // the full ELK-assigned Y-span preserves relative vertical positions and
+    // allocates enough band height for all rows within the lane.
     const laneContentHeight = new Map<string, number>();
     for (const lane of orderedLanes) {
       const nodeIds = laneNodeMap.get(lane.id);
@@ -195,15 +206,18 @@ export function repositionLanes(
         laneContentHeight.set(lane.id, 0);
         continue;
       }
-      let maxH = 0;
+      let minTop = Infinity;
+      let maxBottom = -Infinity;
       for (const nodeId of nodeIds) {
         const shape = elementRegistry.get(nodeId);
         if (shape) {
-          const h = shape.height || 0;
-          if (h > maxH) maxH = h;
+          const top = shape.y ?? 0;
+          const bottom = top + (shape.height || 0);
+          if (top < minTop) minTop = top;
+          if (bottom > maxBottom) maxBottom = bottom;
         }
       }
-      laneContentHeight.set(lane.id, maxH);
+      laneContentHeight.set(lane.id, minTop === Infinity ? 0 : maxBottom - minTop);
     }
 
     // Compute lane band heights (content height + vertical padding, min enforced)
@@ -643,8 +657,46 @@ export function routeCrossLaneStaircase(
     const srcRight = src.x + (src.width || 0);
     const tgtLeft = tgt.x;
 
-    // Only handle forward flows (target to the right of source)
-    if (tgtLeft <= srcRight) continue;
+    // Handle backward cross-lane flows (F3).
+    // These are cross-lane flows where the target is to the left of the source
+    // (backward in the process flow). Route them around the pool content, using
+    // the same above/below heuristic as routeLoopbacksBelow (E8): target above
+    // source → route above the pool top; target below source → route below the
+    // pool bottom.
+    if (tgtLeft <= srcRight) {
+      const poolBottom = Math.max(...sortedLanes.map((l: BpmnElement) => l.y + (l.height || 0)));
+      const poolTop = Math.min(...sortedLanes.map((l: BpmnElement) => l.y));
+      const exitX = Math.round(srcRight + LOOPBACK_HORIZONTAL_MARGIN);
+      const entryX = Math.round(tgtLeft - LOOPBACK_HORIZONTAL_MARGIN);
+      // Use the same E8 direction heuristic to stay consistent with routeLoopbacksBelow
+      const routeAbove = tgtCy < srcCy - DIFFERENT_ROW_MIN_Y;
+
+      let bwWps: Array<{ x: number; y: number }>;
+      if (routeAbove) {
+        const aboveY = Math.round(poolTop - CROSS_LANE_BACKWARD_MARGIN);
+        bwWps = [
+          { x: Math.round(srcRight), y: Math.round(srcCy) },
+          { x: exitX, y: Math.round(srcCy) },
+          { x: exitX, y: aboveY },
+          { x: entryX, y: aboveY },
+          { x: entryX, y: Math.round(tgtCy) },
+          { x: Math.round(tgtLeft), y: Math.round(tgtCy) },
+        ];
+      } else {
+        const belowY = Math.round(poolBottom + CROSS_LANE_BACKWARD_MARGIN);
+        bwWps = [
+          { x: Math.round(srcRight), y: Math.round(srcCy) },
+          { x: exitX, y: Math.round(srcCy) },
+          { x: exitX, y: belowY },
+          { x: entryX, y: belowY },
+          { x: entryX, y: Math.round(tgtCy) },
+          { x: Math.round(tgtLeft), y: Math.round(tgtCy) },
+        ];
+      }
+      const cleaned = deduplicateWaypoints(bwWps);
+      if (cleaned.length >= 2) modeling.updateWaypoints(conn, cleaned);
+      continue;
+    }
 
     // Determine which lanes are crossed (in top-to-bottom order)
     const srcLaneIdx = sortedLanes.findIndex((l) => l.id === srcLane.id);

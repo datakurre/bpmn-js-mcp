@@ -26,8 +26,8 @@ import {
 import { buildCompoundNode } from './graph-builder';
 import { applyElkEdgeRoutes } from './edge-routing';
 
-/** Gap between stacked event subprocesses */
-const EVENT_SUBPROCESS_STACK_GAP = 30;
+/** Horizontal gap between side-by-side event subprocesses (G3). */
+const EVENT_SUBPROCESS_HORIZONTAL_GAP = 40;
 
 /** BPMN type constants to reduce duplication */
 const BPMN_SUBPROCESS = 'bpmn:SubProcess';
@@ -129,7 +129,12 @@ export function resizeCompoundNodes(
  * Event subprocesses (triggeredByEvent=true) are excluded from the main ELK layout
  * to prevent them from interfering with the main sequence flow. Each event subprocess
  * gets its own separate ELK layout for its children, then is positioned below the
- * main process with generous vertical spacing (80px gap).
+ * main process.
+ *
+ * G3: When there are multiple event subprocesses they are arranged side-by-side
+ * horizontally (left-to-right, aligned at the same Y baseline) instead of being
+ * stacked vertically. This makes better use of the horizontal space already
+ * occupied by the main process flow and avoids very tall diagrams.
  *
  * NOTE: This function captures main flow bounds BEFORE any awaits to avoid position
  * drift caused by event loop callbacks.
@@ -173,9 +178,12 @@ export async function positionEventSubprocesses(
     const mainFlowBottom = Math.max(...mainFlowElements.map((el) => el.y + (el.height || 0)));
     const mainFlowLeft = Math.min(...mainFlowElements.map((el) => el.x));
 
-    // Position event subprocesses below with 80px gap
+    // G3: Place event subprocesses horizontally side-by-side below the main flow.
+    // Multiple event subprocesses share the same Y baseline and are spread left
+    // to right with a horizontal gap.
     const EVENT_SUBPROCESS_VERTICAL_GAP = 80;
-    let currentY = mainFlowBottom + EVENT_SUBPROCESS_VERTICAL_GAP;
+    const baseY = mainFlowBottom + EVENT_SUBPROCESS_VERTICAL_GAP;
+    let currentX = mainFlowLeft;
 
     for (const eventSubprocess of eventSubprocesses) {
       // Build ELK graph for this event subprocess to layout its children
@@ -188,10 +196,10 @@ export async function positionEventSubprocesses(
       if (!elkGraph.children || elkGraph.children.length <= 1) {
         // Just position the event subprocess and continue
         modeling.moveElements([eventSubprocess], {
-          x: mainFlowLeft - eventSubprocess.x,
-          y: currentY - eventSubprocess.y,
+          x: currentX - eventSubprocess.x,
+          y: baseY - eventSubprocess.y,
         });
-        currentY += eventSubprocess.height + EVENT_SUBPROCESS_STACK_GAP;
+        currentX += (eventSubprocess.width || 0) + EVENT_SUBPROCESS_HORIZONTAL_GAP;
         continue;
       }
 
@@ -232,14 +240,14 @@ export async function positionEventSubprocesses(
         });
       }
 
-      // Position the event subprocess below main process
+      // Position the event subprocess horizontally at currentX, baseY
       modeling.moveElements([eventSubprocess], {
-        x: mainFlowLeft - eventSubprocess.x,
-        y: currentY - eventSubprocess.y,
+        x: currentX - eventSubprocess.x,
+        y: baseY - eventSubprocess.y,
       });
 
-      // Stack next event subprocess below with spacing
-      currentY += eventSubprocess.height + EVENT_SUBPROCESS_STACK_GAP;
+      // Advance X for the next event subprocess (use updated width after resize)
+      currentX += (eventSubprocess.width || 0) + EVENT_SUBPROCESS_HORIZONTAL_GAP;
     }
   }
 }

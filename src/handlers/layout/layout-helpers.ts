@@ -272,10 +272,7 @@ export function buildLayoutResult(params: {
  * After autosize, align collapsed partner pools horizontally to match
  * the width and left edge of the expanded (executable) pools.
  */
-export function alignCollapsedPoolsAfterAutosize(
-  elementRegistry: any,
-  modeling: any
-): void {
+export function alignCollapsedPoolsAfterAutosize(elementRegistry: any, modeling: any): void {
   const pools = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
   if (pools.length < 2) return;
 

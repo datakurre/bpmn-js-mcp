@@ -395,17 +395,114 @@ describe('event subprocess layout — complex content (I6)', () => {
     expect(evtSub1El).toBeDefined();
     expect(evtSub2El).toBeDefined();
 
-    // Both subprocesses should start below the main task row
+    // Both event subprocesses should start below the main task row
     expect(evtSub1El.y).toBeGreaterThan(mainRowBottom - 20);
     expect(evtSub2El.y).toBeGreaterThan(mainRowBottom - 20);
 
-    // The two event subprocesses should not overlap (one below the other)
+    // G3: Multiple event subprocesses are now arranged horizontally side-by-side
+    // so they share roughly the same Y baseline. Verify they do not overlap.
+    const evtSub1Right = evtSub1El.x + (evtSub1El.width || 0);
     const evtSub1Bottom = evtSub1El.y + (evtSub1El.height || 200);
-    const evtSub2Top = evtSub2El.y;
-    // They should be stacked (non-overlapping) — either sub1 is above sub2 or vice versa
-    const noOverlap =
-      evtSub1Bottom <= evtSub2Top + 20 ||
-      evtSub2El.y + (evtSub2El.height || 200) <= evtSub1El.y + 20;
-    expect(noOverlap, 'Event subprocesses should not heavily overlap').toBe(true);
+    const evtSub2Right = evtSub2El.x + (evtSub2El.width || 0);
+    const evtSub2Bottom = evtSub2El.y + (evtSub2El.height || 200);
+    // Non-overlapping: separated horizontally OR vertically
+    const noOverlapHoriz = evtSub1Right <= evtSub2El.x + 20 || evtSub2Right <= evtSub1El.x + 20;
+    const noOverlapVert = evtSub1Bottom <= evtSub2El.y + 20 || evtSub2Bottom <= evtSub1El.y + 20;
+    expect(noOverlapHoriz || noOverlapVert, 'Event subprocesses should not heavily overlap').toBe(
+      true
+    );
+  });
+
+  test('G3: two event subprocesses are arranged side-by-side horizontally', async () => {
+    // Main process
+    const diagramId = await createDiagram('G3 Horizontal Event Subprocesses');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const mainTask = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+    await connect(diagramId, start, mainTask);
+    await connect(diagramId, mainTask, end);
+
+    const { handleAddElement: hAE, handleSetProperties: hSP } =
+      await import('../../../src/handlers');
+
+    // Helper to create a minimal event subprocess (Start → Task → End)
+    async function makeEventSub(name: string, x: number, y: number) {
+      const subResult = parseResult(
+        await hAE({ diagramId, elementType: 'bpmn:SubProcess', name, x, y })
+      );
+      const subId = subResult.elementId as string;
+      await hSP({
+        diagramId,
+        elementId: subId,
+        properties: { triggeredByEvent: true, isExpanded: true },
+      });
+      const s = parseResult(
+        await hAE({
+          diagramId,
+          elementType: 'bpmn:StartEvent',
+          name: 'S',
+          parentId: subId,
+          x: x + 30,
+          y: y + 30,
+        })
+      ).elementId as string;
+      const t = parseResult(
+        await hAE({
+          diagramId,
+          elementType: 'bpmn:ServiceTask',
+          name: 'T',
+          parentId: subId,
+          x: x + 120,
+          y: y + 20,
+        })
+      ).elementId as string;
+      const e = parseResult(
+        await hAE({
+          diagramId,
+          elementType: 'bpmn:EndEvent',
+          name: 'E',
+          parentId: subId,
+          x: x + 230,
+          y: y + 30,
+        })
+      ).elementId as string;
+      await connect(diagramId, s, t);
+      await connect(diagramId, t, e);
+      return subId;
+    }
+
+    const sub1Id = await makeEventSub('Timer Handler', 200, 350);
+    const sub2Id = await makeEventSub('Error Handler', 200, 550);
+
+    const layoutResult = parseResult(await handleLayoutDiagram({ diagramId }));
+    expect(layoutResult.success).toBe(true);
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const sub1El = reg.get(sub1Id);
+    const sub2El = reg.get(sub2Id);
+    const mainTaskEl = reg.get(mainTask);
+
+    expect(sub1El).toBeDefined();
+    expect(sub2El).toBeDefined();
+
+    // Both should be below the main process
+    const mainBottom = mainTaskEl.y + (mainTaskEl.height || 80);
+    expect(sub1El.y).toBeGreaterThan(mainBottom - 20);
+    expect(sub2El.y).toBeGreaterThan(mainBottom - 20);
+
+    // G3: The two subprocesses should be at roughly the same Y (horizontal arrangement).
+    // Allow up to 50px Y difference to tolerate minor rounding.
+    const yDiff = Math.abs(sub1El.y - sub2El.y);
+    expect(yDiff).toBeLessThan(50);
+
+    // They should be separated horizontally (non-overlapping side by side)
+    const sub1Right = sub1El.x + (sub1El.width || 0);
+    const sub2Right = sub2El.x + (sub2El.width || 0);
+    const horizontallyAdjacentOrSeparated =
+      sub1Right <= sub2El.x + 20 || sub2Right <= sub1El.x + 20;
+    expect(
+      horizontallyAdjacentOrSeparated,
+      'Event subprocesses should be side-by-side, not overlapping'
+    ).toBe(true);
   });
 });
