@@ -74,13 +74,14 @@ export async function centerFlowLabels(diagram: DiagramState): Promise<number> {
     const dy = p2.y - p1.y;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
 
-    // Perpendicular unit vector (rotated 90° counter-clockwise)
-    const perpX = -dy / len;
-    const perpY = dx / len;
+    // Perpendicular unit vector (rotated 90° clockwise so that the label
+    // lands above a rightward horizontal flow and to the right of a
+    // downward vertical flow — matching Camunda Modeler defaults).
+    const perpX = dy / len;
+    const perpY = -dx / len;
 
-    // Offset the label above (for horizontal flows) or to the left
-    // (for vertical flows) by a small amount.  Use negative sign to
-    // place above/left rather than below/right.
+    // Offset the label above (for horizontal flows) or to the right
+    // (for vertical flows) by a small amount.
     const offset = FLOW_LABEL_INDENT;
     const labelW = label.width || 90;
     const labelH = label.height || 20;

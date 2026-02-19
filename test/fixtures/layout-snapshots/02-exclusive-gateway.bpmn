@@ -88,7 +88,7 @@
         <di:waypoint x="503" y="140" />
         <di:waypoint x="568" y="140" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="524" y="148" width="19" height="14" />
+          <dc:Bounds x="524" y="118" width="19" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_109need_di" bpmnElement="Flow_109need">
@@ -104,7 +104,7 @@
         <di:waypoint x="478" y="250" />
         <di:waypoint x="568" y="250" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="456" y="201" width="15" height="14" />
+          <dc:Bounds x="486" y="201" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1mt6667_di" bpmnElement="Flow_1mt6667">
