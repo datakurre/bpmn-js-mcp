@@ -63,6 +63,12 @@ export function saveBoundaryEventData(elementRegistry: ElementRegistry): Boundar
  * change a `bpmn:BoundaryEvent` to `bpmn:IntermediateCatchEvent` and
  * lose the host attachment.  This function uses pre-layout snapshots
  * to repair the damage.
+ *
+ * ⚠ Command stack bypass (J3): this function directly mutates element
+ * shape type, host reference, and business object properties without
+ * going through bpmn-js's command stack.  These repairs are intentionally
+ * non-undoable because they fix corruption introduced by headless-mode
+ * layout operations that are themselves not undoable.
  */
 export function restoreBoundaryEventData(
   elementRegistry: ElementRegistry,
@@ -287,10 +293,13 @@ export function repositionBoundaryEvents(
       const dy = target.cy - beCy;
 
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-        // Directly update position — using modeling.moveElements on boundary
-        // events triggers DetachEventBehavior in headless/jsdom mode, which
-        // tries to replace them with IntermediateCatchEvents and crashes on
-        // SVG path intersection calculations (null path data in jsdom).
+        // ⚠ Command stack bypass (J3): directly update position instead of
+        // calling modeling.moveElements, because moving a boundary event via
+        // the command stack triggers DetachEventBehavior in headless/jsdom
+        // mode.  DetachEventBehavior tries to replace it with an
+        // IntermediateCatchEvent and runs SVG path intersection calculations
+        // on null path data, causing a crash.  Direct mutation is safe here
+        // because layout operations already run outside normal undo scope.
         be.x += dx;
         be.y += dy;
         const di = be.di;

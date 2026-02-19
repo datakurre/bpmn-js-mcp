@@ -592,6 +592,12 @@ export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Mode
       modeling.moveElements(flowElements, { x: 0, y: delta });
     } catch {
       // Fallback: direct position update when modeling.moveElements crashes
+      // (e.g. bpmn-js internal ordering errors in headless mode).
+      //
+      // ⚠ Command stack bypass (J3): this branch mutates element positions
+      // directly without going through bpmn-js's command stack, so the
+      // shift cannot be undone via `bpmn_history`.  This path is rarely
+      // triggered — it only fires when modeling.moveElements itself throws.
       for (const el of flowElements) {
         el.x += 0;
         el.y += delta;

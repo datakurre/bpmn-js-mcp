@@ -67,7 +67,8 @@ export async function handleRedoChange(args: { diagramId: string }): Promise<Too
 export const TOOL_DEFINITION = {
   name: 'bpmn_history',
   description:
-    'Undo or redo changes on a BPMN diagram. Uses the bpmn-js command stack to reverse or re-apply operations. Supports multiple steps.',
+    'Undo or redo changes on a BPMN diagram. Uses the bpmn-js command stack to reverse or re-apply operations. Supports multiple steps.' +
+    ' Note: layout operations (layout_bpmn_diagram) bypass the command stack for boundary event repositioning and the normaliseOrigin fallback — these specific changes cannot be undone.',
   inputSchema: {
     type: 'object',
     properties: {

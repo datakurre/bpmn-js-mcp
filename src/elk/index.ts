@@ -481,6 +481,12 @@ export async function elkLayout(
 
   if (hasDiverseY && !hasEventSubprocesses) {
     layoutOptions['elk.layered.crossingMinimization.forceNodeModelOrder'] = 'true';
+    // A2: For imported DI layouts, also enable NODES_AND_EDGES model-order
+    // consideration to better preserve authoring intent across re-layouts.
+    // This reduces layout churn when MCP adds elements to an imported diagram
+    // incrementally: ELK respects the existing relative order of both nodes
+    // and edges, producing smaller positional deltas than pure optimisation.
+    layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
   }
 
   const happyPathEdgeIds = tagHappyPathEdges(allElements, edges, options);

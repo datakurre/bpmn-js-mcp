@@ -50,6 +50,89 @@ export interface BpmnElkOptions {
   'elk.layered.considerModelOrder.strategy'?: 'NODES_AND_EDGES' | 'NODES_ONLY' | 'NONE';
   'elk.priority.straightness'?: string;
   'elk.priority.direction'?: string;
+  /**
+   * Diagram wrapping strategy for very wide processes (A1).
+   * SINGLE_EDGE / MULTI_EDGE wraps the graph into multiple rows when the
+   * width exceeds a threshold.  Useful for processes with 15+ sequential
+   * steps to avoid unbounded horizontal expansion.
+   */
+  'elk.layered.wrapping.strategy'?: 'SINGLE_EDGE' | 'MULTI_EDGE' | 'OFF';
+  /**
+   * Remove unnecessary bend points from ELK edge routes (A5).
+   * When true, ELK eliminates redundant waypoints during the routing phase,
+   * potentially reducing post-processing work in simplifyCollinearWaypoints.
+   * Not currently enabled by default — could change waypoint assumptions in
+   * downstream post-processing steps.
+   */
+  'elk.layered.unnecessaryBendpoints'?: 'true' | 'false';
+  /**
+   * Merge parallel edges between the same pair of nodes (A6).
+   * When true, ELK combines multiple flows between the same source/target
+   * into a single visual edge, reducing clutter for gateways with
+   * conditional + default flows to the same target.
+   */
+  'elk.layered.mergeEdges'?: 'true' | 'false';
+  /**
+   * Native feedback (back-edge) support for loopback flows (A7).
+   * When true, ELK uses its built-in feedback edge handling for backward
+   * flows instead of our custom `routeLoopbacksBelow` post-processing.
+   * Currently not used — custom post-processing gives better control.
+   */
+  'elk.layered.feedbackEdges'?: 'true' | 'false';
+  /**
+   * Same-layer edge-to-edge spacing in pixels (A8).
+   * Controls the minimum gap between two edges routed in the same layer.
+   * Could reduce the need for separateOverlappingGatewayFlows post-processing.
+   */
+  'elk.spacing.edgeEdge'?: string;
+  /**
+   * Self-loop placement distribution (A9).
+   * Controls how self-loops (element connected to itself) are distributed
+   * around the element's perimeter.
+   * EQUALLY_DISTRIBUTED: spread evenly.
+   * NORTH_SOUTH_PORT: prefer top/bottom ports.
+   */
+  'elk.layered.edgeRouting.selfLoopDistribution'?:
+    | 'EQUALLY_DISTRIBUTED'
+    | 'NORTH_SOUTH_PORT'
+    | 'PREFER_SAME_PORT';
+  /**
+   * Native lane partitioning support (A10).
+   * When true, ELK respects lane partition assignments during node placement.
+   * Requires each node to have `elk.partitioning.partition` set to a lane
+   * index.  Could replace the 700+ line lane post-processing in
+   * `src/elk/lane-layout.ts` if fully implemented.
+   */
+  'elk.partitioning.activate'?: 'true' | 'false';
+  /**
+   * Lane partition index for a node (A10).
+   * Set on individual nodes when elk.partitioning.activate is true.
+   * Nodes with lower partition indices are placed in earlier (top/left) lanes.
+   */
+  'elk.partitioning.partition'?: string;
+  /**
+   * Target aspect ratio (width:height) for the layout (A11).
+   * ELK adjusts layering to approach this ratio while minimising edge length.
+   * Could produce more balanced layouts for display in constrained viewports.
+   */
+  'elk.aspectRatio'?: string;
+  /**
+   * Layering strategy controlling how nodes are assigned to layers (A12).
+   * INTERACTIVE: preserves the existing layer assignments of pre-placed nodes —
+   *   useful for scoped re-layout (scopeElementId) to avoid disrupting layers.
+   * LONGEST_PATH: standard longest-path layering (often ELK's default).
+   * NETWORK_SIMPLEX: minimises edge length sum (used by ELK default).
+   * BF_MODEL_ORDER: breadth-first in model order.
+   */
+  'elk.layered.layering.strategy'?:
+    | 'NETWORK_SIMPLEX'
+    | 'LONGEST_PATH'
+    | 'COFFMAN_GRAHAM'
+    | 'DF_MODEL_ORDER'
+    | 'BF_MODEL_ORDER'
+    | 'INTERACTIVE'
+    | 'STRETCH_WIDTH'
+    | 'MIN_WIDTH';
 }
 
 /**
