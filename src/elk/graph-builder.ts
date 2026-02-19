@@ -591,6 +591,56 @@ function detectBalancedDiamonds(gwIds: Set<string>, edges: ElkExtendedEdge[]): S
 }
 
 /**
+ * Detect "terminal split" gateways: all outgoing branches lead directly to
+ * EndEvents with no further outgoing flows.  For these, SOUTH port constraints
+ * would cause ELK to assign the EndEvents to separate x-columns; without
+ * constraints ELK places them in the same column at different y positions
+ * based on model order.  When combined with terminal-split reordering (default
+ * flow first), this naturally reproduces Camunda Modeler's layout where the
+ * default EndEvent sits on the main row and conditioned EndEvents go below.
+ */
+function detectTerminalSplits(
+  gwIds: Set<string>,
+  edges: ElkExtendedEdge[],
+  childShapes: BpmnElement[]
+): Set<string> {
+  const terminalSplits = new Set<string>();
+
+  // Map element IDs to BPMN types for quick lookup
+  const idToType = new Map<string, string>();
+  for (const shape of childShapes) {
+    idToType.set(shape.id, shape.type);
+  }
+
+  // Build outgoing adjacency
+  const outAdj = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (edge.id.startsWith('__')) continue;
+    const src = edge.sources[0];
+    const tgt = edge.targets[0];
+    if (!src || !tgt) continue;
+    if (!outAdj.has(src)) outAdj.set(src, []);
+    outAdj.get(src)!.push(tgt);
+  }
+
+  for (const gwId of gwIds) {
+    const directTargets = outAdj.get(gwId) || [];
+    if (directTargets.length < 2) continue;
+
+    // All direct targets must be terminal EndEvents (no further outgoing)
+    const allTerminalEndEvents = directTargets.every((tgtId) => {
+      return idToType.get(tgtId) === 'bpmn:EndEvent' && (outAdj.get(tgtId) || []).length === 0;
+    });
+
+    if (allTerminalEndEvents) {
+      terminalSplits.add(gwId);
+    }
+  }
+
+  return terminalSplits;
+}
+
+/**
  * Add ELK port constraints to split decision gateways (exclusive/inclusive
  * with ≥2 outgoing edges) for deterministic branch ordering.
  *
@@ -627,6 +677,10 @@ function addGatewayPorts(
 
   // Detect balanced diamond patterns — skip port constraints for these.
   const balancedDiamonds = detectBalancedDiamonds(gwIds, edges);
+  // Detect terminal split patterns — also skip port constraints (same reason:
+  // without constraints ELK places both EndEvents in the same column at
+  // different y positions, which matches Camunda Modeler's layout).
+  const terminalSplits = detectTerminalSplits(gwIds, edges, childShapes);
 
   // Group real (non-synthetic) outgoing edges by gateway source.
   // Edges are in happy-path-first order from reorderGatewayEdgesForHappyPath.
@@ -648,7 +702,9 @@ function addGatewayPorts(
 
     // Skip port constraints for balanced diamonds — ELK places both branches
     // in the same layer without constraints, which is the correct behavior.
-    if (balancedDiamonds.has(gwId)) continue;
+    // Also skip for terminal splits — same reason: no constraints lets ELK
+    // put all EndEvents in the same x-column at different y positions.
+    if (balancedDiamonds.has(gwId) || terminalSplits.has(gwId)) continue;
 
     // Happy-path edge (i=0) gets no explicit port — it exits the gateway
     // naturally to the EAST in LTR layout.  Off-path edges (i≥1) get SOUTH
@@ -690,6 +746,12 @@ const POSITIVE_LABELS =
  * model order to determine vertical positions — the first edge's target
  * tends to stay on the main row.
  *
+ * Special case: "terminal split" gateways where ALL outgoing flows lead
+ * directly to EndEvents.  In these cases Camunda Modeler places the
+ * DEFAULT flow on the main horizontal row (EAST exit) and routes the
+ * conditioned flows downward (SOUTH exit).  We replicate this behaviour
+ * by putting the default flow first.
+ *
  * Mutates `internalConns` in-place.
  */
 function reorderGatewayEdgesForHappyPath(
@@ -729,11 +791,22 @@ function reorderGatewayEdgesForHappyPath(
     const slice = internalConns.slice(start, end);
     const defaultFlowId = gatewayDefaults.get(gwId);
 
+    // "Terminal split": all outgoing branches lead directly to EndEvents.
+    // For these, Camunda Modeler puts the DEFAULT flow on the main row (EAST)
+    // and routes conditioned flows downward (SOUTH).  Replicate by scoring
+    // default flow as 0 (first) when all targets are EndEvents.
+    const isTerminalSplit =
+      defaultFlowId !== undefined && slice.every((conn) => conn.target?.type === 'bpmn:EndEvent');
+
     // Sort: happy-path first (non-default, positive label), then others,
-    // default flow last.
+    // default flow last.  Exception: terminal splits put default first.
     slice.sort((a, b) => {
-      const aScore = edgeHappyScore(a, defaultFlowId);
-      const bScore = edgeHappyScore(b, defaultFlowId);
+      const aScore = isTerminalSplit
+        ? edgeTerminalSplitScore(a, defaultFlowId)
+        : edgeHappyScore(a, defaultFlowId);
+      const bScore = isTerminalSplit
+        ? edgeTerminalSplitScore(b, defaultFlowId)
+        : edgeHappyScore(b, defaultFlowId);
       return aScore - bScore; // lower score = higher priority (comes first)
     });
 
@@ -756,4 +829,14 @@ function edgeHappyScore(conn: BpmnElement, defaultFlowId?: string): number {
   const name = conn.businessObject?.name?.trim();
   if (name && POSITIVE_LABELS.test(name)) return 0;
   return 1;
+}
+
+/**
+ * Sort score for "terminal split" gateways — all branches lead to EndEvents.
+ * Camunda Modeler puts the DEFAULT flow on the main row for these gateways,
+ * so the default flow scores 0 (first / EAST exit) and non-defaults score 1.
+ */
+function edgeTerminalSplitScore(conn: BpmnElement, defaultFlowId?: string): number {
+  if (defaultFlowId && conn.id === defaultFlowId) return 0; // default → main row
+  return 1; // non-default → SOUTH branch
 }

@@ -7,6 +7,11 @@
  * condition matches — typically the error/exception path.  The happy
  * path should follow the designed/conditioned branches instead.
  *
+ * Special case: "terminal split" gateways where ALL outgoing branches
+ * lead directly to EndEvents.  Here there is no real "continuation" so
+ * Camunda Modeler places the DEFAULT flow on the main row.  We replicate
+ * this by following the default flow at terminal splits.
+ *
  * At parallel gateways (and when no default is set), follows the first
  * outgoing flow.
  */
@@ -72,8 +77,16 @@ export function detectHappyPath(allElements: BpmnElement[]): Set<string> {
       let chosen: BpmnElement | undefined;
       const defaultFlowId = gatewayDefaults.get(current.id);
       if (defaultFlowId && connections.length > 1) {
-        // Prefer the first non-default flow (the conditioned branch)
-        chosen = connections.find((c) => c.id !== defaultFlowId);
+        // "Terminal split": all outgoing flows lead directly to EndEvents.
+        // Camunda Modeler puts the DEFAULT flow on the main row for these
+        // gateways, so we follow the default flow to match that behaviour.
+        const isTerminalSplit = connections.every((c) => c.target?.type === 'bpmn:EndEvent');
+        if (isTerminalSplit) {
+          chosen = connections.find((c) => c.id === defaultFlowId);
+        } else {
+          // Prefer the first non-default flow (the conditioned branch)
+          chosen = connections.find((c) => c.id !== defaultFlowId);
+        }
       }
       // When no default flow is set on a gateway, prefer flows with
       // positive condition labels ("Yes", "Approved", "OK", etc.)
