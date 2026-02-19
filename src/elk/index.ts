@@ -105,6 +105,7 @@ import { detectCrossingFlows, reduceCrossings } from './crossing-detection';
 import { avoidElementIntersections } from './element-avoidance';
 import { resolveOverlaps } from './overlap-resolution';
 import type { ElkLayoutOptions } from './types';
+import { createLayoutLogger } from './layout-logger';
 
 export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer, BpmnElkOptions } from './types';
 
@@ -447,6 +448,8 @@ export async function elkLayout(
   const ELK = (await import('elkjs')).default;
   const elk = new ELK();
 
+  const log = createLayoutLogger('elkLayout');
+
   const elementRegistry = diagram.modeler.get('elementRegistry');
   const modeling = diagram.modeler.get('modeling');
   const canvas = diagram.modeler.get('canvas');
@@ -455,6 +458,7 @@ export async function elkLayout(
   const rootElement = resolveRootElement(elementRegistry, canvas, options);
 
   const allElements: BpmnElement[] = elementRegistry.getAll();
+  log.note('init', `${allElements.length} elements, scope=${options?.scopeElementId ?? 'root'}`);
 
   // Check if we have event subprocesses that will be excluded and repositioned
   const hasEventSubprocesses = allElements.some(
@@ -487,16 +491,23 @@ export async function elkLayout(
     // incrementally: ELK respects the existing relative order of both nodes
     // and edges, producing smaller positional deltas than pure optimisation.
     layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NODES_AND_EDGES';
+    log.note('init', 'hasDiverseY=true — forceNodeModelOrder + NODES_AND_EDGES enabled');
   }
 
   const happyPathEdgeIds = tagHappyPathEdges(allElements, edges, options);
+  log.note(
+    'init',
+    `ELK graph: ${children.length} nodes, ${edges.length} edges, happyPath=${happyPathEdgeIds?.size ?? 0} edges`
+  );
 
+  log.beginStep('elk.layout');
   const result = await elk.layout({
     id: 'root',
     layoutOptions,
     children,
     edges,
   });
+  log.endStep();
 
   const { offsetX, offsetY } = computeLayoutOffset(elementRegistry, options);
 
@@ -517,23 +528,28 @@ export async function elkLayout(
   };
 
   // Execute layout pipeline
+  log.beginStep('applyNodePositions');
   await applyNodePositions(ctx);
-  fixBoundaryEvents(ctx);
-  snapAndAlignLayers(ctx);
-  gridSnapAndResolveOverlaps(ctx);
-  repositionArtifacts(elementRegistry, modeling);
-  alignHappyPathAndOffPathEvents(ctx);
+  log.endStep();
+
+  log.step('fixBoundaryEvents', () => fixBoundaryEvents(ctx));
+  log.step('snapAndAlignLayers', () => snapAndAlignLayers(ctx));
+  log.step('gridSnapAndResolveOverlaps', () => gridSnapAndResolveOverlaps(ctx));
+  log.step('repositionArtifacts', () => repositionArtifacts(elementRegistry, modeling));
+  log.step('alignHappyPathAndOffPathEvents', () => alignHappyPathAndOffPathEvents(ctx));
   // B5 — second resolveOverlaps: alignHappyPath pulls multiple elements
   // (e.g. two start events, parallel branches) to the same Y coordinate,
   // which can cause them to overlap horizontally.  This second pass repairs
   // those overlaps without disturbing the happy-path row.
   // Profiled: removing this pass causes overlap regressions in diagrams with
   // ≥2 parallel start events or fan-out gateways (verified via overlap tests).
-  forEachScope(elementRegistry, (scope) => {
-    resolveOverlaps(elementRegistry, modeling, scope);
+  log.step('resolveOverlaps-2nd', () => {
+    forEachScope(elementRegistry, (scope) => {
+      resolveOverlaps(elementRegistry, modeling, scope);
+    });
   });
-  finalisePoolsAndLanes(ctx);
-  finaliseBoundaryTargets(ctx);
+  log.step('finalisePoolsAndLanes', () => finalisePoolsAndLanes(ctx));
+  log.step('finaliseBoundaryTargets', () => finaliseBoundaryTargets(ctx));
   // Apply edge routes before normalising origin.
   // Normalising origin AFTER edge route application ensures that
   // modeling.moveElements shifts both element positions AND their
@@ -541,34 +557,38 @@ export async function elkLayout(
   // source/target elements.  If normaliseOrigin ran first, elements would
   // shift but waypoints (not yet applied from ELK) would be placed at the
   // old (pre-shift) coordinates, causing flows to appear displaced.
-  applyEdgeRoutes(ctx);
+  log.step('applyEdgeRoutes', () => applyEdgeRoutes(ctx));
   // Normalise Y origin after edge routes are placed so that the shift
   // is applied uniformly to both elements and their waypoints.
-  normaliseOrigin(ctx.elementRegistry, ctx.modeling);
-  repairAndSimplifyEdges(ctx);
+  log.step('normaliseOrigin', () => normaliseOrigin(ctx.elementRegistry, ctx.modeling));
+  log.step('repairAndSimplifyEdges', () => repairAndSimplifyEdges(ctx));
 
   // Clamp intra-lane flow waypoints to stay within lane bounds
-  clampFlowsToLaneBounds(elementRegistry, modeling);
+  log.step('clampFlowsToLaneBounds', () => clampFlowsToLaneBounds(elementRegistry, modeling));
 
   // Route cross-lane flows as clean staircase shapes through lane boundaries
-  routeCrossLaneStaircase(elementRegistry, modeling);
+  log.step('routeCrossLaneStaircase', () => routeCrossLaneStaircase(elementRegistry, modeling));
 
   // Attempt to reduce edge crossings by nudging waypoints
-  reduceCrossings(elementRegistry, modeling);
+  log.step('reduceCrossings-1st', () => reduceCrossings(elementRegistry, modeling));
 
   // Reroute connections that pass through unrelated element bounding boxes.
   // Uses modeling.updateWaypoints with try/catch — bpmn-js's LineAttachmentUtil
   // can throw on geometrically difficult paths (those connections are skipped).
-  avoidElementIntersections(elementRegistry, modeling);
+  log.step('avoidElementIntersections', () => avoidElementIntersections(elementRegistry, modeling));
 
   // B6 — second reduceCrossings: avoidElementIntersections introduces detour
   // waypoints to route around shapes; these detours can create new crossings
   // with other edges.  A second crossing-reduction pass resolves them.
   // Profiled: removing this pass regresses 5-10% of crossing counts in complex
   // diagrams (verified via layout-idempotency + crossing-reduction tests).
-  reduceCrossings(elementRegistry, modeling);
+  log.step('reduceCrossings-2nd', () => reduceCrossings(elementRegistry, modeling));
 
-  const crossingFlowsResult = detectCrossingFlows(elementRegistry);
+  const crossingFlowsResult = log.step('detectCrossingFlows', () =>
+    detectCrossingFlows(elementRegistry)
+  );
+  log.note('result', `crossingFlows=${crossingFlowsResult.count}`);
+  log.finish();
   return {
     crossingFlows: crossingFlowsResult.count,
     crossingFlowPairs: crossingFlowsResult.pairs,

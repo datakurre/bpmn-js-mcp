@@ -229,6 +229,13 @@ export async function elkLayoutSubset(
   if (options?.layerSpacing !== undefined) {
     layoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = String(options.layerSpacing);
   }
+  // A3: Enable semiInteractive crossing minimisation for subset layouts.
+  // When true, ELK preserves the in-layer positions of pre-placed (pinned)
+  // nodes and only optimises the order of unlocked nodes.  In subset layout
+  // we have pinned artifact nodes (noLayout: true), so semiInteractive
+  // prevents ELK from reordering them, improving position stability when
+  // re-laying out a small region of a large diagram.
+  layoutOptions['elk.layered.crossingMinimization.semiInteractive'] = 'true';
 
   const elkGraph: ElkNode = {
     id: 'root',
