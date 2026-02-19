@@ -445,6 +445,34 @@ export const SUBPROCESS_ROW_THRESHOLD = 40;
 /** Maximum trace depth for synthetic ordering edges in gateway analysis. */
 export const MAX_TRACE_DEPTH = 15;
 
+// ── Subset layout constants ─────────────────────────────────────────────
+
+/**
+ * Y-centre proximity (px) for two endpoints to be considered "same row"
+ * when rebuilding neighbor edges in subset (partial) layout.
+ *
+ * Distinct from SAME_ROW_THRESHOLD (used for vertical snap) and
+ * SAME_ROW_Y_TOLERANCE (used for straight-flow detection in edge repair).
+ * This value is intentionally smaller than SAME_ROW_THRESHOLD because
+ * neighbor edges in a subset layout have already been snapped and should
+ * only be straightened when the endpoints are very close to co-linear.
+ */
+export const SUBSET_NEIGHBOR_SAME_ROW_THRESHOLD = 15;
+
+// ── Self-loop routing constants ─────────────────────────────────────────
+
+/**
+ * Horizontal margin (px) beyond the element's right edge for self-loop routing.
+ * The self-loop exits the right side, extends this far right, then loops below.
+ */
+export const SELF_LOOP_MARGIN_H = 35;
+
+/**
+ * Vertical margin (px) below the element's bottom edge for self-loop routing.
+ * The loop descends this far below the element before turning back.
+ */
+export const SELF_LOOP_MARGIN_V = 35;
+
 // ── ELK algorithm tuning ───────────────────────────────────────────────
 
 /**

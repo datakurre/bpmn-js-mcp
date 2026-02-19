@@ -9,7 +9,7 @@ import type { ElkNode, ElkEdgeSection } from 'elkjs';
 import type { ElementRegistry, Modeling } from '../bpmn-types';
 import { isConnection } from './helpers';
 import { deduplicateWaypoints } from './edge-routing-helpers';
-import { ENDPOINT_SNAP_TOLERANCE, BPMN_EVENT_SIZE, SEGMENT_ORTHO_SNAP } from './constants';
+import { ENDPOINT_SNAP_TOLERANCE, BPMN_EVENT_SIZE, SEGMENT_ORTHO_SNAP, SELF_LOOP_MARGIN_H, SELF_LOOP_MARGIN_V } from './constants';
 
 /**
  * Build a flat lookup of ELK edges (including nested containers) so we can
@@ -296,6 +296,60 @@ export function applyElkEdgeRoutes(
           modeling.updateWaypoints(conn, deduped);
         }
       }
+    }
+  }
+}
+
+/**
+ * Route self-loop sequence flows (elements connected to themselves).
+ *
+ * ELK does not produce edge sections for self-loops.  This function
+ * detects connections where source === target and applies a clean
+ * rectangular loop path: exit the right side at the upper quarter,
+ * extend right, loop below the element, return to the bottom centre.
+ *
+ * Shape: ─────┐
+ *             │
+ *        ─────┘
+ *
+ * Call this after `applyElkEdgeRoutes()` so self-loops are given
+ * explicit waypoints before the simplification / repair passes run.
+ */
+export function routeSelfLoops(elementRegistry: ElementRegistry, modeling: Modeling): void {
+  const selfLoops = elementRegistry.filter(
+    (el) =>
+      el.type === 'bpmn:SequenceFlow' &&
+      !!el.source &&
+      !!el.target &&
+      el.source.id === el.target.id
+  );
+
+  for (const conn of selfLoops) {
+    const el = conn.source!;
+    const elW = el.width || 100;
+    const elH = el.height || 80;
+    const right = el.x + elW;
+    const bottom = el.y + elH;
+    const cx = Math.round(el.x + elW / 2);
+
+    // Exit the right side at the upper quarter of the element,
+    // loop around below, and re-enter at the bottom centre.
+    const exitY = Math.round(el.y + elH / 4);
+    const loopRight = Math.round(right + SELF_LOOP_MARGIN_H);
+    const loopBottom = Math.round(bottom + SELF_LOOP_MARGIN_V);
+
+    const waypoints = [
+      { x: Math.round(right), y: exitY }, // exit right side (upper quarter)
+      { x: loopRight, y: exitY }, // extend right
+      { x: loopRight, y: loopBottom }, // descend below element
+      { x: cx, y: loopBottom }, // move left to centre-x
+      { x: cx, y: Math.round(bottom) }, // enter bottom centre
+    ];
+
+    try {
+      modeling.updateWaypoints(conn, waypoints);
+    } catch {
+      // Skip connections where bpmn-js rejects the waypoints
     }
   }
 }

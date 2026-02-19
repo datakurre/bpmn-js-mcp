@@ -11,7 +11,7 @@
  */
 
 export { deduplicateWaypoints, buildZShapeRoute } from './edge-routing-helpers';
-export { applyElkEdgeRoutes } from './edge-routing-core';
+export { applyElkEdgeRoutes, routeSelfLoops } from './edge-routing-core';
 export {
   simplifyGatewayBranchRoutes,
   simplifyCollinearWaypoints,

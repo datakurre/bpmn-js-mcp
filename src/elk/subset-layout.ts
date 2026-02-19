@@ -18,6 +18,7 @@ import {
   BPMN_TASK_WIDTH,
   BPMN_TASK_HEIGHT,
   BPMN_DUMMY_HEIGHT,
+  SUBSET_NEIGHBOR_SAME_ROW_THRESHOLD,
 } from './constants';
 import { applyElkPositions } from './position-application';
 import {
@@ -82,7 +83,7 @@ function rebuildNeighborEdges(
     // (backwards/loopback edges have custom routing and shouldn't be touched)
     if (tgtLeft <= srcRight) continue;
 
-    const sameRow = Math.abs(srcCy - tgtCy) <= 15;
+    const sameRow = Math.abs(srcCy - tgtCy) <= SUBSET_NEIGHBOR_SAME_ROW_THRESHOLD;
     if (sameRow) {
       // Straight horizontal
       modeling.updateWaypoints(conn, [

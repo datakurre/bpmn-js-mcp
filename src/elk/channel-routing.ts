@@ -26,7 +26,7 @@ import { cloneWaypoints } from '../geometry';
  * prevent overlaps and crossing flows.
  *
  * Only applies to connections where the source is a gateway going to a
- * different layer, with at most 3 off-row branches.
+ * different layer, with at most 4 off-row branches.
  */
 export function routeBranchConnectionsThroughChannels(
   elementRegistry: ElementRegistry,
@@ -103,9 +103,9 @@ export function routeBranchConnectionsThroughChannels(
     // Only process split gateways (≥2 outgoing flows), not join→next flows
     if ((gwOutgoingCount.get(src.id) || 0) < 2) continue;
 
-    // Skip gateways with more than 3 off-row branches — ELK handles
-    // large fan-outs well; channel routing can cause crossings.
-    if ((gwOffRowCount.get(src.id) || 0) > 3) continue;
+    // Skip gateways with more than 4 off-row branches — ELK handles
+    // very large fan-outs well; channel routing on 5+ branches can cause crossings.
+    if ((gwOffRowCount.get(src.id) || 0) > 4) continue;
 
     const srcLayer = elementToLayer.get(src.id);
     const tgtLayer = elementToLayer.get(tgt.id);
@@ -141,11 +141,11 @@ export function routeBranchConnectionsThroughChannels(
   }
 
   // Process each gateway group: spread vertical segments across the channel.
-  // Only apply to gateways with at most 3 branch connections needing routing.
-  // For larger fan-outs (4+ branches), ELK already spaces port positions well
+  // Only apply to gateways with at most 4 branch connections needing routing.
+  // For larger fan-outs (5+ branches), ELK already spaces port positions well
   // and moving vertical segments can cause crossings with join-side connections.
   for (const [, group] of gwGroups) {
-    if (group.length > 3) continue; // Skip large fan-outs
+    if (group.length > 4) continue; // Skip very large fan-outs (5+)
 
     const { channelAfterLayer } = group[0];
     const leftColRight = layers[channelAfterLayer].maxRight;

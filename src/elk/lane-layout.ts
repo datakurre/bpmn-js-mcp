@@ -418,8 +418,10 @@ function optimizeLaneOrder(
   // No cross-lane flows — order doesn't matter, keep original
   if (adjacencyPairs.length === 0) return lanes;
 
-  if (lanes.length <= 8) {
-    // Brute-force: try all permutations
+  if (lanes.length <= 6) {
+    // Brute-force: try all permutations (≤6 lanes = 720 permutations max).
+    // Threshold reduced from 8 (40 320 permutations) to 6 for performance;
+    // 7+ lane diagrams fall back to the greedy adjacent-swap below.
     return bruteForceOptimal(lanes, adjacencyPairs);
   }
 

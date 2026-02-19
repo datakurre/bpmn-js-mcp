@@ -89,6 +89,7 @@ import {
   separateOverlappingGatewayFlows,
   removeMicroBends,
   routeLoopbacksBelow,
+  routeSelfLoops,
 } from './edge-routing';
 import { repositionArtifacts } from './artifacts';
 import { routeBranchConnectionsThroughChannels } from './channel-routing';
@@ -337,6 +338,11 @@ function finaliseBoundaryTargets(ctx: LayoutContext): void {
 function applyEdgeRoutes(ctx: LayoutContext): void {
   applyElkEdgeRoutes(ctx.elementRegistry, ctx.modeling, ctx.result, ctx.offsetX, ctx.offsetY);
 
+  // Route self-loop connections (source === target) which ELK does not handle.
+  // Must run immediately after applyElkEdgeRoutes so that subsequent
+  // simplification passes do not see stale zero-length waypoints.
+  routeSelfLoops(ctx.elementRegistry, ctx.modeling);
+
   const shouldGridSnap = ctx.options?.gridSnap !== false;
   if (shouldGridSnap) {
     const shouldSimplifyRoutes = ctx.options?.simplifyRoutes !== false;
@@ -375,7 +381,46 @@ function repairAndSimplifyEdges(ctx: LayoutContext): void {
  * left-to-right layouts with proper handling of parallel branches,
  * reconverging gateways, and nested containers.
  *
- * Pipeline:
+ * ## Pipeline step dependency order
+ *
+ * The pipeline steps below have strict ordering dependencies.  Reordering
+ * them without understanding the dependencies will break layout quality.
+ *
+ * ```
+ * [ELK graph + layout]
+ *   → applyNodePositions        — requires: ELK result; provides: element x/y
+ *   → fixBoundaryEvents         — requires: element x/y (from ELK); provides: BE x/y
+ *   → snapAndAlignLayers        — requires: element x/y; provides: row-snapped y
+ *   → gridSnapAndResolveOverlaps — requires: row-snapped y; provides: grid-aligned x/y
+ *   → repositionArtifacts       — requires: flow-element x/y; provides: artifact x/y
+ *   → alignHappyPathAndOffPathEvents — requires: grid-aligned x/y; provides: happy-path row
+ *   → resolveOverlaps (2nd)     — requires: happy-path row; resolves overlaps from alignment
+ *   → finalisePoolsAndLanes     — requires: all element x/y; provides: pool/lane bounds
+ *   → finaliseBoundaryTargets   — requires: pool/lane bounds + happy-path row; provides: BE target x/y
+ *   → applyEdgeRoutes           — requires: FINAL element x/y (after normaliseOrigin);
+ *                                  provides: waypoints
+ *                                  ⚠ normaliseOrigin runs inside this step, BEFORE edge routes
+ *                                    are applied, so that element shifts carry waypoints with them
+ *   → repairAndSimplifyEdges    — requires: waypoints; provides: clean orthogonal routes
+ *   → clampFlowsToLaneBounds    — requires: lane bounds + waypoints; provides: clamped waypoints
+ *   → routeCrossLaneStaircase   — requires: lane bounds + waypoints
+ *   → reduceCrossings           — requires: waypoints
+ *   → avoidElementIntersections — requires: element x/y + waypoints
+ *   → reduceCrossings (2nd)     — avoidance detours may introduce new crossings
+ *   → detectCrossingFlows       — read-only; produces return value
+ * ```
+ *
+ * ## Key invariants
+ * - `saveBoundaryEventData` must be called BEFORE `applyElkPositions` because
+ *   `modeling.moveElements` on host elements drags boundary events.
+ * - `normaliseOrigin` must run AFTER `finalisePoolsAndLanes` and BEFORE
+ *   `applyElkEdgeRoutes` so that the origin shift is applied to both element
+ *   positions and their waypoints atomically.
+ * - Edge repair (`repairAndSimplifyEdges`) must run AFTER edge routes are set.
+ * - `reduceCrossings` runs twice intentionally: once after repair and once
+ *   after `avoidElementIntersections`, because avoidance may introduce crossings.
+ *
+ * ## Step list (for update commentary)
  * 1. Build ELK graph → run ELK layout
  * 2. Apply node positions + resize compound nodes
  * 3. Fix boundary events
@@ -383,11 +428,16 @@ function repairAndSimplifyEdges(ctx: LayoutContext): void {
  * 5. Grid snap + resolve overlaps
  * 6. Reposition artifacts
  * 7. Align happy path + off-path end events
- * 8. Finalise pools, lanes, collapsed pools
- * 9. Finalise boundary targets + off-path alignment
- * 10. Apply edge routes + channel routing
- * 11. Repair + simplify edges
- * 12. Detect crossing flows
+ * 8. Resolve overlaps (2nd pass — after happy-path alignment)
+ * 9. Finalise pools, lanes, collapsed pools
+ * 10. Finalise boundary targets + off-path alignment
+ * 11. Apply edge routes (self-loops, ELK sections, channel routing) + normalise origin
+ * 12. Repair + simplify edges
+ * 13. Clamp lane flows + cross-lane staircase routing
+ * 14. Reduce crossings (1st pass)
+ * 15. Avoid element intersections
+ * 16. Reduce crossings (2nd pass)
+ * 17. Detect crossing flows (return value)
  */
 export async function elkLayout(
   diagram: DiagramState,
