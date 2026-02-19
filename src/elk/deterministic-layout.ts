@@ -49,11 +49,66 @@ function isInfrastructure(type: string): boolean {
 
 function buildFlowGraph(elementRegistry: ElementRegistry): Map<string, FlowNode> {
   const allElements: BpmnElement[] = elementRegistry.getAll();
+
+  // C4(a): Exclude boundary events and their exception chains from the graph
+  // so that a main chain with an attached boundary event is still detected as
+  // a trivial (linear/split-merge) diagram.
+  //
+  // Algorithm:
+  // 1. Collect all boundary event IDs.
+  // 2. Walk forward from each boundary event via sequence flows to collect all
+  //    elements reachable ONLY through boundary event paths (exception chains).
+  // 3. Build the clean flow graph without these excluded elements.
+  //
+  // This mirrors the logic in `identifyBoundaryExceptionChains` in
+  // `src/elk/boundary-chains.ts`, but as a standalone implementation to keep
+  // deterministic layout self-contained.
+  const boundaryEventIds = new Set<string>(
+    allElements.filter((el) => el.type === 'bpmn:BoundaryEvent').map((el) => el.id)
+  );
+
+  // Build incoming-sources map for all elements
+  const incomingSources = new Map<string, Set<string>>();
+  for (const el of allElements) {
+    if (el.type === 'bpmn:SequenceFlow' && el.source && el.target) {
+      if (!incomingSources.has(el.target.id)) incomingSources.set(el.target.id, new Set());
+      incomingSources.get(el.target.id)!.add(el.source.id);
+    }
+  }
+
+  // BFS forward from boundary events to identify exception-chain elements
+  // (those whose ALL incoming flows come from excluded nodes)
+  const exceptionChainIds = new Set<string>();
+  const bfsQueue = [...boundaryEventIds];
+  while (bfsQueue.length > 0) {
+    const beOrChainId = bfsQueue.shift()!;
+    for (const el of allElements) {
+      if (el.type !== 'bpmn:SequenceFlow' || el.source?.id !== beOrChainId || !el.target) continue;
+      const targetId = el.target.id;
+      if (boundaryEventIds.has(targetId) || exceptionChainIds.has(targetId)) continue;
+      const sources = incomingSources.get(targetId) || new Set();
+      const allFromExcluded = [...sources].every(
+        (srcId) => boundaryEventIds.has(srcId) || exceptionChainIds.has(srcId)
+      );
+      if (allFromExcluded) {
+        exceptionChainIds.add(targetId);
+        bfsQueue.push(targetId);
+      }
+    }
+  }
+
+  const excludedIds = new Set([...boundaryEventIds, ...exceptionChainIds]);
+
   const graph = new Map<string, FlowNode>();
 
-  // Build nodes
+  // Build nodes (excluding boundary events and their exception chains)
   for (const el of allElements) {
-    if (isFlowElement(el.type) && !isConnection(el.type) && !isInfrastructure(el.type)) {
+    if (
+      isFlowElement(el.type) &&
+      !isConnection(el.type) &&
+      !isInfrastructure(el.type) &&
+      !excludedIds.has(el.id)
+    ) {
       graph.set(el.id, {
         element: el,
         outgoing: [],
@@ -62,7 +117,7 @@ function buildFlowGraph(elementRegistry: ElementRegistry): Map<string, FlowNode>
     }
   }
 
-  // Build edges from sequence flows
+  // Build edges from sequence flows (only between nodes in the clean graph)
   for (const el of allElements) {
     if (el.type === 'bpmn:SequenceFlow' && el.source && el.target) {
       const src = graph.get(el.source.id);

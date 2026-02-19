@@ -290,16 +290,37 @@ export function applyElkEdgeRoutes(
           }
         }
       } else {
-        // Generic fallback for other unrouted connections
+        // Generic fallback for other unrouted connections.
+        //
+        // E3: Associations (bpmn:Association, bpmn:DataInputAssociation,
+        // bpmn:DataOutputAssociation) use straight-line routing: a single
+        // diagonal segment from source centre to target centre.  BPMN
+        // convention renders data and annotation associations as dotted
+        // straight lines, not orthogonal bent paths.  The previous
+        // orthogonal fallback produced L-shaped routes that looked wrong.
         const srcMid = { x: src.x + (src.width || 0) / 2, y: src.y + (src.height || 0) / 2 };
         const tgtMid = { x: tgt.x + (tgt.width || 0) / 2, y: tgt.y + (tgt.height || 0) / 2 };
-        const waypoints = buildOrthogonalWaypoints(srcMid, tgtMid);
 
-        // Round and deduplicate fallback waypoints
-        const rounded = waypoints.map((wp) => ({ x: Math.round(wp.x), y: Math.round(wp.y) }));
-        const deduped = deduplicateWaypoints(rounded, 0);
-        if (deduped.length >= 2) {
-          modeling.updateWaypoints(conn, deduped);
+        const isAssociation =
+          conn.type === 'bpmn:Association' ||
+          conn.type === 'bpmn:DataInputAssociation' ||
+          conn.type === 'bpmn:DataOutputAssociation';
+
+        if (isAssociation) {
+          // Straight-line route: source centre → target centre
+          modeling.updateWaypoints(conn, [
+            { x: Math.round(srcMid.x), y: Math.round(srcMid.y) },
+            { x: Math.round(tgtMid.x), y: Math.round(tgtMid.y) },
+          ]);
+        } else {
+          const waypoints = buildOrthogonalWaypoints(srcMid, tgtMid);
+
+          // Round and deduplicate fallback waypoints
+          const rounded = waypoints.map((wp) => ({ x: Math.round(wp.x), y: Math.round(wp.y) }));
+          const deduped = deduplicateWaypoints(rounded, 0);
+          if (deduped.length >= 2) {
+            modeling.updateWaypoints(conn, deduped);
+          }
         }
       }
     }

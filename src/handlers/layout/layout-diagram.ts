@@ -193,6 +193,7 @@ async function postProcessLayout(
 
   if (!elementIds && !scopeElementId) {
     diagram.pinnedElements = undefined;
+    diagram.pinnedConnections = undefined;
   }
 
   await syncXml(diagram);
@@ -234,6 +235,43 @@ async function postProcessLayout(
   };
 }
 
+/** Save waypoints for all pinned connections so they can be restored after layout. */
+function savePinnedConnectionWaypoints(diagram: any): Map<string, Array<{ x: number; y: number }>> {
+  const saved = new Map<string, Array<{ x: number; y: number }>>();
+  if (!diagram.pinnedConnections?.size) return saved;
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  for (const connId of diagram.pinnedConnections) {
+    const conn = elementRegistry.get(connId);
+    if (conn?.waypoints) {
+      saved.set(
+        connId,
+        conn.waypoints.map((wp: any) => ({ x: wp.x, y: wp.y }))
+      );
+    }
+  }
+  return saved;
+}
+
+/** Restore previously saved pinned connection waypoints after layout. */
+function restorePinnedConnectionWaypoints(
+  diagram: any,
+  saved: Map<string, Array<{ x: number; y: number }>>
+): void {
+  if (saved.size === 0) return;
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  const modeling = getService(diagram.modeler, 'modeling');
+  for (const [connId, waypoints] of saved) {
+    const conn = elementRegistry.get(connId);
+    if (conn && waypoints.length >= 2) {
+      try {
+        modeling.updateWaypoints(conn, waypoints);
+      } catch {
+        // Skip connections that can't be restored (e.g. element was deleted)
+      }
+    }
+  }
+}
+
 export async function handleLayoutDiagram(
   args: LayoutDiagramArgs,
   context?: ToolContext
@@ -273,8 +311,17 @@ export async function handleLayoutDiagram(
   // Repair missing DI shapes before layout so ELK can position all elements
   const repairs = await repairMissingDiShapes(diagram);
 
+  // Save pinned connection waypoints before layout so they can be restored
+  // after the pipeline overwrites them. Mirroring element pinning, full
+  // layout (no elementIds / scopeElementId) clears the pin state so future
+  // layouts are free to re-route the connection.
+  const savedPinnedWaypoints = savePinnedConnectionWaypoints(diagram);
+
   await progress?.(10, 100, 'Running ELK layout…');
   const { layoutResult, usedDeterministic } = await executeLayout(diagram, layoutArgs);
+
+  // Restore pinned connection waypoints after the layout pipeline
+  restorePinnedConnectionWaypoints(diagram, savedPinnedWaypoints);
 
   const postResult = await postProcessLayout(diagram, layoutArgs, context);
   const allDiWarnings = [...repairs, ...postResult.diWarnings];

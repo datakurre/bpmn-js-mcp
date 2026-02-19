@@ -74,6 +74,12 @@ export async function handleSetConnectionWaypoints(
   // Use modeling.updateWaypoints to update through the command stack (undoable)
   modeling.updateWaypoints(connection, waypoints);
 
+  // Mark this connection as pinned so subsequent layouts preserve its waypoints.
+  // The pin is cleared when the user runs a full layout_bpmn_diagram (without
+  // elementIds or scopeElementId), matching the behaviour of pinned elements.
+  if (!diagram.pinnedConnections) diagram.pinnedConnections = new Set();
+  diagram.pinnedConnections.add(connectionId);
+
   await syncXml(diagram);
 
   const result = jsonResult({
@@ -85,6 +91,8 @@ export async function handleSetConnectionWaypoints(
     previousWaypoints: oldWaypoints,
     newWaypoints: waypoints,
     waypointCount: waypoints.length,
+    pinned: true,
+    note: 'Waypoints pinned — layout_bpmn_diagram (full) will preserve these waypoints and clear the pin.',
   });
   return appendLintFeedback(result, diagram);
 }
