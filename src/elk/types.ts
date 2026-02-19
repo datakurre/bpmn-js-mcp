@@ -2,7 +2,63 @@
  * Shared types for the ELK layout engine.
  */
 
+import type { LayoutOptions } from 'elkjs';
 import type { BpmnElement } from '../bpmn-types';
+
+/**
+ * Typed ELK layout options for BPMN diagrams (J5).
+ *
+ * ELK accepts all layout options as `LayoutOptions = Record<string, string>`
+ * from elkjs.  This interface documents every ELK option key used by the
+ * BPMN-MCP layout engine with its accepted values and purpose, providing
+ * self-documentation and IDE autocomplete for the `ELK_LAYOUT_OPTIONS`
+ * constant in `src/elk/constants.ts`.
+ *
+ * All values are strings because ELK's API only accepts strings.  Numeric
+ * values are passed as `String(n)`, booleans as `'true'` / `'false'`.
+ *
+ * Note: This type does not extend `LayoutOptions` to avoid TypeScript's
+ * index-signature constraint (`[key: string]: string`) which prevents
+ * optional narrowed-union properties.  Use `asElkLayoutOptions()` to cast
+ * to `LayoutOptions` where needed for elkjs API compatibility.
+ */
+export interface BpmnElkOptions {
+  'elk.algorithm'?: string;
+  'elk.direction'?: 'RIGHT' | 'DOWN' | 'LEFT' | 'UP';
+  'elk.edgeRouting'?: 'ORTHOGONAL' | 'SPLINES' | 'POLYLINE' | 'UNDEFINED';
+  'elk.spacing.nodeNode'?: string;
+  'elk.spacing.edgeNode'?: string;
+  'elk.spacing.componentComponent'?: string;
+  'elk.layered.spacing.nodeNodeBetweenLayers'?: string;
+  'elk.layered.spacing.edgeNodeBetweenLayers'?: string;
+  'elk.layered.spacing.edgeEdgeBetweenLayers'?: string;
+  'elk.layered.nodePlacement.strategy'?:
+    | 'NETWORK_SIMPLEX'
+    | 'BRANDES_KOEPF'
+    | 'LINEAR_SEGMENTS'
+    | 'SIMPLE';
+  'elk.layered.nodePlacement.favorStraightEdges'?: 'true' | 'false';
+  'elk.layered.crossingMinimization.strategy'?: 'LAYER_SWEEP' | 'INTERACTIVE' | 'NONE';
+  'elk.layered.crossingMinimization.thoroughness'?: string;
+  'elk.layered.crossingMinimization.forceNodeModelOrder'?: 'true' | 'false';
+  'elk.layered.crossingMinimization.semiInteractive'?: 'true' | 'false';
+  'elk.layered.cycleBreaking.strategy'?: 'DEPTH_FIRST' | 'GREEDY' | 'INTERACTIVE' | 'MODEL_ORDER';
+  'elk.layered.highDegreeNodes.treatment'?: 'true' | 'false';
+  'elk.layered.highDegreeNodes.threshold'?: string;
+  'elk.layered.compaction.postCompaction.strategy'?: 'EDGE_LENGTH' | 'NONE' | 'CONSTRAINT_GRAPH';
+  'elk.separateConnectedComponents'?: 'true' | 'false';
+  'elk.layered.considerModelOrder.strategy'?: 'NODES_AND_EDGES' | 'NODES_ONLY' | 'NONE';
+  'elk.priority.straightness'?: string;
+  'elk.priority.direction'?: string;
+}
+
+/**
+ * Cast a {@link BpmnElkOptions} value to `LayoutOptions` for passing to
+ * elkjs functions that expect `Record<string, string>`.
+ */
+export function asElkLayoutOptions(opts: BpmnElkOptions): LayoutOptions {
+  return opts as LayoutOptions;
+}
 
 /** Optional parameters for ELK layout. */
 export interface ElkLayoutOptions {

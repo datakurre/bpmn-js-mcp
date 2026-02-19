@@ -84,12 +84,12 @@
         <dc:Bounds x="338" y="480" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="BPMNEdge_1wl87uu" bpmnElement="Flow_00wj4ud">
-        <di:waypoint x="438" y="520" />
-        <di:waypoint x="498" y="520" />
+        <di:waypoint x="438" y="502" />
+        <di:waypoint x="498" y="502" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_02nqfx0" bpmnElement="Flow_0n5lx63">
-        <di:waypoint x="278" y="520" />
-        <di:waypoint x="338" y="520" />
+        <di:waypoint x="278" y="502" />
+        <di:waypoint x="338" y="502" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_088h286_di" bpmnElement="Flow_088h286">
         <di:waypoint x="388" y="252" />

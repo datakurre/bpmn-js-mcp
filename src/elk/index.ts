@@ -106,7 +106,7 @@ import { avoidElementIntersections } from './element-avoidance';
 import { resolveOverlaps } from './overlap-resolution';
 import type { ElkLayoutOptions } from './types';
 
-export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer } from './types';
+export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer, BpmnElkOptions } from './types';
 
 export { elkLayoutSubset } from './subset-layout';
 

@@ -2,7 +2,7 @@
  * ELK-specific constants for BPMN diagram layout.
  */
 
-import type { LayoutOptions } from 'elkjs';
+import type { BpmnElkOptions } from './types';
 import {
   ELK_LAYER_SPACING,
   ELK_NODE_SPACING,
@@ -12,7 +12,7 @@ import {
 } from '../constants';
 
 /** Default ELK layout options tuned for BPMN diagrams. */
-export const ELK_LAYOUT_OPTIONS: LayoutOptions = {
+export const ELK_LAYOUT_OPTIONS: BpmnElkOptions = {
   'elk.algorithm': 'layered',
   'elk.direction': 'RIGHT',
   'elk.spacing.nodeNode': String(ELK_NODE_SPACING),
@@ -33,6 +33,14 @@ export const ELK_LAYOUT_OPTIONS: LayoutOptions = {
   // Post-layout compaction minimises total edge length, tightening the
   // layout without changing the layering or ordering.
   'elk.layered.compaction.postCompaction.strategy': 'EDGE_LENGTH',
+  // Separate disconnected sub-graphs into independent layout groups (A4).
+  // For fully-connected BPMN diagrams this has no effect; for diagrams with
+  // disconnected elements (e.g. unlinked text annotations or orphaned tasks)
+  // it places each connected component as a distinct block instead of
+  // mixing them into a single layout graph.
+  'elk.separateConnectedComponents': 'true',
+  // Minimum gap (px) between independently-laid-out connected components.
+  'elk.spacing.componentComponent': '50',
 };
 
 /**
