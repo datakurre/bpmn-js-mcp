@@ -24,14 +24,12 @@ import {
 import { STANDARD_BPMN_GAP, ELK_LAYER_SPACING, getElementSize } from '../../constants';
 import { appendLintFeedback } from '../../linter';
 import {
-  detectOverlaps,
-  resolveInsertionOverlaps,
   buildInsertResult,
   shiftIfNeeded,
   reconnectThroughElement,
+  postInsertCleanup,
 } from './insert-element-helpers';
 import { validateElementType, INSERTABLE_ELEMENT_TYPES } from '../element-type-validation';
-import { adjustElementLabel } from '../layout/labels/adjust-labels';
 
 export interface InsertElementArgs {
   diagramId: string;
@@ -334,20 +332,18 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
     flowCondition
   );
 
-  const overlaps = detectOverlaps(elementRegistry, createdElement);
-  if (overlaps.length > 0) {
-    resolveInsertionOverlaps(modeling, elementRegistry, createdElement, overlaps);
-  }
-
-  // C1-4: Adjust labels on the new connections and the inserted element.
-  // Best-effort — label adjustment failures are non-fatal.
-  try {
-    await adjustElementLabel(diagram, createdElement.id);
-    await adjustElementLabel(diagram, conn1.id);
-    await adjustElementLabel(diagram, conn2.id);
-  } catch {
-    // Ignore label adjustment errors (e.g. element has no label)
-  }
+  // C1-3/C1-4: Set clean waypoints and adjust labels (extracted helper).
+  const overlaps = await postInsertCleanup({
+    modeling,
+    elementRegistry,
+    diagram,
+    source: updatedSource,
+    inserted: createdElement,
+    target: updatedTarget,
+    conn1,
+    conn2,
+    alignmentTolerance: ALIGNMENT_TOLERANCE,
+  });
 
   await syncXml(diagram);
 

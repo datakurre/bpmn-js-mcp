@@ -18,6 +18,7 @@ import {
 } from '../helpers';
 import { handleSetEventDefinition } from '../properties/set-event-definition';
 import { getTypeSpecificHints, getNamingHint } from '../hints';
+import { buildZShapeRoute } from '../../elk/edge-routing-helpers';
 
 // ── Auto-connect ────────────────────────────────────────────────────────────
 
@@ -65,6 +66,30 @@ export function autoConnectToElement(
           targetId: createdElement.id,
           type: 'bpmn:SequenceFlow',
         });
+
+        // C2-4: Set clean orthogonal waypoints on the auto-created connection.
+        // Uses a straight 2-point horizontal route when source and target are on
+        // the same Y row, or a Z-shaped 4-point route for different rows.
+        try {
+          const srcRight = Math.round(afterEl.x + (afterEl.width || 0));
+          const srcCy = Math.round(afterEl.y + (afterEl.height || 0) / 2);
+          const tgtLeft = Math.round(createdElement.x);
+          const tgtCy = Math.round(createdElement.y + (createdElement.height || 0) / 2);
+          const SAME_ROW_THRESHOLD = 15;
+          if (Math.abs(srcCy - tgtCy) <= SAME_ROW_THRESHOLD) {
+            (modeling as any).updateWaypoints(conn, [
+              { x: srcRight, y: srcCy },
+              { x: tgtLeft, y: srcCy },
+            ]);
+          } else {
+            (modeling as any).updateWaypoints(
+              conn,
+              buildZShapeRoute(srcRight, srcCy, tgtLeft, tgtCy)
+            );
+          }
+        } catch {
+          // Waypoint update is non-fatal — default bpmn-js routing is used as fallback
+        }
       } catch {
         // Auto-connect may fail for some element type combinations — non-fatal
       }

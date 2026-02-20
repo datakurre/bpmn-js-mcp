@@ -42,56 +42,113 @@ export function shiftDownstreamElements(
   resizeParentContainers(elementRegistry, modeling);
 }
 
+// ── Parent container resizing ───────────────────────────────────────────────
+
+/** Resize a single participant pool to contain all direct children with padding. */
+function resizePool(pool: any, elementRegistry: any, modeling: any): void {
+  const children = elementRegistry.filter(
+    (el: any) =>
+      el.parent === pool &&
+      el.type !== BPMN_LANE_TYPE &&
+      !el.type.includes('SequenceFlow') &&
+      !el.type.includes('MessageFlow') &&
+      !el.type.includes('Association')
+  );
+  if (children.length === 0) return;
+
+  let maxRight = 0;
+  for (const child of children) {
+    const right = child.x + (child.width || 0);
+    if (right > maxRight) maxRight = right;
+  }
+
+  const poolRight = pool.x + (pool.width || 0);
+  const padding = 50;
+  if (maxRight + padding > poolRight) {
+    modeling.resizeShape(pool, {
+      x: pool.x,
+      y: pool.y,
+      width: maxRight - pool.x + padding,
+      height: pool.height || 250,
+    });
+  }
+}
+
+/** Resize lanes inside a pool to match the pool's current width. */
+function resizeLanes(pool: any, elementRegistry: any, modeling: any): void {
+  const lanes = elementRegistry.filter(
+    (el: any) => el.type === BPMN_LANE_TYPE && el.parent === pool
+  );
+  const poolWidth = pool.width || 600;
+  for (const lane of lanes) {
+    if (lane.width !== poolWidth - 30) {
+      modeling.resizeShape(lane, {
+        x: lane.x,
+        y: lane.y,
+        width: poolWidth - 30,
+        height: lane.height || 125,
+      });
+    }
+  }
+}
+
+/** Resize an expanded subprocess to contain all its children. */
+function resizeSubprocess(sp: any, elementRegistry: any, modeling: any): void {
+  const children = elementRegistry.filter(
+    (el: any) =>
+      el.parent === sp &&
+      !el.type.includes('SequenceFlow') &&
+      !el.type.includes('MessageFlow') &&
+      !el.type.includes('Association') &&
+      el.type !== 'label'
+  );
+  if (children.length === 0) return;
+
+  let maxRight = 0;
+  let maxBottom = 0;
+  for (const child of children) {
+    const right = child.x + (child.width || 0);
+    const bottom = child.y + (child.height || 0);
+    if (right > maxRight) maxRight = right;
+    if (bottom > maxBottom) maxBottom = bottom;
+  }
+
+  const padding = 40;
+  const spRight = sp.x + (sp.width || 0);
+  const spBottom = sp.y + (sp.height || 0);
+  const needsWidthGrow = maxRight + padding > spRight;
+  const needsHeightGrow = maxBottom + padding > spBottom;
+
+  if (needsWidthGrow || needsHeightGrow) {
+    modeling.resizeShape(sp, {
+      x: sp.x,
+      y: sp.y,
+      width: needsWidthGrow ? maxRight - sp.x + padding : sp.width || 350,
+      height: needsHeightGrow ? maxBottom - sp.y + padding : sp.height || 200,
+    });
+  }
+}
+
 /**
- * Resize participant pools and lanes that are too narrow after elements
- * were shifted right.
+ * Resize participant pools, lanes, and expanded subprocesses that are too
+ * narrow/short after elements were shifted right.
+ *
+ * C1-5: Extends pool resizing to also cover expanded subprocesses, so that
+ * downstream-shifted child elements remain within their parent container.
  */
 export function resizeParentContainers(elementRegistry: any, modeling: any): void {
   const participants = elementRegistry.filter((el: any) => el.type === BPMN_PARTICIPANT_TYPE);
   for (const pool of participants) {
-    const children = elementRegistry.filter(
-      (el: any) =>
-        el.parent === pool &&
-        el.type !== BPMN_LANE_TYPE &&
-        !el.type.includes('SequenceFlow') &&
-        !el.type.includes('MessageFlow') &&
-        !el.type.includes('Association')
-    );
-    if (children.length === 0) continue;
-
-    let maxRight = 0;
-    for (const child of children) {
-      const right = child.x + (child.width || 0);
-      if (right > maxRight) maxRight = right;
-    }
-
-    const poolRight = pool.x + (pool.width || 0);
-    const padding = 50;
-    if (maxRight + padding > poolRight) {
-      const newWidth = maxRight - pool.x + padding;
-      modeling.resizeShape(pool, {
-        x: pool.x,
-        y: pool.y,
-        width: newWidth,
-        height: pool.height || 250,
-      });
-    }
+    resizePool(pool, elementRegistry, modeling);
+    resizeLanes(pool, elementRegistry, modeling);
   }
 
-  const lanes = elementRegistry.filter((el: any) => el.type === BPMN_LANE_TYPE);
-  for (const lane of lanes) {
-    const parent = lane.parent;
-    if (parent && parent.type === BPMN_PARTICIPANT_TYPE) {
-      const poolWidth = parent.width || 600;
-      if (lane.width !== poolWidth - 30) {
-        modeling.resizeShape(lane, {
-          x: lane.x,
-          y: lane.y,
-          width: poolWidth - 30,
-          height: lane.height || 125,
-        });
-      }
-    }
+  // C1-5: Also resize expanded SubProcesses whose children have shifted past the right edge.
+  const subprocesses = elementRegistry.filter(
+    (el: any) => el.type === 'bpmn:SubProcess' && el.collapsed !== true
+  );
+  for (const sp of subprocesses) {
+    resizeSubprocess(sp, elementRegistry, modeling);
   }
 }
 
@@ -280,4 +337,85 @@ export function createAndPlaceElement(opts: {
   }
   if (!parent) throw new McpError(ErrorCode.InternalError, 'No bpmn:Process found in diagram');
   return { createdElement: modeling.createShape(shape, { x, y }, parent) };
+}
+
+// ── Downstream BFS collection ───────────────────────────────────────────────
+
+/**
+ * Return true if the element is a shape that should be shifted (not a connection/pool/lane).
+ */
+function isShiftableShape(el: any): boolean {
+  if (!el.type) return false;
+  return (
+    !el.type.includes('SequenceFlow') &&
+    !el.type.includes('MessageFlow') &&
+    !el.type.includes('Association') &&
+    el.type !== 'bpmn:Participant' &&
+    el.type !== 'bpmn:Lane' &&
+    el.type !== 'bpmn:Process' &&
+    el.type !== 'bpmn:Collaboration' &&
+    el.type !== 'label'
+  );
+}
+
+/** Check if an element is a shiftable shape and add it (plus its boundary events) to `result`. */
+function addShapeIfEligible(el: any, result: any[], visited: Set<string>): void {
+  if (!isShiftableShape(el)) return;
+  result.push(el);
+  if (el.attachers) {
+    for (const attacher of el.attachers) {
+      if (!visited.has(attacher.id)) {
+        result.push(attacher);
+        visited.add(attacher.id);
+      }
+    }
+  }
+}
+
+/** Follow outgoing SequenceFlow / MessageFlow targets and add unseen ones to the queue. */
+function enqueueOutgoingTargets(el: any, queue: any[], visited: Set<string>): void {
+  if (!el.outgoing) return;
+  for (const flow of el.outgoing) {
+    if (!flow.type) continue;
+    if (!flow.type.includes('SequenceFlow') && !flow.type.includes('MessageFlow')) continue;
+    const target = flow.target;
+    if (target && !visited.has(target.id)) {
+      queue.push(target);
+    }
+  }
+}
+
+/**
+ * BFS traversal of the sequence flow graph starting from `rootElement`.
+ *
+ * Returns the set of shape elements reachable by following outgoing sequence
+ * flows from `rootElement`, excluding the `excludeId` element (the source/anchor
+ * element that we don't want to move).  Boundary events attached to reachable
+ * hosts are also included.
+ *
+ * Used by both insert-element (C1-1) and add-element afterElementId shifting (C2-2)
+ * to avoid displacing elements on unrelated parallel branches.
+ */
+export function collectDownstreamElements(
+  elementRegistry: any,
+  rootElement: any,
+  excludeId: string
+): any[] {
+  const visited = new Set<string>();
+  const queue: any[] = [rootElement];
+  const result: any[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current.id)) continue;
+    visited.add(current.id);
+
+    if (current.id !== excludeId) {
+      addShapeIfEligible(current, result, visited);
+    }
+
+    enqueueOutgoingTargets(current, queue, visited);
+  }
+
+  return result;
 }

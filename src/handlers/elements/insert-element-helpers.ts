@@ -12,7 +12,9 @@ import {
   fixConnectionId,
 } from '../helpers';
 import { getTypeSpecificHints } from '../hints';
-import { resizeParentContainers } from './add-element-helpers';
+import { resizeParentContainers, collectDownstreamElements } from './add-element-helpers';
+import { buildZShapeRoute } from '../../elk/edge-routing-helpers';
+import { adjustElementLabel } from '../layout/labels/adjust-labels';
 
 /**
  * Detect elements that overlap with the newly inserted element.
@@ -177,79 +179,6 @@ export function shiftIfNeeded(
   return shiftAmount;
 }
 
-/**
- * C1-1: BFS traversal of the sequence flow graph starting from `rootElement`.
- *
- * Returns the set of shape elements reachable by following outgoing sequence
- * flows from `rootElement`, excluding the `excludeId` element (the insertion
- * source).  Boundary events attached to reachable hosts are also included.
- */
-export function collectDownstreamElements(
-  elementRegistry: any,
-  rootElement: any,
-  excludeId: string
-): any[] {
-  const visited = new Set<string>();
-  const queue: any[] = [rootElement];
-  const result: any[] = [];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current || visited.has(current.id)) continue;
-    visited.add(current.id);
-
-    if (current.id !== excludeId) {
-      addShapeIfEligible(current, result, visited);
-    }
-
-    enqueueOutgoingTargets(current, queue, visited);
-  }
-
-  return result;
-}
-
-/** Check if an element is a shiftable shape and add it (plus its boundary events) to `result`. */
-function addShapeIfEligible(el: any, result: any[], visited: Set<string>): void {
-  if (!isShiftableShape(el)) return;
-  result.push(el);
-  if (el.attachers) {
-    for (const attacher of el.attachers) {
-      if (!visited.has(attacher.id)) {
-        result.push(attacher);
-        visited.add(attacher.id);
-      }
-    }
-  }
-}
-
-/** Return true if the element is a shape that should be shifted (not a connection/pool/lane). */
-function isShiftableShape(el: any): boolean {
-  if (!el.type) return false;
-  return (
-    !el.type.includes('SequenceFlow') &&
-    !el.type.includes('MessageFlow') &&
-    !el.type.includes('Association') &&
-    el.type !== 'bpmn:Participant' &&
-    el.type !== 'bpmn:Lane' &&
-    el.type !== 'bpmn:Process' &&
-    el.type !== 'bpmn:Collaboration' &&
-    el.type !== 'label'
-  );
-}
-
-/** Follow outgoing SequenceFlow / MessageFlow targets and add unseen ones to the queue. */
-function enqueueOutgoingTargets(el: any, queue: any[], visited: Set<string>): void {
-  if (!el.outgoing) return;
-  for (const flow of el.outgoing) {
-    if (!flow.type) continue;
-    if (!flow.type.includes('SequenceFlow') && !flow.type.includes('MessageFlow')) continue;
-    const target = flow.target;
-    if (target && !visited.has(target.id)) {
-      queue.push(target);
-    }
-  }
-}
-
 /** Reconnect source→newElement→target with new sequence flows. */
 export function reconnectThroughElement(
   modeling: any,
@@ -277,4 +206,92 @@ export function reconnectThroughElement(
   });
   fixConnectionId(conn2, flowId2);
   return { conn1, conn2 };
+}
+
+/**
+ * C1-3: Set clean orthogonal waypoints on the two sequence flows created by
+ * `reconnectThroughElement`.  Uses straight 2-point horizontal waypoints when
+ * source and inserted are on the same Y row, or Z-shaped 4-point waypoints
+ * when they are on different rows.
+ *
+ * Non-fatal: if waypoint update fails (e.g. element not yet fully positioned),
+ * bpmn-js default routing is kept as a fallback.
+ */
+export function setInsertWaypoints(
+  modeling: any,
+  source: any,
+  inserted: any,
+  target: any,
+  conn1: any,
+  conn2: any,
+  alignmentTolerance: number
+): void {
+  const srcRight = Math.round(source.x + (source.width || 0));
+  const srcCy = Math.round(source.y + (source.height || 0) / 2);
+  const insLeft = Math.round(inserted.x);
+  const insRight = Math.round(inserted.x + (inserted.width || 0));
+  const insCy = Math.round(inserted.y + (inserted.height || 0) / 2);
+  const tgtLeft = Math.round(target.x);
+  const tgtCy = Math.round(target.y + (target.height || 0) / 2);
+
+  // conn1: source → inserted
+  if (Math.abs(srcCy - insCy) <= alignmentTolerance) {
+    modeling.updateWaypoints(conn1, [
+      { x: srcRight, y: srcCy },
+      { x: insLeft, y: srcCy },
+    ]);
+  } else {
+    modeling.updateWaypoints(conn1, buildZShapeRoute(srcRight, srcCy, insLeft, insCy));
+  }
+
+  // conn2: inserted → target
+  if (Math.abs(insCy - tgtCy) <= alignmentTolerance) {
+    modeling.updateWaypoints(conn2, [
+      { x: insRight, y: insCy },
+      { x: tgtLeft, y: insCy },
+    ]);
+  } else {
+    modeling.updateWaypoints(conn2, buildZShapeRoute(insRight, insCy, tgtLeft, tgtCy));
+  }
+}
+
+/**
+ * Post-insert cleanup: overlap resolution, C1-3 waypoints, and C1-4 label adjustment.
+ * Extracted to keep `handleInsertElement` within the max-lines limit.
+ */
+export async function postInsertCleanup(opts: {
+  modeling: any;
+  elementRegistry: any;
+  diagram: any;
+  source: any;
+  inserted: any;
+  target: any;
+  conn1: any;
+  conn2: any;
+  alignmentTolerance: number;
+}): Promise<any[]> {
+  const { modeling, elementRegistry, diagram, source, inserted, target, conn1, conn2 } = opts;
+
+  // C1-3: Set clean orthogonal waypoints on the new connections
+  try {
+    setInsertWaypoints(modeling, source, inserted, target, conn1, conn2, opts.alignmentTolerance);
+  } catch {
+    // Non-fatal — bpmn-js default routing used as fallback
+  }
+
+  const overlaps = detectOverlaps(elementRegistry, inserted);
+  if (overlaps.length > 0) {
+    resolveInsertionOverlaps(modeling, elementRegistry, inserted, overlaps);
+  }
+
+  // C1-4: Adjust labels on the new connections and the inserted element.
+  try {
+    await adjustElementLabel(diagram, inserted.id);
+    await adjustElementLabel(diagram, conn1.id);
+    await adjustElementLabel(diagram, conn2.id);
+  } catch {
+    // Ignore label adjustment errors (e.g. element has no label)
+  }
+
+  return overlaps;
 }

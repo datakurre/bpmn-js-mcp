@@ -23,6 +23,8 @@ import {
   snapToLane,
   createAndPlaceElement,
   avoidCollision,
+  collectDownstreamElements,
+  resizeParentContainers,
 } from './add-element-helpers';
 import {
   autoConnectToElement,
@@ -214,15 +216,43 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
       x = afterEl.x + (afterEl.width || afterSize.width) + STANDARD_BPMN_GAP;
       y = afterEl.y + (afterEl.height || afterSize.height) / 2;
 
-      // Smart insertion: shift downstream elements to the right to prevent overlap
+      // C2-3: Branch-aware Y positioning.
+      // If the anchor element already has outgoing connections with targets
+      // at the same X level, place the new element below the lowest existing
+      // target instead of stacking on top of them.  This is typical when the
+      // user adds a new outgoing branch from a gateway or a branching task.
       const newSize = getElementSize(elementType);
-      shiftDownstreamElements(
-        elementRegistry,
-        modeling,
-        x,
-        newSize.width + STANDARD_BPMN_GAP,
-        afterElementId
+      const existingOutgoing = (afterEl.outgoing || []).filter(
+        (flow: any) =>
+          flow.type?.includes('SequenceFlow') && flow.target && flow.target.x >= x - newSize.width
       );
+      if (existingOutgoing.length > 0) {
+        let maxBottom = 0;
+        for (const flow of existingOutgoing) {
+          const tgt = flow.target as any;
+          if (!tgt) continue;
+          const bottom = (tgt.y ?? 0) + (tgt.height ?? 0);
+          if (bottom > maxBottom) maxBottom = bottom;
+        }
+        // Place below the lowest existing branch with a gap
+        y = maxBottom + STANDARD_BPMN_GAP + newSize.height / 2;
+      }
+
+      // C2-2: BFS-based downstream shifting.
+      // Instead of shifting ALL elements at x >= computed_x (blanket approach),
+      // BFS-walk from afterEl along outgoing sequence flows and shift only reachable
+      // downstream elements.  This prevents displacing elements on unrelated parallel
+      // branches when adding a new element after one branch of a gateway.
+      const shiftAmount = newSize.width + STANDARD_BPMN_GAP;
+      const downstream = collectDownstreamElements(elementRegistry, afterEl, afterElementId);
+      if (downstream.length > 0) {
+        modeling.moveElements(downstream, { x: shiftAmount, y: 0 });
+        resizeParentContainers(elementRegistry, modeling);
+      } else {
+        // Fallback: if no outgoing flows found, use the blanket X-threshold shift
+        // to avoid newly placed element overlapping existing unconnected elements.
+        shiftDownstreamElements(elementRegistry, modeling, x, shiftAmount, afterElementId);
+      }
     }
   }
 
