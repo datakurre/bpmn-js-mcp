@@ -134,8 +134,13 @@ function computeBoundaryPosition(
  * For 'left' and 'right' borders, events are spread along the Y axis.
  * Events are distributed evenly within the middle 80% of the border
  * to avoid crowding the corners.
+ *
+ * Uses `modeling.moveElements` so moves are recorded on the command
+ * stack and are undoable.  DetachEventBehavior will not fire because
+ * the boundary event's `host` property remains set — it only detaches
+ * when `host` is null/undefined.
  */
-function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[]): void {
+function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[], modeling: Modeling): void {
   // Group by (host ID, border)
   const groups = new Map<string, BpmnElement[]>();
   for (const be of boundaryEvents) {
@@ -171,10 +176,8 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[]): void {
         const dx = targetCx - (be.x + beW / 2);
 
         if (Math.abs(dx) > 1) {
-          be.x += dx;
-          if (be.di?.bounds) be.di.bounds.x = be.x;
-          if (be.label) be.label.x += dx;
-          if (be.di?.label?.bounds) be.di.label.bounds.x += dx;
+          // Keep boundary event attached to host (prevents DetachEventBehavior)
+          modeling.moveElements([be], { x: dx, y: 0 }, be.host, { attach: true });
         }
       }
     } else {
@@ -193,10 +196,8 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[]): void {
         const dy = targetCy - (be.y + beH / 2);
 
         if (Math.abs(dy) > 1) {
-          be.y += dy;
-          if (be.di?.bounds) be.di.bounds.y = be.y;
-          if (be.label) be.label.y += dy;
-          if (be.di?.label?.bounds) be.di.label.bounds.y += dy;
+          // Keep boundary event attached to host (prevents DetachEventBehavior)
+          modeling.moveElements([be], { x: 0, y: dy }, be.host, { attach: true });
         }
       }
     }
@@ -224,7 +225,7 @@ function spreadBoundaryEventsOnSameBorder(boundaryEvents: BpmnElement[]): void {
  */
 export function repositionBoundaryEvents(
   elementRegistry: ElementRegistry,
-  _modeling: Modeling,
+  modeling: Modeling,
   snapshots?: BoundaryEventSnapshot[]
 ): void {
   // When snapshots are provided, we're running after a full layout and
@@ -305,32 +306,18 @@ export function repositionBoundaryEvents(
       const dy = target.cy - beCy;
 
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-        // ⚠ Command stack bypass (J3): directly update position instead of
-        // calling modeling.moveElements, because moving a boundary event via
-        // the command stack triggers DetachEventBehavior in headless/jsdom
-        // mode.  DetachEventBehavior tries to replace it with an
-        // IntermediateCatchEvent and runs SVG path intersection calculations
-        // on null path data, causing a crash.  Direct mutation is safe here
-        // because layout operations already run outside normal undo scope.
-        be.x += dx;
-        be.y += dy;
-        const di = be.di;
-        if (di?.bounds) {
-          di.bounds.x = be.x;
-          di.bounds.y = be.y;
-        }
-
-        // Move the label by the same delta so it stays near the event
-        // (direct manipulation doesn't update child shapes automatically).
-        if (be.label) {
-          be.label.x += dx;
-          be.label.y += dy;
-        }
-        // Also update the label DI bounds to keep BPMN XML consistent
-        if (di?.label?.bounds) {
-          di.label.bounds.x += dx;
-          di.label.bounds.y += dy;
-        }
+        // D6-4: Use modeling.moveElements so the move is recorded on the
+        // command stack (undoable) and bpmn-js updates DI bounds and labels
+        // automatically.  Pass `be.host` as target with `attach: true` so
+        // that DetachEventBehavior sees `newHost = be.host` (truthy) and
+        // does NOT convert the boundary event to an intermediate event.
+        // The SVG path polyfills added in D1-2/D6-2 provide safe stubs for
+        // any code paths that reach SVG path intersection methods headlessly.
+        //
+        // Any connection re-routing triggered by bpmn-js behaviours is
+        // overwritten later in the pipeline by applyElkEdgeRoutes() and
+        // subsequent edge repair steps, so it does not affect final output.
+        modeling.moveElements([be], { x: dx, y: dy }, be.host, { attach: true });
       }
     }
   }
@@ -339,5 +326,5 @@ export function repositionBoundaryEvents(
   // Group boundary events by host, then detect events on the same border.
   // When multiple events share a border, spread them evenly along that
   // edge to prevent overlap.
-  spreadBoundaryEventsOnSameBorder(boundaryEvents);
+  spreadBoundaryEventsOnSameBorder(boundaryEvents, modeling);
 }

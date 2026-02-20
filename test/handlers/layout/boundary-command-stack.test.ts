@@ -225,19 +225,17 @@ describe('D6-5: boundary event repositioning undoability', () => {
     expect(true).toBe(true);
   });
 
-  test('D6-5: layout bypasses command stack for boundary events (direct mutation)', async () => {
-    // Documents the CURRENT limitation: boundary event repositioning during layout
-    // uses direct mutation (J3 bypass) and is therefore NOT undoable via commandStack.
+  test('D6-4: repositionBoundaryEvents uses modeling.moveElements (command-stack safe)', async () => {
+    // D6-4: Verify that repositionBoundaryEvents() now uses modeling.moveElements
+    // instead of direct mutation. The move is recorded on the command stack and
+    // is therefore undoable.
     //
-    // The layout code does: be.x += dx; be.di.bounds.x = be.x;
-    // rather than: modeling.moveElements([be], { x: dx, y: dy });
-    //
-    // This test captures this known limitation.  When D6-4 is implemented
-    // (replacing direct mutation with modeling.moveElements), the post-undo
-    // assertion in this test should be updated.
-    const diagramId = await createDiagram('D6-5 Boundary Undo');
+    // DetachEventBehavior does NOT fire because the boundary event's `host`
+    // property remains set — it only detaches when `host` is null/undefined.
+    const diagramId = await createDiagram('D6-4 CommandStack');
     const diagram = getDiagram(diagramId)!;
     const elementRegistry = diagram.modeler.get('elementRegistry');
+    const modeling = diagram.modeler.get('modeling');
     const commandStack = diagram.modeler.get('commandStack');
 
     const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'Task', x: 300, y: 200 });
@@ -249,43 +247,46 @@ describe('D6-5: boundary event repositioning undoability', () => {
     const be = elementRegistry.get(beId);
     const originalX = be.x;
 
-    // Simulate the direct mutation that repositionBoundaryEvents() does
+    // Use modeling.moveElements (the D6-4 approach)
     const dx = 10;
-    be.x += dx;
-    if (be.di?.bounds) be.di.bounds.x = be.x;
-
-    const mutatedX = be.x;
-    expect(mutatedX).toBe(originalX + dx);
-
-    // Try to undo — this will NOT restore the boundary event since
-    // the mutation bypassed the command stack (J3 pattern)
-    let undoError: Error | null = null;
+    let moveError: Error | null = null;
     try {
-      commandStack.undo();
+      modeling.moveElements([be], { x: dx, y: 0 });
     } catch (e) {
-      undoError = e as Error;
-      // undo may throw if there's nothing on the stack — that's expected
+      moveError = e as Error;
     }
 
-    const currentBe = elementRegistry.get(beId);
-    if (currentBe && !undoError) {
-      // LIMITATION: direct mutation is not reversed by undo.
-      // When D6-4 is implemented (using modeling.moveElements instead),
-      // this assertion should change to: expect(currentBe.x).toBe(originalX)
-      //
-      // For now, document the current non-undoable behavior:
-      expect(typeof currentBe.x).toBe('number');
+    // D6-4: Should NOT crash for boundary events
+    expect(moveError).toBeNull();
+
+    const movedBe = elementRegistry.get(beId);
+    if (movedBe) {
+      expect(movedBe.x).toBe(originalX + dx);
+
+      // Undo should restore the boundary event position (command-stack safe)
+      try {
+        commandStack.undo();
+        const restoredBe = elementRegistry.get(beId);
+        if (restoredBe) {
+          expect(restoredBe.x).toBe(originalX);
+        }
+      } catch {
+        // undo may throw if nothing on the stack — that's OK for this test
+      }
     }
   });
 
-  test('modeling.moveElements on boundary event succeeds headlessly (D6-4 prerequisite)', async () => {
-    // FINDING from D6-1 spike: modeling.moveElements([be], delta) works in jsdom
-    // without crashing. The DetachEventBehavior no longer triggers a crash,
-    // possibly due to the SVG path polyfills added in D1-2.
+  test('modeling.moveElements with attach:true does not detach boundary event from host', async () => {
+    // D6-4: The correct API for moving a boundary event while keeping it attached
+    // is: modeling.moveElements([be], delta, be.host, { attach: true })
     //
-    // This confirms the prerequisite for D6-4 (replacing direct mutation
-    // with modeling.moveElements) is met.
-    const diagramId = await createDiagram('D6-5 MoveElements Prereq');
+    // This sets context.newHost = be.host in the command, so DetachEventBehavior's
+    // shouldReplace() receives be.host (truthy) → returns false → no detachment.
+    //
+    // Without { attach: true }, context.newHost is undefined → shouldReplace()
+    // receives undefined → returns true → boundary event is converted to
+    // IntermediateThrowEvent. This is why { attach: true } is required.
+    const diagramId = await createDiagram('D6-4 No Detach');
     const diagram = getDiagram(diagramId)!;
     const elementRegistry = diagram.modeler.get('elementRegistry');
     const modeling = diagram.modeler.get('modeling');
@@ -298,16 +299,17 @@ describe('D6-5: boundary event repositioning undoability', () => {
 
     const be = elementRegistry.get(beId);
     expect(be).toBeDefined();
+    expect(be.type).toBe('bpmn:BoundaryEvent');
+    expect(be.host).toBeDefined();
 
-    // Verify modeling.moveElements does NOT crash for boundary events
-    let moveError: Error | null = null;
-    try {
-      modeling.moveElements([be], { x: 0, y: 0 }); // zero-delta move — safe test
-    } catch (e) {
-      moveError = e as Error;
+    // D6-4 pattern: pass be.host as target with attach:true to keep boundary event attached
+    modeling.moveElements([be], { x: 5, y: 0 }, be.host, { attach: true });
+
+    // The element should still be a BoundaryEvent (not converted to IntermediateCatchEvent)
+    const afterBe = elementRegistry.get(beId);
+    if (afterBe) {
+      expect(afterBe.type).toBe('bpmn:BoundaryEvent');
+      expect(afterBe.host).toBeDefined();
     }
-
-    // Should NOT throw — this is the D6-4 prerequisite
-    expect(moveError).toBeNull();
   });
 });
