@@ -69,12 +69,18 @@ export async function assertStep(
   // BPMN XML contains non-deterministic DI element IDs generated at creation
   // time, so byte-level comparison would fail on every fresh test run.
   // Snapshots are kept as human-readable artifacts for debugging only.
+  // Both XML (.bpmn) and SVG (.svg) are written for each snapshot step.
   if (checks.snapshotFile) {
-    const exportRes = await handleExportBpmn({ format: 'xml', diagramId, skipLint: true });
+    const exportRes = await handleExportBpmn({ format: 'both', diagramId, skipLint: true });
     const xml = exportRes.content[0].text;
+    const svg = exportRes.content[1]?.text ?? '';
     const snapshotPath = resolve(SNAPSHOTS_DIR, checks.snapshotFile);
     mkdirSync(dirname(snapshotPath), { recursive: true });
     writeFileSync(snapshotPath, xml, 'utf-8');
+    if (svg) {
+      const svgPath = snapshotPath.replace(/\.bpmn$/, '.svg');
+      writeFileSync(svgPath, svg, 'utf-8');
+    }
     return xml;
   }
 

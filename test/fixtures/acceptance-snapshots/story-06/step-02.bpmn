@@ -121,11 +121,11 @@
         <di:waypoint x="903" y="250" />
         <di:waypoint x="903" y="165" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1e90cn4_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
+      <bpmndi:BPMNEdge id="Flow_1pcd423_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
         <di:waypoint x="388" y="140" />
         <di:waypoint x="443" y="140" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0nzsvvd_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
+      <bpmndi:BPMNEdge id="Flow_1h8fsei_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
         <di:waypoint x="543" y="140" />
         <di:waypoint x="598" y="140" />
       </bpmndi:BPMNEdge>

@@ -63,19 +63,19 @@
           <dc:Bounds x="691" y="817" width="43" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0fexd8s_di" bpmnElement="Flow_SubStart_to_ChargeCard">
+      <bpmndi:BPMNEdge id="Flow_1ix0p7r_di" bpmnElement="Flow_SubStart_to_ChargeCard">
         <di:waypoint x="462" y="100" />
         <di:waypoint x="462" y="100" />
         <di:waypoint x="462" y="360" />
         <di:waypoint x="462" y="360" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1h2nhxz_di" bpmnElement="Flow_ChargeCard_to_SendReceipt">
+      <bpmndi:BPMNEdge id="Flow_0br4afb_di" bpmnElement="Flow_ChargeCard_to_SendReceipt">
         <di:waypoint x="562" y="360" />
         <di:waypoint x="562" y="360" />
         <di:waypoint x="562" y="620" />
         <di:waypoint x="562" y="620" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0m8lgfb_di" bpmnElement="Flow_SendReceipt_to_SubEnd">
+      <bpmndi:BPMNEdge id="Flow_1vsjxsd_di" bpmnElement="Flow_SendReceipt_to_SubEnd">
         <di:waypoint x="662" y="620" />
         <di:waypoint x="678" y="620" />
         <di:waypoint x="678" y="792" />
@@ -87,7 +87,7 @@
           <dc:Bounds x="357" y="125" width="73" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0g8tt7i_di" bpmnElement="Flow_Start_to_ProcessPayment">
+      <bpmndi:BPMNEdge id="Flow_05evfnm_di" bpmnElement="Flow_Start_to_ProcessPayment">
         <di:waypoint x="118" y="82" />
         <di:waypoint x="118" y="11" />
         <di:waypoint x="138" y="11" />
@@ -95,7 +95,7 @@
         <di:waypoint x="118" y="-20" />
         <di:waypoint x="118" y="0" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1awh0e9_di" bpmnElement="Flow_ProcessPayment_to_PaymentDone">
+      <bpmndi:BPMNEdge id="Flow_0us2v2r_di" bpmnElement="Flow_ProcessPayment_to_PaymentDone">
         <di:waypoint x="375" y="0" />
         <di:waypoint x="375" y="-20" />
         <di:waypoint x="395" y="-20" />
