@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_0fchplq">
+    <bpmn:participant id="Participant_07p0q9s" name="Department A" processRef="Process_Two_Pool_Collaboration" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Two_Pool_Collaboration" name="Two Pool Collaboration" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:laneSet id="LaneSet_1wcknzh">
+      <bpmn:lane id="Lane_0sncgqz" name="Department A">
+        <bpmn:flowNodeRef>StartEvent_StartA</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_0k5ju0c" name="Department B" />
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_StartA" name="Start A" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0fchplq">
+      <bpmndi:BPMNShape id="Participant_07p0q9s_di" bpmnElement="Participant_07p0q9s" isHorizontal="true">
+        <dc:Bounds x="192" y="92" width="350" height="500" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_0sncgqz_di" bpmnElement="Lane_0sncgqz" isHorizontal="true">
+        <dc:Bounds x="222" y="92" width="320" height="266" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_0k5ju0c_di" bpmnElement="Lane_0k5ju0c" isHorizontal="true">
+        <dc:Bounds x="222" y="358" width="320" height="234" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_StartA_di" bpmnElement="StartEvent_StartA">
+        <dc:Bounds x="272" y="207" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="273" y="250" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

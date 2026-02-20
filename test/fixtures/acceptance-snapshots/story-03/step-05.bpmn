@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_0vziruf">
+    <bpmn:participant id="Participant_0hrrb6y" name="Approval Process" processRef="Process_Approval_Process" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Approval_Process" name="Approval Process" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:laneSet id="LaneSet_0auriqi">
+      <bpmn:lane id="Lane_1uxzgwl" name="Requester">
+        <bpmn:flowNodeRef>StartEvent_RequestSubmitted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_FillRequestForm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_ReviseRequest</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_0yxstvf" name="Approver">
+        <bpmn:flowNodeRef>UserTask_ReviewRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Approved</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_070shdh" name="Finance">
+        <bpmn:flowNodeRef>UserTask_ProcessPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Completed</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:sequenceFlow id="Flow_SubmitForReview" name="Submit for review" sourceRef="UserTask_FillRequestForm" targetRef="UserTask_ReviewRequest" />
+    <bpmn:sequenceFlow id="Flow_ReviseRequest_to_ReviewRequest" sourceRef="UserTask_ReviseRequest" targetRef="UserTask_ReviewRequest" />
+    <bpmn:sequenceFlow id="Flow_Yes" name="Yes" sourceRef="Gateway_Approved" targetRef="UserTask_ProcessPayment" />
+    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_Approved" targetRef="UserTask_ReviseRequest" />
+    <bpmn:startEvent id="StartEvent_RequestSubmitted" name="Request Submitted">
+      <bpmn:outgoing>Flow_RequestSubmitted_to_FillRequestForm</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_FillRequestForm" name="Fill Request Form" camunda:candidateGroups="requester">
+      <bpmn:incoming>Flow_RequestSubmitted_to_FillRequestForm</bpmn:incoming>
+      <bpmn:outgoing>Flow_SubmitForReview</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="UserTask_ReviseRequest" name="Revise Request" camunda:candidateGroups="requester">
+      <bpmn:incoming>Flow_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviseRequest_to_ReviewRequest</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_RequestSubmitted_to_FillRequestForm" sourceRef="StartEvent_RequestSubmitted" targetRef="UserTask_FillRequestForm" />
+    <bpmn:userTask id="UserTask_ReviewRequest" name="Review Request" camunda:candidateGroups="approver">
+      <bpmn:incoming>Flow_SubmitForReview</bpmn:incoming>
+      <bpmn:incoming>Flow_ReviseRequest_to_ReviewRequest</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewRequest_to_Approved</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Approved" name="Approved?">
+      <bpmn:incoming>Flow_ReviewRequest_to_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_ReviewRequest_to_Approved" sourceRef="UserTask_ReviewRequest" targetRef="Gateway_Approved" />
+    <bpmn:userTask id="UserTask_ProcessPayment" name="Process Payment" camunda:candidateGroups="finance">
+      <bpmn:incoming>Flow_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_ProcessPayment_to_Completed</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_Completed" name="Completed">
+      <bpmn:incoming>Flow_ProcessPayment_to_Completed</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ProcessPayment_to_Completed" sourceRef="UserTask_ProcessPayment" targetRef="EndEvent_Completed" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0vziruf">
+      <bpmndi:BPMNShape id="Participant_0hrrb6y_di" bpmnElement="Participant_0hrrb6y" isHorizontal="true">
+        <dc:Bounds x="192" y="92" width="862" height="778" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_1uxzgwl_di" bpmnElement="Lane_1uxzgwl" isHorizontal="true">
+        <dc:Bounds x="222" y="92" width="832" height="321" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_0yxstvf_di" bpmnElement="Lane_0yxstvf" isHorizontal="true">
+        <dc:Bounds x="222" y="413" width="832" height="195" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_070shdh_di" bpmnElement="Lane_070shdh" isHorizontal="true">
+        <dc:Bounds x="222" y="608" width="832" height="262" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_RequestSubmitted_di" bpmnElement="StartEvent_RequestSubmitted">
+        <dc:Bounds x="272" y="235" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="265" y="278" width="50" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_FillRequestForm_di" bpmnElement="UserTask_FillRequestForm">
+        <dc:Bounds x="368" y="213" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ReviseRequest_di" bpmnElement="UserTask_ReviseRequest">
+        <dc:Bounds x="808" y="351" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ReviewRequest_di" bpmnElement="UserTask_ReviewRequest">
+        <dc:Bounds x="528" y="443" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Approved_di" bpmnElement="Gateway_Approved" isMarkerVisible="true">
+        <dc:Bounds x="693" y="486" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="629" y="504" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ProcessPayment_di" bpmnElement="UserTask_ProcessPayment">
+        <dc:Bounds x="808" y="597" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Completed_di" bpmnElement="EndEvent_Completed">
+        <dc:Bounds x="968" y="721" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="959" y="764" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0q5sqvr_di" bpmnElement="Flow_SubmitForReview">
+        <di:waypoint x="468" y="253" />
+        <di:waypoint x="498" y="253" />
+        <di:waypoint x="498" y="483" />
+        <di:waypoint x="528" y="483" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="446" y="361" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0g9u0xb_di" bpmnElement="Flow_ReviseRequest_to_ReviewRequest">
+        <di:waypoint x="808" y="391" />
+        <di:waypoint x="718" y="391" />
+        <di:waypoint x="718" y="483" />
+        <di:waypoint x="628" y="483" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02c7i2c_di" bpmnElement="Flow_Yes">
+        <di:waypoint x="743" y="511" />
+        <di:waypoint x="776" y="511" />
+        <di:waypoint x="776" y="637" />
+        <di:waypoint x="808" y="637" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="757" y="567" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0n7917n_di" bpmnElement="Flow_No">
+        <di:waypoint x="743" y="511" />
+        <di:waypoint x="776" y="511" />
+        <di:waypoint x="776" y="391" />
+        <di:waypoint x="808" y="391" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="729" y="444" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0f4nit3_di" bpmnElement="Flow_RequestSubmitted_to_FillRequestForm">
+        <di:waypoint x="308" y="234" />
+        <di:waypoint x="368" y="234" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0yofqd9_di" bpmnElement="Flow_ReviewRequest_to_Approved">
+        <di:waypoint x="628" y="483" />
+        <di:waypoint x="718" y="483" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_135qk1b_di" bpmnElement="Flow_ProcessPayment_to_Completed">
+        <di:waypoint x="908" y="637" />
+        <di:waypoint x="938" y="637" />
+        <di:waypoint x="938" y="739" />
+        <di:waypoint x="968" y="739" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

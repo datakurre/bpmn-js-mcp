@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="Collaboration_1tardq9">
+    <bpmn:participant id="Participant_1tckl4d" name="Order Department" processRef="Process_Conference_Registration_Process" />
+    <bpmn:participant id="Participant_0r2qdsx" name="ERP System" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Conference_Registration_Process" name="Conference Registration Process" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Event_0dskcoo" name="Request Received">
+      <bpmn:outgoing>Flow_0tql777</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_0jdocql" name="Approved?" default="Flow_No">
+      <bpmn:incoming>Flow_ApplyDiscountRules_to_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_1vd4vzj</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0pkj4i7</bpmn:outgoing>
+      <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_1hd85cz" name="Merge">
+      <bpmn:incoming>Flow_109need</bpmn:incoming>
+      <bpmn:incoming>Flow_0pkj4i7</bpmn:incoming>
+      <bpmn:incoming>Flow_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_1juidsl</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_0a768vd" name="Done">
+      <bpmn:incoming>Flow_1juidsl</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Activity_1a279je" name="Review Request">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="approve" type="boolean" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0tql777</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewRequest_to_ApplyDiscountRules</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:businessRuleTask id="BusinessRuleTask_ApplyDiscountRules" name="Apply Discount Rules">
+      <bpmn:incoming>Flow_ReviewRequest_to_ApplyDiscountRules</bpmn:incoming>
+      <bpmn:outgoing>Flow_ApplyDiscountRules_to_Approved</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:manualTask id="Activity_1ra1cd4" name="Fulfill Request">
+      <bpmn:incoming>Flow_1vd4vzj</bpmn:incoming>
+      <bpmn:outgoing>Flow_109need</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:sequenceFlow id="Flow_0tql777" sourceRef="Event_0dskcoo" targetRef="Activity_1a279je" />
+    <bpmn:sequenceFlow id="Flow_ApplyDiscountRules_to_Approved" sourceRef="BusinessRuleTask_ApplyDiscountRules" targetRef="Gateway_0jdocql" />
+    <bpmn:sequenceFlow id="Flow_1vd4vzj" name="Yes" sourceRef="Gateway_0jdocql" targetRef="Activity_1ra1cd4">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approve == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0pkj4i7" name="No" sourceRef="Gateway_0jdocql" targetRef="Gateway_1hd85cz" />
+    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_0jdocql" targetRef="Gateway_1hd85cz" />
+    <bpmn:sequenceFlow id="Flow_109need" sourceRef="Activity_1ra1cd4" targetRef="Gateway_1hd85cz" />
+    <bpmn:sequenceFlow id="Flow_1juidsl" sourceRef="Gateway_1hd85cz" targetRef="Event_0a768vd" />
+    <bpmn:sequenceFlow id="Flow_ReviewRequest_to_ApplyDiscountRules" sourceRef="Activity_1a279je" targetRef="BusinessRuleTask_ApplyDiscountRules" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1tardq9">
+      <bpmndi:BPMNShape id="Participant_1tckl4d_di" bpmnElement="Participant_1tckl4d" isHorizontal="true">
+        <dc:Bounds x="162" y="82" width="972" height="250" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0dskcoo_di" bpmnElement="Event_0dskcoo">
+        <dc:Bounds x="242" y="197" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="215" y="240" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0jdocql_di" bpmnElement="Gateway_0jdocql" isMarkerVisible="true">
+        <dc:Bounds x="663" y="190" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="661" y="166" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1hd85cz_di" bpmnElement="Gateway_1hd85cz" isMarkerVisible="true">
+        <dc:Bounds x="943" y="190" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="952" y="250" width="32" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0a768vd_di" bpmnElement="Event_0a768vd">
+        <dc:Bounds x="1048" y="197" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1053" y="240" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1twoqdy_di" bpmnElement="Activity_1a279je">
+        <dc:Bounds x="338" y="175" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_ApplyDiscountRules_di" bpmnElement="BusinessRuleTask_ApplyDiscountRules">
+        <dc:Bounds x="498" y="175" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1wqtvha_di" bpmnElement="Activity_1ra1cd4">
+        <dc:Bounds x="778" y="175" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0tql777_di" bpmnElement="Flow_0tql777">
+        <di:waypoint x="278" y="215" />
+        <di:waypoint x="338" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0nzsvvd_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
+        <di:waypoint x="598" y="215" />
+        <di:waypoint x="663" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1vd4vzj_di" bpmnElement="Flow_1vd4vzj">
+        <di:waypoint x="713" y="215" />
+        <di:waypoint x="778" y="215" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="734" y="218" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0pkj4i7_di" bpmnElement="Flow_0pkj4i7">
+        <di:waypoint x="713" y="215" />
+        <di:waypoint x="713" y="190" />
+        <di:waypoint x="943" y="190" />
+        <di:waypoint x="943" y="215" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="821" y="143" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0gcj00n_di" bpmnElement="Flow_No">
+        <di:waypoint x="713" y="215" />
+        <di:waypoint x="713" y="200" />
+        <di:waypoint x="943" y="200" />
+        <di:waypoint x="943" y="215" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="821" y="203" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_109need_di" bpmnElement="Flow_109need">
+        <di:waypoint x="878" y="215" />
+        <di:waypoint x="943" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1juidsl_di" bpmnElement="Flow_1juidsl">
+        <di:waypoint x="993" y="215" />
+        <di:waypoint x="1048" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1e90cn4_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
+        <di:waypoint x="438" y="215" />
+        <di:waypoint x="498" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_0r2qdsx_di" bpmnElement="Participant_0r2qdsx" isHorizontal="true" isExpanded="false">
+        <dc:Bounds x="162" y="398" width="972" height="60" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

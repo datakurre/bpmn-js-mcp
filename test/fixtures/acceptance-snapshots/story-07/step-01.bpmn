@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Event_Patterns" name="Event Patterns" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="StartEvent_OrderPlaced" name="Order Placed">
+      <bpmn:outgoing>Flow_tg92ott</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:eventBasedGateway id="Gateway_uigsyj6">
+      <bpmn:incoming>Flow_tg92ott</bpmn:incoming>
+      <bpmn:outgoing>Flow_tohmuso</bpmn:outgoing>
+      <bpmn:outgoing>Flow_zhgiamy</bpmn:outgoing>
+      <bpmn:outgoing>Flow_sxcfogl</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:sequenceFlow id="Flow_tg92ott" sourceRef="StartEvent_OrderPlaced" targetRef="Gateway_uigsyj6" />
+    <bpmn:intermediateCatchEvent id="Event_PaymentReceived" name="Payment Received">
+      <bpmn:incoming>Flow_tohmuso</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentReceived_to_ProcessPayment</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_PaymentReceived" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_tohmuso" sourceRef="Gateway_uigsyj6" targetRef="Event_PaymentReceived" />
+    <bpmn:intermediateCatchEvent id="Event_PaymentTimeout" name="Payment Timeout">
+      <bpmn:incoming>Flow_zhgiamy</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentTimeout_to_HandleTimeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P3D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_zhgiamy" sourceRef="Gateway_uigsyj6" targetRef="Event_PaymentTimeout" />
+    <bpmn:intermediateCatchEvent id="Event_OrderCancelled" name="Order Cancelled">
+      <bpmn:incoming>Flow_sxcfogl</bpmn:incoming>
+      <bpmn:outgoing>Flow_OrderCancelled_to_ProcessCancellation</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_OrderCancelled" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_sxcfogl" sourceRef="Gateway_uigsyj6" targetRef="Event_OrderCancelled" />
+    <bpmn:userTask id="UserTask_ProcessPayment" name="Process Payment">
+      <bpmn:incoming>Flow_PaymentReceived_to_ProcessPayment</bpmn:incoming>
+      <bpmn:outgoing>Flow_ProcessPayment_to_OrderFulfilled</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_PaymentReceived_to_ProcessPayment" sourceRef="Event_PaymentReceived" targetRef="UserTask_ProcessPayment" />
+    <bpmn:endEvent id="EndEvent_OrderFulfilled" name="Order Fulfilled">
+      <bpmn:incoming>Flow_ProcessPayment_to_OrderFulfilled</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ProcessPayment_to_OrderFulfilled" sourceRef="UserTask_ProcessPayment" targetRef="EndEvent_OrderFulfilled" />
+    <bpmn:userTask id="UserTask_HandleTimeout" name="Handle Timeout">
+      <bpmn:incoming>Flow_PaymentTimeout_to_HandleTimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_HandleTimeout_to_OrderExpired</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_PaymentTimeout_to_HandleTimeout" sourceRef="Event_PaymentTimeout" targetRef="UserTask_HandleTimeout" />
+    <bpmn:endEvent id="EndEvent_OrderExpired" name="Order Expired">
+      <bpmn:incoming>Flow_HandleTimeout_to_OrderExpired</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_HandleTimeout_to_OrderExpired" sourceRef="UserTask_HandleTimeout" targetRef="EndEvent_OrderExpired" />
+    <bpmn:userTask id="UserTask_ProcessCancellation" name="Process Cancellation">
+      <bpmn:incoming>Flow_OrderCancelled_to_ProcessCancellation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ProcessCancellation_to_OrderCancelledEnd</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_OrderCancelled_to_ProcessCancellation" sourceRef="Event_OrderCancelled" targetRef="UserTask_ProcessCancellation" />
+    <bpmn:endEvent id="EndEvent_OrderCancelledEnd" name="Order Cancelled End">
+      <bpmn:incoming>Flow_ProcessCancellation_to_OrderCancelledEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ProcessCancellation_to_OrderCancelledEnd" sourceRef="UserTask_ProcessCancellation" targetRef="EndEvent_OrderCancelledEnd" />
+  </bpmn:process>
+  <bpmn:message id="Msg_PaymentReceived" name="PaymentReceived" />
+  <bpmn:signal id="Signal_OrderCancelled" name="OrderCancelled" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Event_Patterns">
+      <bpmndi:BPMNShape id="StartEvent_OrderPlaced_di" bpmnElement="StartEvent_OrderPlaced">
+        <dc:Bounds x="82" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="68" y="125" width="65" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_uigsyj6_di" bpmnElement="Gateway_uigsyj6">
+        <dc:Bounds x="143" y="75" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_PaymentReceived_di" bpmnElement="Event_PaymentReceived">
+        <dc:Bounds x="869" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="864" y="125" width="47" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_PaymentTimeout_di" bpmnElement="Event_PaymentTimeout">
+        <dc:Bounds x="547" y="168" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="522" y="211" width="87" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_OrderCancelled_di" bpmnElement="Event_OrderCancelled">
+        <dc:Bounds x="225" y="254" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="203" y="297" width="81" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ProcessPayment_di" bpmnElement="UserTask_ProcessPayment">
+        <dc:Bounds x="905" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OrderFulfilled_di" bpmnElement="EndEvent_OrderFulfilled">
+        <dc:Bounds x="1037" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1020" y="125" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_HandleTimeout_di" bpmnElement="UserTask_HandleTimeout">
+        <dc:Bounds x="583" y="146" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OrderExpired_di" bpmnElement="EndEvent_OrderExpired">
+        <dc:Bounds x="715" y="168" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="699" y="211" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ProcessCancellation_di" bpmnElement="UserTask_ProcessCancellation">
+        <dc:Bounds x="261" y="232" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OrderCancelledEnd_di" bpmnElement="EndEvent_OrderCancelledEnd">
+        <dc:Bounds x="393" y="254" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="369" y="297" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_10ow7eh_di" bpmnElement="Flow_tg92ott">
+        <di:waypoint x="118" y="100" />
+        <di:waypoint x="143" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1qm7686_di" bpmnElement="Flow_tohmuso">
+        <di:waypoint x="193" y="100" />
+        <di:waypoint x="869" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1rnrqa5_di" bpmnElement="Flow_zhgiamy">
+        <di:waypoint x="168" y="125" />
+        <di:waypoint x="168" y="186" />
+        <di:waypoint x="547" y="186" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0m4rian_di" bpmnElement="Flow_sxcfogl">
+        <di:waypoint x="168" y="125" />
+        <di:waypoint x="168" y="272" />
+        <di:waypoint x="225" y="272" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13603j4_di" bpmnElement="Flow_PaymentReceived_to_ProcessPayment">
+        <di:waypoint x="905" y="82" />
+        <di:waypoint x="905" y="56" />
+        <di:waypoint x="925" y="56" />
+        <di:waypoint x="925" y="40" />
+        <di:waypoint x="905" y="40" />
+        <di:waypoint x="905" y="70" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1e9uj98_di" bpmnElement="Flow_ProcessPayment_to_OrderFulfilled">
+        <di:waypoint x="1005" y="70" />
+        <di:waypoint x="1005" y="40" />
+        <di:waypoint x="1037" y="40" />
+        <di:waypoint x="1037" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0rgvkui_di" bpmnElement="Flow_PaymentTimeout_to_HandleTimeout">
+        <di:waypoint x="583" y="168" />
+        <di:waypoint x="583" y="142" />
+        <di:waypoint x="603" y="142" />
+        <di:waypoint x="603" y="126" />
+        <di:waypoint x="583" y="126" />
+        <di:waypoint x="583" y="156" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0x03ahg_di" bpmnElement="Flow_HandleTimeout_to_OrderExpired">
+        <di:waypoint x="683" y="156" />
+        <di:waypoint x="683" y="126" />
+        <di:waypoint x="715" y="126" />
+        <di:waypoint x="715" y="186" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0nv060q_di" bpmnElement="Flow_OrderCancelled_to_ProcessCancellation">
+        <di:waypoint x="261" y="272" />
+        <di:waypoint x="261" y="272" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1kdqrnu_di" bpmnElement="Flow_ProcessCancellation_to_OrderCancelledEnd">
+        <di:waypoint x="361" y="272" />
+        <di:waypoint x="393" y="272" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

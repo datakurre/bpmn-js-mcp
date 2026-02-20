@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Payment_Processing" name="Payment Processing" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="StartEvent_Start" name="Start">
+      <bpmn:outgoing>Flow_Start_to_ProcessPayment</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_ProcessPayment" name="Process Payment">
+      <bpmn:incoming>Flow_Start_to_ProcessPayment</bpmn:incoming>
+      <bpmn:outgoing>Flow_ProcessPayment_to_PaymentDone</bpmn:outgoing>
+      <bpmn:startEvent id="StartEvent_SubStart" name="Sub Start">
+        <bpmn:outgoing>Flow_SubStart_to_ChargeCard</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="ServiceTask_ChargeCard" name="Charge Card">
+        <bpmn:incoming>Flow_SubStart_to_ChargeCard</bpmn:incoming>
+        <bpmn:outgoing>Flow_ChargeCard_to_SendReceipt</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:sequenceFlow id="Flow_SubStart_to_ChargeCard" sourceRef="StartEvent_SubStart" targetRef="ServiceTask_ChargeCard" />
+      <bpmn:serviceTask id="ServiceTask_SendReceipt" name="Send Receipt">
+        <bpmn:incoming>Flow_ChargeCard_to_SendReceipt</bpmn:incoming>
+        <bpmn:outgoing>Flow_SendReceipt_to_SubEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:sequenceFlow id="Flow_ChargeCard_to_SendReceipt" sourceRef="ServiceTask_ChargeCard" targetRef="ServiceTask_SendReceipt" />
+      <bpmn:endEvent id="EndEvent_SubEnd" name="Sub End">
+        <bpmn:incoming>Flow_SendReceipt_to_SubEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_SendReceipt_to_SubEnd" sourceRef="ServiceTask_SendReceipt" targetRef="EndEvent_SubEnd" />
+      <bpmn:boundaryEvent id="Event_7yg2efi" attachedToRef="ServiceTask_ChargeCard">
+        <bpmn:compensateEventDefinition />
+      </bpmn:boundaryEvent>
+      <bpmn:intermediateCatchEvent id="Event_s8up8q0">
+        <bpmn:timerEventDefinition id="TimerEventDefinition_08ycfrr">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT30S</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:intermediateCatchEvent>
+      <bpmn:association id="Flow_hafloh4" sourceRef="Event_7yg2efi" targetRef="ServiceTask_RefundPayment" />
+    </bpmn:subProcess>
+    <bpmn:sequenceFlow id="Flow_Start_to_ProcessPayment" sourceRef="StartEvent_Start" targetRef="SubProcess_ProcessPayment" />
+    <bpmn:endEvent id="EndEvent_PaymentDone" name="Payment Done">
+      <bpmn:incoming>Flow_ProcessPayment_to_PaymentDone</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ProcessPayment_to_PaymentDone" sourceRef="SubProcess_ProcessPayment" targetRef="EndEvent_PaymentDone" />
+    <bpmn:boundaryEvent id="Event_faelwf6" attachedToRef="SubProcess_ProcessPayment">
+      <bpmn:outgoing>Flow_3q1804f</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_PaymentFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="UserTask_HandlePaymentFailure" name="Handle Payment Failure">
+      <bpmn:incoming>Flow_3q1804f</bpmn:incoming>
+      <bpmn:outgoing>Flow_HandlePaymentFailure_to_PaymentFailed</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_PaymentFailed" name="Payment Failed">
+      <bpmn:incoming>Flow_HandlePaymentFailure_to_PaymentFailed</bpmn:incoming>
+      <bpmn:terminateEventDefinition />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_3q1804f" sourceRef="Event_faelwf6" targetRef="UserTask_HandlePaymentFailure" />
+    <bpmn:sequenceFlow id="Flow_HandlePaymentFailure_to_PaymentFailed" sourceRef="UserTask_HandlePaymentFailure" targetRef="EndEvent_PaymentFailed" />
+    <bpmn:scriptTask id="ScriptTask_LogTimeoutWarning" name="Log Timeout Warning" scriptFormat="groovy" camunda:resultVariable="logResult">
+      <bpmn:outgoing>Flow_LogTimeoutWarning_to_TimeoutLogged</bpmn:outgoing>
+      <bpmn:script>println "Charge taking long"</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="EndEvent_TimeoutLogged" name="Timeout Logged">
+      <bpmn:incoming>Flow_LogTimeoutWarning_to_TimeoutLogged</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_LogTimeoutWarning_to_TimeoutLogged" sourceRef="ScriptTask_LogTimeoutWarning" targetRef="EndEvent_TimeoutLogged" />
+    <bpmn:subProcess id="SubProcess_CancellationHandler" name="Cancellation Handler" triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_CancellationRequested" name="Cancellation Requested" isInterrupting="false">
+        <bpmn:outgoing>Flow_CancellationRequested_to_ProcessCancellation</bpmn:outgoing>
+        <bpmn:messageEventDefinition messageRef="Msg_CancellationRequest" />
+      </bpmn:startEvent>
+      <bpmn:userTask id="UserTask_ProcessCancellation" name="Process Cancellation">
+        <bpmn:incoming>Flow_CancellationRequested_to_ProcessCancellation</bpmn:incoming>
+        <bpmn:outgoing>Flow_ProcessCancellation_to_Cancelled</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:sequenceFlow id="Flow_CancellationRequested_to_ProcessCancellation" sourceRef="StartEvent_CancellationRequested" targetRef="UserTask_ProcessCancellation" />
+      <bpmn:endEvent id="EndEvent_Cancelled" name="Cancelled">
+        <bpmn:incoming>Flow_ProcessCancellation_to_Cancelled</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_ProcessCancellation_to_Cancelled" sourceRef="UserTask_ProcessCancellation" targetRef="EndEvent_Cancelled" />
+    </bpmn:subProcess>
+    <bpmn:serviceTask id="ServiceTask_RefundPayment" name="Refund Payment" isForCompensation="true" />
+  </bpmn:process>
+  <bpmn:error id="Error_PaymentFailed" name="PaymentFailed" errorCode="PAY_ERR" />
+  <bpmn:message id="Msg_CancellationRequest" name="CancellationRequest" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Payment_Processing">
+      <bpmndi:BPMNShape id="StartEvent_Start_di" bpmnElement="StartEvent_Start">
+        <dc:Bounds x="82" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="88" y="125" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_ProcessPayment_di" bpmnElement="SubProcess_ProcessPayment" isExpanded="true">
+        <dc:Bounds x="-7" y="0" width="1400" height="870" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_SubStart_di" bpmnElement="StartEvent_SubStart">
+        <dc:Bounds x="1048" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1043" y="58" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_ChargeCard_di" bpmnElement="ServiceTask_ChargeCard">
+        <dc:Bounds x="1084" y="320" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_SendReceipt_di" bpmnElement="ServiceTask_SendReceipt">
+        <dc:Bounds x="1184" y="580" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_SubEnd_di" bpmnElement="EndEvent_SubEnd">
+        <dc:Bounds x="1316" y="774" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1313" y="817" width="43" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_7yg2efi_di" bpmnElement="Event_7yg2efi">
+        <dc:Bounds x="232" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1y0czpe_di" bpmnElement="Event_s8up8q0">
+        <dc:Bounds x="618" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0fexd8s_di" bpmnElement="Flow_SubStart_to_ChargeCard">
+        <di:waypoint x="1084" y="118" />
+        <di:waypoint x="1084" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1h2nhxz_di" bpmnElement="Flow_ChargeCard_to_SendReceipt">
+        <di:waypoint x="1184" y="390" />
+        <di:waypoint x="1184" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0m8lgfb_di" bpmnElement="Flow_SendReceipt_to_SubEnd">
+        <di:waypoint x="1284" y="650" />
+        <di:waypoint x="1284" y="717" />
+        <di:waypoint x="1316" y="717" />
+        <di:waypoint x="1316" y="792" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1jsirgn_di" bpmnElement="Flow_hafloh4">
+        <di:waypoint x="232" y="100" />
+        <di:waypoint x="168" y="100" />
+        <di:waypoint x="168" y="1230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="EndEvent_PaymentDone_di" bpmnElement="EndEvent_PaymentDone">
+        <dc:Bounds x="997" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="979" y="125" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_faelwf6_di" bpmnElement="Event_faelwf6">
+        <dc:Bounds x="170" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_HandlePaymentFailure_di" bpmnElement="UserTask_HandlePaymentFailure">
+        <dc:Bounds x="118" y="970" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_PaymentFailed_di" bpmnElement="EndEvent_PaymentFailed">
+        <dc:Bounds x="636" y="992" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="616" y="1035" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTask_LogTimeoutWarning_di" bpmnElement="ScriptTask_LogTimeoutWarning">
+        <dc:Bounds x="118" y="1100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_TimeoutLogged_di" bpmnElement="EndEvent_TimeoutLogged">
+        <dc:Bounds x="400" y="1122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="378" y="1165" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_CancellationHandler_di" bpmnElement="SubProcess_CancellationHandler" isExpanded="true">
+        <dc:Bounds x="1335" y="0" width="690" height="610" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_CancellationRequested_di" bpmnElement="StartEvent_CancellationRequested">
+        <dc:Bounds x="1586" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1572" y="44.5" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ProcessCancellation_di" bpmnElement="UserTask_ProcessCancellation">
+        <dc:Bounds x="1622" y="320" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
+        <dc:Bounds x="1754" y="514" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1748" y="557" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0tw568s_di" bpmnElement="Flow_CancellationRequested_to_ProcessCancellation">
+        <di:waypoint x="1622" y="118" />
+        <di:waypoint x="1622" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0hyx4s4_di" bpmnElement="Flow_ProcessCancellation_to_Cancelled">
+        <di:waypoint x="1722" y="390" />
+        <di:waypoint x="1722" y="457" />
+        <di:waypoint x="1754" y="457" />
+        <di:waypoint x="1754" y="532" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="ServiceTask_RefundPayment_di" bpmnElement="ServiceTask_RefundPayment">
+        <dc:Bounds x="118" y="1230" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0g8tt7i_di" bpmnElement="Flow_Start_to_ProcessPayment">
+        <di:waypoint x="118" y="82" />
+        <di:waypoint x="118" y="11" />
+        <di:waypoint x="138" y="11" />
+        <di:waypoint x="138" y="-20" />
+        <di:waypoint x="118" y="-20" />
+        <di:waypoint x="118" y="0" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1awh0e9_di" bpmnElement="Flow_ProcessPayment_to_PaymentDone">
+        <di:waypoint x="997" y="0" />
+        <di:waypoint x="997" y="-20" />
+        <di:waypoint x="1017" y="-20" />
+        <di:waypoint x="1017" y="11" />
+        <di:waypoint x="997" y="11" />
+        <di:waypoint x="997" y="82" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18syjaj_di" bpmnElement="Flow_3q1804f">
+        <di:waypoint x="188" y="118" />
+        <di:waypoint x="188" y="544" />
+        <di:waypoint x="168" y="544" />
+        <di:waypoint x="168" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1xyeto4_di" bpmnElement="Flow_HandlePaymentFailure_to_PaymentFailed">
+        <di:waypoint x="218" y="1010" />
+        <di:waypoint x="636" y="1010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_005ahsj_di" bpmnElement="Flow_LogTimeoutWarning_to_TimeoutLogged">
+        <di:waypoint x="218" y="1140" />
+        <di:waypoint x="400" y="1140" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

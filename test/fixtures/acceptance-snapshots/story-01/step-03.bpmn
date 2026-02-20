@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Order_Processing" name="Order Processing" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="StartEvent_OrderReceived" name="Order Received">
+      <bpmn:outgoing>Flow_OrderReceived_to_ReviewOrder</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_ReviewOrder" name="Review Order">
+      <bpmn:incoming>Flow_OrderReceived_to_ReviewOrder</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewOrder_to_OrderValid</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_OrderReceived_to_ReviewOrder" sourceRef="StartEvent_OrderReceived" targetRef="UserTask_ReviewOrder" />
+    <bpmn:serviceTask id="ServiceTask_CheckInventory" name="Check Inventory">
+      <bpmn:incoming>Flow_OrderValid_to_CheckInventory</bpmn:incoming>
+      <bpmn:outgoing>Flow_CheckInventory_to_ConfirmOrder</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="UserTask_ConfirmOrder" name="Confirm Order">
+      <bpmn:incoming>Flow_CheckInventory_to_ConfirmOrder</bpmn:incoming>
+      <bpmn:outgoing>Flow_ConfirmOrder_to_OrderCompleted</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_CheckInventory_to_ConfirmOrder" sourceRef="ServiceTask_CheckInventory" targetRef="UserTask_ConfirmOrder" />
+    <bpmn:endEvent id="EndEvent_OrderCompleted" name="Order Completed">
+      <bpmn:incoming>Flow_ConfirmOrder_to_OrderCompleted</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ConfirmOrder_to_OrderCompleted" sourceRef="UserTask_ConfirmOrder" targetRef="EndEvent_OrderCompleted" />
+    <bpmn:exclusiveGateway id="Gateway_OrderValid" name="Order Valid?" default="Flow_No">
+      <bpmn:incoming>Flow_ReviewOrder_to_OrderValid</bpmn:incoming>
+      <bpmn:outgoing>Flow_OrderValid_to_CheckInventory</bpmn:outgoing>
+      <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_ReviewOrder_to_OrderValid" sourceRef="UserTask_ReviewOrder" targetRef="Gateway_OrderValid" />
+    <bpmn:sequenceFlow id="Flow_OrderValid_to_CheckInventory" name="Yes" sourceRef="Gateway_OrderValid" targetRef="ServiceTask_CheckInventory">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${orderValid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:userTask id="UserTask_HandleRejection" name="Handle Rejection">
+      <bpmn:incoming>Flow_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_HandleRejection_to_OrderRejected</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_OrderRejected" name="Order Rejected">
+      <bpmn:incoming>Flow_HandleRejection_to_OrderRejected</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_OrderValid" targetRef="UserTask_HandleRejection" />
+    <bpmn:sequenceFlow id="Flow_HandleRejection_to_OrderRejected" sourceRef="UserTask_HandleRejection" targetRef="EndEvent_OrderRejected" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Order_Processing">
+      <bpmndi:BPMNShape id="StartEvent_OrderReceived_di" bpmnElement="StartEvent_OrderReceived">
+        <dc:Bounds x="82" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="61" y="125" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ReviewOrder_di" bpmnElement="UserTask_ReviewOrder">
+        <dc:Bounds x="118" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CheckInventory_di" bpmnElement="ServiceTask_CheckInventory">
+        <dc:Bounds x="614" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ConfirmOrder_di" bpmnElement="UserTask_ConfirmOrder">
+        <dc:Bounds x="714" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OrderCompleted_di" bpmnElement="EndEvent_OrderCompleted">
+        <dc:Bounds x="846" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="822" y="125" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_OrderValid_di" bpmnElement="Gateway_OrderValid" isMarkerVisible="true">
+        <dc:Bounds x="273" y="75" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="267" y="51" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_HandleRejection_di" bpmnElement="UserTask_HandleRejection">
+        <dc:Bounds x="323" y="190" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OrderRejected_di" bpmnElement="EndEvent_OrderRejected">
+        <dc:Bounds x="455" y="212" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="436" y="255" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_188fiqv_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
+        <di:waypoint x="118" y="100" />
+        <di:waypoint x="118" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0lgiurs_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
+        <di:waypoint x="714" y="70" />
+        <di:waypoint x="714" y="40" />
+        <di:waypoint x="734" y="40" />
+        <di:waypoint x="714" y="40" />
+        <di:waypoint x="714" y="70" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19itpqt_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
+        <di:waypoint x="814" y="70" />
+        <di:waypoint x="814" y="40" />
+        <di:waypoint x="846" y="40" />
+        <di:waypoint x="846" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0f9u5gj_di" bpmnElement="Flow_ReviewOrder_to_OrderValid">
+        <di:waypoint x="218" y="100" />
+        <di:waypoint x="273" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1vscnnh_di" bpmnElement="Flow_OrderValid_to_CheckInventory">
+        <di:waypoint x="323" y="100" />
+        <di:waypoint x="614" y="100" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="459" y="82" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1lmxjty_di" bpmnElement="Flow_No">
+        <di:waypoint x="298" y="125" />
+        <di:waypoint x="298" y="230" />
+        <di:waypoint x="323" y="230" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="306" y="175" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1e0i83g_di" bpmnElement="Flow_HandleRejection_to_OrderRejected">
+        <di:waypoint x="423" y="230" />
+        <di:waypoint x="455" y="230" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

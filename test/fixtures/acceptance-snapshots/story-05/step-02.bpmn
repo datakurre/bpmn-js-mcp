@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Customer_Onboarding" name="Customer Onboarding" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="StartEvent_ApplicationReceived" name="Application Received">
+      <bpmn:outgoing>Flow_ApplicationReceived_to_VerifyIdentity</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_VerifyIdentity" name="Verify Identity">
+      <bpmn:incoming>Flow_ApplicationReceived_to_VerifyIdentity</bpmn:incoming>
+      <bpmn:outgoing>Flow_VerifyIdentity_to_Fork</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_ApplicationReceived_to_VerifyIdentity" sourceRef="StartEvent_ApplicationReceived" targetRef="UserTask_VerifyIdentity" />
+    <bpmn:parallelGateway id="Gateway_Fork" name="Fork">
+      <bpmn:incoming>Flow_VerifyIdentity_to_Fork</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fork_to_CreditCheck</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fork_to_BackgroundCheck</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sequenceFlow id="Flow_VerifyIdentity_to_Fork" sourceRef="UserTask_VerifyIdentity" targetRef="Gateway_Fork" />
+    <bpmn:serviceTask id="ServiceTask_CreditCheck" name="Credit Check">
+      <bpmn:incoming>Flow_Fork_to_CreditCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreditCheck_to_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_Fork_to_CreditCheck" sourceRef="Gateway_Fork" targetRef="ServiceTask_CreditCheck" />
+    <bpmn:callActivity id="CallActivity_BackgroundCheck" name="Background Check" camunda:calledElement="background-check-process">
+      <bpmn:extensionElements>
+        <camunda:in source="applicantId" target="subjectId" />
+        <camunda:out source="checkResult" target="backgroundResult" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Fork_to_BackgroundCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_BackgroundCheck_to_Join</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:sequenceFlow id="Flow_Fork_to_BackgroundCheck" sourceRef="Gateway_Fork" targetRef="CallActivity_BackgroundCheck" />
+    <bpmn:parallelGateway id="Gateway_Join" name="Join">
+      <bpmn:incoming>Flow_CreditCheck_to_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_BackgroundCheck_to_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_to_FinalReview</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sequenceFlow id="Flow_CreditCheck_to_Join" sourceRef="ServiceTask_CreditCheck" targetRef="Gateway_Join" />
+    <bpmn:sequenceFlow id="Flow_BackgroundCheck_to_Join" sourceRef="CallActivity_BackgroundCheck" targetRef="Gateway_Join" />
+    <bpmn:userTask id="UserTask_FinalReview" name="Final Review">
+      <bpmn:incoming>Flow_Join_to_FinalReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_FinalReview_to_OnboardingComplete</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_Join_to_FinalReview" sourceRef="Gateway_Join" targetRef="UserTask_FinalReview" />
+    <bpmn:endEvent id="EndEvent_OnboardingComplete" name="Onboarding Complete">
+      <bpmn:incoming>Flow_FinalReview_to_OnboardingComplete</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_FinalReview_to_OnboardingComplete" sourceRef="UserTask_FinalReview" targetRef="EndEvent_OnboardingComplete" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Customer_Onboarding">
+      <bpmndi:BPMNShape id="StartEvent_ApplicationReceived_di" bpmnElement="StartEvent_ApplicationReceived">
+        <dc:Bounds x="82" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="72" y="125" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_VerifyIdentity_di" bpmnElement="UserTask_VerifyIdentity">
+        <dc:Bounds x="118" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Fork_di" bpmnElement="Gateway_Fork">
+        <dc:Bounds x="243" y="75" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="257" y="51" width="22" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CreditCheck_di" bpmnElement="ServiceTask_CreditCheck">
+        <dc:Bounds x="443" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallActivity_BackgroundCheck_di" bpmnElement="CallActivity_BackgroundCheck">
+        <dc:Bounds x="293" y="190" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Join_di" bpmnElement="Gateway_Join">
+        <dc:Bounds x="568" y="75" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="582" y="51" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_FinalReview_di" bpmnElement="UserTask_FinalReview">
+        <dc:Bounds x="618" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OnboardingComplete_di" bpmnElement="EndEvent_OnboardingComplete">
+        <dc:Bounds x="750" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="738" y="125" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0y9p31t_di" bpmnElement="Flow_ApplicationReceived_to_VerifyIdentity">
+        <di:waypoint x="118" y="100" />
+        <di:waypoint x="118" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0db75hb_di" bpmnElement="Flow_VerifyIdentity_to_Fork">
+        <di:waypoint x="218" y="100" />
+        <di:waypoint x="243" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1m20k2i_di" bpmnElement="Flow_Fork_to_CreditCheck">
+        <di:waypoint x="293" y="100" />
+        <di:waypoint x="443" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_162e9sh_di" bpmnElement="Flow_Fork_to_BackgroundCheck">
+        <di:waypoint x="268" y="125" />
+        <di:waypoint x="268" y="230" />
+        <di:waypoint x="293" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18v02oy_di" bpmnElement="Flow_CreditCheck_to_Join">
+        <di:waypoint x="543" y="100" />
+        <di:waypoint x="568" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0lzsaid_di" bpmnElement="Flow_BackgroundCheck_to_Join">
+        <di:waypoint x="393" y="230" />
+        <di:waypoint x="593" y="230" />
+        <di:waypoint x="593" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0kudcq8_di" bpmnElement="Flow_Join_to_FinalReview">
+        <di:waypoint x="618" y="100" />
+        <di:waypoint x="618" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0ps8hzx_di" bpmnElement="Flow_FinalReview_to_OnboardingComplete">
+        <di:waypoint x="718" y="100" />
+        <di:waypoint x="750" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
