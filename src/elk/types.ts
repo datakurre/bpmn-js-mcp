@@ -2,8 +2,10 @@
  * Shared types for the ELK layout engine.
  */
 
-import type { LayoutOptions } from 'elkjs';
-import type { BpmnElement } from '../bpmn-types';
+import type { LayoutOptions, ElkNode } from 'elkjs';
+import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
+import type { LaneSnapshot } from './lane-layout';
+import type { BoundaryEventSnapshot } from './boundary-save-restore';
 
 /**
  * Typed ELK layout options for BPMN diagrams (J5).
@@ -238,4 +240,44 @@ export interface GridLayer {
   maxRight: number;
   /** Maximum element width in this layer. */
   maxWidth: number;
+}
+/**
+ * Shared context threaded through the layout pipeline steps (B1-2).
+ *
+ * Exported from `types.ts` so that individual pipeline step functions
+ * can be defined in separate files without importing from `index.ts`.
+ */
+export interface LayoutContext {
+  elementRegistry: ElementRegistry;
+  modeling: Modeling;
+  result: ElkNode;
+  offsetX: number;
+  offsetY: number;
+  options: ElkLayoutOptions | undefined;
+  happyPathEdgeIds: Set<string> | undefined;
+  effectiveLayerSpacing: number | undefined;
+  hasDiverseY: boolean;
+  boundaryLeafTargetIds: Set<string>;
+  laneSnapshots: LaneSnapshot[];
+  boundarySnapshots: BoundaryEventSnapshot[];
+}
+
+/**
+ * A single step in the ELK layout pipeline (B1-1).
+ *
+ * Steps are collected into an array and executed sequentially by a
+ * `PipelineRunner`.  The optional `skip` predicate allows declarative
+ * guard conditions (e.g. "only for lane diagrams") without embedding
+ * guards inside the `run` function.  `trackDelta` opts the step into
+ * before/after position diffing for metrics and debugging.
+ */
+export interface PipelineStep {
+  /** Human-readable step name for logging and metrics. */
+  name: string;
+  /** Execute the step. May be async (e.g. for ELK's Promise-based API). */
+  run: (ctx: LayoutContext) => void | Promise<void>;
+  /** Return true to skip this step for the given context. */
+  skip?: (ctx: LayoutContext) => boolean;
+  /** When true, capture element positions before and after to produce a delta. */
+  trackDelta?: boolean;
 }

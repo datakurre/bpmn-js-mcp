@@ -272,9 +272,41 @@ export function reduceCrossings(elementRegistry: ElementRegistry, modeling: Mode
   // pairwise edgesCross() loop, cutting detection cost significantly for
   // diagrams with many connections.
   const { pairs: detectedPairs } = detectCrossingFlows(elementRegistry);
-  const crossingPairs = new Set(detectedPairs.map(([a, b]) => pairKey(a, b)));
 
-  if (crossingPairs.size === 0) return 0;
+  if (detectedPairs.length === 0) return 0;
+
+  // E6-5: Multi-pair global pass — sort crossing pairs by combined impact.
+  //
+  // Impact = number of crossing pairs a connection participates in.
+  // Processing the highest-impact connections first maximises the chance
+  // that a single nudge resolves multiple crossings simultaneously, and
+  // prevents a greedy fix for a low-impact pair from blocking a better
+  // global fix for a high-impact connection.
+  const impact = new Map<string, number>();
+  for (const [a, b] of detectedPairs) {
+    impact.set(a, (impact.get(a) ?? 0) + 1);
+    impact.set(b, (impact.get(b) ?? 0) + 1);
+  }
+
+  // Sort pairs: highest combined impact first.  Stable sort preserves the
+  // original sweep-line order for pairs with equal impact.
+  const sortedPairs = [...detectedPairs].sort(
+    ([a1, b1], [a2, b2]) =>
+      (impact.get(a2) ?? 0) +
+      (impact.get(b2) ?? 0) -
+      ((impact.get(a1) ?? 0) + (impact.get(b1) ?? 0))
+  );
+
+  // Deduplicate while preserving sorted order (pairKey is symmetric).
+  const seenPairs = new Set<string>();
+  const orderedPairs: Array<[string, string]> = [];
+  for (const [a, b] of sortedPairs) {
+    const key = pairKey(a, b);
+    if (!seenPairs.has(key)) {
+      seenPairs.add(key);
+      orderedPairs.push([a, b]);
+    }
+  }
 
   // E6-4: Collect flow-node shapes for element-overlap validation.
   // Only leaf nodes (tasks, events, gateways) are included — containers
@@ -284,9 +316,8 @@ export function reduceCrossings(elementRegistry: ElementRegistry, modeling: Mode
     (el) => FLOW_NODE_TYPES.has(el.type) && !!el.width && !!el.height
   );
 
-  // Try to fix each crossing pair
-  for (const key of crossingPairs) {
-    const [idA, idB] = key.split('|');
+  // Try to fix each crossing pair in impact-sorted order
+  for (const [idA, idB] of orderedPairs) {
     const connA = elementRegistry.get(idA);
     const connB = elementRegistry.get(idB);
     if (!connA?.waypoints || !connB?.waypoints) continue;

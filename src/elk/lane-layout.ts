@@ -56,7 +56,7 @@ function isLaneOrInfrastructure(type: string): boolean {
  * Saved lane metadata: original Y-position (from DI coordinates)
  * and assigned flow node IDs.
  */
-interface LaneSnapshot {
+export interface LaneSnapshot {
   laneId: string;
   originalY: number;
   /** Original X-position (for sorting left-to-right in vertical/DOWN layouts, F5). */

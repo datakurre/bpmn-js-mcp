@@ -32,9 +32,9 @@
  */
 
 import type { DiagramState } from '../types';
-import type { ElkNode, ElkExtendedEdge, LayoutOptions } from 'elkjs';
+import type { ElkExtendedEdge, LayoutOptions } from 'elkjs';
 
-import type { BpmnElement, ElementRegistry, Modeling, Canvas } from '../bpmn-types';
+import type { BpmnElement, ElementRegistry, Canvas } from '../bpmn-types';
 import { CachedElementRegistry } from './cached-registry';
 import {
   ELK_LAYOUT_OPTIONS,
@@ -109,10 +109,17 @@ import {
 import { detectCrossingFlows, reduceCrossings } from './crossing-detection';
 import { avoidElementIntersections } from './element-avoidance';
 import { resolveOverlaps } from './overlap-resolution';
-import type { ElkLayoutOptions } from './types';
+import type { ElkLayoutOptions, LayoutContext } from './types';
 import { createLayoutLogger, type PositionSnapshot } from './layout-logger';
 
-export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer, BpmnElkOptions } from './types';
+export type {
+  ElkLayoutOptions,
+  CrossingFlowsResult,
+  GridLayer,
+  BpmnElkOptions,
+  LayoutContext,
+  PipelineStep,
+} from './types';
 
 export { elkLayoutSubset } from './subset-layout';
 
@@ -225,21 +232,8 @@ function resolveLayoutOptions(options?: ElkLayoutOptions): {
 
 // ── Layout pipeline context ─────────────────────────────────────────────────
 
-/** Shared context threaded through the layout pipeline steps. */
-interface LayoutContext {
-  elementRegistry: ElementRegistry;
-  modeling: Modeling;
-  result: ElkNode;
-  offsetX: number;
-  offsetY: number;
-  options: ElkLayoutOptions | undefined;
-  happyPathEdgeIds: Set<string> | undefined;
-  effectiveLayerSpacing: number | undefined;
-  hasDiverseY: boolean;
-  boundaryLeafTargetIds: Set<string>;
-  laneSnapshots: ReturnType<typeof saveLaneNodeAssignments>;
-  boundarySnapshots: ReturnType<typeof saveBoundaryEventData>;
-}
+// LayoutContext is defined in and exported from `./types` (B1-2).
+// It is imported above via `import type { ElkLayoutOptions, LayoutContext }`.
 
 // ── Pipeline step functions ─────────────────────────────────────────────────
 
