@@ -106,13 +106,47 @@ import { detectCrossingFlows, reduceCrossings } from './crossing-detection';
 import { avoidElementIntersections } from './element-avoidance';
 import { resolveOverlaps } from './overlap-resolution';
 import type { ElkLayoutOptions } from './types';
-import { createLayoutLogger } from './layout-logger';
+import { createLayoutLogger, type PositionSnapshot } from './layout-logger';
 
 export type { ElkLayoutOptions, CrossingFlowsResult, GridLayer, BpmnElkOptions } from './types';
 
 export { elkLayoutSubset } from './subset-layout';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * B7: Snapshot the { x, y } position of every layout-able shape in the
+ * element registry.  Used by `stepWithDelta()` to compute how many elements
+ * a pipeline step moved.
+ */
+function snapshotPositions(registry: ElementRegistry): PositionSnapshot {
+  const snap: PositionSnapshot = new Map();
+  for (const el of registry.getAll()) {
+    // Only shapes have width/height; connections and root element do not.
+    if (el.width !== undefined) {
+      snap.set(el.id, { x: el.x ?? 0, y: el.y ?? 0 });
+    }
+  }
+  return snap;
+}
+
+/**
+ * B7: Count how many elements moved by more than 1 px in either axis
+ * since the given snapshot was taken.
+ */
+function countMovedElements(registry: ElementRegistry, before: PositionSnapshot): number {
+  let moved = 0;
+  for (const [id, pos] of before) {
+    const el = registry.get(id);
+    if (
+      el !== undefined &&
+      (Math.abs((el.x ?? 0) - pos.x) > 1 || Math.abs((el.y ?? 0) - pos.y) > 1)
+    ) {
+      moved++;
+    }
+  }
+  return moved;
+}
 
 /**
  * Run a callback once per participant scope, or once at root level
@@ -234,6 +268,11 @@ function snapAndAlignLayers(ctx: LayoutContext): void {
 /**
  * Post-ELK grid snap pass — quantises node positions to a virtual grid
  * for visual regularity.  Also resolves overlaps created by grid snap.
+ *
+ * B3: Grid snap and overlap resolution are combined into a single
+ * `forEachScope` pass.  Pool scopes are independent — gridSnap(A) never
+ * affects elements in pool B — so running [gridSnap + resolveOverlaps]
+ * per scope is semantically equivalent to two separate full-scope loops.
  */
 function gridSnapAndResolveOverlaps(ctx: LayoutContext): void {
   const shouldGridSnap = ctx.options?.gridSnap !== false;
@@ -254,10 +293,7 @@ function gridSnapAndResolveOverlaps(ctx: LayoutContext): void {
       scope,
       ctx.effectiveLayerSpacing
     );
-  });
-
-  // Resolve overlaps created by grid quantisation
-  forEachScope(ctx.elementRegistry, (scope) => {
+    // Resolve overlaps created by grid quantisation within this scope
     resolveOverlaps(ctx.elementRegistry, ctx.modeling, scope);
   });
 }
@@ -279,16 +315,15 @@ function alignHappyPathAndOffPathEvents(ctx: LayoutContext): void {
     return;
   }
 
+  // B3: All three alignment passes share a single forEachScope loop.
+  // The dependency order (alignHappyPath → alignOffPathEndEvents →
+  // pinHappyPathBranches) is preserved within each scope.  Pool scopes
+  // are independent, so interleaving is semantically equivalent to three
+  // separate full-scope passes.
   forEachScope(ctx.elementRegistry, (scope) => {
     alignHappyPath(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope, ctx.hasDiverseY);
-  });
-
-  forEachScope(ctx.elementRegistry, (scope) => {
     alignOffPathEndEvents(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
-  });
-
-  // Pin happy-path branches above off-path branches at exclusive/inclusive gateways
-  forEachScope(ctx.elementRegistry, (scope) => {
+    // Pin happy-path branches above off-path branches at exclusive/inclusive gateways
     pinHappyPathBranches(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
   });
 }
@@ -564,15 +599,31 @@ export async function elkLayout(
   };
 
   // Execute layout pipeline
-  log.beginStep('applyNodePositions');
-  await applyNodePositions(ctx);
-  log.endStep();
+  const snap = () => snapshotPositions(elementRegistry);
+  const countMoved = (before: PositionSnapshot) => countMovedElements(elementRegistry, before);
 
-  log.step('fixBoundaryEvents', () => fixBoundaryEvents(ctx));
-  log.step('snapAndAlignLayers', () => snapAndAlignLayers(ctx));
-  log.step('gridSnapAndResolveOverlaps', () => gridSnapAndResolveOverlaps(ctx));
+  await log.stepAsyncWithDelta(
+    'applyNodePositions',
+    () => applyNodePositions(ctx),
+    snap,
+    countMoved
+  );
+
+  log.stepWithDelta('fixBoundaryEvents', () => fixBoundaryEvents(ctx), snap, countMoved);
+  log.stepWithDelta('snapAndAlignLayers', () => snapAndAlignLayers(ctx), snap, countMoved);
+  log.stepWithDelta(
+    'gridSnapAndResolveOverlaps',
+    () => gridSnapAndResolveOverlaps(ctx),
+    snap,
+    countMoved
+  );
   log.step('repositionArtifacts', () => repositionArtifacts(elementRegistry, modeling));
-  log.step('alignHappyPathAndOffPathEvents', () => alignHappyPathAndOffPathEvents(ctx));
+  log.stepWithDelta(
+    'alignHappyPathAndOffPathEvents',
+    () => alignHappyPathAndOffPathEvents(ctx),
+    snap,
+    countMoved
+  );
   // B5 — second resolveOverlaps: alignHappyPath pulls multiple elements
   // (e.g. two start events, parallel branches) to the same Y coordinate,
   // which can cause them to overlap horizontally.  This second pass repairs
@@ -585,7 +636,12 @@ export async function elkLayout(
     });
   });
   log.step('finalisePoolsAndLanes', () => finalisePoolsAndLanes(ctx));
-  log.step('finaliseBoundaryTargets', () => finaliseBoundaryTargets(ctx));
+  log.stepWithDelta(
+    'finaliseBoundaryTargets',
+    () => finaliseBoundaryTargets(ctx),
+    snap,
+    countMoved
+  );
   // Apply edge routes before normalising origin.
   // Normalising origin AFTER edge route application ensures that
   // modeling.moveElements shifts both element positions AND their
