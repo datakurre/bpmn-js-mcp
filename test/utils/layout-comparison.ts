@@ -363,3 +363,205 @@ export function loadReferenceBpmn(name: string): string {
   const filePath = resolve(REFERENCES_DIR, `${name}.bpmn`);
   return readFileSync(filePath, 'utf-8');
 }
+
+// ── Edge waypoint comparison (I7-1) ────────────────────────────────────────
+
+/** Waypoints for a single BPMN edge. */
+export interface EdgeWaypoints {
+  edgeId: string;
+  bpmnElement: string;
+  waypoints: Array<{ x: number; y: number }>;
+}
+
+/**
+ * Extract edge waypoints from BPMN XML (I7-1).
+ *
+ * Parses all `<bpmndi:BPMNEdge>` elements and their `<di:waypoint>` children.
+ * Returns a map keyed by the `bpmnElement` attribute (the flow ID) so that
+ * reference and generated XML can be compared by semantic element ID.
+ */
+export function extractEdgeWaypoints(xml: string): Map<string, EdgeWaypoints> {
+  const edges = new Map<string, EdgeWaypoints>();
+  const edgeRegex =
+    /<bpmndi:BPMNEdge[^>]*id="([^"]*)"[^>]*bpmnElement="([^"]*)"[^>]*>([\s\S]*?)<\/bpmndi:BPMNEdge>/g;
+  const waypointRegex = /<di:waypoint\s+x="([^"]*?)"\s+y="([^"]*?)"/g;
+
+  let edgeMatch;
+  while ((edgeMatch = edgeRegex.exec(xml)) !== null) {
+    const edgeId = edgeMatch[1];
+    const bpmnElement = edgeMatch[2];
+    const inner = edgeMatch[3];
+    const waypoints: Array<{ x: number; y: number }> = [];
+
+    waypointRegex.lastIndex = 0;
+    let wpMatch;
+    while ((wpMatch = waypointRegex.exec(inner)) !== null) {
+      waypoints.push({ x: parseFloat(wpMatch[1]), y: parseFloat(wpMatch[2]) });
+    }
+
+    if (waypoints.length >= 2) {
+      edges.set(bpmnElement, { edgeId, bpmnElement, waypoints });
+    }
+  }
+  return edges;
+}
+
+/** Result of comparing edge waypoints between reference and generated BPMN. */
+export interface EdgeWaypointComparison {
+  totalEdges: number;
+  matchedEdges: number;
+  matchRate: number;
+  mismatches: Array<{ edgeId: string; issue: string }>;
+}
+
+/**
+ * Compare two sets of waypoints for a single edge.
+ * Returns undefined if they match within tolerance, or an issue description.
+ */
+function compareWaypointSets(
+  ref: EdgeWaypoints,
+  gen: EdgeWaypoints,
+  tolerance: number
+): string | undefined {
+  if (ref.waypoints.length !== gen.waypoints.length) {
+    // Count mismatch — compare just endpoints to check connectivity
+    const refFirst = ref.waypoints[0];
+    const refLast = ref.waypoints[ref.waypoints.length - 1];
+    const genFirst = gen.waypoints[0];
+    const genLast = gen.waypoints[gen.waypoints.length - 1];
+    const endpointDelta = Math.max(
+      Math.abs(refFirst.x - genFirst.x),
+      Math.abs(refFirst.y - genFirst.y),
+      Math.abs(refLast.x - genLast.x),
+      Math.abs(refLast.y - genLast.y)
+    );
+    if (endpointDelta > tolerance) {
+      return `Waypoint count mismatch: ref=${ref.waypoints.length} gen=${gen.waypoints.length}; endpoint delta=${endpointDelta.toFixed(0)}px`;
+    }
+    return undefined;
+  }
+
+  for (let i = 0; i < ref.waypoints.length; i++) {
+    const dx = Math.abs(ref.waypoints[i].x - gen.waypoints[i].x);
+    const dy = Math.abs(ref.waypoints[i].y - gen.waypoints[i].y);
+    if (dx > tolerance || dy > tolerance) {
+      return `wp[${i}]: ref=(${ref.waypoints[i].x},${ref.waypoints[i].y}) gen=(${gen.waypoints[i].x},${gen.waypoints[i].y}) Δ=(${dx.toFixed(0)},${dy.toFixed(0)})`;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Compare edge waypoints between reference and generated BPMN XML (I7-1).
+ *
+ * Checks waypoint counts and endpoint positions for each shared BPMNEdge.
+ * When counts differ, falls back to comparing just the first and last
+ * waypoints (start/end of the route) within `tolerance` pixels.
+ */
+export function compareEdgeWaypoints(
+  referenceXml: string,
+  generatedXml: string,
+  tolerance = 20
+): EdgeWaypointComparison {
+  const refEdges = extractEdgeWaypoints(referenceXml);
+  const genEdges = extractEdgeWaypoints(generatedXml);
+
+  const mismatches: Array<{ edgeId: string; issue: string }> = [];
+  let totalEdges = 0;
+  let matchedEdges = 0;
+
+  for (const [elementId, refEdge] of refEdges) {
+    const genEdge = genEdges.get(elementId);
+    if (!genEdge) continue;
+    totalEdges++;
+
+    const issue = compareWaypointSets(refEdge, genEdge, tolerance);
+    if (issue) {
+      mismatches.push({ edgeId: elementId, issue });
+    } else {
+      matchedEdges++;
+    }
+  }
+
+  const matchRate = totalEdges > 0 ? matchedEdges / totalEdges : 0;
+  return { totalEdges, matchedEdges, matchRate, mismatches };
+}
+
+// ── Per-type match rates (I7-5) ────────────────────────────────────────────
+
+/** Prefix-to-type mapping for BPMN element classification. */
+const ELEMENT_TYPE_PREFIXES: ReadonlyArray<[string, string]> = [
+  ['StartEvent_', 'events'],
+  ['EndEvent_', 'events'],
+  ['IntermediateCatchEvent_', 'events'],
+  ['IntermediateThrowEvent_', 'events'],
+  ['BoundaryEvent_', 'events'],
+  ['Gateway_', 'gateways'],
+  ['ExclusiveGateway_', 'gateways'],
+  ['ParallelGateway_', 'gateways'],
+  ['InclusiveGateway_', 'gateways'],
+  ['EventBasedGateway_', 'gateways'],
+  ['UserTask_', 'tasks'],
+  ['ServiceTask_', 'tasks'],
+  ['ScriptTask_', 'tasks'],
+  ['Task_', 'tasks'],
+  ['ManualTask_', 'tasks'],
+  ['BusinessRuleTask_', 'tasks'],
+  ['SendTask_', 'tasks'],
+  ['ReceiveTask_', 'tasks'],
+  ['SubProcess_', 'subprocesses'],
+  ['CallActivity_', 'subprocesses'],
+  ['Participant_', 'participants'],
+  ['Lane_', 'lanes'],
+];
+
+/** Classify an element ID into a BPMN category for per-type match-rate reporting. */
+function classifyElementId(id: string): string {
+  for (const [prefix, type] of ELEMENT_TYPE_PREFIXES) {
+    if (id.startsWith(prefix)) {
+      return type;
+    }
+  }
+  return 'other';
+}
+
+/** Per-type match rate entry. */
+export interface TypeMatchRate {
+  matched: number;
+  total: number;
+  matchRate: number;
+}
+
+/** Per-type match rates broken down by BPMN element category (I7-5). */
+export type PerTypeMatchRates = Record<string, TypeMatchRate>;
+
+/**
+ * Compute per-type match rates from a set of normalised position deltas (I7-5).
+ *
+ * Groups `NormalisedDelta` entries by element type (events, gateways, tasks,
+ * subprocesses, participants, lanes, other) and returns the match rate for
+ * each group.  Useful for identifying which element categories drift most
+ * from the reference layout.
+ */
+export function computePerTypeMatchRates(
+  deltas: NormalisedDelta[],
+  tolerance: number
+): PerTypeMatchRates {
+  const byType = new Map<string, { matched: number; total: number }>();
+
+  for (const delta of deltas) {
+    const type = classifyElementId(delta.elementId);
+    if (!byType.has(type)) byType.set(type, { matched: 0, total: 0 });
+    const entry = byType.get(type)!;
+    entry.total++;
+    if (Math.abs(delta.dx) <= tolerance && Math.abs(delta.dy) <= tolerance) {
+      entry.matched++;
+    }
+  }
+
+  const result: PerTypeMatchRates = {};
+  for (const [type, { matched, total }] of byType) {
+    result[type] = { matched, total, matchRate: total > 0 ? matched / total : 0 };
+  }
+  return result;
+}

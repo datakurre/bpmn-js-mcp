@@ -31,6 +31,7 @@ import {
   reconnectThroughElement,
 } from './insert-element-helpers';
 import { validateElementType, INSERTABLE_ELEMENT_TYPES } from '../element-type-validation';
+import { adjustElementLabel } from '../layout/labels/adjust-labels';
 
 export interface InsertElementArgs {
   diagramId: string;
@@ -329,6 +330,16 @@ export async function handleInsertElement(args: InsertElementArgs): Promise<Tool
   const overlaps = detectOverlaps(elementRegistry, createdElement);
   if (overlaps.length > 0) {
     resolveInsertionOverlaps(modeling, elementRegistry, createdElement, overlaps);
+  }
+
+  // C1-4: Adjust labels on the new connections and the inserted element.
+  // Best-effort — label adjustment failures are non-fatal.
+  try {
+    await adjustElementLabel(diagram, createdElement.id);
+    await adjustElementLabel(diagram, conn1.id);
+    await adjustElementLabel(diagram, conn2.id);
+  } catch {
+    // Ignore label adjustment errors (e.g. element has no label)
   }
 
   await syncXml(diagram);

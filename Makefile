@@ -1,4 +1,4 @@
-.PHONY: help install build typecheck lint check format format-check watch start clean prepare test test-watch coverage all
+.PHONY: help install build typecheck lint check format format-check watch start clean prepare test test-watch coverage update-snapshots all
 
 # Default target
 help:
@@ -74,6 +74,11 @@ test-watch: node_modules
 # Run tests with coverage
 coverage: node_modules
 	npm run coverage
+
+# Regenerate layout snapshot golden files from current engine output.
+# Run after confirmed layout improvements to update the baseline.
+update-snapshots: node_modules
+	npm run update:snapshots
 
 # Clean build artifacts
 clean:

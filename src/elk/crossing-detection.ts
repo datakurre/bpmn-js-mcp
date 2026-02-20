@@ -13,12 +13,45 @@
 
 import type { CrossingFlowsResult, LaneCrossingMetrics } from './types';
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
-import { segmentsIntersect } from '../geometry';
+import { segmentsIntersect, segmentIntersectsRect, type Rect } from '../geometry';
 import { isConnection } from './helpers';
 import { deduplicateWaypoints } from './edge-routing-helpers';
 
 /** Nudge offset in pixels when trying to separate crossing edges. */
 const CROSSING_NUDGE_PX = 12;
+
+/**
+ * Maximum nudge multiplier (E6-3). We try 1× and 2× the base nudge offset.
+ * Capped to stay within half the typical node spacing (~25px) to avoid
+ * placing routes too close to adjacent elements.
+ */
+const NUDGE_MAX_MULTIPLIER = 2;
+
+/**
+ * BPMN flow-node types that connections should never route through (E6-4).
+ * Container types (pools, lanes, expanded subprocesses) are excluded because
+ * connections legitimately pass through their boundaries.
+ */
+const FLOW_NODE_TYPES = new Set([
+  'bpmn:Task',
+  'bpmn:UserTask',
+  'bpmn:ServiceTask',
+  'bpmn:ScriptTask',
+  'bpmn:ManualTask',
+  'bpmn:BusinessRuleTask',
+  'bpmn:SendTask',
+  'bpmn:ReceiveTask',
+  'bpmn:CallActivity',
+  'bpmn:StartEvent',
+  'bpmn:EndEvent',
+  'bpmn:IntermediateCatchEvent',
+  'bpmn:IntermediateThrowEvent',
+  'bpmn:BoundaryEvent',
+  'bpmn:ExclusiveGateway',
+  'bpmn:ParallelGateway',
+  'bpmn:InclusiveGateway',
+  'bpmn:EventBasedGateway',
+]);
 
 // ── H1: Orthogonal segment classification ──────────────────────────────────
 
@@ -243,6 +276,14 @@ export function reduceCrossings(elementRegistry: ElementRegistry, modeling: Mode
 
   if (crossingPairs.size === 0) return 0;
 
+  // E6-4: Collect flow-node shapes for element-overlap validation.
+  // Only leaf nodes (tasks, events, gateways) are included — containers
+  // (pools, lanes, subprocesses) are excluded because connections
+  // legitimately cross their boundaries.
+  const shapes = elementRegistry.filter(
+    (el) => FLOW_NODE_TYPES.has(el.type) && !!el.width && !!el.height
+  );
+
   // Try to fix each crossing pair
   for (const key of crossingPairs) {
     const [idA, idB] = key.split('|');
@@ -257,12 +298,12 @@ export function reduceCrossings(elementRegistry: ElementRegistry, modeling: Mode
     }
 
     // Try nudging connB's internal vertical segments
-    if (tryNudgeToAvoidCrossing(connB, connA, connections, modeling)) {
+    if (tryNudgeToAvoidCrossing(connB, connA, connections, modeling, shapes)) {
       eliminated++;
       continue;
     }
     // Try nudging connA's internal vertical segments
-    if (tryNudgeToAvoidCrossing(connA, connB, connections, modeling)) {
+    if (tryNudgeToAvoidCrossing(connA, connB, connections, modeling, shapes)) {
       eliminated++;
     }
   }
@@ -316,9 +357,41 @@ function countCrossingsWithCandidate(
 }
 
 /**
+ * Check whether any purely-internal segment of `candidate` (i.e. not the
+ * first or last endpoint segment) passes through a flow-node shape (E6-4).
+ *
+ * The first segment (0→1) and last segment (n-2→n-1) are skipped because
+ * they connect to source/target element perimeters and may appear to "enter"
+ * those shapes from the outside — this is expected bpmn-js behaviour.
+ * Only the interior segments (1→2, 2→3, …, n-3→n-2) are checked.
+ */
+function nudgeRouteOverlapsShape(
+  candidate: Array<{ x: number; y: number }>,
+  shapes: BpmnElement[]
+): boolean {
+  // Need at least 4 waypoints to have a purely-internal segment
+  if (candidate.length < 4 || shapes.length === 0) return false;
+
+  for (let i = 1; i < candidate.length - 2; i++) {
+    const p1 = candidate[i];
+    const p2 = candidate[i + 1];
+    for (const shape of shapes) {
+      if (!shape.width || !shape.height) continue;
+      const rect: Rect = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+      if (segmentIntersectsRect(p1, p2, rect)) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Try to nudge internal vertical segments of `toNudge` so it no longer
  * crosses `crossingWith`.  Only accepts changes that do not increase the
- * total crossing count for `toNudge`.
+ * total crossing count for `toNudge`, and rejects nudges that route
+ * through flow-node shape bounding boxes (E6-4).
+ *
+ * E6-3: Tries nudge offsets at 1× and 2× `CROSSING_NUDGE_PX` before
+ * giving up, providing more opportunities to escape tight crossings.
  *
  * @returns true if a successful nudge was applied.
  */
@@ -326,7 +399,8 @@ function tryNudgeToAvoidCrossing(
   toNudge: BpmnElement,
   crossingWith: BpmnElement,
   allConnections: BpmnElement[],
-  modeling: Modeling
+  modeling: Modeling,
+  shapes: BpmnElement[]
 ): boolean {
   const wps = toNudge.waypoints!;
   if (wps.length < 3) return false; // Need at least one internal segment
@@ -346,37 +420,44 @@ function tryNudgeToAvoidCrossing(
 
     if (!prevIsVert && !nextIsVert) continue;
 
-    for (const dx of [-CROSSING_NUDGE_PX, CROSSING_NUDGE_PX]) {
-      const candidate = wps.map((w) => ({ x: w.x, y: w.y }));
+    // E6-3: Adaptive offsets — try 1× then 2× the base nudge distance
+    for (let mult = 1; mult <= NUDGE_MAX_MULTIPLIER; mult++) {
+      for (const sign of [-1, 1]) {
+        const dx = sign * mult * CROSSING_NUDGE_PX;
+        const candidate = wps.map((w) => ({ x: w.x, y: w.y }));
 
-      // Nudge the vertical run: shift all consecutive points sharing
-      // the same X as wps[i].
-      const baseX = wps[i].x;
-      for (let k = 1; k < candidate.length - 1; k++) {
-        if (Math.abs(candidate[k].x - baseX) < 2) {
-          candidate[k] = { x: candidate[k].x + dx, y: candidate[k].y };
-        }
-      }
-
-      // Check: does the nudge eliminate the target crossing?
-      let stillCrosses = false;
-      const wpsB = crossingWith.waypoints!;
-      for (let a = 0; a < candidate.length - 1 && !stillCrosses; a++) {
-        for (let b = 0; b < wpsB.length - 1 && !stillCrosses; b++) {
-          if (segmentsIntersect(candidate[a], candidate[a + 1], wpsB[b], wpsB[b + 1])) {
-            stillCrosses = true;
+        // Nudge the vertical run: shift all consecutive points sharing
+        // the same X as wps[i].
+        const baseX = wps[i].x;
+        for (let k = 1; k < candidate.length - 1; k++) {
+          if (Math.abs(candidate[k].x - baseX) < 2) {
+            candidate[k] = { x: candidate[k].x + dx, y: candidate[k].y };
           }
         }
+
+        // Check: does the nudge eliminate the target crossing?
+        let stillCrosses = false;
+        const wpsB = crossingWith.waypoints!;
+        for (let a = 0; a < candidate.length - 1 && !stillCrosses; a++) {
+          for (let b = 0; b < wpsB.length - 1 && !stillCrosses; b++) {
+            if (segmentsIntersect(candidate[a], candidate[a + 1], wpsB[b], wpsB[b + 1])) {
+              stillCrosses = true;
+            }
+          }
+        }
+        if (stillCrosses) continue;
+
+        // Check: did we create more crossings overall?
+        const newCrossings = countCrossingsWithCandidate(candidate, allConnections, toNudge.id);
+        if (newCrossings >= currentCrossings) continue;
+
+        // E6-4: Reject nudges that route through a flow-node shape bounding box
+        if (nudgeRouteOverlapsShape(candidate, shapes)) continue;
+
+        // Accept the nudge
+        modeling.updateWaypoints(toNudge, deduplicateWaypoints(candidate));
+        return true;
       }
-      if (stillCrosses) continue;
-
-      // Check: did we create more crossings overall?
-      const newCrossings = countCrossingsWithCandidate(candidate, allConnections, toNudge.id);
-      if (newCrossings >= currentCrossings) continue;
-
-      // Accept the nudge
-      modeling.updateWaypoints(toNudge, deduplicateWaypoints(candidate));
-      return true;
     }
   }
 
@@ -392,37 +473,44 @@ function tryNudgeToAvoidCrossing(
 
     if (!prevIsHoriz && !nextIsHoriz) continue;
 
-    for (const dy of [-CROSSING_NUDGE_PX, CROSSING_NUDGE_PX]) {
-      const candidate = wps.map((w) => ({ x: w.x, y: w.y }));
+    // E6-3: Adaptive offsets — try 1× then 2× the base nudge distance
+    for (let mult = 1; mult <= NUDGE_MAX_MULTIPLIER; mult++) {
+      for (const sign of [-1, 1]) {
+        const dy = sign * mult * CROSSING_NUDGE_PX;
+        const candidate = wps.map((w) => ({ x: w.x, y: w.y }));
 
-      // Nudge the horizontal run: shift all consecutive points sharing
-      // the same Y as wps[i].
-      const baseY = wps[i].y;
-      for (let k = 1; k < candidate.length - 1; k++) {
-        if (Math.abs(candidate[k].y - baseY) < 2) {
-          candidate[k] = { x: candidate[k].x, y: candidate[k].y + dy };
-        }
-      }
-
-      // Check: does the nudge eliminate the target crossing?
-      let stillCrosses = false;
-      const wpsB = crossingWith.waypoints!;
-      for (let a = 0; a < candidate.length - 1 && !stillCrosses; a++) {
-        for (let b = 0; b < wpsB.length - 1 && !stillCrosses; b++) {
-          if (segmentsIntersect(candidate[a], candidate[a + 1], wpsB[b], wpsB[b + 1])) {
-            stillCrosses = true;
+        // Nudge the horizontal run: shift all consecutive points sharing
+        // the same Y as wps[i].
+        const baseY = wps[i].y;
+        for (let k = 1; k < candidate.length - 1; k++) {
+          if (Math.abs(candidate[k].y - baseY) < 2) {
+            candidate[k] = { x: candidate[k].x, y: candidate[k].y + dy };
           }
         }
+
+        // Check: does the nudge eliminate the target crossing?
+        let stillCrosses = false;
+        const wpsB = crossingWith.waypoints!;
+        for (let a = 0; a < candidate.length - 1 && !stillCrosses; a++) {
+          for (let b = 0; b < wpsB.length - 1 && !stillCrosses; b++) {
+            if (segmentsIntersect(candidate[a], candidate[a + 1], wpsB[b], wpsB[b + 1])) {
+              stillCrosses = true;
+            }
+          }
+        }
+        if (stillCrosses) continue;
+
+        // Check: did we create more crossings overall?
+        const newCrossings = countCrossingsWithCandidate(candidate, allConnections, toNudge.id);
+        if (newCrossings >= currentCrossings) continue;
+
+        // E6-4: Reject nudges that route through a flow-node shape bounding box
+        if (nudgeRouteOverlapsShape(candidate, shapes)) continue;
+
+        // Accept the nudge
+        modeling.updateWaypoints(toNudge, deduplicateWaypoints(candidate));
+        return true;
       }
-      if (stillCrosses) continue;
-
-      // Check: did we create more crossings overall?
-      const newCrossings = countCrossingsWithCandidate(candidate, allConnections, toNudge.id);
-      if (newCrossings >= currentCrossings) continue;
-
-      // Accept the nudge
-      modeling.updateWaypoints(toNudge, deduplicateWaypoints(candidate));
-      return true;
     }
   }
 

@@ -39,4 +39,11 @@ export {
   extractBpmnPositions,
   compareBpmnPositions,
   loadReferenceBpmn,
+  type EdgeWaypoints,
+  extractEdgeWaypoints,
+  type EdgeWaypointComparison,
+  compareEdgeWaypoints,
+  type TypeMatchRate,
+  type PerTypeMatchRates,
+  computePerTypeMatchRates,
 } from './utils/layout-comparison';
