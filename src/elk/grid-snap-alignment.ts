@@ -16,6 +16,8 @@ import {
   MIN_MOVE_THRESHOLD,
 } from './constants';
 
+const BPMN_END_EVENT = 'bpmn:EndEvent';
+
 /**
  * After grid snapping, re-centre gateways vertically to the midpoint
  * of their connected elements.  This matches bpmn-auto-layout's behaviour
@@ -104,7 +106,7 @@ export function symmetriseGatewayBranches(
     const branchTargets = outgoing
       .map((conn) => conn.target)
       .filter(
-        (t): t is BpmnElement => !!t && t.type !== 'bpmn:EndEvent' && !t.type?.includes('Gateway')
+        (t): t is BpmnElement => !!t && t.type !== BPMN_END_EVENT && !t.type?.includes('Gateway')
       );
 
     // For 2-branch patterns with tasks, symmetrise around the gateway Y.
@@ -184,7 +186,7 @@ export function symmetriseGatewayBranches(
     // Move off-path end events to the same Y as their immediate
     // predecessor to avoid long vertical connectors.
     for (const target of offPathTargets) {
-      if (target.type !== 'bpmn:EndEvent') continue;
+      if (target.type !== BPMN_END_EVENT) continue;
 
       // Find incoming connection to this end event
       const incoming = allElements.find(
@@ -246,7 +248,7 @@ export function alignBoundarySubFlowEndEvents(
         const target = conn.target;
         if (!target) continue;
 
-        if (target.type === 'bpmn:EndEvent') {
+        if (target.type === BPMN_END_EVENT) {
           // Align the end event's Y-centre with its incoming source's Y-centre
           const sourceCy = current.y + (current.height || 0) / 2;
           const targetCy = target.y + (target.height || 0) / 2;
@@ -303,7 +305,7 @@ export function alignOffPathEndEvents(
   }
 
   for (const el of allElements) {
-    if (el.type !== 'bpmn:EndEvent') continue;
+    if (el.type !== BPMN_END_EVENT) continue;
     if (happyPathNodeIds.has(el.id)) continue;
     if (parentFilter && el.parent !== parentFilter) continue;
 
@@ -474,6 +476,73 @@ export function alignHappyPath(
       );
       for (const mate of columnMates) {
         modeling.moveElements([mate], { x: 0, y: dy });
+      }
+    }
+  }
+}
+
+/**
+ * Snap all bpmn:EndEvent elements that are within ±15px of each other
+ * to a common Y baseline (their median Y-centre).
+ *
+ * Multiple off-path end events (e.g. "Order Rejected" + "Reminder Sent")
+ * often land within a few pixels of each other due to ELK quantisation
+ * and gateway-branch rounding.  Snapping them to the same baseline
+ * produces a clean, aligned row of terminal states.
+ *
+ * Only groups end events that are already very close — this never forces
+ * end events on distant branches (different rows) to the same position.
+ *
+ * Runs as a final alignment pass after all other adjustments.
+ */
+export function alignCloseEndEvents(
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  container?: BpmnElement
+): void {
+  const CLOSE_THRESHOLD = 15; // px — end events within this Y-distance are snapped together
+
+  // Scope to container if provided
+  let parentFilter: BpmnElement | undefined = container;
+  if (!parentFilter) {
+    parentFilter = elementRegistry.filter(
+      (el) => el.type === 'bpmn:Process' || el.type === 'bpmn:Collaboration'
+    )[0];
+  }
+
+  const endEvents = elementRegistry.filter(
+    (el) => el.type === BPMN_END_EVENT && (!parentFilter || el.parent === parentFilter)
+  );
+
+  if (endEvents.length < 2) return;
+
+  // Cluster end events by Y-centre proximity
+  const sorted = [...endEvents].sort((a, b) => a.y - b.y);
+  const clusters: BpmnElement[][] = [];
+  let current: BpmnElement[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prevCy = current[0].y + (current[0].height || 0) / 2;
+    const currCy = sorted[i].y + (sorted[i].height || 0) / 2;
+    if (Math.abs(currCy - prevCy) <= CLOSE_THRESHOLD) {
+      current.push(sorted[i]);
+    } else {
+      clusters.push(current);
+      current = [sorted[i]];
+    }
+  }
+  clusters.push(current);
+
+  // Snap each cluster to the median Y-centre
+  for (const cluster of clusters) {
+    if (cluster.length < 2) continue;
+    const centreYs = cluster.map((el) => el.y + (el.height || 0) / 2).sort((a, b) => a - b);
+    const medianCy = centreYs[Math.floor(centreYs.length / 2)];
+    for (const el of cluster) {
+      const currCy = el.y + (el.height || 0) / 2;
+      const dy = Math.round(medianCy - currCy);
+      if (Math.abs(dy) > MIN_MOVE_THRESHOLD) {
+        modeling.moveElements([el], { x: 0, y: dy });
       }
     }
   }

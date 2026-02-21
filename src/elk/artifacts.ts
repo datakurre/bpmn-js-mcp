@@ -229,8 +229,57 @@ function positionUnlinkedArtifacts(
   }
 }
 
+const GROUP_PADDING = 20;
+
+/**
+ * Reposition a bpmn:Group to surround its layoutable children.
+ * Groups are bounding boxes, not icons — placing them below the flow is wrong.
+ * If the group has children that were repositioned by ELK, resize to surround
+ * them. If no layoutable children, leave the group in place (skip it).
+ * Returns true if the group was repositioned.
+ */
+function repositionGroup(group: BpmnElement, modeling: Modeling): boolean {
+  const children: BpmnElement[] = ((group as any).children ?? []).filter((el: BpmnElement) =>
+    isLayoutableShape(el)
+  );
+  if (children.length === 0) return false;
+
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const child of children) {
+    const x = child.x ?? 0;
+    const y = child.y ?? 0;
+    const w = child.width ?? 0;
+    const h = child.height ?? 0;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x + w > maxX) maxX = x + w;
+    if (y + h > maxY) maxY = y + h;
+  }
+
+  const newX = minX - GROUP_PADDING;
+  const newY = minY - GROUP_PADDING;
+  const newW = maxX - minX + 2 * GROUP_PADDING;
+  const newH = maxY - minY + 2 * GROUP_PADDING;
+  modeling.resizeShape(group, { x: newX, y: newY, width: newW, height: newH });
+  return true;
+}
+
 export function repositionArtifacts(elementRegistry: ElementRegistry, modeling: Modeling): void {
-  const artifacts = elementRegistry.filter((el) => isArtifact(el.type));
+  const allArtifacts = elementRegistry.filter((el) => isArtifact(el.type));
+  if (allArtifacts.length === 0) return;
+
+  // Handle bpmn:Group elements separately:
+  //   - Groups with children → resize to surround them
+  //   - Groups without children → skip (don't dump them below the flow)
+  // Groups are bounding boxes, not icons, so standard below/above placement is wrong.
+  const artifacts = allArtifacts.filter((el) => {
+    if (el.type !== 'bpmn:Group') return true;
+    repositionGroup(el, modeling);
+    return false; // Always exclude groups from the icon-artifact pipeline
+  });
   if (artifacts.length === 0) return;
 
   const associations = elementRegistry.filter(

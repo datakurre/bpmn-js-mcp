@@ -104,6 +104,7 @@ import {
   gridSnapExpandedSubprocesses,
   alignHappyPath,
   alignOffPathEndEvents,
+  alignCloseEndEvents,
   pinHappyPathBranches,
 } from './grid-snap';
 import { detectCrossingFlows, reduceCrossings } from './crossing-detection';
@@ -336,6 +337,8 @@ function alignHappyPathAndOffPathEvents(ctx: LayoutContext): void {
     alignOffPathEndEvents(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
     // Pin happy-path branches above off-path branches at exclusive/inclusive gateways
     pinHappyPathBranches(ctx.elementRegistry, ctx.modeling, ctx.happyPathEdgeIds, scope);
+    // Snap end events within 15px of each other to a common Y baseline (cosmetic cleanup)
+    alignCloseEndEvents(ctx.elementRegistry, ctx.modeling, scope);
   });
 }
 
@@ -417,6 +420,13 @@ function finaliseBoundaryTargets(ctx: LayoutContext): void {
     ctx.boundaryLeafTargetIds,
     ctx.happyPathEdgeIds
   );
+
+  // Final cleanup: snap end events within 15px of each other to a common
+  // Y baseline, removing minor quantisation drift introduced by the
+  // boundary-target repositioning passes above.
+  forEachScope(ctx.elementRegistry, (scope) => {
+    alignCloseEndEvents(ctx.elementRegistry, ctx.modeling, scope);
+  });
 
   // Reposition compensation handler tasks (G2).
   // Compensation handlers are connected to their compensation boundary event

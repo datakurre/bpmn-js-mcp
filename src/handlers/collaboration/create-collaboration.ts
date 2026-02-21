@@ -95,7 +95,11 @@ function createParticipantShape(
   if (p.width) shape.width = p.width;
   shape.height = poolHeight;
 
-  const createdElement = modeling.createShape(shape, { x, y }, canvas.getRootElement());
+  const createdElement = modeling.createShape(
+    shape,
+    { x, y: y + poolHeight / 2 },
+    canvas.getRootElement()
+  );
   modeling.updateProperties(createdElement, { name: p.name });
 
   if (p.collapsed && createdElement.di) createdElement.di.isExpanded = false;

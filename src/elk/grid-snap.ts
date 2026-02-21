@@ -20,6 +20,7 @@ export {
   symmetriseGatewayBranches,
   alignBoundarySubFlowEndEvents,
   alignOffPathEndEvents,
+  alignCloseEndEvents,
   alignHappyPath,
   pinHappyPathBranches,
 } from './grid-snap-alignment';
