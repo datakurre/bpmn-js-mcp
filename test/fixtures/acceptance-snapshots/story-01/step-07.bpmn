@@ -66,17 +66,17 @@
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_OrderValid" targetRef="UserTask_HandleRejection" />
     <bpmn:sequenceFlow id="Flow_HandleRejection_to_OrderRejected" sourceRef="UserTask_HandleRejection" targetRef="EndEvent_OrderRejected" />
-    <bpmn:boundaryEvent id="Event_gqip702" cancelActivity="false" attachedToRef="UserTask_ReviewOrder">
-      <bpmn:outgoing>Flow_ac0fufp</bpmn:outgoing>
+    <bpmn:boundaryEvent id="Event_lneycwz" cancelActivity="false" attachedToRef="UserTask_ReviewOrder">
+      <bpmn:outgoing>Flow_wufcyy6</bpmn:outgoing>
       <bpmn:timerEventDefinition>
         <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
     </bpmn:boundaryEvent>
     <bpmn:sendTask id="SendTask_SendReminder" name="Send Reminder">
-      <bpmn:incoming>Flow_ac0fufp</bpmn:incoming>
+      <bpmn:incoming>Flow_wufcyy6</bpmn:incoming>
       <bpmn:outgoing>Flow_SendReminder_to_ReminderSent</bpmn:outgoing>
     </bpmn:sendTask>
-    <bpmn:sequenceFlow id="Flow_ac0fufp" sourceRef="Event_gqip702" targetRef="SendTask_SendReminder" />
+    <bpmn:sequenceFlow id="Flow_wufcyy6" sourceRef="Event_lneycwz" targetRef="SendTask_SendReminder" />
     <bpmn:endEvent id="EndEvent_ReminderSent" name="Reminder Sent">
       <bpmn:incoming>Flow_SendReminder_to_ReminderSent</bpmn:incoming>
     </bpmn:endEvent>
@@ -85,110 +85,112 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Order_Processing">
       <bpmndi:BPMNShape id="StartEvent_OrderReceived_di" bpmnElement="StartEvent_OrderReceived">
-        <dc:Bounds x="82" y="82" width="36" height="36" />
+        <dc:Bounds x="428" y="114" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="61" y="125" width="78" height="14" />
+          <dc:Bounds x="407" y="157" width="78" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_ReviewOrder_di" bpmnElement="UserTask_ReviewOrder">
-        <dc:Bounds x="118" y="60" width="100" height="80" />
+        <dc:Bounds x="524" y="92" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ServiceTask_CheckInventory_di" bpmnElement="ServiceTask_CheckInventory">
-        <dc:Bounds x="850" y="60" width="100" height="80" />
+        <dc:Bounds x="1020" y="92" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_ConfirmOrder_di" bpmnElement="UserTask_ConfirmOrder">
-        <dc:Bounds x="950" y="60" width="100" height="80" />
+        <dc:Bounds x="1180" y="92" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_OrderCompleted_di" bpmnElement="EndEvent_OrderCompleted">
-        <dc:Bounds x="1082" y="82" width="36" height="36" />
+        <dc:Bounds x="1340" y="114" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1058" y="125" width="85" height="14" />
+          <dc:Bounds x="1316" y="157" width="85" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_OrderValid_di" bpmnElement="Gateway_OrderValid" isMarkerVisible="true">
-        <dc:Bounds x="509" y="75" width="50" height="50" />
+        <dc:Bounds x="679" y="107" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="503" y="51" width="62" height="14" />
+          <dc:Bounds x="673" y="83" width="62" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_HandleRejection_di" bpmnElement="UserTask_HandleRejection">
-        <dc:Bounds x="559" y="190" width="100" height="80" />
+        <dc:Bounds x="729" y="222" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_OrderRejected_di" bpmnElement="EndEvent_OrderRejected">
-        <dc:Bounds x="691" y="212" width="36" height="36" />
+        <dc:Bounds x="861" y="244" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="672" y="255" width="75" height="14" />
+          <dc:Bounds x="842" y="287" width="75" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_gqip702_di" bpmnElement="Event_gqip702">
-        <dc:Bounds x="82" y="82" width="36" height="36" />
+      <bpmndi:BPMNShape id="Event_lneycwz_di" bpmnElement="Event_lneycwz">
+        <dc:Bounds x="318" y="82" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="SendTask_SendReminder_di" bpmnElement="SendTask_SendReminder">
-        <dc:Bounds x="118" y="190" width="100" height="80" />
+        <dc:Bounds x="118" y="60" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_ReminderSent_di" bpmnElement="EndEvent_ReminderSent">
-        <dc:Bounds x="250" y="212" width="36" height="36" />
+        <dc:Bounds x="250" y="82" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="231" y="255" width="74" height="14" />
+          <dc:Bounds x="231" y="125" width="74" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_19vcrak_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
-        <di:waypoint x="118" y="100" />
-        <di:waypoint x="118" y="100" />
+      <bpmndi:BPMNEdge id="Flow_1d156wq_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
+        <di:waypoint x="438" y="116" />
+        <di:waypoint x="464" y="72" />
+        <di:waypoint x="524" y="72" />
+        <di:waypoint x="524" y="102" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_060pj3c_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
-        <di:waypoint x="950" y="70" />
-        <di:waypoint x="950" y="40" />
-        <di:waypoint x="970" y="40" />
-        <di:waypoint x="950" y="40" />
-        <di:waypoint x="950" y="70" />
+      <bpmndi:BPMNEdge id="Flow_0xl6wqd_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
+        <di:waypoint x="1120" y="102" />
+        <di:waypoint x="1120" y="72" />
+        <di:waypoint x="1180" y="72" />
+        <di:waypoint x="1180" y="102" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1yrhr2k_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
-        <di:waypoint x="1050" y="70" />
-        <di:waypoint x="1050" y="40" />
-        <di:waypoint x="1082" y="40" />
-        <di:waypoint x="1082" y="100" />
+      <bpmndi:BPMNEdge id="Flow_0plfw39_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
+        <di:waypoint x="1280" y="102" />
+        <di:waypoint x="1280" y="72" />
+        <di:waypoint x="1018" y="72" />
+        <di:waypoint x="1340" y="132" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1i6r7qo_di" bpmnElement="Flow_ReviewOrder_to_OrderValid">
+      <bpmndi:BPMNEdge id="Flow_1l4atx4_di" bpmnElement="Flow_ReviewOrder_to_OrderValid">
+        <di:waypoint x="624" y="102" />
+        <di:waypoint x="624" y="72" />
+        <di:waypoint x="679" y="72" />
+        <di:waypoint x="679" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1j25798_di" bpmnElement="Flow_OrderValid_to_CheckInventory">
+        <di:waypoint x="729" y="132" />
+        <di:waypoint x="1020" y="132" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="865" y="114" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05dp17c_di" bpmnElement="Flow_No">
+        <di:waypoint x="704" y="157" />
+        <di:waypoint x="704" y="190" />
+        <di:waypoint x="779" y="190" />
+        <di:waypoint x="779" y="222" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="712" y="168" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0d03ydp_di" bpmnElement="Flow_HandleRejection_to_OrderRejected">
+        <di:waypoint x="779" y="222" />
+        <di:waypoint x="779" y="202" />
+        <di:waypoint x="879" y="202" />
+        <di:waypoint x="879" y="244" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0rzla36_di" bpmnElement="Flow_wufcyy6">
+        <di:waypoint x="318" y="100" />
+        <di:waypoint x="168" y="100" />
         <di:waypoint x="218" y="100" />
-        <di:waypoint x="509" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1f55k8o_di" bpmnElement="Flow_OrderValid_to_CheckInventory">
-        <di:waypoint x="559" y="100" />
-        <di:waypoint x="850" y="100" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="695" y="82" width="19" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1nfaodv_di" bpmnElement="Flow_No">
-        <di:waypoint x="534" y="125" />
-        <di:waypoint x="534" y="158" />
-        <di:waypoint x="609" y="158" />
-        <di:waypoint x="609" y="190" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="542" y="136" width="15" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_11gv5d2_di" bpmnElement="Flow_HandleRejection_to_OrderRejected">
-        <di:waypoint x="609" y="190" />
-        <di:waypoint x="609" y="170" />
-        <di:waypoint x="709" y="170" />
-        <di:waypoint x="709" y="212" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1neg7oe_di" bpmnElement="Flow_ac0fufp">
-        <di:waypoint x="82" y="100" />
-        <di:waypoint x="60" y="100" />
-        <di:waypoint x="60" y="230" />
-        <di:waypoint x="118" y="230" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0leqyvl_di" bpmnElement="Flow_SendReminder_to_ReminderSent">
-        <di:waypoint x="218" y="230" />
-        <di:waypoint x="250" y="230" />
+      <bpmndi:BPMNEdge id="Flow_02mgd6m_di" bpmnElement="Flow_SendReminder_to_ReminderSent">
+        <di:waypoint x="218" y="100" />
+        <di:waypoint x="250" y="100" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -78,7 +78,7 @@
         <dc:Bounds x="443" y="100" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_13eottk_di" bpmnElement="Activity_1ra1cd4">
+      <bpmndi:BPMNShape id="Activity_18ixqa2_di" bpmnElement="Activity_1ra1cd4">
         <dc:Bounds x="713" y="100" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_0tql777_di" bpmnElement="Flow_0tql777">
@@ -100,15 +100,15 @@
         <di:waypoint x="928" y="140" />
         <di:waypoint x="983" y="140" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0ety2ej_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
+      <bpmndi:BPMNEdge id="Flow_1f5wn6o_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
         <di:waypoint x="388" y="140" />
         <di:waypoint x="443" y="140" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0yvyyxy_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
+      <bpmndi:BPMNEdge id="Flow_010z4rt_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
         <di:waypoint x="543" y="140" />
         <di:waypoint x="598" y="140" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_03n5id7_di" bpmnElement="Flow_No">
+      <bpmndi:BPMNEdge id="Flow_1opfxj2_di" bpmnElement="Flow_No">
         <di:waypoint x="648" y="140" />
         <di:waypoint x="878" y="140" />
         <bpmndi:BPMNLabel>

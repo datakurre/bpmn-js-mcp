@@ -14,6 +14,7 @@ import { requireDiagram, jsonResult, validateArgs, buildElementCounts } from '..
 import { getService } from '../../bpmn-types';
 import { appendLintFeedback } from '../../linter';
 import { handleAddElement } from './add-element';
+import { handleLayoutDiagram } from '../layout/layout-diagram';
 
 export interface AddElementChainArgs {
   diagramId: string;
@@ -34,6 +35,12 @@ export interface AddElementChainArgs {
   participantId?: string;
   /** Optional lane for all elements (can be overridden per-element). */
   laneId?: string;
+  /**
+   * When true, run layout_bpmn_diagram automatically after the chain is built.
+   * Defaults to true — chains connect elements, so layout is almost always desired.
+   * Pass false to skip layout (e.g. when further elements will be added before layout).
+   */
+  autoLayout?: boolean;
 }
 
 const CHAIN_ELEMENT_TYPES = new Set([
@@ -95,6 +102,7 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
       participantId: el.participantId || args.participantId,
       laneId: el.laneId || args.laneId,
       ...(previousId ? { afterElementId: previousId } : {}),
+      autoLayout: false,
     });
 
     const parsed = JSON.parse(addResult.content[0].text);
@@ -110,6 +118,12 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
+  // Run layout once for the whole chain (default: true, since chains always create connected flows)
+  const shouldLayout = args.autoLayout !== false;
+  if (shouldLayout) {
+    await handleLayoutDiagram({ diagramId });
+  }
+
   const result = jsonResult({
     success: true,
     elementIds: createdElements.map((e) => e.elementId),
@@ -117,6 +131,7 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
     elementCount: createdElements.length,
     message: `Created chain of ${createdElements.length} elements: ${createdElements.map((e) => e.name || e.elementType).join(' → ')}`,
     diagramCounts: buildElementCounts(elementRegistry),
+    ...(shouldLayout ? { autoLayoutApplied: true } : {}),
   });
   return appendLintFeedback(result, diagram);
 }
@@ -171,6 +186,13 @@ export const TOOL_DEFINITION = {
       laneId: {
         type: 'string',
         description: 'Default lane for all elements (can be overridden per-element).',
+      },
+      autoLayout: {
+        type: 'boolean',
+        default: true,
+        description:
+          'When true (default), run layout_bpmn_diagram after the chain is built. ' +
+          'Pass false to skip auto-layout when more elements will be added first.',
       },
     },
     required: ['diagramId', 'elements'],

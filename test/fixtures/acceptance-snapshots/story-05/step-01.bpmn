@@ -45,78 +45,78 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_Customer_Onboarding">
       <bpmndi:BPMNShape id="StartEvent_ApplicationReceived_di" bpmnElement="StartEvent_ApplicationReceived">
-        <dc:Bounds x="82" y="82" width="36" height="36" />
+        <dc:Bounds x="192" y="114" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="72" y="125" width="57" height="27" />
+          <dc:Bounds x="182" y="157" width="57" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_VerifyIdentity_di" bpmnElement="UserTask_VerifyIdentity">
-        <dc:Bounds x="118" y="60" width="100" height="80" />
+        <dc:Bounds x="288" y="92" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_Fork_di" bpmnElement="Gateway_Fork">
-        <dc:Bounds x="243" y="75" width="50" height="50" />
+        <dc:Bounds x="453" y="107" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="257" y="51" width="22" height="14" />
+          <dc:Bounds x="467" y="83" width="22" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ServiceTask_CreditCheck_di" bpmnElement="ServiceTask_CreditCheck">
-        <dc:Bounds x="443" y="60" width="100" height="80" />
+        <dc:Bounds x="653" y="92" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="CallActivity_BackgroundCheck_di" bpmnElement="CallActivity_BackgroundCheck">
-        <dc:Bounds x="293" y="190" width="100" height="80" />
+        <dc:Bounds x="503" y="222" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_Join_di" bpmnElement="Gateway_Join">
-        <dc:Bounds x="568" y="75" width="50" height="50" />
+        <dc:Bounds x="778" y="107" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="582" y="51" width="21" height="14" />
+          <dc:Bounds x="792" y="83" width="21" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="UserTask_FinalReview_di" bpmnElement="UserTask_FinalReview">
-        <dc:Bounds x="618" y="60" width="100" height="80" />
+        <dc:Bounds x="828" y="92" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_OnboardingComplete_di" bpmnElement="EndEvent_OnboardingComplete">
-        <dc:Bounds x="750" y="82" width="36" height="36" />
+        <dc:Bounds x="960" y="114" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="738" y="125" width="61" height="27" />
+          <dc:Bounds x="948" y="157" width="61" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1xmof9y_di" bpmnElement="Flow_ApplicationReceived_to_VerifyIdentity">
-        <di:waypoint x="118" y="100" />
-        <di:waypoint x="118" y="100" />
+      <bpmndi:BPMNEdge id="Flow_0gvuh2y_di" bpmnElement="Flow_ApplicationReceived_to_VerifyIdentity">
+        <di:waypoint x="228" y="132" />
+        <di:waypoint x="288" y="132" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_175sio9_di" bpmnElement="Flow_VerifyIdentity_to_Fork">
-        <di:waypoint x="218" y="100" />
-        <di:waypoint x="243" y="100" />
+      <bpmndi:BPMNEdge id="Flow_0ke8jmx_di" bpmnElement="Flow_VerifyIdentity_to_Fork">
+        <di:waypoint x="388" y="132" />
+        <di:waypoint x="453" y="132" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1fj9oci_di" bpmnElement="Flow_Fork_to_CreditCheck">
-        <di:waypoint x="293" y="100" />
-        <di:waypoint x="443" y="100" />
+      <bpmndi:BPMNEdge id="Flow_0eayl0j_di" bpmnElement="Flow_Fork_to_CreditCheck">
+        <di:waypoint x="503" y="132" />
+        <di:waypoint x="653" y="132" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1s7s3yd_di" bpmnElement="Flow_Fork_to_BackgroundCheck">
-        <di:waypoint x="268" y="125" />
-        <di:waypoint x="268" y="230" />
-        <di:waypoint x="293" y="230" />
+      <bpmndi:BPMNEdge id="Flow_1mr02zc_di" bpmnElement="Flow_Fork_to_BackgroundCheck">
+        <di:waypoint x="478" y="157" />
+        <di:waypoint x="478" y="262" />
+        <di:waypoint x="503" y="262" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_120wad3_di" bpmnElement="Flow_CreditCheck_to_Join">
-        <di:waypoint x="543" y="100" />
-        <di:waypoint x="568" y="100" />
+      <bpmndi:BPMNEdge id="Flow_1my0s15_di" bpmnElement="Flow_CreditCheck_to_Join">
+        <di:waypoint x="753" y="132" />
+        <di:waypoint x="778" y="132" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0nir9im_di" bpmnElement="Flow_BackgroundCheck_to_Join">
-        <di:waypoint x="393" y="230" />
-        <di:waypoint x="593" y="230" />
-        <di:waypoint x="593" y="125" />
+      <bpmndi:BPMNEdge id="Flow_0mb15ff_di" bpmnElement="Flow_BackgroundCheck_to_Join">
+        <di:waypoint x="603" y="262" />
+        <di:waypoint x="803" y="262" />
+        <di:waypoint x="803" y="157" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1fhdiab_di" bpmnElement="Flow_Join_to_FinalReview">
-        <di:waypoint x="618" y="100" />
-        <di:waypoint x="618" y="100" />
+      <bpmndi:BPMNEdge id="Flow_1g3id16_di" bpmnElement="Flow_Join_to_FinalReview">
+        <di:waypoint x="828" y="132" />
+        <di:waypoint x="828" y="132" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_02pxred_di" bpmnElement="Flow_FinalReview_to_OnboardingComplete">
-        <di:waypoint x="718" y="100" />
-        <di:waypoint x="750" y="100" />
+      <bpmndi:BPMNEdge id="Flow_16r4pb6_di" bpmnElement="Flow_FinalReview_to_OnboardingComplete">
+        <di:waypoint x="928" y="132" />
+        <di:waypoint x="960" y="132" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

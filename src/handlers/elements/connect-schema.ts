@@ -55,6 +55,13 @@ export const TOOL_DEFINITION = {
         description:
           "When connecting from an exclusive/inclusive gateway, set this flow as the gateway's default flow (taken when no condition matches).",
       },
+      autoLayout: {
+        type: 'boolean',
+        default: false,
+        description:
+          'When true, run layout_bpmn_diagram automatically after connecting. ' +
+          'Useful after the last connection in a sequence. Default: false.',
+      },
     },
     required: ['diagramId'],
     oneOf: [

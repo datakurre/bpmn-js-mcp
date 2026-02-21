@@ -17,6 +17,7 @@ import {
 import { STANDARD_BPMN_GAP, getElementSize } from '../../constants';
 import { appendLintFeedback } from '../../linter';
 import { handleInsertElement } from './insert-element';
+import { handleLayoutDiagram } from '../layout/layout-diagram';
 import { handleDuplicateElement } from './duplicate-element';
 import {
   shiftDownstreamElements,
@@ -88,6 +89,12 @@ export interface AddElementArgs {
   copyOffsetX?: number;
   /** Offset for copyFrom duplication (default: 50). */
   copyOffsetY?: number;
+  /**
+   * When true, run layout_bpmn_diagram automatically after adding the element.
+   * Useful after the final element in an incremental build sequence.
+   * Default: false.
+   */
+  autoLayout?: boolean;
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────
@@ -408,6 +415,10 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     createdElementId: createdElement.id,
     elementRegistry,
   });
+
+  if (args.autoLayout) {
+    await handleLayoutDiagram({ diagramId });
+  }
 
   const result = buildAddElementResult({
     createdElement,

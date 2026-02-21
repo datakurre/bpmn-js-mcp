@@ -215,6 +215,13 @@ export const TOOL_DEFINITION = {
         type: 'number',
         description: 'Vertical offset from the original when using copyFrom (default: 50).',
       },
+      autoLayout: {
+        type: 'boolean',
+        default: false,
+        description:
+          'When true, run layout_bpmn_diagram automatically after adding the element. ' +
+          'Useful after the final element in an incremental build sequence. Default: false.',
+      },
     },
     required: ['diagramId', 'elementType'],
     allOf: [

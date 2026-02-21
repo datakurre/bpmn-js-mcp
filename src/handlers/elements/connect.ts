@@ -28,6 +28,7 @@ import {
   getService,
 } from '../helpers';
 import { appendLintFeedback } from '../../linter';
+import { handleLayoutDiagram } from '../layout/layout-diagram';
 
 /** BPMN connection type constants. */
 const BPMN_SEQUENCE_FLOW_TYPE = 'bpmn:SequenceFlow';
@@ -45,6 +46,8 @@ export interface ConnectArgs {
   connectionType?: string;
   conditionExpression?: string;
   isDefault?: boolean;
+  /** When true, run layout_bpmn_diagram automatically after connecting. Default: false. */
+  autoLayout?: boolean;
 }
 
 /** Types that must be connected via bpmn:Association, not SequenceFlow. */
@@ -280,6 +283,10 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
   });
 
   await syncXml(diagram);
+
+  if (args.autoLayout) {
+    await handleLayoutDiagram({ diagramId });
+  }
 
   const result = jsonResult({
     success: true,
