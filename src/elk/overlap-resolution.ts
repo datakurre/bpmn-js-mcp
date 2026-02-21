@@ -18,7 +18,7 @@ import {
 } from './helpers';
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { type Rect, rectsOverlap } from '../geometry';
-import { MIN_OVERLAP_GAP, OVERLAP_MAX_ITERATIONS } from './constants';
+import { MIN_OVERLAP_GAP, OVERLAP_MAX_ITERATIONS, COLUMN_PROXIMITY } from './constants';
 import { SpatialGrid } from './spatial-index';
 
 /**
@@ -85,29 +85,67 @@ export function resolveOverlaps(
         }
 
         // Determine which element to push and in which direction.
-        // Push the element that is lower (or to the right if same Y).
-        const aCy = a.y + (a.height || 0) / 2;
-        const bCy = b.y + (b.height || 0) / 2;
+        //
+        // Fix 3b — horizontal push for connected elements in the same column:
+        // If elements A and B are connected by a sequence flow (A→B or B→A)
+        // and their X-centres are within COLUMN_PROXIMITY of each other, they
+        // have been collapsed into the same grid column by the snap pass, but
+        // should be in adjacent columns (B to the right of A).  Push the
+        // downstream element rightward instead of downward so alignHappyPath
+        // cannot pull it back to the happy-path row and recreate the overlap.
+        const aCx = a.x + (a.width || 0) / 2;
+        const bCx = b.x + (b.width || 0) / 2;
+        const sameColumn = Math.abs(aCx - bCx) < COLUMN_PROXIMITY;
 
-        let upper: BpmnElement, lower: BpmnElement;
-        if (aCy <= bCy) {
-          upper = a;
-          lower = b;
-        } else {
-          upper = b;
-          lower = a;
+        let pushedHorizontally = false;
+        if (sameColumn) {
+          const aConnectsToB = (
+            a.outgoing as Array<{ target?: { id: string }; type: string }> | undefined
+          )?.some((flow) => flow.type === 'bpmn:SequenceFlow' && flow.target?.id === b.id);
+          const bConnectsToA = (
+            b.outgoing as Array<{ target?: { id: string }; type: string }> | undefined
+          )?.some((flow) => flow.type === 'bpmn:SequenceFlow' && flow.target?.id === a.id);
+
+          if (aConnectsToB || bConnectsToA) {
+            // a is upstream of b (or vice-versa) — push downstream element right
+            const upstream = aConnectsToB ? a : b;
+            const downstream = aConnectsToB ? b : a;
+            const upstreamRight = upstream.x + (upstream.width || 0);
+            const overlapX = upstreamRight - downstream.x + MIN_OVERLAP_GAP;
+            if (overlapX > 0) {
+              modeling.moveElements([downstream], { x: Math.round(overlapX), y: 0 });
+              grid.update(downstream);
+              anyMoved = true;
+              pushedHorizontally = true;
+            }
+          }
         }
 
-        // Calculate how much to push the lower element down
-        const upperBottom = upper.y + (upper.height || 0);
-        const overlapY = upperBottom - lower.y + MIN_OVERLAP_GAP;
+        if (!pushedHorizontally) {
+          // Vertical push: push the element that is lower (or to the right if same Y).
+          const aCy = a.y + (a.height || 0) / 2;
+          const bCy = b.y + (b.height || 0) / 2;
 
-        if (overlapY > 0) {
-          modeling.moveElements([lower], { x: 0, y: Math.round(overlapY) });
-          // Update the grid after the move so subsequent candidates in this
-          // iteration see the correct position.
-          grid.update(lower);
-          anyMoved = true;
+          let upper: BpmnElement, lower: BpmnElement;
+          if (aCy <= bCy) {
+            upper = a;
+            lower = b;
+          } else {
+            upper = b;
+            lower = a;
+          }
+
+          // Calculate how much to push the lower element down
+          const upperBottom = upper.y + (upper.height || 0);
+          const overlapY = upperBottom - lower.y + MIN_OVERLAP_GAP;
+
+          if (overlapY > 0) {
+            modeling.moveElements([lower], { x: 0, y: Math.round(overlapY) });
+            // Update the grid after the move so subsequent candidates in this
+            // iteration see the correct position.
+            grid.update(lower);
+            anyMoved = true;
+          }
         }
       }
     }

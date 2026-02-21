@@ -294,7 +294,11 @@ export function centreElementsInPools(elementRegistry: ElementRegistry, modeling
 
     // Desired Y for the content to be centred
     const desiredMinY = poolTop + (usableHeight - contentHeight) / 2;
-    const dy = Math.round(desiredMinY - contentMinY);
+    // Guard: when content exceeds pool height the formula produces a negative
+    // offset that would push elements above the pool top.  Clamp so the
+    // topmost element stays at or below poolTop.
+    const clampedDesiredMinY = Math.max(poolTop, desiredMinY);
+    const dy = Math.round(clampedDesiredMinY - contentMinY);
 
     if (Math.abs(dy) > RESIZE_SIGNIFICANCE_THRESHOLD) {
       modeling.moveElements(children, { x: 0, y: dy });
@@ -642,10 +646,51 @@ export function repositionAdHocSubprocessChildren(
 export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Modeling): void {
   const participants = elementRegistry.filter((el) => el.type === BPMN_PARTICIPANT);
 
-  // Skip collaborations — moving participants in headless mode can trigger
-  // bpmn-js internal ordering errors.  Pool positioning is already handled
-  // by centreElementsInPools, enforceExpandedPoolGap, and compactPools.
-  if (participants.length > 0) return;
+  // Fix 2b: X normalisation for collaboration diagrams.
+  // Y normalisation is handled by centreElementsInPools + enforceExpandedPoolGap.
+  // However those passes do not correct negative X coordinates.
+  // Moving participants via modeling.moveElements can trigger bpmn-js internal
+  // ordering errors in headless mode, so we use direct coordinate mutation.
+  if (participants.length > 0) {
+    let leftX = Infinity;
+    for (const p of participants) {
+      if (p.x < leftX) leftX = p.x;
+    }
+    if (leftX < ORIGIN_OFFSET_X) {
+      const deltaX = ORIGIN_OFFSET_X - leftX;
+      const allElements: BpmnElement[] = elementRegistry.getAll();
+      for (const el of allElements) {
+        // Skip root process/collaboration containers (no visual position)
+        if (
+          el.type === 'bpmn:Process' ||
+          el.type === 'bpmn:Collaboration' ||
+          el.type === 'label' ||
+          el.x === undefined
+        ) {
+          continue;
+        }
+        // Shift shape/pool/lane X position
+        el.x += deltaX;
+        if (el.di?.bounds) {
+          el.di.bounds.x = el.x;
+        }
+        // Shift waypoints for connections
+        if (el.waypoints) {
+          for (const wp of el.waypoints as Array<{ x: number; y: number }>) {
+            wp.x += deltaX;
+          }
+        }
+        // Shift DI waypoints
+        const diWp = (el.di as any)?.waypoint as Array<{ x: number; y: number }> | undefined;
+        if (diWp) {
+          for (const wp of diWp) {
+            wp.x += deltaX;
+          }
+        }
+      }
+    }
+    return;
+  }
 
   // Plain process: find the topmost flow element
   const allElements: BpmnElement[] = elementRegistry.getAll();

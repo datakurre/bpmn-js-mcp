@@ -414,6 +414,22 @@ export const SHORT_SEGMENT_THRESHOLD = 6;
 /** Vertical offset (px) for rerouting overlapping collinear flows. */
 export const COLLINEAR_DETOUR_OFFSET = 20;
 
+/**
+ * Minimum Y gap (px) required between two near-parallel gateway flows
+ * that exit the same gateway at slightly different Y values.
+ * Flows within this gap but not fully collinear are separated so they
+ * are visually distinct (each flow on its own routing channel).
+ */
+export const MIN_GATEWAY_PARALLEL_GAP = 20;
+
+/**
+ * Maximum Y difference (px) between gateway exit points for two flows
+ * to be treated as "near-parallel" and subject to gap enforcement.
+ * Gateway ports may be offset by up to ~12px from the centre due to
+ * bpmn-js port placement logic.
+ */
+export const MAX_GATEWAY_EXIT_Y_DIFF = 12;
+
 /** Vertical margin (px) below the lowest element for loopback routing. */
 export const LOOPBACK_BELOW_MARGIN = 30;
 

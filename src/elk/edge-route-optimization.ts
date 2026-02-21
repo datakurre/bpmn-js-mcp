@@ -18,6 +18,8 @@ import {
   DIFFERENT_ROW_MIN_Y,
   SAME_ROW_Y_TOLERANCE,
   COLLINEAR_DETOUR_OFFSET,
+  MIN_GATEWAY_PARALLEL_GAP,
+  MAX_GATEWAY_EXIT_Y_DIFF,
   LOOPBACK_BELOW_MARGIN,
   LOOPBACK_ABOVE_MARGIN,
   LOOPBACK_HORIZONTAL_MARGIN,
@@ -204,8 +206,48 @@ export function separateOverlappingGatewayFlows(
 
         const aY = wpsA[0].y;
         const bY = wpsB[0].y;
+        const yDiff = Math.abs(aY - bY);
+
         // Both first segments must be on the same horizontal line
-        if (Math.abs(aY - bY) > 3) continue;
+        if (yDiff > 3) {
+          // ── Near-parallel check (Fix Story-06) ────────────────────────
+          // Flows that exit the same gateway at slightly different Y values
+          // (gateway port offset ≤ MAX_GATEWAY_EXIT_Y_DIFF) but are still
+          // effectively horizontal can appear visually too close.  Enforce a
+          // minimum vertical gap by rerouting the upper flow further above.
+          if (
+            yDiff <= MAX_GATEWAY_EXIT_Y_DIFF &&
+            Math.abs(wpsA[0].y - wpsA[1].y) <= 3 &&
+            Math.abs(wpsB[0].y - wpsB[1].y) <= 3 &&
+            yDiff < MIN_GATEWAY_PARALLEL_GAP
+          ) {
+            const xOverlap = horizontalOverlapLength(wpsA[0].x, wpsA[1].x, wpsB[0].x, wpsB[1].x);
+            if (xOverlap > 10) {
+              // Route the upper flow (smaller Y) further above the lower flow
+              const upperFlow = aY <= bY ? flowA : flowB;
+              const lowerY = Math.max(aY, bY);
+              const newUpperY = lowerY - MIN_GATEWAY_PARALLEL_GAP;
+
+              const upSrc = upperFlow.source!;
+              const upTgt = upperFlow.target!;
+              const upSrcRight = upSrc.x + (upSrc.width || 0);
+              const upSrcCy = upSrc.y + (upSrc.height || 0) / 2;
+              const upTgtLeft = upTgt.x;
+              const upTgtCy = upTgt.y + (upTgt.height || 0) / 2;
+
+              if (Math.abs(upSrcCy - upTgtCy) <= SAME_ROW_Y_TOLERANCE) {
+                const newWps = [
+                  { x: Math.round(upSrcRight), y: Math.round(upSrcCy) },
+                  { x: Math.round(upSrcRight), y: Math.round(newUpperY) },
+                  { x: Math.round(upTgtLeft), y: Math.round(newUpperY) },
+                  { x: Math.round(upTgtLeft), y: Math.round(upTgtCy) },
+                ];
+                modeling.updateWaypoints(upperFlow, deduplicateWaypoints(newWps));
+              }
+            }
+          }
+          continue;
+        }
         if (Math.abs(wpsA[0].y - wpsA[1].y) > 3) continue;
         if (Math.abs(wpsB[0].y - wpsB[1].y) > 3) continue;
 

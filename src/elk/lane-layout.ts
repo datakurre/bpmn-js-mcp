@@ -277,9 +277,11 @@ export function repositionLanes(
 
       const dy = Math.round(bandCentreY - medianCentre);
 
-      if (Math.abs(dy) > 1) {
-        modeling.moveElements(shapes, { x: 0, y: dy });
-      }
+      // Lane-boundary guard: clamp the shift so the topmost element never
+      // overshoots above bandY (can occur with multi-row content and upward shifts).
+      const topContentY = Math.min(...shapes.map((s) => s.y));
+      const safeDy = topContentY + dy < bandY ? bandY - topContentY : dy;
+      if (Math.abs(safeDy) > 1) modeling.moveElements(shapes, { x: 0, y: safeDy });
     }
 
     // Position and resize each lane to tile vertically inside the pool.
