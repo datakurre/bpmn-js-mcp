@@ -288,6 +288,15 @@ describe('Story 7: Event-Based Patterns — Advanced Event Types', () => {
       targetElementId: s.inclusiveJoinId,
     });
 
+    // Add an end event after the join gateway so the notification section
+    // has a proper terminus and avoids a dangling-gateway lint warning.
+    await handleAddElement({
+      diagramId: s.diagramId,
+      elementType: 'bpmn:EndEvent',
+      name: 'Notifications Sent',
+      afterElementId: s.inclusiveJoinId,
+    });
+
     await assertStep(s.diagramId, 'S7-Step02', {
       containsElements: ['Select Notifications', 'Send Email', 'Send SMS', 'Send Push'],
       snapshotFile: 'story-07/step-02.bpmn',

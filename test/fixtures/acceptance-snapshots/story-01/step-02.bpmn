@@ -50,19 +50,19 @@
           <dc:Bounds x="426" y="125" width="85" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0a92wwg_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
+      <bpmndi:BPMNEdge id="Flow_08w67k1_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
         <di:waypoint x="118" y="100" />
         <di:waypoint x="118" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_06dy44h_di" bpmnElement="Flow_ReviewOrder_to_CheckInventory">
+      <bpmndi:BPMNEdge id="Flow_0tf39e6_di" bpmnElement="Flow_ReviewOrder_to_CheckInventory">
         <di:waypoint x="218" y="100" />
         <di:waypoint x="218" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0y6kzp3_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
+      <bpmndi:BPMNEdge id="Flow_19brcul_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
         <di:waypoint x="318" y="100" />
         <di:waypoint x="318" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0rt5bw5_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
+      <bpmndi:BPMNEdge id="Flow_0j6wfs0_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
         <di:waypoint x="418" y="100" />
         <di:waypoint x="450" y="100" />
       </bpmndi:BPMNEdge>

@@ -321,13 +321,17 @@ export function alignOffPathEndEvents(
     const targetCy = el.y + (el.height || 0) / 2;
     const dy = Math.round(sourceCy - targetCy);
 
-    // Skip if incoming source is a split gateway — the end event is on a
-    // downward branch and should stay on its ELK-assigned row.
+    // Skip if incoming source is a split gateway on a downward exception branch
+    // (end event below gateway — it should stay on its ELK-assigned row).
+    // BUT: if the end event is ABOVE the gateway, it is misplaced and should be
+    // snapped down to the gateway's Y-centre (happens when ELK places the
+    // happy-path terminal end event in the wrong column/row).
     const isSourceBoundaryEvent = incoming.source!.type === 'bpmn:BoundaryEvent';
     const sourceOutgoing: BpmnElement[] = incoming.source!.outgoing || [];
     const isSourceSplitGateway =
       incoming.source!.type?.includes('Gateway') && sourceOutgoing.length >= 2;
-    if (isSourceBoundaryEvent || isSourceSplitGateway) continue;
+    if (isSourceBoundaryEvent) continue;
+    if (isSourceSplitGateway && targetCy >= sourceCy - MIN_MOVE_THRESHOLD) continue;
 
     if (Math.abs(dy) > MIN_MOVE_THRESHOLD) {
       modeling.moveElements([el], { x: 0, y: dy });
@@ -674,8 +678,11 @@ export function ensureStartEventsAreLeftmost(
       const cur = queue.shift()!;
       if (visited.has(cur.id)) continue;
       visited.add(cur.id);
+      // Only follow sequence flows — not message flows or associations —
+      // so we stay within a single pool/process and don't pick up elements
+      // from other pools as positional constraints.
       const outgoing = allElements.filter(
-        (conn) => isConnection(conn.type) && conn.source?.id === cur.id && conn.target
+        (conn) => conn.type === 'bpmn:SequenceFlow' && conn.source?.id === cur.id && conn.target
       );
       for (const conn of outgoing) {
         if (conn.target && !visited.has(conn.target.id)) {
@@ -693,19 +700,24 @@ export function ensureStartEventsAreLeftmost(
 
     if (reachable.size === 0) continue;
 
-    // Find the minimum X-centre among all reachable elements
+    // Find the minimum left-edge X among all reachable elements.
+    // Using the left edge (not the centre) ensures the repositioned start
+    // event is placed OUTSIDE the bounding box of any wide element (e.g. a
+    // subprocess) rather than inside it, where resolveOverlaps would push it
+    // back to the right and undo the correction.
     let minReachableX = Infinity;
     for (const id of reachable) {
       const el = elementRegistry.get(id);
       if (!el || isConnection(el.type) || isArtifact(el.type) || isInfrastructure(el.type)) {
         continue;
       }
-      const cx = el.x + (el.width || 0) / 2;
-      if (cx < minReachableX) minReachableX = cx;
+      const leftEdge = el.x;
+      if (leftEdge < minReachableX) minReachableX = leftEdge;
     }
     if (minReachableX === Infinity) continue;
 
-    // If the start event is already to the left of all reachable elements, it's fine
+    // If the start event centre is already to the left of all reachable
+    // elements' left edges, it is correctly positioned.
     if (seCx <= minReachableX + MIN_MOVE_THRESHOLD) continue;
 
     // Start event is to the right of elements it feeds — reposition it to the left.
