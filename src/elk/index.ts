@@ -247,8 +247,9 @@ async function applyNodePositions(ctx: LayoutContext): Promise<void> {
   // Ad-hoc subprocesses have unordered activities that should be arranged in a
   // matrix pattern instead of the default sequential Sugiyama layout.
   repositionAdHocSubprocessChildren(ctx.elementRegistry, ctx.modeling);
-  // Position event subprocesses below main process (they were excluded from ELK graph)
-  await positionEventSubprocesses(ctx.elementRegistry, ctx.modeling);
+  // NOTE: event subprocesses are NOT positioned here — they are placed in a
+  // separate pipeline step after all alignment passes so that the main-flow
+  // bounds used to anchor them are stable (see 'positionEventSubprocesses' step).
 }
 
 /** Restore boundary event data and reposition boundary events. */
@@ -281,6 +282,12 @@ function snapAndAlignLayers(ctx: LayoutContext): void {
 function gridSnapAndResolveOverlaps(ctx: LayoutContext): void {
   const shouldGridSnap = ctx.options?.gridSnap !== false;
   if (!shouldGridSnap) return;
+
+  // Grid snap is a horizontal-layout algorithm (column-based X snapping).
+  // Skip it for vertical (DOWN/UP) layouts — ELK already positions nodes
+  // optimally and the horizontal column logic would corrupt Y-primary layouts.
+  const effectiveDirection = ctx.options?.direction || 'RIGHT';
+  if (effectiveDirection === 'DOWN' || effectiveDirection === 'UP') return;
 
   forEachScope(ctx.elementRegistry, (scope) => {
     gridSnapPass(
@@ -585,6 +592,16 @@ const NODE_POSITION_STEPS: PipelineStep[] = [
       });
     },
   },
+  {
+    // G3: Position event subprocesses AFTER all alignment passes so that
+    // the main-flow bottom boundary used to anchor them is stable.
+    // Moving this from applyNodePositions (step 2) to here (step 8) prevents
+    // large vertical gaps and negative-coordinate placement that arise when
+    // subsequent passes (gridSnap, alignHappyPath) shift the main flow after
+    // the event subprocess has already been positioned relative to it.
+    name: 'positionEventSubprocesses',
+    run: (ctx) => positionEventSubprocesses(ctx.elementRegistry, ctx.modeling),
+  },
 ];
 
 /**
@@ -603,6 +620,18 @@ const POOL_BOUNDARY_EDGE_STEPS: PipelineStep[] = [
     name: 'finaliseBoundaryTargets',
     run: (ctx) => finaliseBoundaryTargets(ctx),
     trackDelta: true,
+  },
+  {
+    // B7: third resolveOverlaps pass — finaliseBoundaryTargets can shift
+    // boundary-event target tasks, potentially overlapping adjacent elements.
+    // Run before applyEdgeRoutes so edge waypoints are placed against stable
+    // element positions.
+    name: 'resolveOverlaps-3rd',
+    run: (ctx) => {
+      forEachScope(ctx.elementRegistry, (scope) => {
+        resolveOverlaps(ctx.elementRegistry, ctx.modeling, scope);
+      });
+    },
   },
   {
     name: 'applyEdgeRoutes',
@@ -655,6 +684,14 @@ const POST_ROUTING_STEPS: PipelineStep[] = [
     // B6: second reduceCrossings — avoidance detours may introduce new crossings.
     name: 'reduceCrossings-2nd',
     run: (ctx) => reduceCrossings(ctx.elementRegistry, ctx.modeling),
+  },
+  {
+    // B6a: final avoidance pass — the 2nd reduceCrossings can nudge waypoints
+    // back through element bounding boxes that the 1st avoidance pass had
+    // already cleared.  This lightweight pass re-applies avoidance so that
+    // the diagram is free of element intersections before detectCrossingFlows.
+    name: 'avoidElementIntersections-2nd',
+    run: (ctx) => avoidElementIntersections(ctx.elementRegistry, ctx.modeling),
   },
   {
     // Read-only final step: writes result to ctx for return value extraction.

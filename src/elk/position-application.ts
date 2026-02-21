@@ -21,6 +21,7 @@ import {
   NORMALISE_ORIGIN_Y,
   NORMALISE_BOUNDARY_ORIGIN_Y,
   NORMALISE_LARGE_THRESHOLD,
+  ORIGIN_OFFSET_X,
   ORIGIN_OFFSET_Y,
 } from './constants';
 import { buildCompoundNode } from './graph-builder';
@@ -710,6 +711,31 @@ export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Mode
         if (el.di?.bounds) {
           el.di.bounds.x = el.x;
           el.di.bounds.y = el.y;
+        }
+      }
+    }
+  }
+
+  // X normalisation: if any flow element has ended up at a negative X
+  // (e.g. due to large event subprocess or compound node placement), shift
+  // everything rightward so the leftmost element starts at ORIGIN_OFFSET_X.
+  // Re-read positions after the Y shift above.
+  const flowElementsAfterY = elementRegistry.filter(
+    (el) => isLayoutableShape(el) && (!rootProcess || el.parent === rootProcess)
+  );
+  let leftX = Infinity;
+  for (const el of flowElementsAfterY) {
+    if (el.x < leftX) leftX = el.x;
+  }
+  if (leftX < ORIGIN_OFFSET_X) {
+    const deltaX = ORIGIN_OFFSET_X - leftX;
+    try {
+      modeling.moveElements(flowElementsAfterY, { x: deltaX, y: 0 });
+    } catch {
+      for (const el of flowElementsAfterY) {
+        el.x += deltaX;
+        if (el.di?.bounds) {
+          el.di.bounds.x = el.x;
         }
       }
     }

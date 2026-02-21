@@ -55,26 +55,48 @@ export function detectLayers(
     )[0];
   }
 
+  // Build a connection lookup: element ID → set of directly connected element IDs.
+  // Used by clusterIntoLayers to prevent merging connected elements into the
+  // same layer — a start event directly connected to a task must be in a
+  // separate column even when ELK places them within the merge threshold.
+  const connectedIds = new Map<string, Set<string>>();
+  const allConnections = elementRegistry
+    .getAll()
+    .filter((el: BpmnElement) => isConnection(el.type));
+  for (const conn of allConnections) {
+    if (!conn.source?.id || !conn.target?.id) continue;
+    if (!connectedIds.has(conn.source.id)) connectedIds.set(conn.source.id, new Set());
+    if (!connectedIds.has(conn.target.id)) connectedIds.set(conn.target.id, new Set());
+    connectedIds.get(conn.source.id)!.add(conn.target.id);
+    connectedIds.get(conn.target.id)!.add(conn.source.id);
+  }
+
   // If no root found (shouldn't happen), fall back to including all elements
   if (!parentFilter) {
     const shapes = elementRegistry.filter((el) => isLayoutableShape(el));
-    return shapes.length === 0 ? [] : clusterIntoLayers(shapes);
+    return shapes.length === 0 ? [] : clusterIntoLayers(shapes, connectedIds);
   }
 
   const shapes = elementRegistry.filter(
     (el) => isLayoutableShape(el) && el.parent === parentFilter
   );
 
-  return shapes.length === 0 ? [] : clusterIntoLayers(shapes);
+  return shapes.length === 0 ? [] : clusterIntoLayers(shapes, connectedIds);
 }
 
 /** Cluster shapes into layers by x-centre proximity. */
-function clusterIntoLayers(shapes: BpmnElement[]): GridLayer[] {
+function clusterIntoLayers(
+  shapes: BpmnElement[],
+  connectedIds?: Map<string, Set<string>>
+): GridLayer[] {
   // Sort by x-centre
   const sorted = [...shapes].sort((a, b) => a.x + (a.width || 0) / 2 - (b.x + (b.width || 0) / 2));
 
   // Cluster into layers: elements within layerThreshold of the first
-  // element in the current cluster are in the same layer.
+  // element in the current cluster are in the same layer, UNLESS the
+  // candidate is directly connected (via a sequence flow) to any element
+  // already in the current group.  Connected elements belong in adjacent
+  // layers even when ELK compresses them below the merge threshold.
   const layerThreshold = ELK_LAYER_SPACING / 2;
   const layers: GridLayer[] = [];
   let currentGroup: BpmnElement[] = [sorted[0]];
@@ -82,7 +104,19 @@ function clusterIntoLayers(shapes: BpmnElement[]): GridLayer[] {
   for (let i = 1; i < sorted.length; i++) {
     const prevCx = currentGroup[0].x + (currentGroup[0].width || 0) / 2;
     const currCx = sorted[i].x + (sorted[i].width || 0) / 2;
-    if (Math.abs(currCx - prevCx) <= layerThreshold) {
+
+    // Force a layer split when the candidate is directly connected to any
+    // element in the current group AND there is a meaningful X separation
+    // between them.  The X-separation guard (> 5px) prevents false splits in
+    // vertical (DOWN/UP) layouts where all elements share the same X-column
+    // and would otherwise be incorrectly dispersed into separate columns.
+    const xDiff = Math.abs(currCx - prevCx);
+    const isConnectedToGroup =
+      xDiff > 5 &&
+      connectedIds !== undefined &&
+      currentGroup.some((groupEl) => connectedIds.get(groupEl.id)?.has(sorted[i].id));
+
+    if (!isConnectedToGroup && xDiff <= layerThreshold) {
       currentGroup.push(sorted[i]);
     } else {
       layers.push(buildLayer(currentGroup));

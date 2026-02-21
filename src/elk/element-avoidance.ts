@@ -203,11 +203,17 @@ function computeDetour(
   const isHorizontal = Math.abs(p1.y - p2.y) < Math.abs(p1.x - p2.x);
 
   if (isHorizontal) {
-    // Route above or below the obstacle
+    // Route above or below the obstacle.
+    // Clamp entryX/exitX to the horizontal span of the original segment so
+    // the detour never extends backward past the source or forward past the
+    // target.  This prevents the avoidance pass from generating oscillating
+    // paths that repeatedly visit waypoints outside the p1→p2 range.
     const aboveY = obY - margin;
     const belowY = obY + obH + margin;
-    const entryX = Math.min(p1.x, p2.x, obX - margin);
-    const exitX = Math.max(p1.x, p2.x, obX + obW + margin);
+    const segMinX = Math.min(p1.x, p2.x);
+    const segMaxX = Math.max(p1.x, p2.x);
+    const entryX = Math.max(segMinX, Math.min(p1.x, p2.x, obX - margin));
+    const exitX = Math.min(segMaxX, Math.max(p1.x, p2.x, obX + obW + margin));
 
     // Choose direction with fewer new intersections (prefer above)
     const aboveDetour: Point[] = [
@@ -229,11 +235,14 @@ function computeDetour(
 
     return aboveIntersections <= belowIntersections ? aboveDetour : belowDetour;
   } else {
-    // Route left or right of the obstacle
+    // Route left or right of the obstacle.
+    // Clamp entryY/exitY to the vertical span of the original segment.
     const leftX = obX - margin;
     const rightX = obX + obW + margin;
-    const entryY = Math.min(p1.y, p2.y, obY - margin);
-    const exitY = Math.max(p1.y, p2.y, obY + obH + margin);
+    const segMinY = Math.min(p1.y, p2.y);
+    const segMaxY = Math.max(p1.y, p2.y);
+    const entryY = Math.max(segMinY, Math.min(p1.y, p2.y, obY - margin));
+    const exitY = Math.min(segMaxY, Math.max(p1.y, p2.y, obY + obH + margin));
 
     const leftDetour: Point[] = [
       { x: p1.x, y: entryY },

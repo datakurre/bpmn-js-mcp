@@ -35,9 +35,11 @@ const EXPECTED_MAIN_STEPS = [
   'repositionArtifacts',
   'alignHappyPathAndOffPathEvents',
   'resolveOverlaps-2nd',
+  'positionEventSubprocesses',
   // B1-4b: Pool/boundary/edge-routing transition steps
   'finalisePoolsAndLanes',
   'finaliseBoundaryTargets',
+  'resolveOverlaps-3rd',
   'applyEdgeRoutes',
   'normaliseOrigin',
   // B1-4c: Post-routing steps
@@ -47,6 +49,7 @@ const EXPECTED_MAIN_STEPS = [
   'reduceCrossings-1st',
   'avoidElementIntersections',
   'reduceCrossings-2nd',
+  'avoidElementIntersections-2nd',
   'detectCrossingFlows',
 ];
 
