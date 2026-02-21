@@ -228,7 +228,9 @@ describe('Story 1: Order Processing — From Empty to Executable', () => {
       await handleGetProperties({ diagramId: s.diagramId, elementId: s.reviewOrderId })
     );
     expect(reviewProps.camundaProperties?.['camunda:assignee']).toBe('reviewer');
-    expect(reviewProps.camundaProperties?.['camunda:formKey']).toBe('embedded:app:forms/review.html');
+    expect(reviewProps.camundaProperties?.['camunda:formKey']).toBe(
+      'embedded:app:forms/review.html'
+    );
 
     // Verify Check Inventory properties
     const checkProps = parseResult(

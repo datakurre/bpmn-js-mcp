@@ -280,7 +280,10 @@ export function repositionLanes(
       // Lane-boundary guard: clamp the shift so the topmost element never
       // overshoots above bandY (can occur with multi-row content and upward shifts).
       const topContentY = Math.min(...shapes.map((s) => s.y));
-      const safeDy = topContentY + dy < bandY ? bandY - topContentY : dy;
+      const bottomContentY = Math.max(...shapes.map((s) => s.y + (s.height || 0)));
+      let safeDy = topContentY + dy < bandY ? bandY - topContentY : dy;
+      // Bottom-boundary guard: clamp so no element overshoots below bandY + bandH.
+      if (bottomContentY + safeDy > bandY + bandH) safeDy = bandY + bandH - bottomContentY;
       if (Math.abs(safeDy) > 1) modeling.moveElements(shapes, { x: 0, y: safeDy });
     }
 

@@ -15,6 +15,9 @@ import {
   SHORT_SEGMENT_THRESHOLD,
 } from './constants';
 
+/** Maximum backward distance (px) in a jog before it's considered intentional. */
+const BACKWARD_JOG_THRESHOLD = 20;
+
 // ── Gateway branch route simplification ────────────────────────────────────
 
 /**
@@ -212,6 +215,21 @@ function removeCollinearPoints(
  */
 export function removeMicroBends(elementRegistry: ElementRegistry, modeling: Modeling): void {
   const BPMN_BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
+
+  // Pass 0: remove backward jogs from ALL connections (including boundary-event sources).
+  // A backward jog is a small monotonicity reversal on a near-horizontal or near-vertical
+  // run (e.g. x goes 1087→1184→1174: forward 97px, then back 10px).
+  const allConnections = elementRegistry.filter(
+    (el) => isConnection(el.type) && !!el.waypoints && el.waypoints.length >= 3
+  );
+  for (const conn of allConnections) {
+    const wps = cloneWaypoints(conn.waypoints!);
+    const fixed = removeBackwardJogs(wps);
+    if (fixed.length < wps.length && fixed.length >= 2) {
+      modeling.updateWaypoints(conn, fixed);
+    }
+  }
+
   const connections = elementRegistry.filter(
     (el) =>
       isConnection(el.type) &&
@@ -271,6 +289,73 @@ function removeNearCollinearPoints(
       result.push(curr);
     }
     // else: near-collinear — skip the middle point (micro-bend removed)
+  }
+
+  result.push(wps[wps.length - 1]);
+  return result;
+}
+
+/**
+ * Remove backward jogs from a waypoint array.
+ *
+ * A backward jog is three consecutive waypoints where the path reverses
+ * direction by less than `BACKWARD_JOG_THRESHOLD` pixels on a
+ * near-horizontal or near-vertical run.
+ *
+ * Example: (1087,348) → (1184,348) → (1174,348)
+ * The path goes right 97px then reverses 10px left — the middle point
+ * (1184,348) is removed, yielding the direct segment (1087,348)→(1174,348).
+ *
+ * This catches monotonicity violations that `removeNearCollinearPoints`
+ * misses for connections that are skipped due to the boundary-event filter.
+ */
+function removeBackwardJogs(wps: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (wps.length < 3) return wps;
+
+  const result: Array<{ x: number; y: number }> = [wps[0]];
+
+  for (let i = 1; i < wps.length - 1; i++) {
+    const prev = result[result.length - 1];
+    const curr = wps[i];
+    const next = wps[i + 1];
+
+    // Near-horizontal run: all Y within tolerance
+    const nearHorizontal =
+      Math.abs(prev.y - curr.y) <= MICRO_BEND_TOLERANCE &&
+      Math.abs(curr.y - next.y) <= MICRO_BEND_TOLERANCE;
+
+    if (nearHorizontal) {
+      const xForward = curr.x - prev.x;
+      const xBack = next.x - curr.x;
+      // Backward jog: direction reverses and the reversal is smaller than threshold
+      if (
+        Math.sign(xForward) !== 0 &&
+        Math.sign(xForward) !== Math.sign(xBack) &&
+        Math.abs(xBack) < BACKWARD_JOG_THRESHOLD
+      ) {
+        continue; // skip the backward-jog intermediate point
+      }
+    }
+
+    // Near-vertical run: all X within tolerance
+    const nearVertical =
+      Math.abs(prev.x - curr.x) <= MICRO_BEND_TOLERANCE &&
+      Math.abs(curr.x - next.x) <= MICRO_BEND_TOLERANCE;
+
+    if (nearVertical) {
+      const yForward = curr.y - prev.y;
+      const yBack = next.y - curr.y;
+      // Backward jog: direction reverses and the reversal is smaller than threshold
+      if (
+        Math.sign(yForward) !== 0 &&
+        Math.sign(yForward) !== Math.sign(yBack) &&
+        Math.abs(yBack) < BACKWARD_JOG_THRESHOLD
+      ) {
+        continue; // skip the backward-jog intermediate point
+      }
+    }
+
+    result.push(curr);
   }
 
   result.push(wps[wps.length - 1]);

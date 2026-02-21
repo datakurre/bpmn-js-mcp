@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
-  <bpmn:collaboration id="Collaboration_0munxzy">
-    <bpmn:participant id="Participant_01ipbhf" name="Order Department" processRef="Process_Conference_Registration_Process" />
-    <bpmn:participant id="Participant_02wujxn" name="ERP System" />
+  <bpmn:collaboration id="Collaboration_1cno55r">
+    <bpmn:participant id="Participant_0302lcq" name="Order Department" processRef="Process_Conference_Registration_Process" />
+    <bpmn:participant id="Participant_1sva6p4" name="ERP System" />
   </bpmn:collaboration>
   <bpmn:process id="Process_Conference_Registration_Process" name="Conference Registration Process" isExecutable="true" camunda:historyTimeToLive="P180D">
     <bpmn:startEvent id="Event_0dskcoo" name="Request Received">
@@ -11,12 +11,10 @@
     <bpmn:exclusiveGateway id="Gateway_0jdocql" name="Approved?" default="Flow_No">
       <bpmn:incoming>Flow_ApplyDiscountRules_to_Approved</bpmn:incoming>
       <bpmn:outgoing>Flow_1vd4vzj</bpmn:outgoing>
-      <bpmn:outgoing>Flow_0pkj4i7</bpmn:outgoing>
       <bpmn:outgoing>Flow_No</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:exclusiveGateway id="Gateway_1hd85cz" name="Merge">
       <bpmn:incoming>Flow_109need</bpmn:incoming>
-      <bpmn:incoming>Flow_0pkj4i7</bpmn:incoming>
       <bpmn:incoming>Flow_No</bpmn:incoming>
       <bpmn:outgoing>Flow_1juidsl</bpmn:outgoing>
     </bpmn:exclusiveGateway>
@@ -45,100 +43,90 @@
     <bpmn:sequenceFlow id="Flow_1vd4vzj" name="Yes" sourceRef="Gateway_0jdocql" targetRef="Activity_1ra1cd4">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approve == true}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_0pkj4i7" name="No" sourceRef="Gateway_0jdocql" targetRef="Gateway_1hd85cz" />
     <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_0jdocql" targetRef="Gateway_1hd85cz" />
     <bpmn:sequenceFlow id="Flow_109need" sourceRef="Activity_1ra1cd4" targetRef="Gateway_1hd85cz" />
     <bpmn:sequenceFlow id="Flow_1juidsl" sourceRef="Gateway_1hd85cz" targetRef="Event_0a768vd" />
     <bpmn:sequenceFlow id="Flow_ReviewRequest_to_ApplyDiscountRules" sourceRef="Activity_1a279je" targetRef="BusinessRuleTask_ApplyDiscountRules" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0munxzy">
-      <bpmndi:BPMNShape id="Participant_01ipbhf_di" bpmnElement="Participant_01ipbhf" isHorizontal="true">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1cno55r">
+      <bpmndi:BPMNShape id="Participant_0302lcq_di" bpmnElement="Participant_0302lcq" isHorizontal="true">
         <dc:Bounds x="162" y="82" width="972" height="250" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0dskcoo_di" bpmnElement="Event_0dskcoo">
-        <dc:Bounds x="242" y="197" width="36" height="36" />
+        <dc:Bounds x="242" y="192" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="215" y="240" width="90" height="14" />
+          <dc:Bounds x="215" y="235" width="90" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_0jdocql_di" bpmnElement="Gateway_0jdocql" isMarkerVisible="true">
-        <dc:Bounds x="663" y="190" width="50" height="50" />
+        <dc:Bounds x="663" y="185" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="661" y="166" width="54" height="14" />
+          <dc:Bounds x="661" y="245" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_1hd85cz_di" bpmnElement="Gateway_1hd85cz" isMarkerVisible="true">
-        <dc:Bounds x="943" y="190" width="50" height="50" />
+        <dc:Bounds x="943" y="185" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="952" y="250" width="32" height="14" />
+          <dc:Bounds x="952" y="245" width="32" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0a768vd_di" bpmnElement="Event_0a768vd">
-        <dc:Bounds x="1048" y="197" width="36" height="36" />
+        <dc:Bounds x="1048" y="192" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1053" y="240" width="27" height="14" />
+          <dc:Bounds x="1053" y="235" width="27" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1twoqdy_di" bpmnElement="Activity_1a279je">
-        <dc:Bounds x="338" y="175" width="100" height="80" />
+        <dc:Bounds x="338" y="170" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BusinessRuleTask_ApplyDiscountRules_di" bpmnElement="BusinessRuleTask_ApplyDiscountRules">
-        <dc:Bounds x="498" y="175" width="100" height="80" />
+        <dc:Bounds x="498" y="170" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0celgmm_di" bpmnElement="Activity_1ra1cd4">
-        <dc:Bounds x="778" y="175" width="100" height="80" />
+      <bpmndi:BPMNShape id="Activity_12jcgnt_di" bpmnElement="Activity_1ra1cd4">
+        <dc:Bounds x="778" y="170" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_0tql777_di" bpmnElement="Flow_0tql777">
-        <di:waypoint x="278" y="215" />
-        <di:waypoint x="338" y="215" />
+        <di:waypoint x="278" y="210" />
+        <di:waypoint x="338" y="210" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1h8fsei_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
-        <di:waypoint x="598" y="215" />
-        <di:waypoint x="663" y="215" />
+      <bpmndi:BPMNEdge id="Flow_0m7qifk_di" bpmnElement="Flow_ApplyDiscountRules_to_Approved">
+        <di:waypoint x="598" y="210" />
+        <di:waypoint x="663" y="210" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1vd4vzj_di" bpmnElement="Flow_1vd4vzj">
-        <di:waypoint x="713" y="215" />
-        <di:waypoint x="778" y="215" />
+        <di:waypoint x="713" y="210" />
+        <di:waypoint x="778" y="210" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="734" y="218" width="19" height="14" />
+          <dc:Bounds x="734" y="213" width="19" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0pkj4i7_di" bpmnElement="Flow_0pkj4i7">
-        <di:waypoint x="713" y="215" />
+      <bpmndi:BPMNEdge id="Flow_1kq36j4_di" bpmnElement="Flow_No">
+        <di:waypoint x="713" y="210" />
         <di:waypoint x="713" y="190" />
         <di:waypoint x="943" y="190" />
-        <di:waypoint x="943" y="215" />
+        <di:waypoint x="943" y="210" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="821" y="143" width="15" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0k82vwx_di" bpmnElement="Flow_No">
-        <di:waypoint x="713" y="215" />
-        <di:waypoint x="713" y="200" />
-        <di:waypoint x="943" y="200" />
-        <di:waypoint x="943" y="215" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="821" y="203" width="15" height="14" />
+          <dc:Bounds x="821" y="193" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_109need_di" bpmnElement="Flow_109need">
-        <di:waypoint x="878" y="215" />
-        <di:waypoint x="943" y="215" />
+        <di:waypoint x="878" y="210" />
+        <di:waypoint x="943" y="210" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1juidsl_di" bpmnElement="Flow_1juidsl">
-        <di:waypoint x="993" y="215" />
-        <di:waypoint x="1048" y="215" />
+        <di:waypoint x="993" y="210" />
+        <di:waypoint x="1048" y="210" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1pcd423_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
-        <di:waypoint x="438" y="215" />
-        <di:waypoint x="498" y="215" />
+      <bpmndi:BPMNEdge id="Flow_1qiyf1c_di" bpmnElement="Flow_ReviewRequest_to_ApplyDiscountRules">
+        <di:waypoint x="438" y="210" />
+        <di:waypoint x="498" y="210" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="Participant_02wujxn_di" bpmnElement="Participant_02wujxn" isHorizontal="true" isExpanded="false">
-        <dc:Bounds x="162" y="398" width="972" height="60" />
+      <bpmndi:BPMNShape id="Participant_1sva6p4_di" bpmnElement="Participant_1sva6p4" isHorizontal="true" isExpanded="false">
+        <dc:Bounds x="162" y="387" width="972" height="60" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>

@@ -109,35 +109,35 @@
           <dc:Bounds x="436" y="255" width="75" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1uwhz3p_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
+      <bpmndi:BPMNEdge id="Flow_0ctdtgf_di" bpmnElement="Flow_OrderReceived_to_ReviewOrder">
         <di:waypoint x="118" y="100" />
         <di:waypoint x="118" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0geq0jy_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
+      <bpmndi:BPMNEdge id="Flow_0shf50h_di" bpmnElement="Flow_CheckInventory_to_ConfirmOrder">
         <di:waypoint x="714" y="70" />
         <di:waypoint x="714" y="40" />
         <di:waypoint x="734" y="40" />
         <di:waypoint x="714" y="40" />
         <di:waypoint x="714" y="70" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0onwymt_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
+      <bpmndi:BPMNEdge id="Flow_05fudyw_di" bpmnElement="Flow_ConfirmOrder_to_OrderCompleted">
         <di:waypoint x="814" y="70" />
         <di:waypoint x="814" y="40" />
         <di:waypoint x="846" y="40" />
         <di:waypoint x="846" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0buw4a2_di" bpmnElement="Flow_ReviewOrder_to_OrderValid">
+      <bpmndi:BPMNEdge id="Flow_1ga0z83_di" bpmnElement="Flow_ReviewOrder_to_OrderValid">
         <di:waypoint x="218" y="100" />
         <di:waypoint x="273" y="100" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_150z6nq_di" bpmnElement="Flow_OrderValid_to_CheckInventory">
+      <bpmndi:BPMNEdge id="Flow_0tzd4ip_di" bpmnElement="Flow_OrderValid_to_CheckInventory">
         <di:waypoint x="323" y="100" />
         <di:waypoint x="614" y="100" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="459" y="82" width="19" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0zfoxbl_di" bpmnElement="Flow_No">
+      <bpmndi:BPMNEdge id="Flow_12thavt_di" bpmnElement="Flow_No">
         <di:waypoint x="298" y="125" />
         <di:waypoint x="298" y="230" />
         <di:waypoint x="323" y="230" />
@@ -145,7 +145,7 @@
           <dc:Bounds x="306" y="175" width="15" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1ozslz7_di" bpmnElement="Flow_HandleRejection_to_OrderRejected">
+      <bpmndi:BPMNEdge id="Flow_1sae7h5_di" bpmnElement="Flow_HandleRejection_to_OrderRejected">
         <di:waypoint x="423" y="230" />
         <di:waypoint x="455" y="230" />
       </bpmndi:BPMNEdge>

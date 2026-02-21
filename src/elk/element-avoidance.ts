@@ -10,6 +10,7 @@
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { type Point, type Rect, segmentIntersectsRect, cloneWaypoints } from '../geometry';
 import { isConnection, isInfrastructure, isArtifact, isLane } from './helpers';
+import { deduplicateWaypoints } from './edge-routing-helpers';
 import { buildObstacleGrid, segmentBBox } from './spatial-index';
 
 /** Margin (px) around elements for avoidance routing. */
@@ -158,7 +159,7 @@ export function avoidElementIntersections(
 
     if (modified) {
       // Deduplicate consecutive identical waypoints
-      wps = deduplicateWps(wps);
+      wps = deduplicateWaypoints(wps);
 
       // Use modeling.updateWaypoints for proper DI/moddle integration.
       // Wrapped in try/catch because bpmn-js's LineAttachmentUtil can throw
@@ -291,18 +292,4 @@ function countDetourIntersections(
     }
   }
   return count;
-}
-
-/** Remove consecutive duplicate waypoints. */
-function deduplicateWps(wps: Point[]): Point[] {
-  const result: Point[] = [wps[0]];
-  for (let i = 1; i < wps.length; i++) {
-    if (
-      Math.abs(wps[i].x - result[result.length - 1].x) > 0.5 ||
-      Math.abs(wps[i].y - result[result.length - 1].y) > 0.5
-    ) {
-      result.push(wps[i]);
-    }
-  }
-  return result;
 }

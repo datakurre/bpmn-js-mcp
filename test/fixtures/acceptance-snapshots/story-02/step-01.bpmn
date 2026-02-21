@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:collaboration id="Collaboration_0ibhqbt">
-    <bpmn:participant id="Participant_125fb2z" name="Customer" processRef="Process_Helpdesk_Process" />
-    <bpmn:participant id="Participant_1mgsil2" name="Support System" />
+  <bpmn:collaboration id="Collaboration_0f48m3n">
+    <bpmn:participant id="Participant_1woa253" name="Customer" processRef="Process_Helpdesk_Process" />
+    <bpmn:participant id="Participant_1gknj7s" name="Support System" />
   </bpmn:collaboration>
   <bpmn:process id="Process_Helpdesk_Process" name="Helpdesk Process" isExecutable="true" camunda:historyTimeToLive="P180D" />
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0ibhqbt">
-      <bpmndi:BPMNShape id="Participant_125fb2z_di" bpmnElement="Participant_125fb2z" isHorizontal="true">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0f48m3n">
+      <bpmndi:BPMNShape id="Participant_1woa253_di" bpmnElement="Participant_1woa253" isHorizontal="true">
         <dc:Bounds x="0" y="-75" width="600" height="350" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Participant_1mgsil2_di" bpmnElement="Participant_1mgsil2" isHorizontal="true" isExpanded="false">
+      <bpmndi:BPMNShape id="Participant_1gknj7s_di" bpmnElement="Participant_1gknj7s" isHorizontal="true" isExpanded="false">
         <dc:Bounds x="0" y="450" width="600" height="60" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>

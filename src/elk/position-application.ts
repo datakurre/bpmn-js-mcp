@@ -10,6 +10,7 @@ import {
   isArtifact as _isArtifact,
   isLane as _isLane,
   isLayoutableShape,
+  isEventSubprocess,
 } from './helpers';
 import {
   COLLAPSED_POOL_GAP,
@@ -702,7 +703,9 @@ export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Mode
 
   // Only consider direct children of the root (not nested in subprocesses)
   const flowElements = elementRegistry.filter(
-    (el) => isLayoutableShape(el) && (!rootProcess || el.parent === rootProcess)
+    (el) =>
+      (isLayoutableShape(el) || isEventSubprocess(el)) &&
+      (!rootProcess || el.parent === rootProcess)
   );
   if (flowElements.length === 0) return;
 
@@ -766,7 +769,9 @@ export function normaliseOrigin(elementRegistry: ElementRegistry, modeling: Mode
   // everything rightward so the leftmost element starts at ORIGIN_OFFSET_X.
   // Re-read positions after the Y shift above.
   const flowElementsAfterY = elementRegistry.filter(
-    (el) => isLayoutableShape(el) && (!rootProcess || el.parent === rootProcess)
+    (el) =>
+      (isLayoutableShape(el) || isEventSubprocess(el)) &&
+      (!rootProcess || el.parent === rootProcess)
   );
   let leftX = Infinity;
   for (const el of flowElementsAfterY) {

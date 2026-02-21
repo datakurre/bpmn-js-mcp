@@ -137,6 +137,20 @@ describe('Story 6: Diagram Evolution — Import, Modify, Refactor', () => {
       elementId: s.sendRejectionId,
     });
 
+    // Explicitly remove any lingering outgoing flows from the Approved? gateway
+    // (bpmn-js may leave the old "No" default flow connected to a stale target
+    // when its original target element is deleted).
+    const afterDeleteList = parseResult(await handleListElements({ diagramId: s.diagramId }));
+    const lingeringNoFlows = (afterDeleteList.elements as any[]).filter(
+      (e: any) =>
+        e.type === 'bpmn:SequenceFlow' &&
+        (e.sourceId ?? e.source?.id) === s.approvedGwId &&
+        e.name === 'No'
+    );
+    for (const flow of lingeringNoFlows) {
+      await handleDeleteElement({ diagramId: s.diagramId, elementId: flow.id });
+    }
+
     // Connect Approved? "No" path directly to Merge gateway
     const noFlowRes = parseResult(
       await handleConnect({
@@ -148,6 +162,13 @@ describe('Story 6: Diagram Evolution — Import, Modify, Refactor', () => {
       })
     );
     expect(noFlowRes.connectionId).toBeDefined();
+
+    // Verify that the Approved? gateway has exactly 2 outgoing flows (Yes + No)
+    const afterConnectList = parseResult(await handleListElements({ diagramId: s.diagramId }));
+    const outgoingFlows = (afterConnectList.elements as any[]).filter(
+      (e: any) => e.type === 'bpmn:SequenceFlow' && (e.sourceId ?? e.source?.id) === s.approvedGwId
+    );
+    expect(outgoingFlows.length).toBe(2);
 
     await assertStep(s.diagramId, 'S6-Step04', {
       snapshotFile: 'story-06/step-04.bpmn',
