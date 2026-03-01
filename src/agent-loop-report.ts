@@ -17,14 +17,11 @@ function gradeEmoji(grade: string): string {
   return map[grade?.toUpperCase()] ?? '⬜';
 }
 
-function svgInline(svgAbsPath: string, maxWidthPx: number): string {
-  if (!fs.existsSync(svgAbsPath)) return '';
-  let svg = fs.readFileSync(svgAbsPath, 'utf-8');
-  svg = svg.replace(
-    /^(<svg\b)/m,
-    `$1 style="max-width:${maxWidthPx}px;height:auto;border:1px solid #ccc;border-radius:4px;"`
-  );
-  return svg;
+/** Return a Markdown image link relative to the directory where the report file lives. */
+function svgLink(svgAbsPath: string, altText: string, reportDir: string): string {
+  if (!fs.existsSync(svgAbsPath)) return `_(${altText}: not found)_`;
+  const rel = path.relative(reportDir, svgAbsPath).replace(/\\/g, '/');
+  return `![${altText}](${rel})`;
 }
 
 function scenarioTableRow(s: ScenarioScore): string {
@@ -83,14 +80,17 @@ function diffSection(patchAbsPath: string): string {
 function svgComparisonTable(
   beforeSvgs: string[],
   afterSvgs: string[],
-  scenarios: ScenarioScore[]
+  scenarios: ScenarioScore[],
+  reportDir: string
 ): string {
   if (beforeSvgs.length === 0 && afterSvgs.length === 0) return '';
   const rows: string[] = ['| Scenario | Before | After |', '|:--|:--|:--|'];
   for (const s of scenarios) {
     const before = beforeSvgs.find((p) => path.basename(p).includes(s.scenarioId));
     const after = afterSvgs.find((p) => path.basename(p).includes(s.scenarioId));
-    rows.push(`| **${s.scenarioId}** ${s.name} | ${before ? svgInline(before, 300) : '—'} | ${after ? svgInline(after, 300) : '—'} |`); // prettier-ignore
+    const beforeCell = before ? svgLink(before, `${s.scenarioId} before`, reportDir) : '—';
+    const afterCell = after ? svgLink(after, `${s.scenarioId} after`, reportDir) : '—';
+    rows.push(`| **${s.scenarioId}** ${s.name} | ${beforeCell} | ${afterCell} |`);
   }
   return rows.join('\n');
 }
@@ -128,7 +128,7 @@ function reportHeader(audit: AuditLog): string[] {
   return sections;
 }
 
-function reportBaselineSection(audit: AuditLog, journalDir: string): string[] {
+function reportBaselineSection(audit: AuditLog, journalDir: string, reportDir: string): string[] {
   if (!audit.baselineReport) return [];
   const r = audit.baselineReport;
   const sections: string[] = [
@@ -143,36 +143,57 @@ function reportBaselineSection(audit: AuditLog, journalDir: string): string[] {
   if (fs.existsSync(svgDir)) {
     const svgs = fs.readdirSync(svgDir).map((f) => path.join(svgDir, f));
     if (svgs.length > 0) {
-      sections.push(
-        '### Baseline Diagrams',
-        '',
-        '<div style="display:flex;flex-wrap:wrap;gap:10px;">'
-      );
-      for (const svg of svgs) sections.push(svgInline(svg, 400));
-      sections.push('</div>', '');
+      sections.push('### Baseline Diagrams', '');
+      for (const svg of svgs) {
+        const name = path.basename(svg, '.svg');
+        sections.push(svgLink(svg, name, reportDir), '');
+      }
     }
   }
   return sections;
 }
 
-function iterSvgSection(iter: IterationAudit, iterDir: string, journalDir: string): string[] {
+function iterSvgSection(
+  iter: IterationAudit,
+  iterDir: string,
+  reportDir: string
+): string[] {
   const beforeSvgDir = path.join(iterDir, 'svgs-baseline');
   const afterSvgDir = path.join(iterDir, 'svgs-after');
-  const beforeSvgs = fs.existsSync(beforeSvgDir) ? fs.readdirSync(beforeSvgDir).map((f) => path.join(beforeSvgDir, f)) : []; // prettier-ignore
-  const afterSvgs = fs.existsSync(afterSvgDir) ? fs.readdirSync(afterSvgDir).map((f) => path.join(afterSvgDir, f)) : []; // prettier-ignore
+  const beforeSvgs = fs.existsSync(beforeSvgDir)
+    ? fs.readdirSync(beforeSvgDir).map((f) => path.join(beforeSvgDir, f))
+    : [];
+  const afterSvgs = fs.existsSync(afterSvgDir)
+    ? fs.readdirSync(afterSvgDir).map((f) => path.join(afterSvgDir, f))
+    : [];
   if (beforeSvgs.length === 0 && afterSvgs.length === 0) return [];
   const baseScenarios = iter.baselineReport?.scenarios ?? iter.candidateReport?.scenarios ?? [];
-  return ['#### Diagram Before / After', '', svgComparisonTable(beforeSvgs, afterSvgs, baseScenarios), '']; // prettier-ignore
-  void journalDir;
+  return [
+    '#### Diagram Before / After',
+    '',
+    svgComparisonTable(beforeSvgs, afterSvgs, baseScenarios, reportDir),
+    '',
+  ];
 }
 
-function reportIterationSection(iter: IterationAudit, journalDir: string): string[] {
+function reportIterationSection(
+  iter: IterationAudit,
+  journalDir: string,
+  reportDir: string
+): string[] {
   const label = `iter-${String(iter.iter).padStart(2, '0')}`;
   const iterDir = path.join(journalDir, label);
   const sections: string[] = [
     `### ${iter.accepted ? '✅' : '❌'} Iteration ${iter.iter}`,
     '',
-    `| | |\n|:--|:--|\n| **Started** | ${iter.startedAt} |\n| **Finished** | ${iter.finishedAt} |\n| **Duration** | ${iter.durationSec.toFixed(1)}s |\n| **Model** | \`${iter.model}\` |\n| **Score improvement** | ${iter.scoreImprovement >= 0 ? '+' : ''}${iter.scoreImprovement.toFixed(3)} |\n| **Accepted** | ${iter.accepted ? 'Yes' : 'No'} |`, // prettier-ignore
+    '| | |',
+    '|:--|:--|',
+    `| **Started** | ${iter.startedAt} |`,
+    `| **Finished** | ${iter.finishedAt} |`,
+    `| **Duration** | ${iter.durationSec.toFixed(1)}s |`,
+    `| **Model** | \`${iter.model}\` |`,
+    `| **Score improvement** | ${iter.scoreImprovement >= 0 ? '+' : ''}${iter.scoreImprovement.toFixed(3)} |`,
+    `| **Accepted** | ${iter.accepted ? 'Yes' : 'No'} |`,
     '',
   ];
   if (iter.tokenUsage.inputTokens || iter.tokenUsage.outputTokens) {
@@ -182,9 +203,20 @@ function reportIterationSection(iter: IterationAudit, journalDir: string): strin
     sections.push('#### MCP Tool Calls', '', toolCallSection(iter.toolCalls), '');
   }
   if (iter.baselineReport && iter.candidateReport) {
-    sections.push('#### Score Comparison', '', '**Before:**', '', scenarioTable(iter.baselineReport.scenarios), '', '**After:**', '', scenarioTable(iter.candidateReport.scenarios), ''); // prettier-ignore
+    sections.push(
+      '#### Score Comparison',
+      '',
+      '**Before:**',
+      '',
+      scenarioTable(iter.baselineReport.scenarios),
+      '',
+      '**After:**',
+      '',
+      scenarioTable(iter.candidateReport.scenarios),
+      ''
+    );
   }
-  sections.push(...iterSvgSection(iter, iterDir, journalDir));
+  sections.push(...iterSvgSection(iter, iterDir, reportDir));
   if (iter.patchPath) {
     sections.push('#### Code Changes', '', diffSection(iter.patchPath), '');
   }
@@ -193,13 +225,24 @@ function reportIterationSection(iter: IterationAudit, journalDir: string): strin
       .readFileSync(iter.sessionTranscriptPath, 'utf-8')
       .split('\n')
       .slice(0, 60)
-      .join('\n');
-    sections.push('<details>', '<summary>Session Transcript (first 60 lines)</summary>', '', excerpt, '', '</details>', ''); // prettier-ignore
+      .join('\n')
+      .replace(/```/g, '\\`\\`\\`');
+    sections.push(
+      '<details>',
+      '<summary>Session Transcript (first 60 lines)</summary>',
+      '',
+      '```',
+      excerpt,
+      '```',
+      '',
+      '</details>',
+      ''
+    );
   }
   return sections;
 }
 
-function reportFinalSection(audit: AuditLog, journalDir: string): string[] {
+function reportFinalSection(audit: AuditLog, journalDir: string, reportDir: string): string[] {
   if (!audit.finalReport) return [];
   const r = audit.finalReport;
   const sections: string[] = [
@@ -214,13 +257,11 @@ function reportFinalSection(audit: AuditLog, journalDir: string): string[] {
   if (fs.existsSync(svgDir)) {
     const svgs = fs.readdirSync(svgDir).map((f) => path.join(svgDir, f));
     if (svgs.length > 0) {
-      sections.push(
-        '### Final Diagrams',
-        '',
-        '<div style="display:flex;flex-wrap:wrap;gap:10px;">'
-      );
-      for (const svg of svgs) sections.push(svgInline(svg, 400));
-      sections.push('</div>', '');
+      sections.push('### Final Diagrams', '');
+      for (const svg of svgs) {
+        const name = path.basename(svg, '.svg');
+        sections.push(svgLink(svg, name, reportDir), '');
+      }
     }
   }
   return sections;
@@ -230,14 +271,14 @@ function reportFinalSection(audit: AuditLog, journalDir: string): string[] {
 // Public API
 // ---------------------------------------------------------------------------
 
-export function generateMarkdownReport(audit: AuditLog, journalDir: string): string {
+export function generateMarkdownReport(audit: AuditLog, journalDir: string, reportDir: string): string {
   return [
     ...reportHeader(audit),
-    ...reportBaselineSection(audit, journalDir),
+    ...reportBaselineSection(audit, journalDir, reportDir),
     '## Iterations',
     '',
-    ...audit.iterations.flatMap((iter) => reportIterationSection(iter, journalDir)),
-    ...reportFinalSection(audit, journalDir),
+    ...audit.iterations.flatMap((iter) => reportIterationSection(iter, journalDir, reportDir)),
+    ...reportFinalSection(audit, journalDir, reportDir),
     '## Appendix: Raw Reports',
     '',
     '<details>',

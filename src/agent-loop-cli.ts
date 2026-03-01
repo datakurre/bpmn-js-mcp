@@ -382,9 +382,10 @@ async function main() {
       'utf-8'
     );
 
-    // Generate markdown report
-    const mdReport = generateMarkdownReport(fullAudit, journalDir);
+    // Generate markdown report (reportDir = directory where the .md file lives,
+    // so relative image paths like agent-loop/iter-01/svgs-after/after-S01-....svg resolve correctly)
     const mdPath = path.join(outputDir, 'agent-loop-audit.md');
+    const mdReport = generateMarkdownReport(fullAudit, journalDir, outputDir);
     fs.writeFileSync(mdPath, mdReport, 'utf-8');
     process.stdout.write(`\nAudit report: ${path.relative(repoDir, mdPath)}\n`);
   } finally {
