@@ -1,6 +1,7 @@
 import {
   cloneWaypoints,
   deduplicateWaypoints,
+  rectsContains,
   rectsNearby,
   rectsOverlap,
   segmentsIntersect,
@@ -87,6 +88,9 @@ function computeOverlapAndNearMisses(shapes: ListedElement[]): {
         continue;
       }
       const rb = { x: b.x, y: b.y, width: b.width, height: b.height };
+      // Skip parent-child pairs: a subprocess (or pool) naturally contains its
+      // children — that geometric containment is not a layout defect.
+      if (rectsContains(ra, rb) || rectsContains(rb, ra)) continue;
       if (rectsOverlap(ra, rb)) overlaps++;
       else if (rectsNearby(ra, rb, 15)) nearMisses++;
     }

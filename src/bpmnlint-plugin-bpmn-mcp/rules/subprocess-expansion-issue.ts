@@ -15,7 +15,7 @@ import { isType } from '../utils';
 /** Minimum width for an expanded subprocess to be usable. */
 const MIN_EXPANDED_WIDTH = 300;
 /** Minimum height for an expanded subprocess to be usable. */
-const MIN_EXPANDED_HEIGHT = 180;
+const MIN_EXPANDED_HEIGHT = 160;
 
 /**
  * Check the BPMNShape DI to determine if a subprocess is expanded and get its bounds.

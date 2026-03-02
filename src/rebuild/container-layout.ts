@@ -355,8 +355,10 @@ export function positionBoundaryEventsAndChains(
         repositionedCount++;
       }
 
-      // Position exception chain elements below the host
-      const chainResult = positionExceptionChain(info, beCenter, host, registry, modeling, gap);
+      // Position exception chain elements below the host.
+      // Pass chain index so multiple chains on the same host are staggered
+      // vertically — each on its own row — to prevent element overlap.
+      const chainResult = positionExceptionChain(info, beCenter, host, registry, modeling, gap, i);
       repositionedCount += chainResult.repositionedCount;
       reroutedCount += chainResult.reroutedCount;
     }
@@ -369,6 +371,10 @@ export function positionBoundaryEventsAndChains(
  * Position exception chain elements as a linear chain starting from
  * a boundary event.  Elements are placed below the host at the same Y,
  * progressing left-to-right with standard gap.
+ *
+ * @param chainIndex  Zero-based index of this chain among all chains on the
+ *   same host. When multiple boundary events share a host, each chain is
+ *   placed on its own Y row (stacked vertically) to prevent overlap.
  */
 function positionExceptionChain(
   info: BoundaryEventInfo,
@@ -376,7 +382,8 @@ function positionExceptionChain(
   host: BpmnElement,
   registry: ElementRegistry,
   modeling: Modeling,
-  gap: number
+  gap: number,
+  chainIndex = 0
 ): RebuildResult {
   let repositionedCount = 0;
   let reroutedCount = 0;
@@ -389,7 +396,10 @@ function positionExceptionChain(
     const el = registry.get(chainId);
     if (el) maxHeight = Math.max(maxHeight, el.height);
   }
-  const chainCenterY = host.y + host.height + BOUNDARY_GAP + maxHeight / 2;
+  // Each chain on the same host occupies its own Y row.  Row 0 starts
+  // directly below the host; subsequent rows are offset by (maxHeight + gap).
+  const rowOffset = chainIndex * (maxHeight + gap);
+  const chainCenterY = host.y + host.height + BOUNDARY_GAP + maxHeight / 2 + rowOffset;
 
   let prevCenter = beCenter;
   let prevHalfWidth = info.boundaryEvent.width / 2;

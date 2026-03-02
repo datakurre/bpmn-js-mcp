@@ -213,6 +213,17 @@ export default tseslint.config(
     },
   },
 
+  // ── Eval scenarios — scenario builders are inherently long ─────────────
+  {
+    files: ['src/eval/scenarios.ts'],
+    rules: {
+      // Scenario builders describe full diagrams; 80-line limit is impractical.
+      'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+      // The scenarios file grows with each new scenario.
+      'max-lines': 'off',
+    },
+  },
+
   // ── Test-specific relaxations ─────────────────────────────────────────────
   {
     files: ['test/**/*.ts'],

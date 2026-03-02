@@ -185,10 +185,27 @@ function getOverlapArea(a: Bounds, b: Bounds): number {
   return overlapX * overlapY;
 }
 
+/**
+ * Check if outer fully contains inner (parent–child relationship).
+ * Subprocesses contain their children geometrically — this is intentional,
+ * not a layout defect that warrants an alignment warning.
+ */
+function boundsContains(outer: Bounds, inner: Bounds): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height
+  );
+}
+
 function countOverlappingPairs(shapes: ShapeEntry[]): number {
   let count = 0;
   for (let i = 0; i < shapes.length; i++) {
     for (let j = i + 1; j < shapes.length; j++) {
+      // Skip parent–child containment (e.g. subprocess and its children).
+      if (boundsContains(shapes[i].bounds, shapes[j].bounds)) continue;
+      if (boundsContains(shapes[j].bounds, shapes[i].bounds)) continue;
       if (getOverlapArea(shapes[i].bounds, shapes[j].bounds) >= MIN_OVERLAP_AREA) {
         count++;
       }
@@ -262,6 +279,9 @@ function countCloseShapePairs(shapes: ShapeEntry[]): number {
   let count = 0;
   for (let i = 0; i < shapes.length; i++) {
     for (let j = i + 1; j < shapes.length; j++) {
+      // Skip parent–child containment.
+      if (boundsContains(shapes[i].bounds, shapes[j].bounds)) continue;
+      if (boundsContains(shapes[j].bounds, shapes[i].bounds)) continue;
       const gap = gapBetween(shapes[i].bounds, shapes[j].bounds);
       // Close but not overlapping
       if (gap > 0 && gap <= CLOSE_DISTANCE_PX) {

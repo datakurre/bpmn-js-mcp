@@ -28,6 +28,19 @@ interface Bounds {
 const MIN_OVERLAP_AREA = 100;
 
 /**
+ * Check if outer fully contains inner (parent–child relationship).
+ * A subprocess contains its children; this is intentional, not a defect.
+ */
+function boundsContains(outer: Bounds, inner: Bounds): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height
+  );
+}
+
+/**
  * Check if two axis-aligned rectangles overlap significantly.
  */
 function getOverlapArea(a: Bounds, b: Bounds): number {
@@ -97,6 +110,9 @@ function reportOverlaps(shapes: ShapeEntry[], reporter: any): void {
     for (let j = i + 1; j < shapes.length; j++) {
       const a = shapes[i];
       const b = shapes[j];
+      // Skip parent–child containment: a container (subprocess) naturally wraps
+      // its children — geometric containment is not a layout defect.
+      if (boundsContains(a.bounds, b.bounds) || boundsContains(b.bounds, a.bounds)) continue;
       const overlapArea = getOverlapArea(a.bounds, b.bounds);
       if (overlapArea < MIN_OVERLAP_AREA) continue;
 

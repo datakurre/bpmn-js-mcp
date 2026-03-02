@@ -14,8 +14,11 @@
 
 import { isType } from '../utils';
 
-/** Approximate vertical space needed per flow node in a lane (element height + gap). */
-const VERTICAL_SPACE_PER_ELEMENT = 80;
+/** Approximate vertical space needed per ROW of elements (element height + gap).
+ *  Elements in BPMN lanes are primarily arranged horizontally. We estimate the
+ *  number of vertical rows as ceil(sqrt(N)) for N elements, so this constant
+ *  represents the height per row rather than per element. */
+const VERTICAL_SPACE_PER_ELEMENT = 40;
 /** Minimum recommended lane height for any lane with elements. */
 const MIN_LANE_HEIGHT = 120;
 /** Top and bottom margin inside a lane. */
@@ -99,11 +102,15 @@ export default function laneOvercrowding() {
         const laneHeight = definitions ? getLaneHeight(lane.id, definitions) : undefined;
         if (laneHeight === undefined) continue;
 
-        // Calculate minimum height needed for the elements
-        // Elements can be arranged in rows; estimate rows needed
+        // Calculate minimum height needed for the elements.
+        // Elements in a lane are typically arranged horizontally in rows.
+        // Use sqrt(elementCount) as an estimate of the number of rows needed,
+        // since each additional element in a horizontal flow adds minimal vertical space.
+        // This avoids false positives when many elements share a row (common after layout).
+        const estimatedRows = Math.max(1, Math.ceil(Math.sqrt(elementCount)));
         const minHeight = Math.max(
           MIN_LANE_HEIGHT,
-          elementCount * VERTICAL_SPACE_PER_ELEMENT + 2 * LANE_MARGIN
+          estimatedRows * VERTICAL_SPACE_PER_ELEMENT + 2 * LANE_MARGIN
         );
 
         if (laneHeight < minHeight) {

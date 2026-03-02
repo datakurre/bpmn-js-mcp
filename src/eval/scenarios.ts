@@ -1,11 +1,13 @@
 import {
   handleAddElement,
+  handleAutosizePoolsAndLanes,
   handleConnect,
   handleCreateDiagram,
   handleCreateLanes,
   handleLayoutDiagram,
   handleSetProperties,
   handleSetEventDefinition,
+  handleSetFormData,
 } from '../handlers';
 import { clearDiagrams } from '../diagram-manager';
 import { parseToolJson } from './mcp-json';
@@ -65,10 +67,13 @@ const START_EVENT = 'bpmn:StartEvent';
 const END_EVENT = 'bpmn:EndEvent';
 const USER_TASK = 'bpmn:UserTask';
 const SERVICE_TASK = 'bpmn:ServiceTask';
+const SCRIPT_TASK = 'bpmn:ScriptTask';
 const EXCLUSIVE_GATEWAY = 'bpmn:ExclusiveGateway';
 const PARALLEL_GATEWAY = 'bpmn:ParallelGateway';
+const INCLUSIVE_GATEWAY = 'bpmn:InclusiveGateway';
 const PARTICIPANT = 'bpmn:Participant';
 const BOUNDARY_EVENT = 'bpmn:BoundaryEvent';
+const SUB_PROCESS = 'bpmn:SubProcess';
 
 function s01Linear(): EvalScenario {
   return {
@@ -220,6 +225,12 @@ export function getEvalScenarios(): EvalScenario[] {
     s04Camunda7Executable(),
     s05TimerBoundary(),
     s06Lanes(),
+    s07ThreeLanes(),
+    s08TwoBoundaryEvents(),
+    s09ExpandedSubprocess(),
+    s10EventSubprocess(),
+    s11InclusiveGateway(),
+    s12FourLanes(),
   ];
 }
 
@@ -331,6 +342,618 @@ function s05TimerBoundary(): EvalScenario {
       await connect(diagramId, escalate, escalateEnd);
 
       await layout(diagramId);
+      return { diagramId };
+    },
+  };
+}
+
+/**
+ * S07: Three-lane order process with error boundary on payment.
+ *
+ * Tests:
+ * - Three swimlanes (Customer / Approver / Finance)
+ * - Cross-lane sequence flows at each lane boundary
+ * - Exclusive gateway split/merge inside one lane
+ * - Error boundary event on a Service Task in the Finance lane
+ * - Exception chain (Log Error → Payment Error end) inside the same lane
+ */
+function s07ThreeLanes(): EvalScenario {
+  return {
+    scenarioId: 'S07',
+    name: 'Three-lane order process with error boundary',
+    build: async () => {
+      clearDiagrams();
+      const diagramId = await createDiagram('Eval S07 ThreeLanes');
+      const participant = await add(diagramId, PARTICIPANT, 'Order Handling');
+      const lanes = parseToolJson<{ success: boolean; laneIds: string[] }>(
+        await handleCreateLanes({
+          diagramId,
+          participantId: participant,
+          lanes: [{ name: 'Customer' }, { name: 'Approver' }, { name: 'Finance' }],
+        })
+      );
+      const [laneC, laneA, laneF] = lanes.laneIds;
+
+      // Customer lane
+      const start = await add(diagramId, START_EVENT, 'Order Placed', {
+        participantId: participant,
+        laneId: laneC,
+      });
+      const submitOrder = await add(diagramId, USER_TASK, 'Submit Order', {
+        participantId: participant,
+        laneId: laneC,
+        afterElementId: start,
+      });
+      await setProps(diagramId, submitOrder, { 'camunda:assignee': 'customer' });
+
+      // Approver lane
+      const reviewOrder = await add(diagramId, USER_TASK, 'Review Order', {
+        participantId: participant,
+        laneId: laneA,
+        afterElementId: submitOrder,
+      });
+      await setProps(diagramId, reviewOrder, { 'camunda:assignee': 'approver' });
+      await handleSetFormData({
+        diagramId,
+        elementId: reviewOrder,
+        fields: [{ id: 'approved', label: 'Approved', type: 'boolean' }],
+      });
+      const decision = await add(diagramId, EXCLUSIVE_GATEWAY, 'Approved?', {
+        participantId: participant,
+        laneId: laneA,
+        afterElementId: reviewOrder,
+      });
+      const notifyReject = await add(diagramId, USER_TASK, 'Notify Rejection', {
+        participantId: participant,
+        laneId: laneA,
+      });
+      await setProps(diagramId, notifyReject, { 'camunda:assignee': 'approver' });
+      const rejectedEnd = await add(diagramId, END_EVENT, 'Rejected', {
+        participantId: participant,
+        laneId: laneA,
+        afterElementId: notifyReject,
+      });
+
+      // Finance lane
+      const processPayment = await add(diagramId, SERVICE_TASK, 'Process Payment', {
+        participantId: participant,
+        laneId: laneF,
+      });
+      await setProps(diagramId, processPayment, {
+        'camunda:type': 'external',
+        'camunda:topic': 'process-payment',
+      });
+      const orderDone = await add(diagramId, END_EVENT, 'Order Complete', {
+        participantId: participant,
+        laneId: laneF,
+        afterElementId: processPayment,
+      });
+
+      // Error boundary on Process Payment → exception chain in Finance lane
+      const paymentError = await add(diagramId, BOUNDARY_EVENT, 'Payment Failed', {
+        hostElementId: processPayment,
+        eventDefinitionType: 'bpmn:ErrorEventDefinition',
+        errorRef: { id: 'Error_Payment', name: 'Payment Failed', errorCode: 'ERR_PAYMENT' },
+      });
+      const logError = await add(diagramId, SERVICE_TASK, 'Log Payment Error', {
+        participantId: participant,
+        laneId: laneF,
+        afterElementId: paymentError,
+      });
+      await setProps(diagramId, logError, {
+        'camunda:type': 'external',
+        'camunda:topic': 'log-payment-error',
+      });
+      const errorEnd = await add(diagramId, END_EVENT, 'Payment Error', {
+        participantId: participant,
+        laneId: laneF,
+        afterElementId: logError,
+      });
+
+      await connect(diagramId, start, submitOrder);
+      await connect(diagramId, submitOrder, reviewOrder);
+      await connect(diagramId, reviewOrder, decision);
+      await connect(diagramId, decision, processPayment, {
+        label: 'Yes',
+        conditionExpression: '${approved}',
+      });
+      await connect(diagramId, decision, notifyReject, { label: 'No', isDefault: true });
+      await connect(diagramId, notifyReject, rejectedEnd);
+      await connect(diagramId, processPayment, orderDone);
+      await connect(diagramId, paymentError, logError);
+      await connect(diagramId, logError, errorEnd);
+
+      await layout(diagramId);
+      await handleAutosizePoolsAndLanes({ diagramId, participantId: participant });
+      return { diagramId };
+    },
+  };
+}
+
+/**
+ * S08: Two boundary events on one user task.
+ *
+ * Tests:
+ * - Non-interrupting timer boundary (cancelActivity: false) — SLA reminder
+ * - Interrupting error boundary — claim rejection handling
+ * - Both attached to the same host UserTask
+ * - Each triggers an independent exception path to a distinct End Event
+ * - Layout must place both boundary events without overlap on the host
+ */
+function s08TwoBoundaryEvents(): EvalScenario {
+  return {
+    scenarioId: 'S08',
+    name: 'Two boundary events on one task (timer + error)',
+    build: async () => {
+      clearDiagrams();
+      const diagramId = await createDiagram('Eval S08 TwoBoundary');
+
+      const start = await add(diagramId, START_EVENT, 'Claim Received');
+      const processClaim = await add(diagramId, USER_TASK, 'Process Insurance Claim', {
+        afterElementId: start,
+      });
+      await setProps(diagramId, processClaim, { 'camunda:assignee': 'claims-agent' });
+      const claimApproved = await add(diagramId, END_EVENT, 'Claim Approved', {
+        afterElementId: processClaim,
+      });
+
+      // Non-interrupting 48-hour SLA timer → send reminder
+      const timerBoundary = await add(diagramId, BOUNDARY_EVENT, 'SLA Warning', {
+        hostElementId: processClaim,
+        cancelActivity: false,
+        eventDefinitionType: 'bpmn:TimerEventDefinition',
+        eventDefinitionProperties: { timeDuration: 'PT48H' },
+      });
+      const sendReminder = await add(diagramId, SERVICE_TASK, 'Send SLA Reminder', {
+        afterElementId: timerBoundary,
+      });
+      await setProps(diagramId, sendReminder, {
+        'camunda:type': 'external',
+        'camunda:topic': 'send-sla-reminder',
+      });
+      const reminderSent = await add(diagramId, END_EVENT, 'Reminder Sent', {
+        afterElementId: sendReminder,
+      });
+
+      // Interrupting error boundary → rejection handler
+      const errorBoundary = await add(diagramId, BOUNDARY_EVENT, 'Claim Rejected', {
+        hostElementId: processClaim,
+        eventDefinitionType: 'bpmn:ErrorEventDefinition',
+        errorRef: { id: 'Error_ClaimRejected', name: 'Claim Rejection', errorCode: 'ERR_CLAIM' },
+      });
+      const handleRejection = await add(diagramId, SERVICE_TASK, 'Handle Rejection', {
+        afterElementId: errorBoundary,
+      });
+      await setProps(diagramId, handleRejection, {
+        'camunda:type': 'external',
+        'camunda:topic': 'handle-claim-rejection',
+      });
+      const rejected = await add(diagramId, END_EVENT, 'Claim Rejected', {
+        afterElementId: handleRejection,
+      });
+
+      await connect(diagramId, start, processClaim);
+      await connect(diagramId, processClaim, claimApproved);
+      await connect(diagramId, timerBoundary, sendReminder);
+      await connect(diagramId, sendReminder, reminderSent);
+      await connect(diagramId, errorBoundary, handleRejection);
+      await connect(diagramId, handleRejection, rejected);
+
+      await layout(diagramId);
+      return { diagramId };
+    },
+  };
+}
+
+/**
+ * S09: Expanded inline subprocess with parallel branches and error boundary.
+ *
+ * Tests:
+ * - Expanded (inline) SubProcess containing a parallel fork/join
+ * - Parent process flows through the subprocess: Start → Sub → Ship → End
+ * - Error boundary on the subprocess itself triggers a separate exception path
+ * - Layout must correctly size the subprocess around its children and position
+ *   the boundary event on the subprocess edge
+ */
+function s09ExpandedSubprocess(): EvalScenario {
+  return {
+    scenarioId: 'S09',
+    name: 'Expanded subprocess with parallel branches and error boundary',
+    build: async () => {
+      clearDiagrams();
+      const diagramId = await createDiagram('Eval S09 Subprocess');
+
+      const start = await add(diagramId, START_EVENT, 'Order Received');
+      const sub = await add(diagramId, SUB_PROCESS, 'Fulfill Order', { afterElementId: start });
+
+      // Internal subprocess flow: parallel pick + pack
+      const subStart = await add(diagramId, START_EVENT, 'Begin Fulfillment', { parentId: sub });
+      const split = await add(diagramId, PARALLEL_GATEWAY, 'Start Tasks', {
+        parentId: sub,
+        afterElementId: subStart,
+      });
+      const pickItems = await add(diagramId, USER_TASK, 'Collect Items', {
+        parentId: sub,
+        afterElementId: split,
+      });
+      await setProps(diagramId, pickItems, { 'camunda:assignee': 'warehouse' });
+      const packItems = await add(diagramId, SERVICE_TASK, 'Pack Items', {
+        parentId: sub,
+        afterElementId: split,
+      });
+      await setProps(diagramId, packItems, {
+        'camunda:type': 'external',
+        'camunda:topic': 'pack-items',
+      });
+      const join = await add(diagramId, PARALLEL_GATEWAY, 'Tasks Complete', {
+        parentId: sub,
+        afterElementId: pickItems,
+      });
+      const subEnd = await add(diagramId, END_EVENT, 'Fulfilled', {
+        parentId: sub,
+        afterElementId: join,
+      });
+
+      await connect(diagramId, subStart, split);
+      await connect(diagramId, split, pickItems);
+      await connect(diagramId, split, packItems);
+      await connect(diagramId, pickItems, join);
+      await connect(diagramId, packItems, join);
+      await connect(diagramId, join, subEnd);
+
+      // Main flow after subprocess
+      const shipOrder = await add(diagramId, SERVICE_TASK, 'Ship Order', { afterElementId: sub });
+      await setProps(diagramId, shipOrder, {
+        'camunda:type': 'external',
+        'camunda:topic': 'ship-order',
+      });
+      const done = await add(diagramId, END_EVENT, 'Shipped', { afterElementId: shipOrder });
+
+      // Error boundary on the subprocess → shortage exception path
+      const shortageError = await add(diagramId, BOUNDARY_EVENT, 'Stock Shortage', {
+        hostElementId: sub,
+        eventDefinitionType: 'bpmn:ErrorEventDefinition',
+        errorRef: { id: 'Error_Shortage', name: 'Stock Shortage', errorCode: 'ERR_STOCK' },
+      });
+      const handleShortage = await add(diagramId, SERVICE_TASK, 'Handle Shortage', {
+        afterElementId: shortageError,
+      });
+      await setProps(diagramId, handleShortage, {
+        'camunda:type': 'external',
+        'camunda:topic': 'handle-shortage',
+      });
+      const outOfStock = await add(diagramId, END_EVENT, 'Out of Stock', {
+        afterElementId: handleShortage,
+      });
+
+      await connect(diagramId, start, sub);
+      await connect(diagramId, sub, shipOrder);
+      await connect(diagramId, shipOrder, done);
+      await connect(diagramId, shortageError, handleShortage);
+      await connect(diagramId, handleShortage, outOfStock);
+
+      await layout(diagramId);
+      return { diagramId };
+    },
+  };
+}
+
+/**
+ * S10: Event subprocess triggered by an error.
+ *
+ * Tests:
+ * - Expanded event subprocess (triggeredByEvent: true)
+ * - Error StartEvent inside the event subprocess
+ * - Terminate EndEvent in the main process
+ * - Event subprocess must be positioned below the main flow
+ * - Internal elements of the event subprocess are connected sequentially
+ */
+function s10EventSubprocess(): EvalScenario {
+  return {
+    scenarioId: 'S10',
+    name: 'Event subprocess triggered by error',
+    build: async () => {
+      clearDiagrams();
+      const diagramId = await createDiagram('Eval S10 EventSubprocess');
+
+      // Main process
+      const start = await add(diagramId, START_EVENT, 'Transaction Initiated');
+      const processTx = await add(diagramId, SERVICE_TASK, 'Process Transaction', {
+        afterElementId: start,
+      });
+      await setProps(diagramId, processTx, {
+        'camunda:type': 'external',
+        'camunda:topic': 'process-transaction',
+      });
+      const confirmOrder = await add(diagramId, USER_TASK, 'Confirm Order', {
+        afterElementId: processTx,
+      });
+      await setProps(diagramId, confirmOrder, { 'camunda:assignee': 'sales' });
+      const done = await add(diagramId, END_EVENT, 'Transaction Complete', {
+        afterElementId: confirmOrder,
+      });
+
+      await connect(diagramId, start, processTx);
+      await connect(diagramId, processTx, confirmOrder);
+      await connect(diagramId, confirmOrder, done);
+
+      // Event subprocess — positioned below main flow, triggered on error
+      const evtSub = await add(diagramId, SUB_PROCESS, 'Handle Transaction Error', {
+        x: 200,
+        y: 370,
+      });
+      await setProps(diagramId, evtSub, { triggeredByEvent: true, isExpanded: true });
+
+      const subStart = await add(diagramId, START_EVENT, 'Transaction Failed', {
+        parentId: evtSub,
+        eventDefinitionType: 'bpmn:ErrorEventDefinition',
+        errorRef: { id: 'Error_TxFailed', name: 'Transaction Failed', errorCode: 'ERR_TX' },
+      });
+      const voidTx = await add(diagramId, SERVICE_TASK, 'Cancel Transaction', {
+        parentId: evtSub,
+        afterElementId: subStart,
+      });
+      await setProps(diagramId, voidTx, {
+        'camunda:type': 'external',
+        'camunda:topic': 'cancel-transaction',
+      });
+      const notifyFailure = await add(diagramId, SERVICE_TASK, 'Notify Customer of Failure', {
+        parentId: evtSub,
+        afterElementId: voidTx,
+      });
+      await setProps(diagramId, notifyFailure, {
+        'camunda:type': 'external',
+        'camunda:topic': 'notify-failure',
+      });
+      const subEnd = await add(diagramId, END_EVENT, 'Error Handled', {
+        parentId: evtSub,
+        afterElementId: notifyFailure,
+      });
+
+      await connect(diagramId, subStart, voidTx);
+      await connect(diagramId, voidTx, notifyFailure);
+      await connect(diagramId, notifyFailure, subEnd);
+
+      await layout(diagramId);
+      return { diagramId };
+    },
+  };
+}
+
+/**
+ * S11: Inclusive gateway (OR-split with 3 optional notification branches).
+ *
+ * Tests:
+ * - InclusiveGateway split and merge (any subset of branches may be active)
+ * - Three parallel optional paths: email / database / audit-log
+ * - Condition expressions on all outgoing flows
+ * - ScriptTask with scriptFormat and script body (Camunda 7 requirement)
+ * - Layout must fan the 3 branches symmetrically around the gateway Y axis
+ */
+function s11InclusiveGateway(): EvalScenario {
+  return {
+    scenarioId: 'S11',
+    name: 'Inclusive gateway — 3 optional notification branches',
+    build: async () => {
+      clearDiagrams();
+      const diagramId = await createDiagram('Eval S11 Inclusive');
+
+      const start = await add(diagramId, START_EVENT, 'Evaluation Triggered');
+      const evaluate = await add(diagramId, INCLUSIVE_GATEWAY, 'Conditions active?', {
+        afterElementId: start,
+      });
+
+      // Branch A: email notification
+      const sendEmail = await add(diagramId, SERVICE_TASK, 'Send Email Notification', {
+        afterElementId: evaluate,
+      });
+      await setProps(diagramId, sendEmail, {
+        'camunda:type': 'external',
+        'camunda:topic': 'send-email',
+      });
+
+      // Branch B: database update
+      const updateRecord = await add(diagramId, SERVICE_TASK, 'Update Database Record', {
+        afterElementId: evaluate,
+      });
+      await setProps(diagramId, updateRecord, {
+        'camunda:type': 'external',
+        'camunda:topic': 'update-record',
+      });
+
+      // Branch C: audit log (ScriptTask)
+      const auditLog = await add(diagramId, SCRIPT_TASK, 'Write Audit Log', {
+        afterElementId: evaluate,
+      });
+      await setProps(diagramId, auditLog, {
+        scriptFormat: 'groovy',
+        script: "log.info('Audit: ' + execution.processInstanceId)",
+      });
+
+      const merge = await add(diagramId, INCLUSIVE_GATEWAY, 'All Actions Complete', {
+        afterElementId: sendEmail,
+      });
+      const done = await add(diagramId, END_EVENT, 'Notifications Sent', {
+        afterElementId: merge,
+      });
+
+      await connect(diagramId, start, evaluate);
+      await connect(diagramId, evaluate, sendEmail, {
+        label: 'Email',
+        conditionExpression: '${notifyByEmail}',
+      });
+      await connect(diagramId, evaluate, updateRecord, {
+        label: 'DB',
+        conditionExpression: '${updateDb}',
+      });
+      await connect(diagramId, evaluate, auditLog, {
+        label: 'Audit',
+        conditionExpression: '${auditRequired}',
+      });
+      await connect(diagramId, sendEmail, merge);
+      await connect(diagramId, updateRecord, merge);
+      await connect(diagramId, auditLog, merge);
+      await connect(diagramId, merge, done);
+
+      await layout(diagramId);
+      return { diagramId };
+    },
+  };
+}
+
+/**
+ * S12: Four-lane support escalation process with non-interrupting timer.
+ *
+ * Tests:
+ * - Four swimlanes: Customer / Support / Technical / Manager
+ * - Multiple cross-lane sequence flows (zigzag handoff pattern)
+ * - Non-interrupting timer boundary on a Support-lane task (status updates)
+ * - Exclusive gateway split in Support lane with one branch going to Technical
+ * - Explicit merge gateway in Support lane before the close step
+ * - Cross-lane flow from Manager back to Support and from Support to Customer
+ */
+function s12FourLanes(): EvalScenario {
+  return {
+    scenarioId: 'S12',
+    name: 'Four-lane escalation process with non-interrupting timer',
+    build: async () => {
+      clearDiagrams();
+      const diagramId = await createDiagram('Eval S12 FourLanes');
+      const participant = await add(diagramId, PARTICIPANT, 'Support Escalation');
+      const lanes = parseToolJson<{ success: boolean; laneIds: string[] }>(
+        await handleCreateLanes({
+          diagramId,
+          participantId: participant,
+          lanes: [
+            { name: 'Customer' },
+            { name: 'Support' },
+            { name: 'Technical' },
+            { name: 'Manager' },
+          ],
+        })
+      );
+      const [laneCustomer, laneSupport, laneTechnical, laneManager] = lanes.laneIds;
+
+      // Customer lane: submit and receive resolution
+      const start = await add(diagramId, START_EVENT, 'Issue Reported', {
+        participantId: participant,
+        laneId: laneCustomer,
+      });
+      const submitTicket = await add(diagramId, USER_TASK, 'Submit Support Ticket', {
+        participantId: participant,
+        laneId: laneCustomer,
+        afterElementId: start,
+      });
+      await setProps(diagramId, submitTicket, { 'camunda:assignee': 'customer' });
+      const resolved = await add(diagramId, END_EVENT, 'Issue Resolved', {
+        participantId: participant,
+        laneId: laneCustomer,
+      });
+
+      // Support lane: triage → escalation decision
+      const triage = await add(diagramId, USER_TASK, 'Triage Issue', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: submitTicket,
+      });
+      await setProps(diagramId, triage, { 'camunda:assignee': 'support-team' });
+      await handleSetFormData({
+        diagramId,
+        elementId: triage,
+        fields: [
+          {
+            id: 'priority',
+            label: 'Priority',
+            type: 'enum',
+            values: [
+              { id: 'low', name: 'Low' },
+              { id: 'high', name: 'High' },
+            ],
+          },
+        ],
+      });
+
+      // Non-interrupting 4-hour timer on Triage → send status update
+      const triageTimer = await add(diagramId, BOUNDARY_EVENT, 'Status Update Due', {
+        hostElementId: triage,
+        cancelActivity: false,
+        eventDefinitionType: 'bpmn:TimerEventDefinition',
+        eventDefinitionProperties: { timeDuration: 'PT4H' },
+      });
+      const sendStatus = await add(diagramId, SERVICE_TASK, 'Send Status Update', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: triageTimer,
+      });
+      await setProps(diagramId, sendStatus, {
+        'camunda:type': 'external',
+        'camunda:topic': 'send-status-update',
+      });
+      const statusSent = await add(diagramId, END_EVENT, 'Update Sent', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: sendStatus,
+      });
+
+      const priorityGw = await add(diagramId, EXCLUSIVE_GATEWAY, 'Priority?', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: triage,
+      });
+
+      // Low-priority: stay in Support lane (autoConnect:false avoids unconditional gateway flow)
+      const handleDirectly = await add(diagramId, USER_TASK, 'Handle Request Directly', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: priorityGw,
+        autoConnect: false,
+      });
+      await setProps(diagramId, handleDirectly, { 'camunda:assignee': 'support-agent' });
+
+      const mergeGw = await add(diagramId, EXCLUSIVE_GATEWAY, 'Merge', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: handleDirectly,
+      });
+      const closeTicket = await add(diagramId, USER_TASK, 'Close Ticket', {
+        participantId: participant,
+        laneId: laneSupport,
+        afterElementId: mergeGw,
+      });
+      await setProps(diagramId, closeTicket, { 'camunda:assignee': 'support-agent' });
+
+      // High-priority: escalate to Technical then Manager
+      const investigate = await add(diagramId, USER_TASK, 'Investigate Issue', {
+        participantId: participant,
+        laneId: laneTechnical,
+      });
+      await setProps(diagramId, investigate, { 'camunda:assignee': 'technical' });
+
+      const approveFix = await add(diagramId, USER_TASK, 'Approve Fix', {
+        participantId: participant,
+        laneId: laneManager,
+        afterElementId: investigate,
+      });
+      await setProps(diagramId, approveFix, { 'camunda:assignee': 'manager' });
+
+      await connect(diagramId, start, submitTicket);
+      await connect(diagramId, submitTicket, triage);
+      await connect(diagramId, triageTimer, sendStatus);
+      await connect(diagramId, sendStatus, statusSent);
+      await connect(diagramId, triage, priorityGw);
+      await connect(diagramId, priorityGw, investigate, {
+        label: 'High',
+        conditionExpression: "${priority == 'high'}",
+      });
+      await connect(diagramId, priorityGw, handleDirectly, { label: 'Low', isDefault: true });
+      await connect(diagramId, investigate, approveFix);
+      await connect(diagramId, approveFix, mergeGw);
+      await connect(diagramId, handleDirectly, mergeGw);
+      await connect(diagramId, mergeGw, closeTicket);
+      await connect(diagramId, closeTicket, resolved);
+
+      await layout(diagramId);
+      await handleAutosizePoolsAndLanes({ diagramId, participantId: participant });
       return { diagramId };
     },
   };

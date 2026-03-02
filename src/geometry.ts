@@ -43,6 +43,21 @@ export function rectsNearby(a: Rect, b: Rect, margin: number): boolean {
   );
 }
 
+/**
+ * Check if rect `outer` fully contains rect `inner`.
+ * Returns true when every edge of `inner` is within the bounds of `outer`.
+ * Used to detect parent-child container relationships — a subprocess element
+ * overlapping its parent subprocess is not a layout defect.
+ */
+export function rectsContains(outer: Rect, inner: Rect): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height
+  );
+}
+
 // ── Line segment ↔ rectangle intersection ──────────────────────────────────
 
 /**
