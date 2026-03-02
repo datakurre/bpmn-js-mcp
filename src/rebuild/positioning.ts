@@ -251,7 +251,11 @@ function positionBranchElement(
 
   // Symmetric branch Y offset — overridden by lane Y when known
   const numBranches = pattern.branches.length;
-  const branchOffset = (branchIndex - (numBranches - 1) / 2) * branchSpacing;
+  const rawOffset = (branchIndex - (numBranches - 1) / 2) * branchSpacing;
+  // Snap to nearest multiple of 10 using absolute-value rounding so that
+  // positive and negative offsets snap symmetrically (e.g. ±65 → ±70).
+  // This aligns branch element top-left Y coordinates to the 10px grid.
+  const branchOffset = Math.sign(rawOffset) * Math.round(Math.abs(rawOffset) / 10) * 10;
   const branchY = elementLaneYs?.get(elementId) ?? splitPos.y + branchOffset;
 
   // X based on position within the branch
