@@ -20,17 +20,17 @@ type Metrics = EvalReport['scenarios'][0]['metrics'];
  */
 export function computePenaltyBreakdown(m: Metrics): string {
   const p: string[] = [];
-  if (m.overlaps > 0)                 p.push(`overlaps: -${m.overlaps * 25}pts`);
-  if (m.crossings > 0)                p.push(`crossings: -${m.crossings * 12}pts`);
-  if (m.diagonalSegments > 0)         p.push(`diagonals: -${m.diagonalSegments * 2}pts`);
-  if (m.bendCount > 0)                p.push(`bends: -${(m.bendCount * 1.5).toFixed(1)}pts`);
-  if (m.nearMisses > 0)               p.push(`nearMisses: -${(m.nearMisses * 0.5).toFixed(1)}pts`);
-  if (m.detourRatioAvg > 1.2)         p.push(`detour: -${((m.detourRatioAvg - 1.2) * 30).toFixed(1)}pts`);
-  if (m.gridSnapAvg < 1)              p.push(`gridSnap: -${((1 - m.gridSnapAvg) * 10).toFixed(1)}pts`);
-  if (m.horizontalMisalignments > 0)  p.push(`hMisalign: -${m.horizontalMisalignments * 3}pts`);
-  if (m.verticalImbalance > 0)        p.push(`vImbalance: -${(m.verticalImbalance * 2).toFixed(1)}pts`);
-  if (m.lintErrors > 0)               p.push(`lintErrors: -${m.lintErrors * 15}pts`);
-  if (m.lintWarnings > 0)             p.push(`lintWarnings: -${m.lintWarnings * 3}pts`);
+  if (m.overlaps > 0) p.push(`overlaps: -${m.overlaps * 25}pts`);
+  if (m.crossings > 0) p.push(`crossings: -${m.crossings * 12}pts`);
+  if (m.diagonalSegments > 0) p.push(`diagonals: -${m.diagonalSegments * 2}pts`);
+  if (m.bendCount > 0) p.push(`bends: -${(m.bendCount * 1.5).toFixed(1)}pts`);
+  if (m.nearMisses > 0) p.push(`nearMisses: -${(m.nearMisses * 0.5).toFixed(1)}pts`);
+  if (m.detourRatioAvg > 1.2) p.push(`detour: -${((m.detourRatioAvg - 1.2) * 30).toFixed(1)}pts`);
+  if (m.gridSnapAvg < 1) p.push(`gridSnap: -${((1 - m.gridSnapAvg) * 10).toFixed(1)}pts`);
+  if (m.horizontalMisalignments > 0) p.push(`hMisalign: -${m.horizontalMisalignments * 3}pts`);
+  if (m.verticalImbalance > 0) p.push(`vImbalance: -${(m.verticalImbalance * 2).toFixed(1)}pts`);
+  if (m.lintErrors > 0) p.push(`lintErrors: -${m.lintErrors * 15}pts`);
+  if (m.lintWarnings > 0) p.push(`lintWarnings: -${m.lintWarnings * 3}pts`);
   return p.length > 0 ? p.join(', ') : 'none';
 }
 
@@ -157,7 +157,7 @@ function promptPreviousIterations(audits: IterationAudit[]): string[] {
     lines.push(`### Iteration ${a.iter}: ${a.accepted ? 'ACCEPTED' : 'REJECTED'}`);
     if (a.rejectionReason) lines.push(`  Reason: ${a.rejectionReason}`);
     if (a.changedFiles.length > 0) lines.push(`  Files: ${a.changedFiles.join(', ')}`);
-    if (a.changedFiles.some(f => f.includes('scenarios') || f.includes('score'))) {
+    if (a.changedFiles.some((f) => f.includes('scenarios') || f.includes('score'))) {
       lines.push('  ⚠ Edited eval files — DO NOT repeat this mistake!');
     }
     lines.push('');

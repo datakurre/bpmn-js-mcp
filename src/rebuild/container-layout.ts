@@ -12,9 +12,10 @@
  * Merged from: containers.ts + container-layout.ts
  */
 
-import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
+import type { BpmnElement, ElementRegistry, EventBus, Modeling } from '../bpmn-types';
 import type { BoundaryEventInfo } from './boundary';
 import type { RebuildResult } from './engine';
+import { resetStaleWaypoints } from './waypoints';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -223,7 +224,8 @@ const BOUNDARY_GAP = 40;
 export function moveElementTo(
   modeling: Modeling,
   element: BpmnElement,
-  targetCenter: { x: number; y: number }
+  targetCenter: { x: number; y: number },
+  eventBus?: EventBus
 ): boolean {
   const currentCenterX = element.x + element.width / 2;
   const currentCenterY = element.y + element.height / 2;
@@ -247,6 +249,10 @@ export function moveElementTo(
       di.bounds.x = element.x;
       di.bounds.y = element.y;
     }
+    // Notify the canvas renderer so the SVG <g> transform is updated.
+    // Direct model mutation updates the DI (XML export) but does NOT fire
+    // a canvas event, so the SVG export shows the old position without this.
+    eventBus?.fire('element.changed', { element });
     return true;
   }
 
@@ -277,7 +283,7 @@ export function collectExceptionChainIds(boundaryInfos: BoundaryEventInfo[]): Se
  */
 function layoutConnectionSafe(modeling: Modeling, connElement: any): boolean {
   try {
-    resetStaleBoundaryWaypoints(connElement);
+    resetStaleWaypoints(connElement);
     modeling.layoutConnection(connElement);
     return true;
   } catch {
@@ -285,45 +291,6 @@ function layoutConnectionSafe(modeling: Modeling, connElement: any): boolean {
     // connection waypoints are inconsistent. Skip silently.
     return false;
   }
-}
-
-/**
- * Reset stale waypoints on boundary event / exception chain connections.
- *
- * After the rebuild engine repositions boundary events and their exception
- * chain elements, the connection waypoints still reflect pre-layout
- * positions.  Detect backward detours (waypoints going far left of both
- * source and target) and reset to center-to-center so ManhattanLayout
- * can compute a clean path.
- */
-function resetStaleBoundaryWaypoints(conn: any): void {
-  const source = conn.source;
-  const target = conn.target;
-  if (!source || !target) return;
-
-  const wps = conn.waypoints;
-  if (!wps || wps.length < 3) return;
-
-  // Check for backward detour: intermediate waypoints go far left
-  // of both source and target elements
-  const leftBound = Math.min(source.x, target.x);
-  const hasBackwardDetour = wps.slice(1, -1).some((wp: any) => wp.x < leftBound - 5);
-
-  if (!hasBackwardDetour) return;
-
-  // Reset to L-shaped orthogonal path.  A 2-point diagonal is kept as-is
-  // by ManhattanLayout in headless mode, so we must provide the bends.
-  const sourceCenterX = source.x + (source.width || 0) / 2;
-  const sourceCenterY = source.y + (source.height || 0) / 2;
-  const targetCenterX = target.x + (target.width || 0) / 2;
-  const targetCenterY = target.y + (target.height || 0) / 2;
-
-  // Route: down from source to target Y, then across to target X
-  conn.waypoints = [
-    { x: sourceCenterX, y: sourceCenterY, original: { x: sourceCenterX, y: sourceCenterY } },
-    { x: sourceCenterX, y: targetCenterY },
-    { x: targetCenterX, y: targetCenterY, original: { x: targetCenterX, y: targetCenterY } },
-  ];
 }
 
 /**
@@ -354,7 +321,8 @@ export function positionBoundaryEventsAndChains(
   _mainFlowPositions: Map<string, { x: number; y: number }>,
   registry: ElementRegistry,
   modeling: Modeling,
-  gap: number
+  gap: number,
+  eventBus?: EventBus
 ): RebuildResult {
   let repositionedCount = 0;
   let reroutedCount = 0;
@@ -383,7 +351,7 @@ export function positionBoundaryEventsAndChains(
 
       // Position boundary event at host's bottom border
       const beCenter = { x: spreadX, y: hostBottom };
-      if (moveElementTo(modeling, be, beCenter)) {
+      if (moveElementTo(modeling, be, beCenter, eventBus)) {
         repositionedCount++;
       }
 

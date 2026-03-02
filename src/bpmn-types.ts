@@ -154,6 +154,13 @@ export interface Modeling {
   ): void;
 }
 
+/** The EventBus service — publish/subscribe event bus for diagram-js events. */
+export interface EventBus {
+  fire(event: string, data?: Record<string, unknown>): unknown;
+  on(event: string, callback: (...args: any[]) => void): void;
+  off(event: string, callback: (...args: any[]) => void): void;
+}
+
 /** The ElementFactory service — creates new shapes / connections. */
 export interface ElementFactory {
   createShape(attrs: Record<string, unknown>): BpmnElement;
@@ -225,6 +232,7 @@ export interface ServiceMap {
   commandStack: CommandStack;
   bpmnReplace: BpmnReplace;
   autoPlace: AutoPlace;
+  eventBus: EventBus;
 }
 
 /**

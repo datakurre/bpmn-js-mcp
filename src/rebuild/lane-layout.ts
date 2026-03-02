@@ -8,6 +8,7 @@
  */
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
+import { resetStaleWaypoints } from './waypoints';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -305,6 +306,10 @@ export function applyLaneLayout(
   for (const el of allElements) {
     if (el.parent === participant && el.type === SEQUENCE_FLOW_TYPE) {
       try {
+        // Reset stale waypoints before layout so ManhattanLayout computes
+        // fresh orthogonal routing instead of being guided by creation-time
+        // docking points that may exit the source from the wrong edge.
+        resetStaleWaypoints(el);
         modeling.layoutConnection(el);
       } catch {
         // ManhattanLayout docking guard: skip connections with inconsistent waypoints.
@@ -354,20 +359,17 @@ function routeCrossLaneConnections(
     const src = flow.source as BpmnElement;
     const tgt = flow.target as BpmnElement;
 
-    // Only process forward flows (target is to the right of or at same X as source)
-    const srcCenterX = src.x + (src.width || 0) / 2;
-    const tgtCenterX = tgt.x + (tgt.width || 0) / 2;
-    if (tgtCenterX <= srcCenterX) continue;
+    // Only process forward flows (target is to the right of source)
+    if (tgt.x + (tgt.width || 0) / 2 <= src.x + (src.width || 0) / 2) continue;
 
     // Only process cross-lane flows
     const srcLane = savedLaneMap.get(src.id);
     const tgtLane = savedLaneMap.get(tgt.id);
     if (!srcLane || !tgtLane || srcLane.id === tgtLane.id) continue;
 
-    // Check current waypoints — if they already look like a clean L-shape
-    // (3 waypoints, horizontal then vertical or vice versa), leave them.
+    // Check current waypoints exist — empty arrays can be skipped.
     const wps = flow.waypoints;
-    if (wps && wps.length <= 3) continue;
+    if (!wps || wps.length === 0) continue;
 
     // Compute clean L-shaped route:
     // 1. Leave source's right edge at source center Y
@@ -380,10 +382,6 @@ function routeCrossLaneConnections(
 
     // Mid-X is halfway between source right edge and target left edge
     const midX = Math.round((srcRightX + tgtLeftX) / 2);
-
-    // Only re-route if the current path is longer than 3 waypoints
-    // (fewer waypoints = already clean)
-    if (!wps || wps.length <= 3) continue;
 
     // Build a 4-waypoint L-shaped path: right → corner1 → corner2 → entry
     const cleanWaypoints = [

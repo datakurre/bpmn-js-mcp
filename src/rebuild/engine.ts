@@ -21,12 +21,19 @@
  */
 
 import type { DiagramState } from '../types';
-import { type BpmnElement, type ElementRegistry, type Modeling, getService } from '../bpmn-types';
+import {
+  type BpmnElement,
+  type ElementRegistry,
+  type EventBus,
+  type Modeling,
+  getService,
+} from '../bpmn-types';
 import { STANDARD_BPMN_GAP } from '../constants';
 import { extractFlowGraph, type FlowGraph } from './topology';
 import { detectBackEdges, topologicalSort } from './graph';
 import { detectGatewayPatterns } from './patterns';
 import { identifyBoundaryEvents } from './boundary';
+import { resetStaleWaypoints } from './waypoints';
 import {
   buildContainerHierarchy,
   getContainerRebuildOrder,
@@ -134,6 +141,7 @@ export function rebuildLayout(diagram: DiagramState, options?: RebuildOptions): 
   const modeler = diagram.modeler;
   const modeling = getService(modeler, 'modeling');
   const registry = getService(modeler, 'elementRegistry');
+  const eventBus = getService(modeler, 'eventBus');
 
   const origin = options?.origin ?? DEFAULT_ORIGIN;
   const gap = options?.gap ?? STANDARD_BPMN_GAP;
@@ -158,7 +166,8 @@ export function rebuildLayout(diagram: DiagramState, options?: RebuildOptions): 
       branchSpacing,
       pinnedElementIds,
       rebuiltParticipants,
-      skipPoolResize
+      skipPoolResize,
+      eventBus
     );
     totalRepositioned += counts.repositionedCount;
     totalRerouted += counts.reroutedCount;
@@ -189,7 +198,8 @@ function processContainerNode(
   branchSpacing: number,
   pinnedElementIds: Set<string> | undefined,
   rebuiltParticipants: BpmnElement[],
-  skipPoolResize: boolean
+  skipPoolResize: boolean,
+  eventBus: EventBus
 ): RebuildResult {
   const container = containerNode.element;
 
@@ -227,7 +237,8 @@ function processContainerNode(
     branchSpacing,
     eventSubIds,
     pinnedElementIds,
-    elementLaneYs
+    elementLaneYs,
+    eventBus
   );
 
   let repositionedCount = result.repositionedCount;
@@ -330,7 +341,8 @@ function rebuildContainer(
   branchSpacing: number,
   additionalExcludeIds?: Set<string>,
   pinnedElementIds?: Set<string>,
-  elementLaneYs?: Map<string, number>
+  elementLaneYs?: Map<string, number>,
+  eventBus?: EventBus
 ): RebuildResult {
   // Extract flow graph scoped to this container
   const graph = extractFlowGraph(registry, container);
@@ -388,7 +400,8 @@ function rebuildContainer(
     positions,
     registry,
     modeling,
-    gap
+    gap,
+    eventBus
   );
   repositionedCount += boundaryResult.repositionedCount;
   reroutedCount += boundaryResult.reroutedCount;
@@ -452,146 +465,6 @@ function clampConnectionWaypointsToParticipant(
  * Uses bpmn-js ManhattanLayout via modeling.layoutConnection() which
  * computes orthogonal waypoints based on element positions.
  */
-/**
- * Reset a connection's waypoints to edge-to-edge so that ManhattanLayout
- * computes fresh routing based on current element positions rather than
- * being influenced by stale waypoints from intermediate moves.
- *
- * Detects two types of stale routing:
- * 1. Backward detour: intermediate waypoints go left of the source element,
- *    indicating the connection routes backward before coming forward.
- *    This commonly happens for reconverging flows to merge gateways.
- * 2. Same-Y vertical detour: source and target are at the same Y level but
- *    waypoints detour significantly above or below.
- */
-function resetStaleWaypoints(conn: any): void {
-  const source = conn.source;
-  const target = conn.target;
-  if (!source || !target) return;
-
-  const wps = conn.waypoints;
-  if (!wps || wps.length === 0) return;
-
-  const sourceRight = source.x + (source.width || 0);
-  const targetLeft = target.x;
-
-  // Only applies to left-to-right connections (target is to the right)
-  if (targetLeft <= sourceRight) return;
-
-  const sourceMidY = source.y + (source.height || 0) / 2;
-  const targetMidY = target.y + (target.height || 0) / 2;
-
-  // For gateway sources with vertically offset targets, always set proper
-  // v:h waypoints (vertical exit → horizontal approach) regardless of the
-  // current waypoint count.  This ensures ManhattanLayout receives correct
-  // routing hints for fan-out patterns.
-  const isGatewaySource = source.type?.includes('Gateway');
-  const verticalOffset = Math.abs(sourceMidY - targetMidY);
-  const sourceHalfHeight = (source.height || 0) / 2;
-
-  if (isGatewaySource && verticalOffset > sourceHalfHeight) {
-    const sourceMidX = source.x + (source.width || 0) / 2;
-    const exitY =
-      targetMidY < sourceMidY
-        ? source.y // exit from top
-        : source.y + (source.height || 0); // exit from bottom
-    conn.waypoints = [
-      {
-        x: sourceMidX,
-        y: exitY,
-        original: { x: sourceMidX, y: exitY },
-      },
-      { x: sourceMidX, y: targetMidY },
-      {
-        x: targetLeft,
-        y: targetMidY,
-        original: { x: targetLeft, y: targetMidY },
-      },
-    ];
-    return;
-  }
-
-  // For non-gateway connections with fewer than 3 waypoints, there's no
-  // stale routing to detect (simple 2-point line is fine).
-  if (wps.length < 3) return;
-
-  let needsReset = false;
-
-  // Check 1: Backward detour — intermediate waypoints go left of source's
-  // left edge.  This catches reconverging flows (branch → merge gateway)
-  // where stale waypoints from pre-layout positions route backward.
-  const hasBackwardDetour = wps.slice(1, -1).some((wp: any) => wp.x < source.x - 5);
-  if (hasBackwardDetour) {
-    needsReset = true;
-  }
-
-  // Check 2: Same-Y connections with vertical detours (straight connections
-  // that route upward/downward instead of going straight across)
-  if (!needsReset && Math.abs(sourceMidY - targetMidY) <= 10) {
-    const bandTop = Math.min(source.y, target.y);
-    const bandBottom = Math.max(source.y + (source.height || 0), target.y + (target.height || 0));
-    const hasVerticalDetour = wps.some((wp: any) => wp.y < bandTop - 5 || wp.y > bandBottom + 5);
-    if (hasVerticalDetour) {
-      needsReset = true;
-    }
-  }
-
-  // Check 3: Vertical escape — intermediate waypoints go significantly
-  // above/below the Y-range of source and target, indicating stale routing
-  // that exits the wrong side of an element (e.g. routing upward from a
-  // gateway when the target is below)
-  if (!needsReset) {
-    const yTop = Math.min(source.y, target.y);
-    const yBottom = Math.max(source.y + (source.height || 0), target.y + (target.height || 0));
-    const margin = 50; // Allow one standard gap of tolerance
-    const hasVerticalEscape = wps
-      .slice(1, -1)
-      .some((wp: any) => wp.y < yTop - margin || wp.y > yBottom + margin);
-    if (hasVerticalEscape) {
-      needsReset = true;
-    }
-  }
-
-  if (!needsReset) return;
-
-  // Reset to L-shaped orthogonal path so ManhattanLayout receives clean
-  // forward-routing hints.  A 2-point diagonal would be kept as-is by
-  // ManhattanLayout in headless mode, so we must provide the bend.
-  const midX = Math.round((sourceRight + targetLeft) / 2);
-
-  if (Math.abs(sourceMidY - targetMidY) <= 1) {
-    // Same Y: straight horizontal line (2 points)
-    conn.waypoints = [
-      {
-        x: sourceRight,
-        y: sourceMidY,
-        original: { x: sourceRight, y: sourceMidY },
-      },
-      {
-        x: targetLeft,
-        y: targetMidY,
-        original: { x: targetLeft, y: targetMidY },
-      },
-    ];
-  } else {
-    // Different Y: L-shaped orthogonal path (4 points)
-    conn.waypoints = [
-      {
-        x: sourceRight,
-        y: sourceMidY,
-        original: { x: sourceRight, y: sourceMidY },
-      },
-      { x: midX, y: sourceMidY },
-      { x: midX, y: targetMidY },
-      {
-        x: targetLeft,
-        y: targetMidY,
-        original: { x: targetLeft, y: targetMidY },
-      },
-    ];
-  }
-}
-
 function layoutConnections(
   graph: FlowGraph,
   backEdgeIds: Set<string>,

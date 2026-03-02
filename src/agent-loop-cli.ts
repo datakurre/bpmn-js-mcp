@@ -270,7 +270,7 @@ async function main() {
       const { next, ok, audit } = await runIteration(
         { iter, iterations, repoDir, journalDir, evalConfig, minImprove, mcpConfigPath, model },
         baseline,
-        auditIterations  // pass previous iterations for learning
+        auditIterations // pass previous iterations for learning
       );
       auditIterations.push(audit);
       baseline = next;

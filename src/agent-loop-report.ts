@@ -153,11 +153,7 @@ function reportBaselineSection(audit: AuditLog, journalDir: string, reportDir: s
   return sections;
 }
 
-function iterSvgSection(
-  iter: IterationAudit,
-  iterDir: string,
-  reportDir: string
-): string[] {
+function iterSvgSection(iter: IterationAudit, iterDir: string, reportDir: string): string[] {
   const beforeSvgDir = path.join(iterDir, 'svgs-baseline');
   const afterSvgDir = path.join(iterDir, 'svgs-after');
   const beforeSvgs = fs.existsSync(beforeSvgDir)
@@ -271,7 +267,11 @@ function reportFinalSection(audit: AuditLog, journalDir: string, reportDir: stri
 // Public API
 // ---------------------------------------------------------------------------
 
-export function generateMarkdownReport(audit: AuditLog, journalDir: string, reportDir: string): string {
+export function generateMarkdownReport(
+  audit: AuditLog,
+  journalDir: string,
+  reportDir: string
+): string {
   return [
     ...reportHeader(audit),
     ...reportBaselineSection(audit, journalDir, reportDir),

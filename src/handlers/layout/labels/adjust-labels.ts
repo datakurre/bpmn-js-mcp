@@ -274,9 +274,9 @@ function computeFirstSegmentLabelPos(
   // Two perpendicular candidates — candidateA is the preferred default side.
   const candidateA = isHoriz
     ? { x: Math.round(midX - labelW / 2), y: Math.round(midY - FLOW_LABEL_SIDE_OFFSET - labelH) } // above
-    : { x: Math.round(midX + FLOW_LABEL_SIDE_OFFSET), y: Math.round(midY - labelH / 2) };          // right
+    : { x: Math.round(midX + FLOW_LABEL_SIDE_OFFSET), y: Math.round(midY - labelH / 2) }; // right
   const candidateB = isHoriz
-    ? { x: Math.round(midX - labelW / 2), y: Math.round(midY + FLOW_LABEL_SIDE_OFFSET) }           // below
+    ? { x: Math.round(midX - labelW / 2), y: Math.round(midY + FLOW_LABEL_SIDE_OFFSET) } // below
     : { x: Math.round(midX - FLOW_LABEL_SIDE_OFFSET - labelW), y: Math.round(midY - labelH / 2) }; // left
 
   return labelSideScore(candidateA, labelW, labelH, shapes) <=
@@ -296,8 +296,9 @@ function labelSideScore(
   const y2 = pos.y + h;
   let score = 0;
   for (const s of shapes) {
-    if (s.x === undefined || s.y === undefined || s.width === undefined || s.height === undefined)
+    if (s.x === undefined || s.y === undefined || s.width === undefined || s.height === undefined) {
       continue;
+    }
     if (pos.x < s.x + s.width && x2 > s.x && pos.y < s.y + s.height && y2 > s.y) score++;
   }
   return score;

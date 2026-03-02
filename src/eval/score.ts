@@ -98,16 +98,48 @@ function computeOverlapAndNearMisses(shapes: ListedElement[]): {
 type Segment = { p1: { x: number; y: number }; p2: { x: number; y: number } };
 type FlowSegments = Map<string, { sourceId?: string; targetId?: string; segments: Segment[] }>;
 
-function buildFlowSegments(flows: ListedElement[]): {
+/**
+ * Return true when a left-to-right flow exits its source element from the
+ * top or bottom instead of the right edge (vertical-dominant first segment
+ * for a flow whose overall direction is to the right).
+ *
+ * Excludes gateway sources (legitimate vertical exits for branching) and
+ * boundary event sources (attached to task edge, complex routing).
+ */
+function isWrongExitFlow(
+  segs: Segment[],
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  srcEl: ListedElement | undefined
+): boolean {
+  if (segs.length < 1 || end.x <= start.x + 30) return false;
+  const srcType = srcEl?.type ?? '';
+  if (srcType.includes('Gateway') || srcType === 'bpmn:BoundaryEvent') return false;
+  const seg0 = segs[0];
+  const dx0 = Math.abs(seg0.p2.x - seg0.p1.x);
+  const dy0 = Math.abs(seg0.p2.y - seg0.p1.y);
+  return dy0 > dx0 * 2 && dy0 > 40;
+}
+
+function buildFlowSegments(
+  flows: ListedElement[],
+  shapes: ListedElement[]
+): {
   flowSegments: FlowSegments;
   bendCount: number;
   diagonalSegments: number;
   detourRatioAvg: number;
+  wrongExitFlows: number;
 } {
   let bendCount = 0;
   let diagonalSegments = 0;
+  let wrongExitFlows = 0;
   const detourRatios: number[] = [];
   const flowSegments: FlowSegments = new Map();
+
+  // Build shape lookup for source-type checking in wrong-exit detection.
+  const shapeById = new Map<string, ListedElement>();
+  for (const s of shapes) shapeById.set(s.id, s);
 
   for (const f of flows) {
     if (!f.waypoints || f.waypoints.length < 2) continue;
@@ -134,6 +166,10 @@ function buildFlowSegments(flows: ListedElement[]): {
     const manhattan = Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
     if (manhattan > 0) detourRatios.push(pathLen / manhattan);
 
+    // Detect wrong-exit direction via extracted helper.
+    const srcEl = f.sourceId ? shapeById.get(f.sourceId) : undefined;
+    if (isWrongExitFlow(segs, start, end, srcEl)) wrongExitFlows++;
+
     flowSegments.set(f.id, { sourceId: f.sourceId, targetId: f.targetId, segments: segs });
   }
 
@@ -141,7 +177,7 @@ function buildFlowSegments(flows: ListedElement[]): {
     ? detourRatios.reduce((a, b) => a + b, 0) / detourRatios.length
     : 1;
 
-  return { flowSegments, bendCount, diagonalSegments, detourRatioAvg };
+  return { flowSegments, bendCount, diagonalSegments, detourRatioAvg, wrongExitFlows };
 }
 
 function computeCrossings(flowSegments: FlowSegments): number {
@@ -187,24 +223,11 @@ function computeGridSnapAvg(shapes: ListedElement[]): number {
   return gridSnaps.length ? gridSnaps.reduce((a, b) => a + b, 0) / gridSnaps.length : 1;
 }
 
-/**
- * Compute horizontal alignment metric.
- *
- * Groups elements by approximate X position (layer) and counts how many
- * pairs within the same layer have Y positions that differ by more than
- * the alignment threshold (20px).
- *
- * Pairs that share a common direct predecessor or successor are skipped —
- * those are gateway branches and intentionally placed at different Y levels.
- */
-function computeHorizontalMisalignments(
-  shapes: ListedElement[],
-  flows: ListedElement[]
-): number {
-  const LAYER_TOLERANCE = 30; // elements within 30px X are in same layer
-  const ALIGNMENT_THRESHOLD = 20; // Y deviation threshold for misalignment
-
-  // Build predecessor/successor adjacency from flows
+/** Build predecessor/successor adjacency sets from flow elements. */
+function buildAdjacency(flows: ListedElement[]): {
+  predecessors: Map<string, Set<string>>;
+  successors: Map<string, Set<string>>;
+} {
   const predecessors = new Map<string, Set<string>>();
   const successors = new Map<string, Set<string>>();
   for (const f of flows) {
@@ -214,27 +237,37 @@ function computeHorizontalMisalignments(
     if (!successors.has(f.sourceId)) successors.set(f.sourceId, new Set());
     successors.get(f.sourceId)!.add(f.targetId);
   }
+  return { predecessors, successors };
+}
 
-  // Returns true when two elements are gateway branches (share a direct
-  // common predecessor = both come from same gateway, or common successor
-  // = both feed into the same join gateway)
-  function areGatewayBranches(aId: string, bId: string): boolean {
-    const ap = predecessors.get(aId);
-    const bp = predecessors.get(bId);
-    if (ap && bp) for (const p of ap) if (bp.has(p)) return true;
-    const as_ = successors.get(aId);
-    const bs = successors.get(bId);
-    if (as_ && bs) for (const s of as_) if (bs.has(s)) return true;
-    return false;
+/** Returns true when two elements share a direct common predecessor or successor (gateway branches). */
+function areGatewayBranches(
+  aId: string,
+  bId: string,
+  predecessors: Map<string, Set<string>>,
+  successors: Map<string, Set<string>>
+): boolean {
+  const ap = predecessors.get(aId);
+  const bp = predecessors.get(bId);
+  if (ap && bp) {
+    for (const p of ap) if (bp.has(p)) return true;
   }
+  const as_ = successors.get(aId);
+  const bs = successors.get(bId);
+  if (as_ && bs) {
+    for (const s of as_) if (bs.has(s)) return true;
+  }
+  return false;
+}
 
-  // Group shapes by approximate X position (layer)
+/** Group shapes by approximate X position (layer). */
+function groupByLayer(shapes: ListedElement[], tolerance: number): Map<number, ListedElement[]> {
   const layers = new Map<number, ListedElement[]>();
   for (const s of shapes) {
     if (s.x === undefined || s.y === undefined) continue;
     let layerKey = -1;
     for (const key of layers.keys()) {
-      if (Math.abs(s.x - key) <= LAYER_TOLERANCE) {
+      if (Math.abs(s.x - key) <= tolerance) {
         layerKey = key;
         break;
       }
@@ -245,14 +278,32 @@ function computeHorizontalMisalignments(
     }
     layers.get(layerKey)!.push(s);
   }
+  return layers;
+}
 
-  // Count misaligned pairs within each layer, skipping gateway branches
+/**
+ * Compute horizontal alignment metric.
+ *
+ * Groups elements by approximate X position (layer) and counts how many
+ * pairs within the same layer have Y positions that differ by more than
+ * the alignment threshold (20px).
+ *
+ * Pairs that share a common direct predecessor or successor are skipped —
+ * those are gateway branches and intentionally placed at different Y levels.
+ */
+function computeHorizontalMisalignments(shapes: ListedElement[], flows: ListedElement[]): number {
+  const LAYER_TOLERANCE = 30;
+  const ALIGNMENT_THRESHOLD = 20;
+
+  const { predecessors, successors } = buildAdjacency(flows);
+  const layers = groupByLayer(shapes, LAYER_TOLERANCE);
+
   let misalignments = 0;
   for (const layer of layers.values()) {
     if (layer.length < 2) continue;
     for (let i = 0; i < layer.length; i++) {
       for (let j = i + 1; j < layer.length; j++) {
-        if (areGatewayBranches(layer[i].id, layer[j].id)) continue;
+        if (areGatewayBranches(layer[i].id, layer[j].id, predecessors, successors)) continue;
         const yDiff = Math.abs((layer[i].y ?? 0) - (layer[j].y ?? 0));
         if (yDiff > ALIGNMENT_THRESHOLD) misalignments++;
       }
@@ -324,7 +375,8 @@ export function computeLayoutMetrics(
 ): LayoutMetrics {
   const { shapes, flows } = splitElements(elements);
   const { overlaps, nearMisses } = computeOverlapAndNearMisses(shapes);
-  const { flowSegments, bendCount, diagonalSegments, detourRatioAvg } = buildFlowSegments(flows);
+  const { flowSegments, bendCount, diagonalSegments, detourRatioAvg, wrongExitFlows } =
+    buildFlowSegments(flows, shapes);
   const crossings = computeCrossings(flowSegments);
   const gridSnapAvg = computeGridSnapAvg(shapes);
   const horizontalMisalignments = computeHorizontalMisalignments(shapes, flows);
@@ -342,6 +394,7 @@ export function computeLayoutMetrics(
     gridSnapAvg,
     horizontalMisalignments,
     verticalImbalance,
+    wrongExitFlows,
     lintErrors,
     lintWarnings,
   };
@@ -363,6 +416,10 @@ export function scoreLayout(metrics: LayoutMetrics): {
 
   // Penalize detours above ~1.2x. (1.0 is ideal.)
   if (metrics.detourRatioAvg > 1.2) score -= (metrics.detourRatioAvg - 1.2) * 30;
+
+  // Wrong-exit penalty: each flow leaving its source from top/bottom instead
+  // of the right edge produces a U-shape or reversed L-path.
+  score -= metrics.wrongExitFlows * 5;
 
   // Grid snap: 1 is ideal.
   score -= (1 - metrics.gridSnapAvg) * 10;
