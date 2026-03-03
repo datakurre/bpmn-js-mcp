@@ -33,6 +33,18 @@ const POOL_HEADER_WIDTH = 30;
 /** BPMN type string for sequence flows (used in multiple filters). */
 const SEQUENCE_FLOW_TYPE = 'bpmn:SequenceFlow';
 
+/** Spacing between co-column sibling elements within a lane. */
+const BRANCH_SPREAD_SPACING = 130;
+
+/** Element types skipped when computing lane flow-node positions. */
+const LANE_SKIP_TYPES = new Set([
+  SEQUENCE_FLOW_TYPE,
+  'bpmn:Lane',
+  'bpmn:LaneSet',
+  'label',
+  'bpmn:BoundaryEvent',
+]);
+
 // ── Lane detection ─────────────────────────────────────────────────────────
 
 /**
@@ -78,102 +90,51 @@ export function buildElementToLaneMap(
   registry?: ElementRegistry
 ): Map<string, BpmnElement> {
   const elementToLane = new Map<string, BpmnElement>();
-  const laneSet = new Set(lanes.map((l) => l.id));
-
   // Pass 1: prefer element.parent when it's a lane shape.
   if (registry) {
-    const allElements: BpmnElement[] = registry.getAll();
-    for (const el of allElements) {
-      if (!el.parent || !laneSet.has(el.parent.id)) continue;
-      // Find the lane BpmnElement (we need the full element, not just the id)
-      const parentLane = lanes.find((l) => l.id === el.parent!.id);
-      if (parentLane) elementToLane.set(el.id, parentLane);
+    const laneById = new Map(lanes.map((l) => [l.id, l]));
+    for (const el of registry.getAll() as BpmnElement[]) {
+      const lane = el.parent && laneById.get(el.parent.id);
+      if (lane) elementToLane.set(el.id, lane);
     }
   }
-
   // Pass 2: fall back to flowNodeRef for anything not already mapped.
   for (const lane of lanes) {
-    const refs = lane.businessObject?.flowNodeRef;
-    if (!Array.isArray(refs)) continue;
-    for (const ref of refs) {
-      if (ref?.id && !elementToLane.has(ref.id)) {
-        elementToLane.set(ref.id, lane);
-      }
+    for (const ref of lane.businessObject?.flowNodeRef ?? []) {
+      if (ref?.id && !elementToLane.has(ref.id)) elementToLane.set(ref.id, lane);
     }
   }
-
   return elementToLane;
 }
 
 /**
- * Build a map from element ID to estimated lane center Y.
+ * Build a map from element ID to actual lane center Y.
  *
- * Used by the rebuild engine to pre-compute lane-aware Y positions
- * before calling computePositions().  Elements with a known lane
- * will be positioned at their lane's estimated center Y rather than
- * at their predecessor's Y (tasks 3a and 3c).
- *
- * The estimate is based on the topological lane order (sorted by
- * current Y) and the default lane height.  The actual lane heights
- * are computed later by resizePoolAndLanes() / handleAutosizePoolsAndLanes().
- *
- * @param lanes       All lane elements in the participant.
- * @param savedLaneMap  Element-ID → lane mapping captured before rebuild.
- * @param originY     Y origin for the first lane (matches rebuildLayout origin.y).
+ * Uses actual lane.y + lane.height/2 so elements are placed within
+ * existing lane bounds before resizing (prevents out-of-pool positioning
+ * when pools use non-default lane heights).
  */
 export function buildElementLaneYMap(
   lanes: BpmnElement[],
-  savedLaneMap: Map<string, BpmnElement>,
-  originY: number
+  savedLaneMap: Map<string, BpmnElement>
 ): Map<string, number> {
   if (lanes.length === 0 || savedLaneMap.size === 0) return new Map();
-
-  // Sort lanes by current Y position to get top-to-bottom order.
-  const sortedLanes = [...lanes].sort((a, b) => a.y - b.y);
-
-  // Compute estimated center Y for each lane (stacked from originY).
-  // Each lane occupies DEFAULT_LANE_HEIGHT pixels; center is at the midpoint.
-  const laneCenterYs = new Map<string, number>();
-  for (let i = 0; i < sortedLanes.length; i++) {
-    laneCenterYs.set(
-      sortedLanes[i].id,
-      originY + i * DEFAULT_LANE_HEIGHT + DEFAULT_LANE_HEIGHT / 2
-    );
-  }
-
-  // Map each element to its lane's estimated center Y.
-  const elementLaneYs = new Map<string, number>();
+  const cyMap = new Map(
+    [...lanes]
+      .sort((a, b) => a.y - b.y)
+      .map((l) => [l.id, l.y + (l.height || DEFAULT_LANE_HEIGHT) / 2])
+  );
+  const result = new Map<string, number>();
   for (const [elId, lane] of savedLaneMap) {
-    const laneY = laneCenterYs.get(lane.id);
-    if (laneY !== undefined) elementLaneYs.set(elId, laneY);
+    const cy = cyMap.get(lane.id);
+    if (cy !== undefined) result.set(elId, cy);
   }
-
-  return elementLaneYs;
+  return result;
 }
 
 // ── Lane layout application ────────────────────────────────────────────────
 
-/**
- * Apply lane-aware Y positioning and resize lanes/pool.
- *
- * After the rebuild engine positions elements (correct X, default Y),
- * this function:
- * 1. Moves each element vertically to its assigned lane's center Y
- * 2. Re-layouts all sequence flow connections (Y positions changed)
- * 3. Resizes lanes and pool to fit the content (unless skipResize is true)
- *
- * @param savedLaneMap  Pre-computed element-to-lane mapping, captured
- *                      BEFORE the rebuild (movements mutate bpmn-js
- *                      lane assignments).
- * @param skipResize    When true, skip the pool/lane resize step (task 7b).
- *                      Use when the caller will run handleAutosizePoolsAndLanes
- *                      afterwards to avoid a redundant double-resize.
- * @returns Number of elements repositioned.
- */
-/**
- * Spread co-column elements symmetrically around their lane's center Y.
- * Extracted to keep `applyLaneLayout` within cognitive-complexity limits.
- */
+/** Spread co-column elements symmetrically around their lane's center Y. */
 function spreadCoColumnElements(
   laneColumns: Map<string, BpmnElement[]>,
   laneCenterYs: Map<string, number>,
@@ -226,11 +187,19 @@ function spreadCoColumnElements(
   return count;
 }
 
+/**
+ * Apply lane-aware Y positioning and resize lanes/pool.
+ *
+ * Moves each flow node to its assigned lane's center Y, resizes
+ * lanes/pool to fit, then re-routes all connections.
+ *
+ * @param skipResize  When true, skip pool/lane resize (caller runs autosize).
+ * @returns Number of elements repositioned.
+ */
 export function applyLaneLayout(
   registry: ElementRegistry,
   modeling: Modeling,
   participant: BpmnElement,
-  originY: number,
   padding: number,
   savedLaneMap: Map<string, BpmnElement>,
   skipResize?: boolean
@@ -238,92 +207,91 @@ export function applyLaneLayout(
   const lanes = getLanesForParticipant(registry, participant);
   if (lanes.length === 0) return 0;
 
-  // Sort lanes by original Y position (preserves lane ordering)
   const sortedLanes = [...lanes].sort((a, b) => a.y - b.y);
+  const laneCenterYs = new Map(sortedLanes.map((l) => [l.id, l.y + l.height / 2]));
 
-  // Compute lane center Y positions (stacked from originY)
-  const laneCenterYs = new Map<string, number>();
-  for (let i = 0; i < sortedLanes.length; i++) {
-    laneCenterYs.set(sortedLanes[i].id, originY + i * DEFAULT_LANE_HEIGHT);
-  }
-
-  // Move elements to their lane's center Y.
-  // Use savedLaneMap (not el.parent) so we catch elements that may
-  // have been reparented when moveElements placed them outside pool bounds.
-  //
-  // When multiple elements share the same X column in one lane (e.g.
-  // parallel branch tasks all assigned to the Reviewers lane), centering
-  // them all at the same Y would stack them on top of each other.
-  // Instead, distribute co-column elements symmetrically around the lane
-  // center Y using BRANCH_SPREAD_SPACING between neighbours.
-  const BRANCH_SPREAD_SPACING = 130; // matches DEFAULT_BRANCH_SPACING in engine
-
-  let repositioned = 0;
   const allElements: BpmnElement[] = registry.getAll();
+  // Boundary events follow their host; skip them to avoid breaking attachment.
   const flowNodes = allElements.filter(
-    (el) =>
-      savedLaneMap.has(el.id) &&
-      el.type !== SEQUENCE_FLOW_TYPE &&
-      el.type !== 'bpmn:Lane' &&
-      el.type !== 'bpmn:LaneSet' &&
-      el.type !== 'label' &&
-      // Boundary events follow their host via AttachSupport when the host moves.
-      // Positioning them independently to lane-center Y breaks their host attachment.
-      el.type !== 'bpmn:BoundaryEvent'
+    (el) => savedLaneMap.has(el.id) && !LANE_SKIP_TYPES.has(el.type)
   );
 
-  // Group elements by (laneId, columnX) so we can detect and spread
-  // co-column siblings within a lane.
-  const laneColumns = new Map<string, BpmnElement[]>(); // key: `${laneId}:${colX}`
+  const laneColumns = new Map<string, BpmnElement[]>();
   for (const el of flowNodes) {
     const lane = savedLaneMap.get(el.id);
-    if (!lane) continue;
-    if (laneCenterYs.get(lane.id) === undefined) continue;
-    const colX = Math.round(el.x + el.width / 2);
-    const key = `${lane.id}:${colX}`;
+    if (!lane || laneCenterYs.get(lane.id) === undefined) continue;
+    const key = `${lane.id}:${Math.round(el.x + el.width / 2)}`;
     if (!laneColumns.has(key)) laneColumns.set(key, []);
     laneColumns.get(key)!.push(el);
   }
 
-  repositioned += spreadCoColumnElements(
+  let repositioned = spreadCoColumnElements(
     laneColumns,
     laneCenterYs,
     BRANCH_SPREAD_SPACING,
     modeling
   );
 
-  // Resize pool and lanes to fit content BEFORE re-routing connections,
-  // so that connection waypoints reflect the final pool/lane geometry.
-  // Skip when the caller will run handleAutosizePoolsAndLanes afterwards (task 7b).
   if (!skipResize) {
     resizePoolAndLanes(sortedLanes, participant, registry, modeling, padding, savedLaneMap);
   }
 
-  // Re-layout connections within the pool AFTER resize (task 9a):
-  // waypoints now account for the final lane widths and heights.
-  // For cross-lane flows, apply a smarter vertical-drop routing (task 3b/9b)
-  // that avoids routing back through unrelated lanes.
+  repositioned += clampColumnGroupsToLaneBounds(laneColumns, sortedLanes, registry, modeling);
+  restoreLaneAssignments(registry, savedLaneMap, sortedLanes);
+  reroutePoolConnections(allElements, participant, savedLaneMap, modeling);
+
+  return repositioned;
+}
+
+/**
+ * Post-resize clamp: re-centre any column group that drifted outside
+ * its lane bounds after `resizePoolAndLanes` shifted lane positions.
+ */
+function clampColumnGroupsToLaneBounds(
+  laneColumns: Map<string, BpmnElement[]>,
+  sortedLanes: BpmnElement[],
+  registry: ElementRegistry,
+  modeling: Modeling
+): number {
+  let count = 0;
+  for (const [key, siblings] of laneColumns) {
+    const lane = sortedLanes.find((l) => l.id === key.split(':')[0]);
+    if (!lane) continue;
+    const els = siblings.map((el) => registry.get(el.id) ?? el);
+    const groupTop = Math.min(...els.map((el) => el.y));
+    const groupBottom = Math.max(...els.map((el) => el.y + (el.height || 0)));
+    if (groupTop >= lane.y - 5 && groupBottom <= lane.y + lane.height + 5) continue;
+    const shift = Math.round(lane.y + lane.height / 2 - (groupTop + groupBottom) / 2);
+    if (Math.abs(shift) < 1) continue;
+    for (const el of els) {
+      modeling.moveElements([el], { x: 0, y: shift });
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Re-layout pool connections after element repositioning, then apply
+ * improved cross-lane routing.
+ */
+function reroutePoolConnections(
+  allElements: BpmnElement[],
+  participant: BpmnElement,
+  savedLaneMap: Map<string, BpmnElement>,
+  modeling: Modeling
+): void {
   for (const el of allElements) {
     if (el.parent === participant && el.type === SEQUENCE_FLOW_TYPE) {
       try {
-        // Reset stale waypoints before layout so ManhattanLayout computes
-        // fresh orthogonal routing instead of being guided by creation-time
-        // docking points that may exit the source from the wrong edge.
         resetStaleWaypoints(el);
         modeling.layoutConnection(el);
       } catch {
-        // ManhattanLayout docking guard: skip connections with inconsistent waypoints.
+        // skip connections with inconsistent waypoints
       }
     }
   }
-
-  // Post-process: improve waypoints for cross-lane sequence flows (tasks 3b, 9b).
-  // After ManhattanLayout routes connections, cross-lane flows that go from one
-  // lane to another may produce Z/U-paths that route through other lane regions.
-  // Replace these with clean L-shaped paths (source right → target mid-Y → target).
   routeCrossLaneConnections(allElements, participant, savedLaneMap, modeling);
-
-  return repositioned;
 }
 
 // ── Cross-lane connection routing (tasks 3b, 9b) ───────────────────────────
@@ -367,29 +335,20 @@ function routeCrossLaneConnections(
     const tgtLane = savedLaneMap.get(tgt.id);
     if (!srcLane || !tgtLane || srcLane.id === tgtLane.id) continue;
 
-    // Check current waypoints exist — empty arrays can be skipped.
-    const wps = flow.waypoints;
-    if (!wps || wps.length === 0) continue;
+    if (!flow.waypoints?.length) continue;
 
-    // Compute clean L-shaped route:
-    // 1. Leave source's right edge at source center Y
-    // 2. Drop/rise vertically at mid-X to target center Y
-    // 3. Enter target's left edge at target center Y
-    const srcRightX = src.x + (src.width || 0);
-    const srcCenterY = src.y + (src.height || 0) / 2;
-    const tgtLeftX = tgt.x;
-    const tgtCenterY = tgt.y + (tgt.height || 0) / 2;
-
-    // Mid-X is halfway between source right edge and target left edge
-    const midX = Math.round((srcRightX + tgtLeftX) / 2);
-
-    // Build a 4-waypoint L-shaped path: right → corner1 → corner2 → entry
-    const cleanWaypoints = [
-      { x: srcRightX, y: Math.round(srcCenterY) },
-      { x: midX, y: Math.round(srcCenterY) },
-      { x: midX, y: Math.round(tgtCenterY) },
-      { x: tgtLeftX, y: Math.round(tgtCenterY) },
-    ];
+    // Clean L-shaped routing: 3 waypoints (1 bend) for adjacent lanes,
+    // 4 waypoints (2 bends, midX column) for multi-lane vertical drops.
+    const sy = Math.round(src.y + (src.height || 0) / 2);
+    const ty = Math.round(tgt.y + (tgt.height || 0) / 2);
+    const rx = src.x + (src.width || 0);
+    const lx = tgt.x;
+    const midX = Math.round((rx + lx) / 2);
+    const wp = (x: number, y: number) => ({ x, y });
+    const cleanWaypoints =
+      Math.abs(ty - sy) <= DEFAULT_LANE_HEIGHT
+        ? [wp(rx, sy), wp(lx, sy), wp(lx, ty)]
+        : [wp(rx, sy), wp(midX, sy), wp(midX, ty), wp(lx, ty)];
 
     try {
       modeling.updateWaypoints(flow, cleanWaypoints);
@@ -422,24 +381,19 @@ export function restoreLaneAssignments(
 ): void {
   if (savedLaneMap.size === 0 || lanes.length === 0) return;
 
-  // Clear existing flowNodeRef lists for affected lanes
-  const affectedLaneIds = new Set<string>([...savedLaneMap.values()].map((l) => l.id));
+  // Clear existing flowNodeRef lists for affected lanes, then re-populate.
+  const affectedLaneIds = new Set([...savedLaneMap.values()].map((l) => l.id));
   for (const lane of lanes) {
-    if (!affectedLaneIds.has(lane.id)) continue;
     const refs = lane.businessObject?.flowNodeRef;
-    if (Array.isArray(refs)) refs.length = 0;
+    if (affectedLaneIds.has(lane.id) && Array.isArray(refs)) refs.length = 0;
   }
-
-  // Re-populate from the saved map
   for (const [elementId, lane] of savedLaneMap) {
     const el = registry.get(elementId);
-    if (!el || !lane.businessObject) continue;
     const laneBo = lane.businessObject;
+    if (!el || !laneBo) continue;
     if (!Array.isArray(laneBo.flowNodeRef)) laneBo.flowNodeRef = [];
     const elBo = el.businessObject;
-    if (elBo && !laneBo.flowNodeRef.includes(elBo)) {
-      laneBo.flowNodeRef.push(elBo);
-    }
+    if (elBo && !laneBo.flowNodeRef.includes(elBo)) laneBo.flowNodeRef.push(elBo);
   }
 }
 
@@ -464,30 +418,24 @@ export function syncBoundaryEventLanes(
 ): void {
   if (savedLaneMap.size === 0 || lanes.length === 0) return;
 
-  const allElements: BpmnElement[] = registry.getAll();
-  const boundaryEvents = allElements.filter((el) => el.type === 'bpmn:BoundaryEvent' && el.host);
-
+  const boundaryEvents = (registry.getAll() as BpmnElement[]).filter(
+    (el) => el.type === 'bpmn:BoundaryEvent' && el.host
+  );
   for (const be of boundaryEvents) {
-    const host = be.host!;
-    const hostLane = savedLaneMap.get(host.id);
+    const hostLane = savedLaneMap.get(be.host!.id);
     if (!hostLane) continue;
-
-    // Remove boundary event from any lane it's currently listed in.
+    const beId = be.businessObject?.id;
     for (const lane of lanes) {
       const refs = lane.businessObject?.flowNodeRef;
       if (!Array.isArray(refs)) continue;
-      const idx = refs.findIndex((r: any) => r?.id === be.businessObject?.id);
+      const idx = refs.findIndex((r: any) => r?.id === beId);
       if (idx !== -1) refs.splice(idx, 1);
     }
-
-    // Add to the host's lane.
     const laneBo = hostLane.businessObject;
     if (!laneBo) continue;
     if (!Array.isArray(laneBo.flowNodeRef)) laneBo.flowNodeRef = [];
     const beBo = be.businessObject;
-    if (beBo && !laneBo.flowNodeRef.includes(beBo)) {
-      laneBo.flowNodeRef.push(beBo);
-    }
+    if (beBo && !laneBo.flowNodeRef.includes(beBo)) laneBo.flowNodeRef.push(beBo);
   }
 }
 
@@ -548,19 +496,13 @@ function resizePoolAndLanes(
   const skipTypes = new Set([SEQUENCE_FLOW_TYPE, 'bpmn:Lane', 'bpmn:LaneSet', 'label']);
   const flowNodes = allElements.filter((el) => !skipTypes.has(el.type) && typeof el.y === 'number');
 
-  // For each lane, find element Y extents
-  const laneExtents = sortedLanes.map((lane) => {
+  // For each lane, compute required height from element Y extents.
+  const rawHeights = sortedLanes.map((lane) => {
     const laneEls = flowNodes.filter((el) => elementToLane.get(el.id)?.id === lane.id);
-    if (laneEls.length === 0) return null;
-    const minY = Math.min(...laneEls.map((el) => el.y));
-    const maxY = Math.max(...laneEls.map((el) => el.y + el.height));
-    return { minY, maxY };
-  });
-
-  // Compute raw lane heights (content height + 2*padding, min MIN_LANE_HEIGHT)
-  const rawHeights = laneExtents.map((ext) => {
-    if (!ext) return MIN_LANE_HEIGHT;
-    return Math.max(MIN_LANE_HEIGHT, ext.maxY - ext.minY + 2 * padding);
+    if (laneEls.length === 0) return MIN_LANE_HEIGHT;
+    const span =
+      Math.max(...laneEls.map((el) => el.y + el.height)) - Math.min(...laneEls.map((el) => el.y));
+    return Math.max(MIN_LANE_HEIGHT, span + 2 * padding);
   });
 
   // Total pool height must fit all content: max of (sum of raw heights) and
@@ -587,14 +529,8 @@ function resizePoolAndLanes(
   const laneX = poolX + POOL_HEADER_WIDTH;
   const laneWidth = poolWidth - POOL_HEADER_WIDTH;
   let currentY = poolY;
-
-  for (let i = 0; i < sortedLanes.length; i++) {
-    modeling.resizeShape(sortedLanes[i], {
-      x: laneX,
-      y: currentY,
-      width: laneWidth,
-      height: laneHeights[i],
-    });
+  for (const [i, lane] of sortedLanes.entries()) {
+    modeling.resizeShape(lane, { x: laneX, y: currentY, width: laneWidth, height: laneHeights[i] });
     currentY += laneHeights[i];
   }
 }
@@ -606,29 +542,20 @@ function computePoolContentBBox(
   registry: ElementRegistry,
   participant: BpmnElement
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  const allElements: BpmnElement[] = registry.getAll();
-  const children = allElements.filter(
+  // Include both direct children and lane-parented elements.
+  const skipTypes = new Set([SEQUENCE_FLOW_TYPE, 'bpmn:Lane', 'bpmn:LaneSet', 'label']);
+  const children = (registry.getAll() as BpmnElement[]).filter(
     (el) =>
-      el.parent === participant &&
-      el.type !== SEQUENCE_FLOW_TYPE &&
-      el.type !== 'bpmn:Lane' &&
-      el.type !== 'bpmn:LaneSet' &&
-      el.type !== 'label'
+      !skipTypes.has(el.type) &&
+      el.parent &&
+      (el.parent === participant ||
+        (el.parent.type === 'bpmn:Lane' && el.parent.parent === participant))
   );
-
   if (children.length === 0) return null;
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-
-  for (const child of children) {
-    minX = Math.min(minX, child.x);
-    minY = Math.min(minY, child.y);
-    maxX = Math.max(maxX, child.x + child.width);
-    maxY = Math.max(maxY, child.y + child.height);
-  }
-
-  return { minX, minY, maxX, maxY };
+  return {
+    minX: Math.min(...children.map((el) => el.x)),
+    minY: Math.min(...children.map((el) => el.y)),
+    maxX: Math.max(...children.map((el) => el.x + el.width)),
+    maxY: Math.max(...children.map((el) => el.y + el.height)),
+  };
 }

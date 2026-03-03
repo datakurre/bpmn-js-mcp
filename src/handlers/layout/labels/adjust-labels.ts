@@ -58,21 +58,59 @@ function getDefaultLabelPosition(
 }
 
 /**
- * Compute the left-side label position for boundary events.
+ * Compute the best label position for a boundary event.
  *
- * Boundary events have outgoing flows that exit downward, so placing the
- * label at the bottom would overlap the flow. Instead, place it to the left.
+ * Boundary events sit on the edge of their host task. Their outgoing flows
+ * typically exit downward, so placing the label directly below can overlap
+ * the flow line. We score three candidate positions (left, right, below)
+ * and pick the one with the fewest shape overlaps.
+ *
+ * Falls back to "below" when no shapes are provided for scoring.
  */
 function getBoundaryEventLabelPosition(
   element: { x: number; y: number; width: number; height: number },
   labelWidth: number,
-  labelHeight: number
+  labelHeight: number,
+  shapes?: Array<{ x: number; y: number; width: number; height: number }>
 ): { x: number; y: number } {
+  const midX = element.x + element.width / 2;
   const midY = element.y + element.height / 2;
-  return {
-    x: Math.round(element.x - ELEMENT_LABEL_DISTANCE - labelWidth),
-    y: Math.round(midY - labelHeight / 2),
-  };
+  const bottom = element.y + element.height;
+
+  // Three candidate positions: left of event, right of event, below event
+  const candidates = [
+    {
+      x: Math.round(element.x - ELEMENT_LABEL_DISTANCE - labelWidth),
+      y: Math.round(midY - labelHeight / 2),
+    }, // left
+    {
+      x: Math.round(element.x + element.width + ELEMENT_LABEL_DISTANCE),
+      y: Math.round(midY - labelHeight / 2),
+    }, // right
+    { x: Math.round(midX - labelWidth / 2), y: Math.round(bottom + ELEMENT_LABEL_DISTANCE) }, // below
+  ];
+
+  if (!shapes || shapes.length === 0) {
+    // No shape context — prefer below (bpmn-js default for events)
+    return candidates[2];
+  }
+
+  // Pick candidate with fewest overlapping shapes
+  let best = candidates[0];
+  let bestScore = Infinity;
+  for (const c of candidates) {
+    let score = 0;
+    const cx2 = c.x + labelWidth;
+    const cy2 = c.y + labelHeight;
+    for (const s of shapes) {
+      if (c.x < s.x + s.width && cx2 > s.x && c.y < s.y + s.height && cy2 > s.y) score++;
+    }
+    if (score < bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
 }
 
 /**
@@ -105,6 +143,18 @@ export async function adjustDiagramLabels(diagram: DiagramState): Promise<number
 
   if (labelBearers.length === 0) return 0;
 
+  // Shapes used for overlap scoring (non-container, non-flow)
+  const shapes = allElements.filter(
+    (el: any) =>
+      el.type !== 'label' &&
+      !String(el.type).includes('Flow') &&
+      !String(el.type).includes('Association') &&
+      el.type !== 'bpmn:Participant' &&
+      el.type !== 'bpmn:Lane' &&
+      el.x !== undefined &&
+      el.width !== undefined
+  );
+
   let movedCount = 0;
 
   for (const el of labelBearers) {
@@ -116,9 +166,9 @@ export async function adjustDiagramLabels(diagram: DiagramState): Promise<number
 
     let target: { x: number; y: number };
 
-    // Boundary events with outgoing flows: place label to the left
+    // Boundary events: use overlap-scored placement (left / right / below)
     if (el.type === BOUNDARY_EVENT_TYPE && hasBoundaryOutgoingFlows(el.id, allElements)) {
-      target = getBoundaryEventLabelPosition(el, labelWidth, labelHeight);
+      target = getBoundaryEventLabelPosition(el, labelWidth, labelHeight, shapes);
     } else {
       target = getDefaultLabelPosition(el, labelWidth, labelHeight);
     }
@@ -167,7 +217,17 @@ export async function adjustElementLabel(
     el.type === BOUNDARY_EVENT_TYPE &&
     hasBoundaryOutgoingFlows(el.id, getVisibleElements(elementRegistry))
   ) {
-    target = getBoundaryEventLabelPosition(el, labelWidth, labelHeight);
+    const shapes = getVisibleElements(elementRegistry).filter(
+      (s: any) =>
+        s.type !== 'label' &&
+        !String(s.type).includes('Flow') &&
+        !String(s.type).includes('Association') &&
+        s.type !== 'bpmn:Participant' &&
+        s.type !== 'bpmn:Lane' &&
+        s.x !== undefined &&
+        s.width !== undefined
+    );
+    target = getBoundaryEventLabelPosition(el, labelWidth, labelHeight, shapes);
   } else {
     target = getDefaultLabelPosition(el, labelWidth, labelHeight);
   }

@@ -224,9 +224,7 @@ function processContainerNode(
 
   // Lane-aware positioning: precompute element → lane center Y (tasks 3a/3c)
   const elementLaneYs =
-    participantLanes.length > 0
-      ? buildElementLaneYMap(participantLanes, savedLaneMap, containerOrigin.y)
-      : undefined;
+    participantLanes.length > 0 ? buildElementLaneYMap(participantLanes, savedLaneMap) : undefined;
 
   const result = rebuildContainer(
     registry,
@@ -313,7 +311,6 @@ function applyParticipantLayout(
       registry,
       modeling,
       container,
-      origin.y,
       SUBPROCESS_PADDING,
       savedLaneMap,
       skipPoolResize
