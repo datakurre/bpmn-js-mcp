@@ -60,10 +60,14 @@ function getDefaultLabelPosition(
 /**
  * Compute the best label position for a boundary event.
  *
- * Boundary events sit on the edge of their host task. Their outgoing flows
- * typically exit downward, so placing the label directly below can overlap
- * the flow line. We score three candidate positions (left, right, below)
- * and pick the one with the fewest shape overlaps.
+ * Boundary events sit on the bottom edge of their host task. Their outgoing
+ * flows exit downward, so placing the label directly below (centred) puts it
+ * on top of the flow line.  Placing it mid-height to the left/right overlaps
+ * the host task body.
+ *
+ * Instead we use LOWER-LEFT and LOWER-RIGHT candidates: same Y as "below"
+ * (below the event's bottom edge) but offset horizontally so the label sits
+ * beside the downward flow rather than under it.
  *
  * Falls back to "below" when no shapes are provided for scoring.
  */
@@ -74,28 +78,31 @@ function getBoundaryEventLabelPosition(
   shapes?: Array<{ x: number; y: number; width: number; height: number }>
 ): { x: number; y: number } {
   const midX = element.x + element.width / 2;
-  const midY = element.y + element.height / 2;
   const bottom = element.y + element.height;
+  const labelY = Math.round(bottom + ELEMENT_LABEL_DISTANCE);
 
-  // Three candidate positions: left of event, right of event, below event
+  // Three candidate positions:
+  //   lower-left  — to the left of the event, below the host task
+  //   lower-right — to the right of the event, beside the exception chain
+  //   below       — centred below (fallback; sits on the downward flow line)
   const candidates = [
     {
       x: Math.round(element.x - ELEMENT_LABEL_DISTANCE - labelWidth),
-      y: Math.round(midY - labelHeight / 2),
-    }, // left
+      y: labelY,
+    }, // lower-left
     {
       x: Math.round(element.x + element.width + ELEMENT_LABEL_DISTANCE),
-      y: Math.round(midY - labelHeight / 2),
-    }, // right
-    { x: Math.round(midX - labelWidth / 2), y: Math.round(bottom + ELEMENT_LABEL_DISTANCE) }, // below
+      y: labelY,
+    }, // lower-right
+    { x: Math.round(midX - labelWidth / 2), y: labelY }, // below (fallback)
   ];
 
   if (!shapes || shapes.length === 0) {
-    // No shape context — prefer below (bpmn-js default for events)
-    return candidates[2];
+    // No shape context — prefer lower-left (exception chains extend to the right)
+    return candidates[0];
   }
 
-  // Pick candidate with fewest overlapping shapes
+  // Pick candidate with fewest overlapping shapes; ties broken left → right → below
   let best = candidates[0];
   let bestScore = Infinity;
   for (const c of candidates) {

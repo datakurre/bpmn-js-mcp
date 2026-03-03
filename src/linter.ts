@@ -33,10 +33,11 @@ export const DEFAULT_LINT_CONFIG: LintConfig = {
     'label-required': 'warn', // downgrade: AI callers may add labels incrementally
     'no-overlapping-elements': 'off', // layout handles this; false positives in headless mode
     'no-disconnected': 'warn', // downgrade: diagrams are built incrementally
-    'no-inclusive-gateway': 'warn', // InclusiveGateway is valid BPMN, just discouraged in Camunda 7
+    'no-inclusive-gateway': 'info', // informational: InclusiveGateway is valid in Camunda 7 / Operaton
     'fake-join': 'info', // downgrade: boundary-event retry patterns produce valid fake-joins
     'camunda-compat/history-time-to-live': 'warn', // upgrade: required for Camunda 7 / Operaton history cleanup
-    'camunda-compat/inclusive-gateway': 'warn', // downgrade: Camunda 7 supports inclusive gateways
+    'camunda-compat/inclusive-gateway': 'info', // informational: Camunda 7 supports InclusiveGateway joins
+    'bpmn-mcp/gateway-pair-mismatch': 'info', // informational: split-without-join is valid when branches terminate
   },
 };
 

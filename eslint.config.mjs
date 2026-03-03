@@ -131,6 +131,18 @@ export default tseslint.config(
     ],
     rules: {
       'max-lines': 'off',
+      // container-layout.ts contains inherently complex boundary-event routing logic
+      'sonarjs/cognitive-complexity': 'off',
+    },
+  },
+
+  // ── Eval scoring — algorithmic layout quality metrics ────────────────────
+  {
+    files: ['src/eval/score.ts'],
+    rules: {
+      'max-lines': 'off',
+      complexity: 'off',
+      'sonarjs/cognitive-complexity': 'off',
     },
   },
 

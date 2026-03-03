@@ -300,7 +300,14 @@ function hasExternalLabel(type: string): boolean {
  * Adjust external labels (events, gateways, data objects) to the bpmn-js
  * default position: centered below the element.
  *
- * Replicates `getExternalLabelMid()` from bpmn-js LabelUtil.
+ * For boundary events the label is placed to the LOWER-LEFT or LOWER-RIGHT
+ * of the event rather than directly below it. The downward flow exits from
+ * the bottom centre, so a centred-below label would sit directly on the flow
+ * line. Placing it to the side avoids the overlap and keeps it within the
+ * exception-chain area.
+ *
+ * Replicates `getExternalLabelMid()` from bpmn-js LabelUtil for non-boundary
+ * elements.
  */
 function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): number {
   const allElements: BpmnElement[] = registry.getAll();
@@ -314,12 +321,50 @@ function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): num
     const labelW = label.width || DEFAULT_LABEL_SIZE.width;
     const labelH = label.height || DEFAULT_LABEL_SIZE.height;
 
-    // bpmn-js default: centre below element
-    const midX = el.x + el.width / 2;
-    const midY = el.y + el.height + ELEMENT_LABEL_DISTANCE + labelH / 2;
+    let targetX: number;
+    let targetY: number;
 
-    const targetX = Math.round(midX - labelW / 2);
-    const targetY = Math.round(midY - labelH / 2);
+    if (el.type === 'bpmn:BoundaryEvent') {
+      // Place the label at the lower-left or lower-right of the boundary event.
+      // The bottom-exit flow occupies the vertical space below the event centre,
+      // so the label must be offset horizontally to avoid overlapping the flow line.
+      //
+      // Y: same as "below" (bottom edge + ELEMENT_LABEL_DISTANCE) so the label
+      //    clears the event's bounding box and the host task above it.
+      // X: to the left by default (exception chains extend to the right, so
+      //    left is less likely to collide with chain elements).
+      const bottom = el.y + el.height;
+      const labelY = Math.round(bottom + ELEMENT_LABEL_DISTANCE);
+
+      const leftX = Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW);
+      const rightX = Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE);
+
+      // Score both sides using the shapes already in the registry.
+      // Lower score = fewer overlapping elements = better position.
+      const shapes = allElements.filter(
+        (s) =>
+          s !== el &&
+          s.type !== 'label' &&
+          !s.type.includes('Flow') &&
+          !s.type.includes('Association') &&
+          s.type !== 'bpmn:Participant' &&
+          s.type !== 'bpmn:Lane' &&
+          s.x !== undefined &&
+          s.width !== undefined
+      );
+
+      const leftScore = labelSideScore({ x: leftX, y: labelY }, labelW, labelH, shapes);
+      const rightScore = labelSideScore({ x: rightX, y: labelY }, labelW, labelH, shapes);
+
+      targetX = leftScore <= rightScore ? leftX : rightX;
+      targetY = labelY;
+    } else {
+      // bpmn-js default: centre below element
+      const midX = el.x + el.width / 2;
+      const midY = el.y + el.height + ELEMENT_LABEL_DISTANCE + labelH / 2;
+      targetX = Math.round(midX - labelW / 2);
+      targetY = Math.round(midY - labelH / 2);
+    }
 
     const dx = targetX - label.x;
     const dy = targetY - label.y;

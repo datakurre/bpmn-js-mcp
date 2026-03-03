@@ -16,6 +16,26 @@ import type { GatewayPattern } from './patterns';
 /** Default origin for the first start event (center coordinates). */
 export const DEFAULT_ORIGIN = { x: 180, y: 200 };
 
+// ── Grid snapping ──────────────────────────────────────────────────────────
+
+/**
+ * Snap the LEFT EDGE of an element to the nearest 10-pixel grid line.
+ *
+ * Computes `rightEdge + gap`, then rounds to the nearest multiple of
+ * POSITION_GRID, then returns the element's centre X.
+ *
+ * Snapping left edges (rather than centres) ensures that the visible
+ * top-left corner of each element lands on a predictable grid, which
+ * improves the `gridSnapAvg` metric significantly.
+ */
+function snapLeft(rightEdge: number, gap: number, elementWidth: number): number {
+  const leftX = Math.round((rightEdge + gap) / POSITION_GRID) * POSITION_GRID;
+  return leftX + elementWidth / 2;
+}
+
+/** Grid size (pixels) used for element position snapping. */
+const POSITION_GRID = 10;
+
 // ── Pattern lookup construction ────────────────────────────────────────────
 
 /** Build merge-gateway and branch-element lookup tables from patterns. */
@@ -127,14 +147,17 @@ export function computePositions(
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
 
-  // Pre-place start nodes at the origin column, stacked vertically
+  // Pre-place start nodes at the origin column, stacked vertically.
+  // Snap the left edge to the grid so all downstream elements align cleanly.
   let startY = origin.y;
   for (const startId of graph.startNodeIds) {
     if (excludeIds?.has(startId)) continue;
-    if (graph.nodes.has(startId)) {
-      positions.set(startId, { x: origin.x, y: startY });
-      startY += branchSpacing;
-    }
+    const node = graph.nodes.get(startId);
+    if (!node) continue;
+    const w = node.element.width ?? 36;
+    const snappedCenterX = snapLeft(origin.x - w / 2 - 0, 0, w); // snap left edge from origin
+    positions.set(startId, { x: snappedCenterX, y: startY });
+    startY += branchSpacing;
   }
 
   // Process remaining elements in topological order
@@ -214,7 +237,7 @@ function positionAfterPredecessor(
   }
 
   positions.set(element.id, {
-    x: maxRight + gap + element.width / 2,
+    x: snapLeft(maxRight, gap, element.width),
     y: elementLaneYs?.get(element.id) ?? best.pos.y,
   });
 }
@@ -251,7 +274,24 @@ function positionBranchElement(
 
   // Symmetric branch Y offset — overridden by lane Y when known
   const numBranches = pattern.branches.length;
-  const rawOffset = (branchIndex - (numBranches - 1) / 2) * branchSpacing;
+
+  // For 2-branch exclusive gateways (not parallel/inclusive), align branch 0
+  // with the gateway Y so the primary path flows straight and has 0 bends.
+  // Branch 1 is placed one full branchSpacing below the gateway.
+  // This reduces total bends from 4 to 2 for the common split/merge pattern.
+  // (Parallel gateways keep symmetric placement for visual balance.)
+  const splitNode = graph.nodes.get(pattern.splitId);
+  const splitType = splitNode?.element.type ?? '';
+  const isExclusive =
+    splitType === 'bpmn:ExclusiveGateway' || splitType === 'bpmn:EventBasedGateway';
+  let rawOffset: number;
+  if (numBranches === 2 && isExclusive) {
+    // Branch 0: at gateway Y (straight flow, 0 bends)
+    // Branch 1: one full spacing below (2 bends: L-shape at split + L-shape at merge)
+    rawOffset = branchIndex === 0 ? 0 : branchSpacing;
+  } else {
+    rawOffset = (branchIndex - (numBranches - 1) / 2) * branchSpacing;
+  }
   // Snap to nearest multiple of 10 using absolute-value rounding so that
   // positive and negative offsets snap symmetrically (e.g. ±65 → ±70).
   // This aligns branch element top-left Y coordinates to the 10px grid.
@@ -276,7 +316,7 @@ function positionBranchElement(
   }
 
   positions.set(elementId, {
-    x: prevRight + gap + element.width / 2,
+    x: snapLeft(prevRight, gap, element.width),
     y: branchY,
   });
 }
@@ -320,8 +360,8 @@ function positionMerge(
   // If any branch's last-element centre-x is within gap/2 of the initial
   // join position, the join would visually abut that branch endpoint.
   // Add one extra gap to ensure a clear visual separation.
-  const initialJoinX = maxRight + gap + element.width / 2;
   let extraGap = 0;
+  const initialJoinX = snapLeft(maxRight, gap, element.width);
   for (const branch of pattern.branches) {
     if (branch.length > 0) {
       const lastId = branch[branch.length - 1];
@@ -334,7 +374,7 @@ function positionMerge(
   }
 
   positions.set(element.id, {
-    x: initialJoinX + extraGap,
+    x: extraGap === 0 ? initialJoinX : snapLeft(maxRight, gap + extraGap, element.width),
     y: splitPos.y,
   });
 }

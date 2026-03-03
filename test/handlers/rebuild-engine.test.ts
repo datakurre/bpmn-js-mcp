@@ -135,10 +135,16 @@ describe('linear chain rebuild (F01 linear flow)', () => {
       gaps.push(currLeft - prevRight);
     }
 
-    // All gaps should be the standard 50px gap
+    // All gaps should be close to the standard 50px gap.
+    // Grid snapping may shift positions by ≤5 px so we allow a ±5 px tolerance.
     for (const g of gaps) {
-      expect(g).toBe(50);
+      expect(g).toBeGreaterThanOrEqual(48);
+      expect(g).toBeLessThanOrEqual(60);
     }
+    // Gaps must also be mutually consistent (max spread ≤ 10 px).
+    const maxGap = Math.max(...gaps);
+    const minGap = Math.min(...gaps);
+    expect(maxGap - minGap).toBeLessThanOrEqual(10);
   });
 
   test('start event is placed at the default origin', async () => {
@@ -151,7 +157,8 @@ describe('linear chain rebuild (F01 linear flow)', () => {
     const startEl = registry.get(ids.start)!;
     const c = center(startEl);
 
-    expect(c.x).toBe(180);
+    // Grid snapping may shift the start position by ≤5 px from the origin.
+    expect(Math.abs(c.x - 180)).toBeLessThanOrEqual(5);
     expect(c.y).toBe(200);
   });
 
@@ -209,7 +216,7 @@ describe('gateway positioning (F02 exclusive gateway)', () => {
     expect(merge.x).toBeGreaterThan(reject.x + reject.width);
   });
 
-  test('branch elements have symmetric Y offsets from gateway', async () => {
+  test('branch elements have primary branch at gateway Y for exclusive gateways', async () => {
     const ids = await buildF02ExclusiveGateway();
     const diagram = getDiagram(ids.diagramId)!;
 
@@ -220,14 +227,15 @@ describe('gateway positioning (F02 exclusive gateway)', () => {
     const fulfillC = center(registry.get(ids.fulfill)!);
     const rejectC = center(registry.get(ids.reject)!);
 
-    // Two branches → offsets should be ±branchSpacing/2 = ±65
+    // For 2-branch exclusive gateways: branch 0 aligns with gateway Y (straight, 0 bends),
+    // branch 1 is placed one full branchSpacing below (2 bends: L-shape at split + merge).
     const offset1 = fulfillC.y - split.y;
     const offset2 = rejectC.y - split.y;
 
-    // They should be symmetric (one above, one below)
-    expect(Math.abs(offset1 + offset2)).toBeLessThan(2);
-    // And non-zero
-    expect(Math.abs(offset1)).toBeGreaterThan(30);
+    // Branch 0 (fulfill) should be at the same Y as the gateway
+    expect(Math.abs(offset1)).toBeLessThan(2);
+    // Branch 1 (reject) should be below the gateway
+    expect(offset2).toBeGreaterThan(50);
   });
 
   test('branch elements share the same X position', async () => {
@@ -421,7 +429,8 @@ describe('rebuildLayout with custom options', () => {
     const registry = getRegistry(ids.diagramId);
     const start = center(registry.get(ids.start)!);
 
-    expect(start.x).toBe(300);
+    // Grid snapping may shift positions by ≤5 px from the requested origin.
+    expect(Math.abs(start.x - 300)).toBeLessThanOrEqual(5);
     expect(start.y).toBe(400);
   });
 
@@ -435,7 +444,9 @@ describe('rebuildLayout with custom options', () => {
     const elements = [registry.get(ids.start)!, registry.get(ids.task1)!];
 
     const gap = elements[1].x - (elements[0].x + elements[0].width);
-    expect(gap).toBe(100);
+    // Grid snapping may increase the gap by up to 10 px.
+    expect(gap).toBeGreaterThanOrEqual(98);
+    expect(gap).toBeLessThanOrEqual(110);
   });
 
   test('custom branchSpacing changes branch offsets', async () => {
@@ -569,6 +580,60 @@ describe('boundary event positioning (F06 boundary events)', () => {
     expect(result.repositionedCount).toBeGreaterThanOrEqual(5);
     // Main flow (3 flows) + exception chain (2 flows from boundary + within chain)
     expect(result.reroutedCount).toBeGreaterThanOrEqual(5);
+  });
+
+  test('boundary event outgoing flow exits from the bottom (vertical-first path)', async () => {
+    const ids = await buildF06BoundaryEvents();
+    const diagram = getDiagram(ids.diagramId)!;
+
+    rebuildLayout(diagram);
+
+    const registry = getRegistry(ids.diagramId);
+    const be = registry.get(ids.boundaryEvent)!;
+    const conn = registry.get(ids.exceptionFlow1)!;
+
+    // The boundary event is placed at the host's bottom border.
+    // Its outgoing flow must exit downward (vertical first segment), not rightward.
+    // We check that the first waypoint is near the bottom-centre of the event
+    // and that the flow's first segment is vertical (same X, increasing Y).
+    expect(conn.waypoints).toBeDefined();
+    expect(conn.waypoints!.length).toBeGreaterThanOrEqual(2);
+
+    const wp0 = conn.waypoints![0];
+    const wp1 = conn.waypoints![1];
+
+    const beCenterX = be.x + be.width / 2;
+    const beBottom = be.y + be.height;
+
+    // First waypoint should be near the bottom centre of the boundary event
+    expect(Math.abs(wp0.x - beCenterX)).toBeLessThan(5);
+    expect(wp0.y).toBeGreaterThanOrEqual(beBottom - 2);
+
+    // First segment should be vertical (dx < dy), not horizontal
+    const segDx = Math.abs(wp1.x - wp0.x);
+    const segDy = Math.abs(wp1.y - wp0.y);
+    expect(segDy).toBeGreaterThan(segDx);
+  });
+
+  test('boundary event label is offset to the side (not centred below)', async () => {
+    const ids = await buildF06BoundaryEvents();
+    const diagram = getDiagram(ids.diagramId)!;
+
+    rebuildLayout(diagram);
+
+    const registry = getRegistry(ids.diagramId);
+    const be = registry.get(ids.boundaryEvent)!;
+
+    if (!be.label || !be.businessObject?.name) return; // label is optional
+
+    const beCenterX = be.x + be.width / 2;
+    const labelCenterX = be.label.x + (be.label.width ?? 90) / 2;
+
+    // Label centre should NOT be near the boundary event centre X.
+    // It should be clearly offset to the left or right so it does not
+    // sit directly on the downward-exiting flow line.
+    const offsetX = Math.abs(labelCenterX - beCenterX);
+    expect(offsetX).toBeGreaterThan(15);
   });
 });
 

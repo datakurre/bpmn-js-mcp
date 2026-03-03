@@ -264,6 +264,25 @@ function areGatewayBranches(
   return false;
 }
 
+/** Extract lane Y-bands from the full element list (includes bpmn:Lane containers). */
+function extractLaneBands(allElements: ListedElement[]): Array<{ y: number; bottom: number }> {
+  return allElements
+    .filter((e) => e.type === 'bpmn:Lane' && e.y !== undefined && e.height !== undefined)
+    .map((e) => ({ y: e.y!, bottom: e.y! + e.height! }));
+}
+
+/** Determine which lane index an element belongs to (-1 = not in any lane). */
+function getLaneIndex(
+  element: ListedElement,
+  laneBands: Array<{ y: number; bottom: number }>
+): number {
+  const cy = (element.y ?? 0) + (element.height ?? 0) / 2;
+  for (let i = 0; i < laneBands.length; i++) {
+    if (cy >= laneBands[i].y && cy < laneBands[i].bottom) return i;
+  }
+  return -1;
+}
+
 /** Group shapes by approximate X position (layer). */
 function groupByLayer(shapes: ListedElement[], tolerance: number): Map<number, ListedElement[]> {
   const layers = new Map<number, ListedElement[]>();
@@ -285,36 +304,160 @@ function groupByLayer(shapes: ListedElement[], tolerance: number): Map<number, L
   return layers;
 }
 
+/** Build the set of element IDs that live inside an expanded subprocess. */
+function buildSubprocessExclusions(shapes: ListedElement[]): Set<string> {
+  const subprocessBounds = shapes
+    .filter((s) => s.type === 'bpmn:SubProcess' && s.width !== undefined && s.height !== undefined)
+    .map((s) => ({
+      x: s.x ?? 0,
+      y: s.y ?? 0,
+      right: (s.x ?? 0) + (s.width ?? 0),
+      bottom: (s.y ?? 0) + (s.height ?? 0),
+    }));
+
+  const insideSubprocess = new Set<string>();
+  for (const el of shapes) {
+    if (el.type === 'bpmn:SubProcess' || el.type === 'bpmn:BoundaryEvent') continue;
+    for (const sp of subprocessBounds) {
+      const ex = el.x ?? 0;
+      const ey = el.y ?? 0;
+      if (ex >= sp.x && ex < sp.right && ey >= sp.y && ey < sp.bottom) {
+        insideSubprocess.add(el.id);
+        break;
+      }
+    }
+  }
+  return insideSubprocess;
+}
+
+/** Returns true when a pair of same-layer elements should be skipped for hMis. */
+function shouldSkipHmisPair(
+  a: ListedElement,
+  b: ListedElement,
+  predecessors: Map<string, Set<string>>,
+  successors: Map<string, Set<string>>,
+  laneBands: Array<{ y: number; bottom: number }>
+): boolean {
+  if (areGatewayBranches(a.id, b.id, predecessors, successors)) return true;
+  // Cross-lane elements are intentionally at different Y levels
+  if (laneBands.length > 0) {
+    const laneA = getLaneIndex(a, laneBands);
+    const laneB = getLaneIndex(b, laneBands);
+    if (laneA !== -1 && laneB !== -1 && laneA !== laneB) return true;
+  }
+  // Large Y gap with no common immediate predecessor → independent paths
+  const yDiff = Math.abs((a.y ?? 0) - (b.y ?? 0));
+  if (yDiff > 150) {
+    const ap = predecessors.get(a.id);
+    const bp = predecessors.get(b.id);
+    const hasCommonPred = ap && bp && [...ap].some((p) => bp!.has(p));
+    if (!hasCommonPred) return true;
+  }
+  return false;
+}
+
 /**
  * Compute horizontal alignment metric.
  *
  * Groups elements by approximate X position (layer) and counts how many
  * pairs within the same layer have Y positions that differ by more than
- * the alignment threshold (20px).
+ * the alignment threshold.
  *
  * Pairs that share a common direct predecessor or successor are skipped —
  * those are gateway branches and intentionally placed at different Y levels.
+ *
+ * Excluded from the comparison:
+ * - Boundary events: always positioned at the host task edge (inherently different Y)
+ * - SubProcess containers: large containers positioned on a different Y plane
+ * - Elements inside expanded subprocesses: they occupy a separate visual plane
+ *   and their X positions naturally overlap with main-flow elements
  */
-function computeHorizontalMisalignments(shapes: ListedElement[], flows: ListedElement[]): number {
+function computeHorizontalMisalignments(
+  shapes: ListedElement[],
+  flows: ListedElement[],
+  laneBands: Array<{ y: number; bottom: number }> = []
+): number {
   const LAYER_TOLERANCE = 30;
-  const ALIGNMENT_THRESHOLD = 20;
+  // Slightly relaxed threshold: avoids penalising borderline cases where an
+  // element is just a few pixels off the ideal axis.
+  const ALIGNMENT_THRESHOLD = 25;
 
   const { predecessors, successors } = buildAdjacency(flows);
-  const layers = groupByLayer(shapes, LAYER_TOLERANCE);
+  const insideSubprocess = buildSubprocessExclusions(shapes);
+
+  const candidates = shapes.filter(
+    (s) =>
+      s.type !== 'bpmn:BoundaryEvent' && s.type !== 'bpmn:SubProcess' && !insideSubprocess.has(s.id)
+  );
+  const layers = groupByLayer(candidates, LAYER_TOLERANCE);
 
   let misalignments = 0;
   for (const layer of layers.values()) {
     if (layer.length < 2) continue;
     for (let i = 0; i < layer.length; i++) {
       for (let j = i + 1; j < layer.length; j++) {
-        if (areGatewayBranches(layer[i].id, layer[j].id, predecessors, successors)) continue;
-        const yDiff = Math.abs((layer[i].y ?? 0) - (layer[j].y ?? 0));
-        if (yDiff > ALIGNMENT_THRESHOLD) misalignments++;
+        if (shouldSkipHmisPair(layer[i], layer[j], predecessors, successors, laneBands)) continue;
+        if (Math.abs((layer[i].y ?? 0) - (layer[j].y ?? 0)) > ALIGNMENT_THRESHOLD) misalignments++;
       }
     }
   }
 
   return misalignments;
+}
+
+/** Build a simple outgoing-edge map (sourceId → [targetId, ...]) from flows. */
+function buildOutgoingMap(flows: ListedElement[]): Map<string, string[]> {
+  const outgoing = new Map<string, string[]>();
+  for (const f of flows) {
+    if (!f.sourceId || !f.targetId) continue;
+    if (!outgoing.has(f.sourceId)) outgoing.set(f.sourceId, []);
+    outgoing.get(f.sourceId)!.push(f.targetId);
+  }
+  return outgoing;
+}
+
+/** Returns true when a gateway's branches land in 2+ distinct lanes (cross-lane split). */
+function isGatewayCrossLane(
+  targets: string[],
+  elementsById: Map<string, ListedElement>,
+  laneBands: Array<{ y: number; bottom: number }>
+): boolean {
+  const laneSet = new Set<number>();
+  for (const tid of targets) {
+    const t = elementsById.get(tid);
+    if (t) {
+      const li = getLaneIndex(t, laneBands);
+      if (li !== -1) laneSet.add(li);
+    }
+  }
+  return laneSet.size >= 2;
+}
+
+/**
+ * Compute the vertical imbalance contribution for one gateway split.
+ * Returns 0 when the pattern is intentional (primary-branch aligned or <2 targets).
+ */
+function computeGatewayImbalance(
+  targets: string[],
+  elementsById: Map<string, ListedElement>,
+  gatewayY: number
+): number {
+  const targetYs: number[] = [];
+  for (const tid of targets) {
+    const t = elementsById.get(tid);
+    if (t?.y !== undefined && t?.height !== undefined) {
+      targetYs.push(t.y + t.height / 2);
+    }
+  }
+  if (targetYs.length < 2) return 0;
+
+  // Skip if one branch is at the gateway Y — "primary branch aligned" pattern.
+  const minDeviation = Math.min(...targetYs.map((y) => Math.abs(y - gatewayY)));
+  if (minDeviation < 5) return 0;
+
+  const deviations = targetYs.map((y) => y - gatewayY);
+  const avgDeviation = deviations.reduce((a, b) => a + b, 0) / deviations.length;
+  return Math.abs(avgDeviation) / 50; // normalize: ~1 per 50px offset
 }
 
 /**
@@ -325,48 +468,24 @@ function computeHorizontalMisalignments(shapes: ListedElement[], flows: ListedEl
  *
  * Returns the total imbalance score (0 = perfectly balanced).
  */
-function computeVerticalImbalance(shapes: ListedElement[], flows: ListedElement[]): number {
-  // Build adjacency from flows
-  const outgoing = new Map<string, string[]>();
-  for (const f of flows) {
-    if (!f.sourceId || !f.targetId) continue;
-    if (!outgoing.has(f.sourceId)) outgoing.set(f.sourceId, []);
-    outgoing.get(f.sourceId)!.push(f.targetId);
-  }
-
-  // Build element lookup
+function computeVerticalImbalance(
+  shapes: ListedElement[],
+  flows: ListedElement[],
+  laneBands: Array<{ y: number; bottom: number }> = []
+): number {
+  const outgoing = buildOutgoingMap(flows);
   const elementsById = new Map<string, ListedElement>();
   for (const s of shapes) elementsById.set(s.id, s);
 
   let totalImbalance = 0;
-
-  // Find gateways with multiple outgoing flows (splits)
   for (const s of shapes) {
     if (!s.type?.includes('Gateway')) continue;
     const targets = outgoing.get(s.id) ?? [];
     if (targets.length < 2) continue;
-
-    // Get Y positions of targets
-    const targetYs: number[] = [];
-    for (const tid of targets) {
-      const t = elementsById.get(tid);
-      if (t?.y !== undefined && t?.height !== undefined) {
-        targetYs.push(t.y + t.height / 2); // center Y
-      }
-    }
-
-    if (targetYs.length < 2) continue;
-
-    // Gateway center Y
+    // Cross-lane splits are intentional — skip
+    if (laneBands.length > 0 && isGatewayCrossLane(targets, elementsById, laneBands)) continue;
     const gatewayY = (s.y ?? 0) + (s.height ?? 0) / 2;
-
-    // Measure imbalance: average deviation from gateway center
-    const deviations = targetYs.map((y) => y - gatewayY);
-    const avgDeviation = deviations.reduce((a, b) => a + b, 0) / deviations.length;
-
-    // Imbalance is how far the average deviation is from 0
-    // (0 means branches are centered around gateway)
-    totalImbalance += Math.abs(avgDeviation) / 50; // normalize to ~1 per 50px offset
+    totalImbalance += computeGatewayImbalance(targets, elementsById, gatewayY);
   }
 
   return totalImbalance;
@@ -378,13 +497,14 @@ export function computeLayoutMetrics(
   lintWarnings = 0
 ): LayoutMetrics {
   const { shapes, flows } = splitElements(elements);
+  const laneBands = extractLaneBands(elements);
   const { overlaps, nearMisses } = computeOverlapAndNearMisses(shapes);
   const { flowSegments, bendCount, diagonalSegments, detourRatioAvg, wrongExitFlows } =
     buildFlowSegments(flows, shapes);
   const crossings = computeCrossings(flowSegments);
   const gridSnapAvg = computeGridSnapAvg(shapes);
-  const horizontalMisalignments = computeHorizontalMisalignments(shapes, flows);
-  const verticalImbalance = computeVerticalImbalance(shapes, flows);
+  const horizontalMisalignments = computeHorizontalMisalignments(shapes, flows, laneBands);
+  const verticalImbalance = computeVerticalImbalance(shapes, flows, laneBands);
 
   return {
     nodeCount: shapes.length,

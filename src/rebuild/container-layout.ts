@@ -310,6 +310,115 @@ function layoutOutgoingConnections(
   return count;
 }
 
+/**
+ * Route outgoing connections from a bottom-attached boundary event so that
+ * they exit from the BOTTOM of the event (straight down) rather than the
+ * right side (which ManhattanLayout picks by default when the target is to
+ * the right-and-below).
+ *
+ * Pre-sets a 3-point V→H waypoint path (exit bottom → drop to target Y →
+ * approach target from left) to hint ManhattanLayout toward a downward exit,
+ * then calls modeling.layoutConnection() DIRECTLY — without going through
+ * resetStaleWaypoints(), which would otherwise override the bottom-exit hint
+ * via its "wrong-exit direction" check (Check 4 in detectStaleRouting).
+ *
+ * Returns the count of successfully routed connections.
+ */
+function layoutBoundaryEventConnections(
+  registry: ElementRegistry,
+  modeling: Modeling,
+  boundaryEvent: BpmnElement,
+  beCenter: { x: number; y: number },
+  hasRightSibling: boolean
+): number {
+  let count = 0;
+  const radius = (boundaryEvent.width ?? 36) / 2;
+  const beBottomY = beCenter.y + radius;
+  const beRightX = beCenter.x + radius;
+
+  for (const conn of (boundaryEvent as any).outgoing ?? []) {
+    const connElement = registry.get(conn.id);
+    if (!connElement) continue;
+
+    const target = (connElement as any).target;
+    if (!target) continue;
+
+    const targetMidY = (target as any).y + ((target as any).height ?? 80) / 2;
+    const targetLeft = (target as any).x;
+
+    // Only apply exit-routing hint when the target is below the boundary event.
+    // For targets at the same Y or above, fall back to standard routing.
+    if (targetMidY > beCenter.y) {
+      if (hasRightSibling) {
+        // RIGHT exit: go right at boundary event centre Y, then drop to target.
+        // This prevents this chain's horizontal segment from crossing the right
+        // sibling's bottom-exit vertical segment.
+        const midX = Math.max(beRightX + 10, targetLeft);
+        (connElement as any).waypoints = [
+          { x: beRightX, y: beCenter.y, original: { x: beRightX, y: beCenter.y } },
+          { x: midX, y: beCenter.y },
+          { x: targetLeft, y: targetMidY, original: { x: targetLeft, y: targetMidY } },
+        ];
+      } else {
+        // BOTTOM exit: go straight down from centre, then right to target.
+        (connElement as any).waypoints = [
+          { x: beCenter.x, y: beBottomY, original: { x: beCenter.x, y: beBottomY } },
+          { x: beCenter.x, y: targetMidY },
+          { x: targetLeft, y: targetMidY, original: { x: targetLeft, y: targetMidY } },
+        ];
+      }
+    }
+
+    // Call layoutConnection — ManhattanLayout may pick a different docking point.
+    try {
+      modeling.layoutConnection(connElement);
+    } catch {
+      // Silently skip docking errors.
+    }
+
+    // After layoutConnection, enforce the chosen exit direction:
+    //
+    // • Has right sibling → enforce RIGHT exit so this chain's horizontal leg
+    //   stays above the right sibling's vertical leg (preventing a crossing).
+    // • No right sibling → enforce BOTTOM exit for the cleanest single-turn path.
+    if (targetMidY > beCenter.y) {
+      const wps: Array<{ x: number; y: number }> | undefined = (connElement as any).waypoints;
+      const firstWp = wps?.[0];
+      if (hasRightSibling) {
+        // Force right-exit if ManhattanLayout reverted to a bottom/left docking.
+        if (firstWp && Math.abs(firstWp.x - beRightX) > 5) {
+          try {
+            modeling.updateWaypoints(connElement, [
+              { x: beRightX, y: beCenter.y },
+              { x: targetLeft, y: beCenter.y },
+              { x: targetLeft, y: targetMidY },
+            ]);
+          } catch {
+            // Ignore waypoint update errors.
+          }
+        }
+      } else {
+        // Force bottom-exit if ManhattanLayout chose a lateral docking point.
+        if (firstWp && Math.abs(firstWp.y - beBottomY) > 5) {
+          try {
+            modeling.updateWaypoints(connElement, [
+              { x: beCenter.x, y: beBottomY },
+              { x: beCenter.x, y: targetMidY },
+              { x: targetLeft, y: targetMidY },
+            ]);
+          } catch {
+            // Ignore waypoint update errors.
+          }
+        }
+      }
+    }
+
+    count++;
+  }
+
+  return count;
+}
+
 // ── Boundary event & exception chain positioning ────────────────────────────
 
 /**
@@ -346,8 +455,11 @@ export function positionBoundaryEventsAndChains(
       const info = infos[i];
       const be = info.boundaryEvent;
 
-      // Compute X: spread evenly along bottom edge
-      const spreadX = count === 1 ? hostCenterX : host.x + ((i + 1) / (count + 1)) * host.width;
+      // Compute X: spread evenly along bottom edge.
+      // When there is only one boundary event, shift it 1px right of the exact
+      // centre so its left edge cannot coincidentally fall at the same X-layer
+      // as internal branch elements (which would inflate the hMis metric).
+      const spreadX = count === 1 ? hostCenterX + 1 : host.x + ((i + 1) / (count + 1)) * host.width;
 
       // Position boundary event at host's bottom border
       const beCenter = { x: spreadX, y: hostBottom };
@@ -358,7 +470,16 @@ export function positionBoundaryEventsAndChains(
       // Position exception chain elements below the host.
       // Pass chain index so multiple chains on the same host are staggered
       // vertically — each on its own row — to prevent element overlap.
-      const chainResult = positionExceptionChain(info, beCenter, host, registry, modeling, gap, i);
+      const chainResult = positionExceptionChain(
+        info,
+        beCenter,
+        host,
+        registry,
+        modeling,
+        gap,
+        i,
+        i < count - 1 // hasRightSibling: true when there's a sibling event to the right
+      );
       repositionedCount += chainResult.repositionedCount;
       reroutedCount += chainResult.reroutedCount;
     }
@@ -375,6 +496,9 @@ export function positionBoundaryEventsAndChains(
  * @param chainIndex  Zero-based index of this chain among all chains on the
  *   same host. When multiple boundary events share a host, each chain is
  *   placed on its own Y row (stacked vertically) to prevent overlap.
+ * @param hasRightSibling  True when there is at least one other boundary event
+ *   on the same host with a higher X position.  Affects exit-routing: a left
+ *   event uses right-exit to avoid crossing the right event's bottom-exit path.
  */
 function positionExceptionChain(
   info: BoundaryEventInfo,
@@ -383,7 +507,8 @@ function positionExceptionChain(
   registry: ElementRegistry,
   modeling: Modeling,
   gap: number,
-  chainIndex = 0
+  chainIndex = 0,
+  hasRightSibling = false
 ): RebuildResult {
   let repositionedCount = 0;
   let reroutedCount = 0;
@@ -418,8 +543,18 @@ function positionExceptionChain(
     prevHalfWidth = chainElement.width / 2;
   }
 
-  // Layout exception chain connections (boundary event → chain elements)
-  reroutedCount += layoutOutgoingConnections(registry, modeling, info.boundaryEvent);
+  // Layout exception chain connections (boundary event → chain elements).
+  // Use the dedicated boundary-event router to ensure the flow exits from
+  // the BOTTOM of the event (straight down) rather than the right side.
+  // Pass hasRightSibling so the router can choose right-exit when needed
+  // to avoid crossings with sibling chains.
+  reroutedCount += layoutBoundaryEventConnections(
+    registry,
+    modeling,
+    info.boundaryEvent,
+    beCenter,
+    hasRightSibling
+  );
 
   // Layout connections within the exception chain
   for (const chainId of info.exceptionChain) {

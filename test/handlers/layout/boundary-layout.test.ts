@@ -365,6 +365,91 @@ describe('boundary event layout', () => {
     }
   });
 
+  test('boundary event outgoing flow exits from the bottom (not sideways)', async () => {
+    const diagramId = await createDiagram('Boundary Exit Direction');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+    const boundary = await addElement(diagramId, 'bpmn:BoundaryEvent', {
+      name: 'Timeout',
+      hostElementId: task,
+      eventDefinitionType: 'bpmn:TimerEventDefinition',
+      eventDefinitionProperties: { timeDuration: 'PT1H' },
+    });
+    const handler = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Handle Timeout' });
+    const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Handled' });
+
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
+    await connect(diagramId, boundary, handler);
+    await connect(diagramId, handler, errorEnd);
+
+    await handleLayoutDiagram({ diagramId });
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const beEl = reg.get(boundary);
+    const connections: any[] = reg.filter(
+      (el: any) => el.type === 'bpmn:SequenceFlow' && el.source?.id === boundary
+    );
+
+    expect(connections.length).toBeGreaterThanOrEqual(1);
+    const conn = connections[0];
+    expect(conn.waypoints).toBeDefined();
+    expect(conn.waypoints.length).toBeGreaterThanOrEqual(2);
+
+    const wp0 = conn.waypoints[0];
+    const wp1 = conn.waypoints[1];
+
+    // The boundary event is at the host's bottom border.
+    // The first waypoint must be near the bottom-centre of the event,
+    // and the first segment must be vertical (dy > dx).
+    const beCenterX = beEl.x + beEl.width / 2;
+    const beBottom = beEl.y + beEl.height;
+
+    expect(Math.abs(wp0.x - beCenterX)).toBeLessThan(5);
+    expect(wp0.y).toBeGreaterThanOrEqual(beBottom - 2);
+
+    const segDx = Math.abs(wp1.x - wp0.x);
+    const segDy = Math.abs(wp1.y - wp0.y);
+    expect(segDy).toBeGreaterThan(segDx);
+  });
+
+  test('boundary event label is offset to the side, not centred on the flow line', async () => {
+    const diagramId = await createDiagram('Boundary Label Side');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Main Task' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+    const boundary = await addElement(diagramId, 'bpmn:BoundaryEvent', {
+      name: 'SLA Warning',
+      hostElementId: task,
+      eventDefinitionType: 'bpmn:TimerEventDefinition',
+      eventDefinitionProperties: { timeDuration: 'PT30M' },
+    });
+    const handler = await addElement(diagramId, 'bpmn:SendTask', { name: 'Send Alert' });
+    const errorEnd = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Alert Sent' });
+
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, end);
+    await connect(diagramId, boundary, handler);
+    await connect(diagramId, handler, errorEnd);
+
+    await handleLayoutDiagram({ diagramId });
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const beEl = reg.get(boundary);
+
+    if (!beEl.label) return; // label visibility is optional
+
+    const beCenterX = beEl.x + beEl.width / 2;
+    const labelCenterX = beEl.label.x + (beEl.label.width ?? 90) / 2;
+
+    // The label must NOT sit directly below the event centre (which would
+    // place it on top of the downward-exiting flow line). It should be
+    // clearly offset to the left or right.
+    const offsetX = Math.abs(labelCenterX - beCenterX);
+    expect(offsetX).toBeGreaterThan(15);
+  });
+
   test('boundary event prefers bottom border of host', async () => {
     const diagramId = await createDiagram('Boundary Bottom Test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

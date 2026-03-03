@@ -99,6 +99,12 @@ export interface RebuildResult {
   repositionedCount: number;
   /** Number of connections re-routed. */
   reroutedCount: number;
+  /**
+   * IDs of exception-chain elements (boundary event downstream chains).
+   * Present only on the internal `rebuildContainer` result; absent on the
+   * top-level `rebuildLayout` result.
+   */
+  exceptionChainIds?: Set<string>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -178,6 +184,7 @@ export function rebuildLayout(diagram: DiagramState, options?: RebuildOptions): 
   }
 
   totalRerouted += layoutMessageFlows(registry, modeling);
+  totalRerouted += simplifyGatewayMergeConnections(registry, modeling);
   totalRepositioned += adjustLabels(registry, modeling);
 
   return { repositionedCount: totalRepositioned, reroutedCount: totalRerouted };
@@ -403,7 +410,7 @@ function rebuildContainer(
   repositionedCount += boundaryResult.repositionedCount;
   reroutedCount += boundaryResult.reroutedCount;
 
-  return { repositionedCount, reroutedCount };
+  return { repositionedCount, reroutedCount, exceptionChainIds };
 }
 
 // ── Waypoint clamping ──────────────────────────────────────────────────────
@@ -506,4 +513,87 @@ function layoutConnections(
   }
 
   return count;
+}
+
+// ── Gateway merge connection simplification ────────────────────────────────
+
+/**
+ * After all connections are laid out, simplify over-bent merge-gateway paths.
+ *
+ * When a non-gateway element connects to a gateway from a different Y level,
+ * ManhattanLayout sometimes produces a 3-segment (2-bend) path via the gateway
+ * left edge.  A cleaner 2-segment (1-bend) path enters from the TOP (when the
+ * source is above) or BOTTOM (when the source is below).
+ *
+ * This pass detects such over-bent paths and rewrites them to 2 waypoints.
+ *
+ * @returns Number of connections simplified.
+ */
+function simplifyGatewayMergeConnections(registry: ElementRegistry, modeling: Modeling): number {
+  let simplified = 0;
+
+  const allElements: BpmnElement[] = registry.getAll();
+
+  for (const gateway of allElements) {
+    if (!gateway.type?.includes('Gateway')) continue;
+
+    const gatewayCenterX = gateway.x + (gateway.width ?? 50) / 2;
+    const gatewayCenterY = gateway.y + (gateway.height ?? 50) / 2;
+    const gatewayTopY = gateway.y;
+    const gatewayBottomY = gateway.y + (gateway.height ?? 50);
+
+    for (const inConn of (gateway as any).incoming ?? []) {
+      const connEl = registry.get(inConn.id);
+      if (!connEl) continue;
+
+      const wps: Array<{ x: number; y: number }> | undefined = (connEl as any).waypoints;
+      if (!wps || wps.length < 3) continue; // Already 0 or 1 bend — fine
+
+      const source = (connEl as any).source;
+      if (!source) continue;
+      // Skip gateway-to-gateway connections: they need multi-bend routing.
+      if (source.type?.includes('Gateway')) continue;
+
+      const srcRight = source.x + (source.width ?? 100);
+      const srcCenterY = source.y + (source.height ?? 80) / 2;
+
+      // Only simplify when the source is to the LEFT of the gateway
+      // (left-to-right flow direction).
+      if (srcRight >= gateway.x - 5) continue;
+
+      // Determine the preferred gateway entry point.
+      const verticalOffset = srcCenterY - gatewayCenterY;
+      let entryX: number;
+      let entryY: number;
+
+      if (verticalOffset < -10) {
+        // Source is above gateway → enter from TOP vertex
+        entryX = gatewayCenterX;
+        entryY = gatewayTopY;
+      } else if (verticalOffset > 10) {
+        // Source is below gateway → enter from BOTTOM vertex
+        entryX = gatewayCenterX;
+        entryY = gatewayBottomY;
+      } else {
+        // Source is roughly at the same Y — LEFT entry is already optimal.
+        continue;
+      }
+
+      // Simplified 2-waypoint path: right from source, then diagonal-free to entry.
+      const newWps = [
+        { x: srcRight, y: srcCenterY },
+        { x: entryX, y: srcCenterY },
+        { x: entryX, y: entryY },
+      ];
+
+      try {
+        modeling.updateWaypoints(connEl, newWps);
+        simplified++;
+      } catch {
+        // Ignore — keep whatever ManhattanLayout produced.
+      }
+    }
+  }
+
+  return simplified;
 }
