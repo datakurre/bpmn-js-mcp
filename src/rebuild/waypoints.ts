@@ -12,6 +12,12 @@
  * Apply gateway fan-out waypoints: 3-point V→H path from gateway to a
  * target that is significantly above or below the gateway centre.
  * Returns true if waypoints were applied (fan-out pattern detected).
+ *
+ * The threshold for "significant offset" is `sourceHalfHeight + 20`.
+ * Raising from the bare `sourceHalfHeight` (25px for a 50px gateway) to
+ * `sourceHalfHeight + 20` (= 45px) prevents the V→H pattern from being
+ * applied to near-horizontal connections (offset ≤ 45px), which look
+ * cleaner as a straight or L-shaped 2/4-point path.
  */
 function applyGatewayFanoutReset(
   conn: any,
@@ -21,7 +27,7 @@ function applyGatewayFanoutReset(
   targetLeft: number,
   sourceHalfHeight: number
 ): boolean {
-  if (Math.abs(sourceMidY - targetMidY) <= sourceHalfHeight) return false;
+  if (Math.abs(sourceMidY - targetMidY) <= sourceHalfHeight + 20) return false;
 
   const sourceMidX = source.x + (source.width || 0) / 2;
   const exitY = targetMidY < sourceMidY ? source.y : source.y + (source.height || 0);

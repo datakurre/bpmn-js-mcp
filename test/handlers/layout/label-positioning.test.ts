@@ -6,6 +6,8 @@
  * - Data element Y-offset correctness (height/2 not width/2)
  * - Overlap resolution with near-miss positions (bounding box detection)
  * - Backward loop-back connection routing
+ * - getExternalLabelMid formula comparison (regression / documentation)
+ * - 4-side adaptive label positioning helper (selectBestLabelSide)
  */
 
 import { describe, test, expect, afterEach } from 'vitest';
@@ -16,6 +18,8 @@ import { handleAddElement, handleConnect } from '../../../src/handlers';
 import { createDiagram, addElement, connect, parseResult } from '../../utils/diagram';
 import type { BpmnElement, ElementRegistry } from '../../../src/bpmn-types';
 import { buildF02ExclusiveGateway } from '../../scenarios/fixture-builders';
+import { DEFAULT_LABEL_SIZE } from '../../../src/constants';
+import { selectBestLabelSide } from '../../../src/rebuild/artifacts';
 
 afterEach(() => clearDiagrams());
 
@@ -230,5 +234,120 @@ describe('backward loop-back connection routing', () => {
 
     // Task A should be to the left of Task B (forward flow direction)
     expect(registry.get(taskA)!.x).toBeLessThan(registry.get(taskB)!.x);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// getExternalLabelMid comparison — formula regression test
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('getExternalLabelMid formula comparison', () => {
+  /**
+   * bpmn-js `getExternalLabelMid()` places the label centre at:
+   *   (element.centerX,  element.bottom + DEFAULT_LABEL_SIZE.height / 2)
+   *
+   * For a 20px label that means:
+   *   label center Y = element.bottom + 10
+   *   label.y (top-left) = element.bottom + 10 - labelHeight/2 = element.bottom
+   *
+   * Our `adjustLabels()` in `src/rebuild/artifacts.ts` should produce the
+   * same result so that rebuild-engine label positions match interactive
+   * bpmn-js Camunda Modeler positions.
+   */
+  test('start event label top-edge is at element bottom (bpmn-js formula)', async () => {
+    const ids = await buildF02ExclusiveGateway();
+    const diagram = getDiagram(ids.diagramId)!;
+
+    rebuildLayout(diagram);
+
+    const registry = getRegistry(ids.diagramId);
+    const startEl = registry.get(ids.start)!;
+
+    if (!startEl.label || !startEl.businessObject?.name) return;
+
+    const labelH = startEl.label.height || DEFAULT_LABEL_SIZE.height;
+
+    // bpmn-js formula: label center Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
+    // ⟹ label.y (top-left) = element.bottom + DEFAULT_LABEL_SIZE.height/2 - labelH/2
+    const expectedLabelY = startEl.y + startEl.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2;
+
+    // Allow ±2px for grid snapping / rounding
+    expect(Math.abs(startEl.label.y - expectedLabelY)).toBeLessThanOrEqual(2);
+  });
+
+  test('end event label top-edge matches bpmn-js formula', async () => {
+    const ids = await buildF02ExclusiveGateway();
+    const diagram = getDiagram(ids.diagramId)!;
+
+    rebuildLayout(diagram);
+
+    const registry = getRegistry(ids.diagramId);
+    const endEl = registry.get(ids.end)!;
+
+    if (!endEl.label || !endEl.businessObject?.name) return;
+
+    const labelH = endEl.label.height || DEFAULT_LABEL_SIZE.height;
+    const expectedLabelY = endEl.y + endEl.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2;
+
+    expect(Math.abs(endEl.label.y - expectedLabelY)).toBeLessThanOrEqual(2);
+  });
+
+  test('gateway label top-edge matches bpmn-js formula', async () => {
+    const ids = await buildF02ExclusiveGateway();
+    const diagram = getDiagram(ids.diagramId)!;
+
+    rebuildLayout(diagram);
+
+    const registry = getRegistry(ids.diagramId);
+    const splitEl = registry.get(ids.split)!;
+
+    if (!splitEl.label || !splitEl.businessObject?.name) return;
+
+    const labelH = splitEl.label.height || DEFAULT_LABEL_SIZE.height;
+    const expectedLabelY = splitEl.y + splitEl.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2;
+
+    expect(Math.abs(splitEl.label.y - expectedLabelY)).toBeLessThanOrEqual(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4-side adaptive label side selection
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('selectBestLabelSide', () => {
+  /**
+   * `selectBestLabelSide` returns the first free side in priority order:
+   * bottom → top → left → right → bottom (fallback).
+   *
+   * This mirrors bpmn-js AdaptiveLabelPositioningBehavior's getOptimalPosition()
+   * priority logic.
+   */
+
+  test('returns bottom when no alignments are taken', () => {
+    expect(selectBestLabelSide(new Set())).toBe('bottom');
+  });
+
+  test('returns top when bottom is taken', () => {
+    expect(selectBestLabelSide(new Set(['bottom']))).toBe('top');
+  });
+
+  test('returns left when bottom and top are taken', () => {
+    expect(selectBestLabelSide(new Set(['bottom', 'top']))).toBe('left');
+  });
+
+  test('returns right when bottom, top, and left are taken', () => {
+    expect(selectBestLabelSide(new Set(['bottom', 'top', 'left']))).toBe('right');
+  });
+
+  test('falls back to bottom when all sides are taken', () => {
+    expect(selectBestLabelSide(new Set(['bottom', 'top', 'left', 'right']))).toBe('bottom');
+  });
+
+  test('returns bottom when only non-bottom sides are taken', () => {
+    expect(selectBestLabelSide(new Set(['left', 'right']))).toBe('bottom');
+  });
+
+  test('returns top when only bottom and right are taken', () => {
+    expect(selectBestLabelSide(new Set(['bottom', 'right']))).toBe('top');
   });
 });

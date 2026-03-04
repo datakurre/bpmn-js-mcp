@@ -14,7 +14,7 @@ MCP server that lets AI assistants create and manipulate BPMN 2.0 workflow diagr
 ```json
 {
   "servers": {
-    "bpmn-js-mcp": {
+    "bpmn": {
       "type": "stdio",
       "command": "npx",
       "args": ["git+https://github.com/datakurre/bpmn-js-mcp"]

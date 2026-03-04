@@ -11,6 +11,7 @@
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { DEFAULT_LABEL_SIZE, ELEMENT_LABEL_DISTANCE, FLOW_LABEL_SIDE_OFFSET } from '../constants';
+import { getTakenConnectionAlignments, type ConnectionStub } from '../geometry';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -304,20 +305,55 @@ function hasExternalLabel(type: string): boolean {
 }
 
 /**
+ * Select the best label side using bpmn-js `getOptimalPosition()` priority.
+ *
+ * Priority order: bottom → top → left → right.
+ * Falls back to bottom when all sides are taken.
+ *
+ * Mirrors bpmn-js `AdaptiveLabelPositioningBehavior.getOptimalPosition()`.
+ *
+ * @param takenAlignments  Set of sides already occupied by connections.
+ */
+export function selectBestLabelSide(
+  takenAlignments: ReadonlySet<'top' | 'bottom' | 'left' | 'right'>
+): 'top' | 'bottom' | 'left' | 'right' {
+  const priority: Array<'bottom' | 'top' | 'left' | 'right'> = ['bottom', 'top', 'left', 'right'];
+  for (const side of priority) {
+    if (!takenAlignments.has(side)) return side;
+  }
+  return 'bottom'; // fallback when all sides taken
+}
+
+/**
  * Adjust external labels (events, gateways, data objects) to the bpmn-js
- * default position: centered below the element.
+ * default position using `getExternalLabelMid()` formula.
  *
- * For boundary events the label is placed to the LOWER-LEFT or LOWER-RIGHT
- * of the event rather than directly below it. The downward flow exits from
- * the bottom centre, so a centred-below label would sit directly on the flow
- * line. Placing it to the side avoids the overlap and keeps it within the
- * exception-chain area.
+ * For **boundary events** the label is placed to the LOWER-LEFT or LOWER-RIGHT
+ * of the event rather than directly below it (special scoring logic).
  *
- * Replicates `getExternalLabelMid()` from bpmn-js LabelUtil for non-boundary
- * elements.
+ * For **non-boundary events** (start, end, intermediate, sub-process events)
+ * the 4-side adaptive positioning is applied — mirroring bpmn-js
+ * `AdaptiveLabelPositioningBehavior`:
+ *   1. Compute which sides are taken by connected sequence/message flows.
+ *   2. Select the best free side in priority order: bottom → top → left → right.
+ *   3. Place label on that side.
+ *
+ * For **gateways and data elements**, always use the bpmn-js default "below"
+ * formula (gateways typically have connections on all sides and would otherwise
+ * oscillate between top/bottom on every rebuild).
+ *
+ * **Formula (bpmn-js `getExternalLabelMid()`):**
+ *   label centre Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
+ *   (= element.bottom + 10 for the default 20px label height).
  */
 function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): number {
   const allElements: BpmnElement[] = registry.getAll();
+
+  // Collect sequence/message flows as ConnectionStub objects for alignment detection.
+  const connections: ConnectionStub[] = allElements.filter(
+    (el) => el.type === 'bpmn:SequenceFlow' || el.type === 'bpmn:MessageFlow'
+  ) as unknown as ConnectionStub[];
+
   let count = 0;
 
   for (const el of allElements) {
@@ -332,22 +368,14 @@ function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): num
     let targetY: number;
 
     if (el.type === 'bpmn:BoundaryEvent') {
-      // Place the label at the lower-left or lower-right of the boundary event.
-      // The bottom-exit flow occupies the vertical space below the event centre,
-      // so the label must be offset horizontally to avoid overlapping the flow line.
-      //
-      // Y: same as "below" (bottom edge + ELEMENT_LABEL_DISTANCE) so the label
-      //    clears the event's bounding box and the host task above it.
-      // X: to the left by default (exception chains extend to the right, so
-      //    left is less likely to collide with chain elements).
+      // Special boundary event: place label to the left or right of the event
+      // (not directly below, where the downward exception flow exits).
       const bottom = el.y + el.height;
       const labelY = Math.round(bottom + ELEMENT_LABEL_DISTANCE);
 
       const leftX = Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW);
       const rightX = Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE);
 
-      // Score both sides using the shapes already in the registry.
-      // Lower score = fewer overlapping elements = better position.
       const shapes = allElements.filter(
         (s) =>
           s !== el &&
@@ -365,12 +393,50 @@ function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): num
 
       targetX = leftScore <= rightScore ? leftX : rightX;
       targetY = labelY;
-    } else {
-      // bpmn-js default: centre below element
+    } else if (el.type.includes('Event')) {
+      // Non-boundary events: 4-side adaptive positioning.
+      // Scans connected flows to find taken sides, then picks the best free side.
+      const takenAlignments = getTakenConnectionAlignments(
+        { x: el.x, y: el.y, width: el.width, height: el.height, id: el.id },
+        connections
+      );
+      const side = selectBestLabelSide(takenAlignments);
+
       const midX = el.x + el.width / 2;
-      const midY = el.y + el.height + ELEMENT_LABEL_DISTANCE + labelH / 2;
+
+      switch (side) {
+        case 'top': {
+          // Symmetric to bpmn-js formula: place above element.
+          // label centre Y = element.top - DEFAULT_LABEL_SIZE.height / 2
+          const topCenterY = el.y - DEFAULT_LABEL_SIZE.height / 2;
+          targetX = Math.round(midX - labelW / 2);
+          targetY = Math.round(topCenterY - labelH / 2);
+          break;
+        }
+        case 'left': {
+          targetX = Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW);
+          targetY = Math.round(el.y + el.height / 2 - labelH / 2);
+          break;
+        }
+        case 'right': {
+          targetX = Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE);
+          targetY = Math.round(el.y + el.height / 2 - labelH / 2);
+          break;
+        }
+        default: {
+          // 'bottom': bpmn-js default
+          // label centre Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
+          targetX = Math.round(midX - labelW / 2);
+          targetY = Math.round(el.y + el.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2);
+          break;
+        }
+      }
+    } else {
+      // Gateways and data elements: always use bpmn-js default "below" formula.
+      // label centre Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
+      const midX = el.x + el.width / 2;
       targetX = Math.round(midX - labelW / 2);
-      targetY = Math.round(midY - labelH / 2);
+      targetY = Math.round(el.y + el.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2);
     }
 
     const dx = targetX - label.x;

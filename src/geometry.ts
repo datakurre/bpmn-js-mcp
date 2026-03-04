@@ -274,3 +274,98 @@ export function buildZShapeRoute(
     { x: Math.round(tgtLeft), y: Math.round(tgtCy) },
   ];
 }
+
+// ── Connection alignment helpers ───────────────────────────────────────────
+
+/**
+ * Connection stub used by `getTakenConnectionAlignments`.
+ * Accepts any object with the required shape — no bpmn-js dependency.
+ */
+export interface ConnectionStub {
+  type: string;
+  source?: { id: string };
+  target?: { id: string };
+  waypoints?: ReadonlyArray<{ x: number; y: number }>;
+}
+
+/**
+ * Compute the approximate orientation of a connection endpoint relative
+ * to an element's centre point.
+ *
+ * Mirrors `getApproximateOrientation()` from bpmn-js
+ * `AdaptiveLabelPositioningBehavior`.
+ *
+ * @param midX  Element centre X.
+ * @param midY  Element centre Y.
+ * @param wpX   Waypoint X (the connection's docking point near the element).
+ * @param wpY   Waypoint Y.
+ */
+export function getApproximateOrientation(
+  midX: number,
+  midY: number,
+  wpX: number,
+  wpY: number
+): 'top' | 'bottom' | 'left' | 'right' {
+  const dx = wpX - midX;
+  const dy = wpY - midY;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? 'right' : 'left';
+  }
+  return dy >= 0 ? 'bottom' : 'top';
+}
+
+/**
+ * Compute the set of connection alignments that are "taken" for an element.
+ *
+ * Iterates all incoming and outgoing connections and computes the approximate
+ * orientation of each connection's docking waypoint relative to the element's
+ * centre.  The returned set describes which sides of the element already have
+ * connections docking onto them.
+ *
+ * Mirrors `getTakenAlignments()` from bpmn-js
+ * `AdaptiveLabelPositioningBehavior`:
+ * - For incoming connections: examines the **last** waypoint (target dock).
+ * - For outgoing connections: examines the **first** waypoint (source dock).
+ *
+ * Only `bpmn:SequenceFlow` and `bpmn:MessageFlow` connections are considered;
+ * associations and data associations are ignored.
+ *
+ * @param element     The element whose taken alignments to compute.
+ * @param connections All connections (flows) in the diagram.
+ * @returns Set of taken alignment sides.
+ */
+export function getTakenConnectionAlignments(
+  element: Rect & { id?: string },
+  connections: ReadonlyArray<ConnectionStub>
+): Set<'top' | 'bottom' | 'left' | 'right'> {
+  const midX = element.x + element.width / 2;
+  const midY = element.y + element.height / 2;
+  const elementId = (element as { id?: string }).id;
+
+  const taken = new Set<'top' | 'bottom' | 'left' | 'right'>();
+
+  for (const conn of connections) {
+    // Only sequence and message flows
+    if (conn.type !== 'bpmn:SequenceFlow' && conn.type !== 'bpmn:MessageFlow') continue;
+
+    const wps = conn.waypoints;
+    if (!wps || wps.length < 2) continue;
+
+    const sourceId = conn.source?.id;
+    const targetId = conn.target?.id;
+
+    // Outgoing: element is the source → examine first waypoint (source dock)
+    if (elementId !== undefined && sourceId === elementId) {
+      const wp = wps[0];
+      taken.add(getApproximateOrientation(midX, midY, wp.x, wp.y));
+    }
+
+    // Incoming: element is the target → examine last waypoint (target dock)
+    if (elementId !== undefined && targetId === elementId) {
+      const wp = wps[wps.length - 1];
+      taken.add(getApproximateOrientation(midX, midY, wp.x, wp.y));
+    }
+  }
+
+  return taken;
+}

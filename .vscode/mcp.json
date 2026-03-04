@@ -1,6 +1,6 @@
 {
   "servers": {
-    "bpmn-js-mcp": {
+    "bpmn": {
       "command": "npm",
       "args": [
         "run",
