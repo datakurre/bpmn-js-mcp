@@ -164,4 +164,54 @@ describe('persistence', () => {
     expect(diagram).toBeDefined();
     expect(diagram!.name).toBe('Loaded');
   });
+
+  test('round-trip: persistDiagram then loadDiagrams restores structural equivalence', async () => {
+    await enablePersistence(tmpDir);
+
+    const modeler = await createModeler();
+    const { xml: originalXml } = await modeler.saveXML({ format: true });
+    storeDiagram('round-trip-test', { modeler, xml: originalXml || '', name: 'Round Trip' });
+
+    const diagram = getDiagram('round-trip-test')!;
+    await persistDiagram('round-trip-test', diagram);
+
+    // Clear in-memory store and reload from disk
+    clearDiagrams();
+    disablePersistence();
+
+    const loadedCount = await enablePersistence(tmpDir);
+    expect(loadedCount).toBeGreaterThanOrEqual(1);
+
+    const restored = getDiagram('round-trip-test');
+    expect(restored).toBeDefined();
+    expect(restored!.name).toBe('Round Trip');
+
+    // The restored modeler should be functional (can list elements)
+    const registry = restored!.modeler.get('elementRegistry');
+    expect(registry).toBeDefined();
+    const processes = registry.filter((el: any) => el.type === 'bpmn:Process');
+    expect(processes.length).toBe(1);
+  });
+
+  test('assertSafeDiagramId: rejects IDs with path traversal characters', async () => {
+    await enablePersistence(tmpDir);
+    const modeler = await createModeler();
+    const { xml } = await modeler.saveXML({ format: true });
+    const state = { modeler, xml: xml || '' };
+
+    await expect(persistDiagram('../evil', state)).rejects.toThrow(/Unsafe diagram ID/);
+    await expect(persistDiagram('foo/bar', state)).rejects.toThrow(/Unsafe diagram ID/);
+    await expect(persistDiagram('foo bar', state)).rejects.toThrow(/Unsafe diagram ID/);
+  });
+
+  test('assertSafeDiagramId: accepts valid server-generated IDs', async () => {
+    await enablePersistence(tmpDir);
+    const modeler = await createModeler();
+    const { xml } = await modeler.saveXML({ format: true });
+    storeDiagram('diagram_1709000000000_abc123', { modeler, xml: xml || '' });
+
+    // Should not throw
+    const diagram = getDiagram('diagram_1709000000000_abc123')!;
+    await expect(persistDiagram('diagram_1709000000000_abc123', diagram)).resolves.toBeUndefined();
+  });
 });

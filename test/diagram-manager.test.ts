@@ -8,6 +8,7 @@ import {
   clearDiagrams,
   createModeler,
   INITIAL_XML,
+  MAX_DIAGRAMS,
 } from '../src/diagram-manager';
 import type { DiagramState } from '../src/types';
 
@@ -94,6 +95,37 @@ describe('diagram-manager', () => {
       const registry = modeler.get('elementRegistry');
       const processes = registry.filter((el: any) => el.type === 'bpmn:Process');
       expect(processes.length).toBe(1);
+    });
+  });
+
+  describe('MAX_DIAGRAMS eviction', () => {
+    test('MAX_DIAGRAMS is a positive integer', () => {
+      expect(Number.isInteger(MAX_DIAGRAMS)).toBe(true);
+      expect(MAX_DIAGRAMS).toBeGreaterThan(0);
+    });
+
+    test('storeDiagram evicts oldest entry when limit is reached', () => {
+      // Fill up to limit using dummy states
+      for (let i = 0; i < MAX_DIAGRAMS; i++) {
+        storeDiagram(`d${i}`, { modeler: {} as any, xml: '' });
+      }
+      expect(getAllDiagrams().size).toBe(MAX_DIAGRAMS);
+
+      // Adding one more should evict d0 (oldest)
+      storeDiagram('overflow', { modeler: {} as any, xml: '' });
+      expect(getAllDiagrams().size).toBe(MAX_DIAGRAMS);
+      expect(getDiagram('d0')).toBeUndefined();
+      expect(getDiagram('overflow')).toBeDefined();
+    });
+
+    test('updating an existing diagram does not trigger eviction', () => {
+      for (let i = 0; i < MAX_DIAGRAMS; i++) {
+        storeDiagram(`d${i}`, { modeler: {} as any, xml: '' });
+      }
+      // Update d0 — should not evict anything
+      storeDiagram('d0', { modeler: {} as any, xml: 'updated' });
+      expect(getAllDiagrams().size).toBe(MAX_DIAGRAMS);
+      expect(getDiagram('d0')?.xml).toBe('updated');
     });
   });
 });

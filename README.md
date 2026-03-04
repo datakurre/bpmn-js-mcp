@@ -207,6 +207,51 @@ make format check test   # format, typecheck + lint, run tests
 
 See [AGENTS.md](AGENTS.md) for architecture details and decision records.
 
+## Contributing
+
+### Getting Started
+
+```bash
+git clone https://github.com/datakurre/bpmn-js-mcp
+cd bpmn-js-mcp
+npm install
+npm run build   # compile TypeScript → dist/ via esbuild
+npm test        # run Vitest test suite (~1 300 tests)
+npm run lint    # ESLint (sonarjs + unicorn + typescript-eslint)
+npm run typecheck  # tsc --noEmit (type check only, no emit)
+```
+
+Node.js **≥ 18** is required.
+
+### Project Layout
+
+```
+src/handlers/      tool handlers, one file per tool domain
+src/rebuild/       topology-driven layout engine
+src/bpmnlint-plugin-bpmn-mcp/  custom lint rules
+src/eval/          layout quality scoring harness
+test/              Vitest tests mirroring src/ structure
+docs/              architecture, best practices, ADRs
+agents/adrs/       Architecture Decision Records
+```
+
+### Adding a New MCP Tool
+
+1. Create `src/handlers/<domain>/<name>.ts` — export both the handler function and a `TOOL_DEFINITION` constant.
+2. Add one entry to `TOOL_REGISTRY` in `src/handlers/index.ts`.
+3. Add a test in `test/handlers/<domain>/<name>.test.ts`.
+
+The dispatch map and `TOOL_DEFINITIONS` array are auto-derived from `TOOL_REGISTRY`.
+
+### Key Constraints
+
+- **Never edit `.bpmn` files directly** — always use the MCP tools (`import_bpmn_xml` → edit → `export_bpmn`).
+- **Never write BPMN XML via terminal heredocs** — line-wrapping can corrupt element names. Use `create_file` or MCP export.
+- `src/rebuild/` and `src/bpmnlint-plugin-bpmn-mcp/` must not import from `src/handlers/` (enforced by ESLint).
+- Mutating handlers must call `appendLintFeedback()` from `src/linter.ts` to surface error-level issues.
+
+See [AGENTS.md](AGENTS.md) for full architecture details and decision records.
+
 ## License
 
 MIT

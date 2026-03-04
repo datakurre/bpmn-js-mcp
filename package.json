@@ -35,7 +35,7 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "files": [
     "dist/",
@@ -44,7 +44,6 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "@types/bpmn-moddle": "^9.0.0",
     "bpmn-auto-layout": "^1.2.0",
     "bpmn-js": "^18.8.0",
     "bpmnlint": "^11.10.0",
@@ -54,6 +53,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/bpmn-moddle": "^9.0.0",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.10.2",
     "@vitest/coverage-v8": "^4.0.18",

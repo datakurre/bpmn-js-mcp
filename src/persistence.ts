@@ -12,6 +12,27 @@ import * as path from 'node:path';
 import { getAllDiagrams, storeDiagram, createModelerFromXml } from './diagram-manager';
 import { type DiagramState } from './types';
 
+/** Lightweight XML well-formedness check using the built-in DOMParser substitute. */
+async function validatePersistedXml(filePath: string, diagramId: string): Promise<void> {
+  const written = await fs.readFile(filePath, 'utf-8');
+  // Structural check: the file must contain a recognised closing tag.
+  if (!written.includes('</bpmn:definitions>') && !written.includes('</definitions>')) {
+    console.error(
+      `[persistence] Post-write validation failed for ${diagramId}: ` +
+        'written file is missing closing </bpmn:definitions> tag'
+    );
+    return;
+  }
+  // Parse check: attempt to re-import the XML into a temporary modeler.
+  // This catches truncated writes and encoding corruption before the next
+  // server start would fail to load the diagram.
+  try {
+    await createModelerFromXml(written);
+  } catch (err) {
+    console.error(`[persistence] Round-trip parse validation failed for ${diagramId}: ${err}`);
+  }
+}
+
 let persistDir: string | null = null;
 
 /**
@@ -43,12 +64,32 @@ export function getPersistDir(): string | null {
 }
 
 /**
+ * Validate that a diagram ID is safe to use as a filename component.
+ *
+ * IDs are server-generated (`diagram_<timestamp>_<hex>`) and safe in normal
+ * operation, but we guard defensively against path traversal in case a future
+ * code path allows caller-supplied IDs.
+ *
+ * @throws {Error} when the ID contains path separators or other dangerous characters.
+ */
+function assertSafeDiagramId(diagramId: string): void {
+  // Allow only alphanumeric characters, underscores, and hyphens.
+  if (!/^[\w-]+$/.test(diagramId)) {
+    throw new Error(
+      `Unsafe diagram ID rejected for persistence: "${diagramId}". ` +
+        'IDs must contain only alphanumeric characters, underscores, and hyphens.'
+    );
+  }
+}
+
+/**
  * Save a single diagram to disk (if persistence is enabled).
  * After writing, re-reads the file and validates the XML can be parsed
  * to catch any corruption early.
  */
 export async function persistDiagram(diagramId: string, diagram: DiagramState): Promise<void> {
   if (!persistDir) return;
+  assertSafeDiagramId(diagramId);
   try {
     const { xml } = await diagram.modeler.saveXML({ format: true });
     const filePath = path.join(persistDir, `${diagramId}.bpmn`);
@@ -57,14 +98,9 @@ export async function persistDiagram(diagramId: string, diagram: DiagramState): 
     await fs.writeFile(filePath, xml || '', 'utf-8');
     await fs.writeFile(metaPath, JSON.stringify(meta), 'utf-8');
 
-    // Post-write validation: re-read and verify XML integrity
-    const written = await fs.readFile(filePath, 'utf-8');
-    if (!written.includes('</bpmn:definitions>') && !written.includes('</definitions>')) {
-      console.error(
-        `[persistence] Post-write validation failed for ${diagramId}: ` +
-          'written file is missing closing </bpmn:definitions> tag'
-      );
-    }
+    // Post-write round-trip validation: re-read and parse the written file
+    // to catch truncation and encoding corruption early.
+    await validatePersistedXml(filePath, diagramId);
   } catch (err) {
     console.error(`[persistence] failed to save diagram ${diagramId}:`, err);
   }
@@ -123,6 +159,7 @@ async function loadDiagrams(): Promise<number> {
  */
 export async function removePersisted(diagramId: string): Promise<void> {
   if (!persistDir) return;
+  assertSafeDiagramId(diagramId);
   try {
     const filePath = path.join(persistDir, `${diagramId}.bpmn`);
     const metaPath = path.join(persistDir, `${diagramId}.meta.json`);

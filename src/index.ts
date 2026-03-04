@@ -30,11 +30,13 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { type ToolModule } from './module';
 import { bpmnModule } from './bpmn-module';
-import { enablePersistence } from './persistence';
+import { enablePersistence, persistAllDiagrams } from './persistence';
 import { setServerHintLevel } from './linter';
 import type { HintLevel, ToolContext } from './types';
 import { RESOURCE_TEMPLATES, listResources, readResource } from './resources';
 import { listPrompts, getPrompt } from './prompts';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { version: PKG_VERSION } = require('../package.json') as { version: string };
 
 // ── CLI argument parsing ───────────────────────────────────────────────────
 
@@ -114,7 +116,7 @@ function parseArgs(argv: string[]): CliOptions {
 const modules: ToolModule[] = [bpmnModule];
 
 const server = new Server(
-  { name: 'bpmn-js-mcp', version: '1.0.0' },
+  { name: 'bpmn-js-mcp', version: PKG_VERSION },
   { capabilities: { tools: {}, resources: {}, prompts: {} } }
 );
 
@@ -196,6 +198,23 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('bpmn-js-mcp server running on stdio');
+
+  // ── Graceful shutdown ────────────────────────────────────────────────────
+  // Flush pending persistence writes before the process exits so diagrams
+  // are not lost when nodemon restarts (SIGTERM) or the user hits Ctrl-C.
+  const shutdown = async (signal: string): Promise<void> => {
+    console.error(`Received ${signal}, flushing diagrams…`);
+    try {
+      const saved = await persistAllDiagrams();
+      if (saved > 0) console.error(`Persisted ${saved} diagram(s).`);
+    } catch (err) {
+      console.error('Error during shutdown flush:', err);
+    }
+    process.exit(0);
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
 }
 
 main().catch((error) => {

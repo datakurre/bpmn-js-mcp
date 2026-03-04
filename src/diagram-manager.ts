@@ -27,6 +27,22 @@ export const INITIAL_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 // ── Diagram store ──────────────────────────────────────────────────────────
 
+/**
+ * Hard upper bound on the number of concurrently held diagrams.
+ *
+ * Each DiagramState holds a full bpmn-js modeler (jsdom document + canvas),
+ * so unbounded growth would exhaust memory in long-running sessions.
+ * When the limit is reached, `storeDiagram` evicts the oldest diagram (FIFO)
+ * before inserting the new one.
+ *
+ * Override with the `BPMN_MCP_MAX_DIAGRAMS` environment variable.
+ */
+export const MAX_DIAGRAMS: number = (() => {
+  const env = process.env['BPMN_MCP_MAX_DIAGRAMS'];
+  const parsed = env ? Number.parseInt(env, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 100;
+})();
+
 const diagrams = new Map<string, DiagramState>();
 
 /** Reverse index: modeler instance → diagram ID. Avoids O(n) lookups in linter. */
@@ -37,6 +53,18 @@ export function getDiagram(id: string): DiagramState | undefined {
 }
 
 export function storeDiagram(id: string, state: DiagramState): void {
+  // If this is a new diagram (not an update) and we're at the limit, evict oldest.
+  if (!diagrams.has(id) && diagrams.size >= MAX_DIAGRAMS) {
+    const oldest = diagrams.keys().next().value;
+    if (oldest !== undefined) {
+      const oldState = diagrams.get(oldest);
+      if (oldState?.modeler) modelerToDiagramId.delete(oldState.modeler);
+      diagrams.delete(oldest);
+      console.error(
+        `[diagram-manager] diagram limit (${MAX_DIAGRAMS}) reached — evicted oldest diagram "${oldest}".`
+      );
+    }
+  }
   diagrams.set(id, state);
   if (state.modeler) {
     modelerToDiagramId.set(state.modeler, id);

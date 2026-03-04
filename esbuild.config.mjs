@@ -5,7 +5,7 @@ const config = {
   entryPoints: ['src/index.ts', 'src/eval-cli.ts', 'src/agent-loop-cli.ts'],
   bundle: true,
   platform: 'node',
-  target: 'node16',
+  target: 'node18',
   format: 'cjs',
   outdir: 'dist',
   entryNames: '[name]',

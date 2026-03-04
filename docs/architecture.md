@@ -43,6 +43,16 @@ graph TD
         rebuildcore["rebuild/ internals"]
     end
 
+    subgraph "Eval & Agent Loop (tooling, not MCP)"
+        evalcli["eval-cli.ts"]
+        agentcli["agent-loop-cli.ts"]
+        evaltypes["eval/types.ts"]
+        scenarios["eval/scenarios.ts"]
+        score["eval/score.ts"]
+        runeval["eval/run-eval.ts"]
+        agentloop["agent-loop-*.ts"]
+    end
+
     index --> bpmnmod
     bpmnmod --> mod
     bpmnmod --> hindex
@@ -77,9 +87,25 @@ graph TD
     rebuildcore --> types
     rebuildcore --> bpmntypes
 
+    evalcli --> runeval
+    agentcli --> agentloop
+    runeval --> scenarios
+    runeval --> score
+    runeval --> evaltypes
+    scenarios --> hindex
+    score --> evaltypes
+    agentloop --> evaltypes
+
     style lintplugin fill:#e8f5e9
     style rebuildcore fill:#e8f5e9
     style rebuild fill:#e8f5e9
+    style evalcli fill:#fff3e0
+    style agentcli fill:#fff3e0
+    style evaltypes fill:#fff3e0
+    style scenarios fill:#fff3e0
+    style score fill:#fff3e0
+    style runeval fill:#fff3e0
+    style agentloop fill:#fff3e0
 ```
 
 ## Module Boundaries
@@ -144,6 +170,10 @@ Allowed dependency direction: top → bottom
 | `src/rebuild/`                  | Rebuild-based layout engine — topology-driven positioning using bpmn-js native AutoPlace       |
 | `src/rebuild/engine.ts`         | Main layout entry point: topological walk + positioning                                        |
 | `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                    |
+| `src/eval/`                     | Layout quality scoring harness: scenario builders, metrics, and `run-eval.ts` orchestrator     |
+| `src/eval/scenarios.ts`         | Deterministic BPMN scenario builders used for eval and CI scoring                              |
+| `src/eval/score.ts`             | Layout quality scoring algorithm (overlaps, crossings, spacing, orthogonality, etc.)           |
+| `src/agent-loop-*.ts`           | Agent-loop CLI: iterative "eval → AI patch → test → keep/revert" automation harness            |
 
 ## Where to Put New Code
 
