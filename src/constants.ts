@@ -127,6 +127,29 @@ export const POSITION_GRID = 10;
 export const FLOW_LABEL_SIDE_OFFSET = 5;
 
 /**
+ * Flow label indent (px) — matches bpmn-js `FLOW_LABEL_INDENT = 15` from
+ * `lib/util/LabelUtil.js`.
+ *
+ * In bpmn-js this is the distance from the segment **centre point** to the
+ * label **centre**:
+ *   - Horizontal: label centre Y = midY − FLOW_LABEL_INDENT
+ *   - Vertical:   label centre X = midX + FLOW_LABEL_INDENT
+ *
+ * **Equivalence for horizontal segments** (default 20 px label height):
+ *   Our formula produces:  label centre Y = midY − FLOW_LABEL_SIDE_OFFSET − labelH / 2
+ *                                         = midY − 5 − 10 = midY − 15
+ *   bpmn-js formula:       label centre Y = midY − FLOW_LABEL_INDENT = midY − 15  ✓
+ *   So: FLOW_LABEL_INDENT = FLOW_LABEL_SIDE_OFFSET + DEFAULT_LABEL_SIZE.height / 2.
+ *
+ * **Vertical segments** (intentional divergence):
+ *   bpmn-js centres the label FLOW_LABEL_INDENT px from the segment, meaning
+ *   the label *straddles* the segment for a 90 px wide label.  Our
+ *   implementation instead places the label's nearest edge FLOW_LABEL_SIDE_OFFSET px
+ *   from the segment so the label never overlaps the connection line.
+ */
+export const FLOW_LABEL_INDENT = 15;
+
+/**
  * Calculate optimal pool dimensions based on element count and lane count.
  *
  * Width formula:  `max(1200, elementCount × 150)`

@@ -369,3 +369,28 @@ export function getTakenConnectionAlignments(
 
   return taken;
 }
+
+/**
+ * Compute the alignment side of a boundary event that faces its host element.
+ *
+ * A boundary event is attached to a host (task/subprocess).  The side of the
+ * boundary event facing the host should not receive a label — the host
+ * element occupies that space.
+ *
+ * Mirrors the host-side awareness in bpmn-js
+ * `AdaptiveLabelPositioningBehavior`.
+ *
+ * @param boundaryEvent  The boundary event element's bounding box.
+ * @param host           The host element's bounding box.
+ * @returns Set containing the single alignment side facing the host.
+ */
+export function getTakenHostAlignments(
+  boundaryEvent: Rect,
+  host: Rect
+): Set<'top' | 'bottom' | 'left' | 'right'> {
+  const beMidX = boundaryEvent.x + boundaryEvent.width / 2;
+  const beMidY = boundaryEvent.y + boundaryEvent.height / 2;
+  const hostMidX = host.x + host.width / 2;
+  const hostMidY = host.y + host.height / 2;
+  return new Set([getApproximateOrientation(beMidX, beMidY, hostMidX, hostMidY)]);
+}

@@ -4,6 +4,7 @@ import {
   rectsNearby,
   segmentIntersectsRect,
   getTakenConnectionAlignments,
+  getTakenHostAlignments,
 } from '../src/geometry';
 
 describe('geometry', () => {
@@ -245,5 +246,58 @@ describe('getTakenConnectionAlignments', () => {
     };
     const result = getTakenConnectionAlignments(element, [msgFlow]);
     expect(result.has('right')).toBe(true);
+  });
+});
+
+// ── getTakenHostAlignments ─────────────────────────────────────────────────
+
+describe('getTakenHostAlignments', () => {
+  test('host above boundary event returns top as taken', () => {
+    // Host at (100,100) size 100x80, so host center at (150,140).
+    // Boundary event at (150,180) size 36x36, so BE center at (168,198).
+    // Host center is ABOVE BE center (140 < 198), so host side = 'top'.
+    const be = { x: 150, y: 180, width: 36, height: 36 };
+    const host = { x: 100, y: 100, width: 100, height: 80 };
+    const result = getTakenHostAlignments(be, host);
+    expect(result.has('top')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  test('host below boundary event returns bottom as taken', () => {
+    // Unusual: top attachment (boundary event above host).
+    const be = { x: 150, y: 80, width: 36, height: 36 };
+    const host = { x: 100, y: 120, width: 100, height: 80 };
+    // BE center at (168, 98), host center at (150, 160). dy = 160-98 = +62 → 'bottom'.
+    const result = getTakenHostAlignments(be, host);
+    expect(result.has('bottom')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  test('host to the left of boundary event returns left as taken', () => {
+    // Left-edge attachment.
+    const be = { x: 90, y: 150, width: 36, height: 36 };
+    const host = { x: 200, y: 130, width: 100, height: 80 };
+    // BE center at (108, 168), host center at (250, 170). dx = 250-108 = +142, dy = 2.
+    // |dx| > |dy| → 'right' (host is to the right of BE).
+    const result = getTakenHostAlignments(be, host);
+    expect(result.has('right')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  test('host to the right of boundary event returns right as taken', () => {
+    // Right-edge attachment.
+    const be = { x: 210, y: 150, width: 36, height: 36 };
+    const host = { x: 100, y: 130, width: 100, height: 80 };
+    // BE center at (228, 168), host center at (150, 170). dx = 150-228 = -78 → 'left'.
+    const result = getTakenHostAlignments(be, host);
+    expect(result.has('left')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  test('always returns exactly one alignment side', () => {
+    const be = { x: 150, y: 180, width: 36, height: 36 };
+    const host = { x: 100, y: 100, width: 100, height: 80 };
+    const result = getTakenHostAlignments(be, host);
+    expect(result.size).toBe(1);
   });
 });

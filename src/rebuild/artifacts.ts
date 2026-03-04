@@ -11,7 +11,11 @@
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
 import { DEFAULT_LABEL_SIZE, ELEMENT_LABEL_DISTANCE, FLOW_LABEL_SIDE_OFFSET } from '../constants';
-import { getTakenConnectionAlignments, type ConnectionStub } from '../geometry';
+import {
+  getTakenConnectionAlignments,
+  getTakenHostAlignments,
+  type ConnectionStub,
+} from '../geometry';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -324,6 +328,106 @@ export function selectBestLabelSide(
   return 'bottom'; // fallback when all sides taken
 }
 
+/** Compute label position for a boundary event element. */
+function computeBoundaryEventLabelXY(
+  el: BpmnElement,
+  labelW: number,
+  labelH: number,
+  allElements: BpmnElement[]
+): { targetX: number; targetY: number } {
+  const host = el.host;
+  const hostAlignments = host
+    ? getTakenHostAlignments(
+        { x: el.x, y: el.y, width: el.width, height: el.height },
+        { x: host.x, y: host.y, width: host.width, height: host.height }
+      )
+    : new Set<'top' | 'bottom' | 'left' | 'right'>();
+
+  // Host above (standard bottom attachment) → label below; host below → label above.
+  const labelY = hostAlignments.has('bottom')
+    ? Math.round(el.y - ELEMENT_LABEL_DISTANCE - labelH)
+    : Math.round(el.y + el.height + ELEMENT_LABEL_DISTANCE);
+
+  const leftX = Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW);
+  const rightX = Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE);
+
+  const shapes = allElements.filter(
+    (s) =>
+      s !== el &&
+      s.type !== 'label' &&
+      !s.type.includes('Flow') &&
+      !s.type.includes('Association') &&
+      s.type !== 'bpmn:Participant' &&
+      s.type !== 'bpmn:Lane' &&
+      s.x !== undefined &&
+      s.width !== undefined
+  );
+
+  // Penalise host-facing side to prevent labels "pointing into" the host.
+  const hostLeftPenalty = hostAlignments.has('left') ? 10 : 0;
+  const hostRightPenalty = hostAlignments.has('right') ? 10 : 0;
+
+  const leftScore =
+    labelSideScore({ x: leftX, y: labelY }, labelW, labelH, shapes) + hostLeftPenalty;
+  const rightScore =
+    labelSideScore({ x: rightX, y: labelY }, labelW, labelH, shapes) + hostRightPenalty;
+
+  return { targetX: leftScore <= rightScore ? leftX : rightX, targetY: labelY };
+}
+
+/** Compute label position for a non-boundary event using 4-side adaptive positioning. */
+function computeEventLabelXY(
+  el: BpmnElement,
+  labelW: number,
+  labelH: number,
+  connections: ConnectionStub[]
+): { targetX: number; targetY: number } {
+  const takenAlignments = getTakenConnectionAlignments(
+    { x: el.x, y: el.y, width: el.width, height: el.height, id: el.id },
+    connections
+  );
+  const side = selectBestLabelSide(takenAlignments);
+  const midX = el.x + el.width / 2;
+
+  switch (side) {
+    case 'top': {
+      const topCenterY = el.y - DEFAULT_LABEL_SIZE.height / 2;
+      return {
+        targetX: Math.round(midX - labelW / 2),
+        targetY: Math.round(topCenterY - labelH / 2),
+      };
+    }
+    case 'left':
+      return {
+        targetX: Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW),
+        targetY: Math.round(el.y + el.height / 2 - labelH / 2),
+      };
+    case 'right':
+      return {
+        targetX: Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE),
+        targetY: Math.round(el.y + el.height / 2 - labelH / 2),
+      };
+    default: // 'bottom': bpmn-js default
+      return {
+        targetX: Math.round(midX - labelW / 2),
+        targetY: Math.round(el.y + el.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2),
+      };
+  }
+}
+
+/** Compute label position for gateways/data elements (always below, bpmn-js default). */
+function computeDefaultLabelXY(
+  el: BpmnElement,
+  labelW: number,
+  labelH: number
+): { targetX: number; targetY: number } {
+  const midX = el.x + el.width / 2;
+  return {
+    targetX: Math.round(midX - labelW / 2),
+    targetY: Math.round(el.y + el.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2),
+  };
+}
+
 /**
  * Adjust external labels (events, gateways, data objects) to the bpmn-js
  * default position using `getExternalLabelMid()` formula.
@@ -348,8 +452,6 @@ export function selectBestLabelSide(
  */
 function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): number {
   const allElements: BpmnElement[] = registry.getAll();
-
-  // Collect sequence/message flows as ConnectionStub objects for alignment detection.
   const connections: ConnectionStub[] = allElements.filter(
     (el) => el.type === 'bpmn:SequenceFlow' || el.type === 'bpmn:MessageFlow'
   ) as unknown as ConnectionStub[];
@@ -368,75 +470,11 @@ function adjustElementLabels(registry: ElementRegistry, modeling: Modeling): num
     let targetY: number;
 
     if (el.type === 'bpmn:BoundaryEvent') {
-      // Special boundary event: place label to the left or right of the event
-      // (not directly below, where the downward exception flow exits).
-      const bottom = el.y + el.height;
-      const labelY = Math.round(bottom + ELEMENT_LABEL_DISTANCE);
-
-      const leftX = Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW);
-      const rightX = Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE);
-
-      const shapes = allElements.filter(
-        (s) =>
-          s !== el &&
-          s.type !== 'label' &&
-          !s.type.includes('Flow') &&
-          !s.type.includes('Association') &&
-          s.type !== 'bpmn:Participant' &&
-          s.type !== 'bpmn:Lane' &&
-          s.x !== undefined &&
-          s.width !== undefined
-      );
-
-      const leftScore = labelSideScore({ x: leftX, y: labelY }, labelW, labelH, shapes);
-      const rightScore = labelSideScore({ x: rightX, y: labelY }, labelW, labelH, shapes);
-
-      targetX = leftScore <= rightScore ? leftX : rightX;
-      targetY = labelY;
+      ({ targetX, targetY } = computeBoundaryEventLabelXY(el, labelW, labelH, allElements));
     } else if (el.type.includes('Event')) {
-      // Non-boundary events: 4-side adaptive positioning.
-      // Scans connected flows to find taken sides, then picks the best free side.
-      const takenAlignments = getTakenConnectionAlignments(
-        { x: el.x, y: el.y, width: el.width, height: el.height, id: el.id },
-        connections
-      );
-      const side = selectBestLabelSide(takenAlignments);
-
-      const midX = el.x + el.width / 2;
-
-      switch (side) {
-        case 'top': {
-          // Symmetric to bpmn-js formula: place above element.
-          // label centre Y = element.top - DEFAULT_LABEL_SIZE.height / 2
-          const topCenterY = el.y - DEFAULT_LABEL_SIZE.height / 2;
-          targetX = Math.round(midX - labelW / 2);
-          targetY = Math.round(topCenterY - labelH / 2);
-          break;
-        }
-        case 'left': {
-          targetX = Math.round(el.x - ELEMENT_LABEL_DISTANCE - labelW);
-          targetY = Math.round(el.y + el.height / 2 - labelH / 2);
-          break;
-        }
-        case 'right': {
-          targetX = Math.round(el.x + el.width + ELEMENT_LABEL_DISTANCE);
-          targetY = Math.round(el.y + el.height / 2 - labelH / 2);
-          break;
-        }
-        default: {
-          // 'bottom': bpmn-js default
-          // label centre Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
-          targetX = Math.round(midX - labelW / 2);
-          targetY = Math.round(el.y + el.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2);
-          break;
-        }
-      }
+      ({ targetX, targetY } = computeEventLabelXY(el, labelW, labelH, connections));
     } else {
-      // Gateways and data elements: always use bpmn-js default "below" formula.
-      // label centre Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
-      const midX = el.x + el.width / 2;
-      targetX = Math.round(midX - labelW / 2);
-      targetY = Math.round(el.y + el.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2);
+      ({ targetX, targetY } = computeDefaultLabelXY(el, labelW, labelH));
     }
 
     const dx = targetX - label.x;

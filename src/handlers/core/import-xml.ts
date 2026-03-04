@@ -31,9 +31,22 @@ export interface ImportXmlArgs {
   hintLevel?: HintLevel;
 }
 
-/** Check whether BPMN XML contains diagram interchange (DI) coordinates. */
+/**
+ * Check whether BPMN XML contains usable diagram interchange (DI) coordinates.
+ *
+ * Returns `true` only when:
+ * 1. The XML includes `bpmndi:BPMNShape` or `bpmndi:BPMNEdge` elements, AND
+ * 2. At least one shape has a non-zero `width` attribute on its `Bounds` element.
+ *
+ * The second check catches XML that has a `BPMNDiagram` section with shape
+ * elements whose bounds are all zero or absent — these diagrams lack real DI
+ * coordinates and should be auto-laid-out just like DI-free XML.
+ */
 function xmlHasDiagramDI(xml: string): boolean {
-  return xml.includes('bpmndi:BPMNShape') || xml.includes('bpmndi:BPMNEdge');
+  if (!xml.includes('bpmndi:BPMNShape') && !xml.includes('bpmndi:BPMNEdge')) return false;
+  // Verify that at least one Bounds element has a non-zero width attribute.
+  // Matches patterns like:  width="100"  or  dc:width="50"
+  return /Bounds[^>]*\swidth="[1-9]/.test(xml);
 }
 
 /** Resolve XML content from args.xml or args.filePath. Returns null + error result on failure. */

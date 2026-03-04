@@ -53,6 +53,31 @@ const XML_WITHOUT_DI = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
+/** BPMN XML with BPMNShape elements but all Bounds have zero width (degenerate DI). */
+const XML_WITH_ZERO_WIDTH_DI = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   id="Definitions_1"
+                   targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true" camunda:historyTimeToLive="P180D">
+    <bpmn:startEvent id="Start_1" name="Begin" />
+    <bpmn:endEvent id="End_1" name="Finish" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="0" y="0" width="0" height="0" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="0" y="0" width="0" height="0" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
 describe('import_bpmn_xml — DI handling', () => {
   beforeEach(() => {
     clearDiagrams();
@@ -92,5 +117,24 @@ describe('import_bpmn_xml — DI handling', () => {
     const importRes = parseResult(await handleImportXml({ xml: XML_WITH_DI, autoLayout: true }));
     expect(importRes.success).toBe(true);
     expect(importRes.diagramId).toBeDefined();
+  });
+
+  test('applies auto-layout when BPMNShape elements have zero-width bounds', async () => {
+    // Diagrams with zero-width bounds lack usable DI coordinates and should
+    // be treated the same as DI-free XML — i.e. auto-layout should run.
+    const importRes = parseResult(await handleImportXml({ xml: XML_WITH_ZERO_WIDTH_DI }));
+    expect(importRes.success).toBe(true);
+
+    // After auto-layout the elements should have non-zero positions.
+    const elements = parseResult(await handleListElements({ diagramId: importRes.diagramId }));
+    const shapes = elements.elements.filter(
+      (el: any) => el.type === 'bpmn:StartEvent' || el.type === 'bpmn:EndEvent'
+    );
+    expect(shapes.length).toBeGreaterThan(0);
+    for (const shape of shapes) {
+      // Laid-out shapes should not all sit at (0,0).
+      const hasNonZero = shape.x > 0 || shape.y > 0;
+      expect(hasNonZero).toBe(true);
+    }
   });
 });

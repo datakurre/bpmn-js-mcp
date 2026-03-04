@@ -30,7 +30,7 @@ import {
 } from './layout-helpers';
 import { handleAutosizePoolsAndLanes } from '../collaboration/autosize-pools-and-lanes';
 import { expandCollapsedSubprocesses } from './expand-subprocesses';
-import { rebuildLayout } from '../../rebuild';
+import { rebuildLayout, applyAllBackEdgeUShapes } from '../../rebuild';
 import { stackPools } from '../../rebuild/container-layout';
 import {
   generateDiagramId,
@@ -410,6 +410,19 @@ export async function handleLayoutDiagram(
 
   await progress?.(85, 100, 'Resizing pools…');
   const poolExpansionApplied = await autosizePools(args, diagram, elementRegistry);
+
+  // Re-apply U-shaped back-edge routing after pool autosize.
+  //
+  // bpmn-js's MoveShapeHandler.postExecute re-routes all connections attached
+  // to moved elements via modeling.layoutConnection() whenever elements are
+  // repositioned (e.g. by centerElementsInLanes inside handleAutosizePoolsAndLanes).
+  // This overwrites the U-shaped 4-waypoint routing applied inside rebuildLayout().
+  // Running applyAllBackEdgeUShapes() again as the very last step ensures the
+  // deterministic U-shape is the final routing for all loop-back connections.
+  if (poolExpansionApplied) {
+    const modeling = getService(diagram.modeler, 'modeling');
+    result.reroutedCount += applyAllBackEdgeUShapes(elementRegistry, modeling);
+  }
 
   const layoutResult = buildLayoutResponse({
     diagramId,

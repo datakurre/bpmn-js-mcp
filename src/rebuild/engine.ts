@@ -175,6 +175,12 @@ export function rebuildLayout(diagram: DiagramState, options?: RebuildOptions): 
 
   totalRerouted += layoutMessageFlows(registry, modeling);
   totalRerouted += simplifyGatewayMergeConnections(registry, modeling);
+
+  // Apply U-shaped routing to all backward (right-to-left) sequence flows.
+  // Must run AFTER lane re-routing (reroutePoolConnections) and message-flow
+  // layout, since those steps may overwrite back-edge waypoints set earlier.
+  totalRerouted += applyAllBackEdgeUShapes(registry, modeling);
+
   totalRepositioned += adjustLabels(registry, modeling);
 
   return { repositionedCount: totalRepositioned, reroutedCount: totalRerouted };
@@ -512,6 +518,89 @@ function layoutConnections(
   }
 
   return count;
+}
+
+// ── Back-edge U-shape routing ──────────────────────────────────────────────
+
+/**
+ * Scan all sequence flows in the diagram and apply U-shaped waypoints to any
+ * backward (right-to-left) connection — i.e. a loop-back where the target
+ * element is clearly to the left of the source element.
+ *
+ * This global pass runs **after** all per-container routing (including lane
+ * re-routing via `reroutePoolConnections`), ensuring that U-shaped waypoints
+ * are the final routing applied to loop-back connections.
+ *
+ * @returns Number of connections that received U-shaped waypoints.
+ */
+export function applyAllBackEdgeUShapes(registry: ElementRegistry, modeling: Modeling): number {
+  let count = 0;
+  const allElements = registry.getAll();
+
+  for (const conn of allElements) {
+    if (conn.type !== 'bpmn:SequenceFlow') continue;
+
+    const source = (conn as any).source as BpmnElement | undefined;
+    const target = (conn as any).target as BpmnElement | undefined;
+    if (!source || !target) continue;
+
+    const srcCenterX = source.x + (source.width ?? 100) / 2;
+    const tgtCenterX = target.x + (target.width ?? 100) / 2;
+
+    // Only apply to backward connections: target centre-X is clearly to the
+    // LEFT of source centre-X.  Forward connections and self-loops are left
+    // unchanged so their ManhattanLayout routing is preserved.
+    if (tgtCenterX >= srcCenterX - 10) continue;
+
+    if (applyBackEdgeUShapeWaypoints(conn, modeling)) count++;
+  }
+
+  return count;
+}
+
+/**
+ * Apply a clean U-shaped (below-the-flow) waypoint path to a backward
+ * (right-to-left) back-edge connection.
+ *
+ * For a loop-back edge where the source is to the **right** of the target
+ * (the common case in left-to-right BPMN flows), ManhattanLayout may
+ * produce an S-shaped or otherwise complex path.  This function replaces
+ * those waypoints with a deterministic 4-point U-shape:
+ *
+ *   1. Exit source from its bottom-centre.
+ *   2. Drop straight down to `routeY` (below both elements).
+ *   3. Move left to below the target's centre.
+ *   4. Enter target from its bottom-centre.
+ *
+ * `routeY` is placed half a `STANDARD_BPMN_GAP` below the lower of the
+ * two element bottoms.  Inside a participant pool the value stays comfortably
+ * within the pool bounds (pool padding = 40 px, route gap = 25 px).
+ *
+ * @returns `true` if waypoints were successfully applied, `false` otherwise.
+ */
+function applyBackEdgeUShapeWaypoints(conn: BpmnElement, modeling: Modeling): boolean {
+  const source = (conn as any).source as BpmnElement | undefined;
+  const target = (conn as any).target as BpmnElement | undefined;
+  if (!source || !target) return false;
+
+  const srcCenterX = source.x + (source.width ?? 100) / 2;
+  const srcBottom = source.y + (source.height ?? 80);
+  const tgtCenterX = target.x + (target.width ?? 100) / 2;
+  const tgtBottom = target.y + (target.height ?? 80);
+  const routeY = Math.round(Math.max(srcBottom, tgtBottom) + STANDARD_BPMN_GAP / 2);
+
+  try {
+    modeling.updateWaypoints(conn, [
+      { x: Math.round(srcCenterX), y: srcBottom },
+      { x: Math.round(srcCenterX), y: routeY },
+      { x: Math.round(tgtCenterX), y: routeY },
+      { x: Math.round(tgtCenterX), y: tgtBottom },
+    ]);
+    return true;
+  } catch {
+    // Keep whatever routing the layout algorithm produced if the update fails.
+    return false;
+  }
 }
 
 // ── Gateway merge connection simplification ────────────────────────────────

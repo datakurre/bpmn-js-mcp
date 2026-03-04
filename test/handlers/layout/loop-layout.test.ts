@@ -7,7 +7,7 @@
  * Covers: Cycles (Loops) and their impact on layering quality.
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import {
   handleLayoutDiagram,
   handleCreateCollaboration,
@@ -16,6 +16,7 @@ import {
 } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
+import { rebuildLayout } from '../../../src/rebuild';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -336,5 +337,107 @@ describe('loopback routing — participant scoping', () => {
         `Loopback min Y (${loopMinY}) should be below Pool B bottom (${poolBBottom})`
       ).toBeGreaterThan(poolBBottom);
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// U-shaped back-edge routing
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('U-shaped back-edge routing', () => {
+  afterEach(() => clearDiagrams());
+
+  test('backward loop-back gets U-shaped 4-waypoint routing below elements', async () => {
+    // Build: Start → TaskA → TaskB → End with TaskB → TaskA back-edge.
+    // After rebuild, TaskA is to the left of TaskB (forward flow).
+    // The back-edge (TaskB → TaskA) should route below both tasks.
+    const diagramId = await createDiagram('U-shape back-edge test');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const taskA = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task A' });
+    const taskB = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task B' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+
+    await connect(diagramId, start, taskA);
+    await connect(diagramId, taskA, taskB);
+    await connect(diagramId, taskB, end);
+    const backEdge = await connect(diagramId, taskB, taskA, { label: 'Retry' });
+
+    const diagram = getDiagram(diagramId)!;
+    rebuildLayout(diagram);
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const taskAEl = reg.get(taskA)!;
+    const taskBEl = reg.get(taskB)!;
+    const backConn = reg.get(backEdge)!;
+
+    // Verify forward ordering: TaskA is to the LEFT of TaskB
+    expect(taskAEl.x).toBeLessThan(taskBEl.x);
+
+    // Verify U-shape: exactly 4 waypoints
+    expect(backConn.waypoints).toBeDefined();
+    expect(backConn.waypoints!.length).toBe(4);
+
+    const [wp0, wp1, wp2, wp3] = backConn.waypoints!;
+
+    // WP0: near source (TaskB) bottom centre
+    const taskBCenterX = taskBEl.x + taskBEl.width / 2;
+    const taskBBottom = taskBEl.y + taskBEl.height;
+    expect(Math.abs(wp0.x - taskBCenterX)).toBeLessThan(5);
+    expect(wp0.y).toBeGreaterThanOrEqual(taskBBottom - 2);
+
+    // WP3: near target (TaskA) bottom centre
+    const taskACenterX = taskAEl.x + taskAEl.width / 2;
+    const taskABottom = taskAEl.y + taskAEl.height;
+    expect(Math.abs(wp3.x - taskACenterX)).toBeLessThan(5);
+    expect(wp3.y).toBeGreaterThanOrEqual(taskABottom - 2);
+
+    // Middle waypoints (wp1, wp2) should be below both element bottoms
+    const maxBottom = Math.max(taskBBottom, taskABottom);
+    expect(wp1.y).toBeGreaterThan(maxBottom);
+    expect(wp2.y).toBeGreaterThan(maxBottom);
+
+    // All segments must be orthogonal (horizontal or vertical)
+    const segments = [
+      [wp0, wp1],
+      [wp1, wp2],
+      [wp2, wp3],
+    ];
+    for (const [a, b] of segments) {
+      const isHoriz = Math.abs(a.y - b.y) < 2;
+      const isVert = Math.abs(a.x - b.x) < 2;
+      expect(isHoriz || isVert).toBe(true);
+    }
+  });
+
+  test('forward connection is NOT given U-shape routing', async () => {
+    // A→B forward connection should keep its straight/L-shaped routing.
+    const diagramId = await createDiagram('forward connection test');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const taskA = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task A' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+
+    await connect(diagramId, start, taskA);
+    const forwardFlow = await connect(diagramId, taskA, end);
+
+    const diagram = getDiagram(diagramId)!;
+    rebuildLayout(diagram);
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const taskAEl = reg.get(taskA)!;
+    const endEl = reg.get(end)!;
+    const fwdConn = reg.get(forwardFlow)!;
+
+    // Forward: TaskA to the left of End
+    expect(taskAEl.x).toBeLessThan(endEl.x);
+
+    // Forward flow should be a short 2-point straight connection (same Y)
+    // — definitely NOT going below then back up.
+    expect(fwdConn.waypoints).toBeDefined();
+
+    // The maximum Y of the forward flow should not be more than a tiny bit
+    // below the element bottoms (no U-shape dip).
+    const maxBottom = Math.max(taskAEl.y + taskAEl.height, endEl.y + endEl.height);
+    const fwdMaxY = Math.max(...fwdConn.waypoints!.map((wp: any) => wp.y));
+    expect(fwdMaxY).toBeLessThanOrEqual(maxBottom + 5);
   });
 });

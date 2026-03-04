@@ -40,7 +40,12 @@ export {
 } from './boundary';
 
 // ── Rebuild engine (Phase 2) ───────────────────────────────────────────────
-export { type RebuildOptions, type RebuildResult, rebuildLayout } from './engine';
+export {
+  type RebuildOptions,
+  type RebuildResult,
+  rebuildLayout,
+  applyAllBackEdgeUShapes,
+} from './engine';
 
 // ── Container layout utilities (Phase 3) ───────────────────────────────────
 export { moveElementTo } from './container-layout';

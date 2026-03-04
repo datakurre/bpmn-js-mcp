@@ -18,7 +18,11 @@ import { handleAddElement, handleConnect } from '../../../src/handlers';
 import { createDiagram, addElement, connect, parseResult } from '../../utils/diagram';
 import type { BpmnElement, ElementRegistry } from '../../../src/bpmn-types';
 import { buildF02ExclusiveGateway } from '../../scenarios/fixture-builders';
-import { DEFAULT_LABEL_SIZE } from '../../../src/constants';
+import {
+  DEFAULT_LABEL_SIZE,
+  FLOW_LABEL_INDENT,
+  FLOW_LABEL_SIDE_OFFSET,
+} from '../../../src/constants';
 import { selectBestLabelSide } from '../../../src/rebuild/artifacts';
 
 afterEach(() => clearDiagrams());
@@ -349,5 +353,44 @@ describe('selectBestLabelSide', () => {
 
   test('returns top when only bottom and right are taken', () => {
     expect(selectBestLabelSide(new Set(['bottom', 'right']))).toBe('top');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FLOW_LABEL_INDENT equivalence (bpmn-js parity documentation)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('FLOW_LABEL_INDENT parity with bpmn-js for horizontal segments', () => {
+  /**
+   * bpmn-js `FLOW_LABEL_INDENT = 15` places the label **centre** 15 px above
+   * the segment midpoint for horizontal connections.
+   *
+   * Our `FLOW_LABEL_SIDE_OFFSET = 5` places the label's bottom **edge** 5 px
+   * above the segment.  For the default 20 px label height the resulting
+   * centre Y is identical:
+   *
+   *   our centre Y = midY − FLOW_LABEL_SIDE_OFFSET − labelH / 2
+   *                = midY − 5 − 10 = midY − 15
+   *
+   *   bpmn-js formula: midY − FLOW_LABEL_INDENT = midY − 15  ✓
+   *
+   * This test documents and protects that equivalence.
+   */
+  test('FLOW_LABEL_INDENT equals FLOW_LABEL_SIDE_OFFSET + half default label height', () => {
+    expect(FLOW_LABEL_INDENT).toBe(FLOW_LABEL_SIDE_OFFSET + DEFAULT_LABEL_SIZE.height / 2);
+  });
+
+  test('horizontal label centre Y matches bpmn-js formula for default label height', () => {
+    const midY = 200;
+    const labelH = DEFAULT_LABEL_SIZE.height; // 20
+
+    // Our formula (top-left y → convert to centre y)
+    const ourTopLeftY = midY - FLOW_LABEL_SIDE_OFFSET - labelH;
+    const ourCentreY = ourTopLeftY + labelH / 2;
+
+    // bpmn-js formula (returns centre y directly)
+    const bpmnCentreY = midY - FLOW_LABEL_INDENT;
+
+    expect(ourCentreY).toBe(bpmnCentreY);
   });
 });
