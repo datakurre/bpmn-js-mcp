@@ -28,7 +28,13 @@ import {
   type Modeling,
   getService,
 } from '../bpmn-types';
-import { STANDARD_BPMN_GAP } from '../constants';
+import {
+  STANDARD_BPMN_GAP,
+  DEFAULT_ORIGIN,
+  DEFAULT_BRANCH_SPACING,
+  SUBPROCESS_LAYOUT_PADDING,
+  POOL_GAP,
+} from '../constants';
 import { extractFlowGraph, type FlowGraph } from './topology';
 import { detectBackEdges, topologicalSort } from './graph';
 import { detectGatewayPatterns } from './patterns';
@@ -108,24 +114,8 @@ export interface RebuildResult {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
-
-/** Default origin for the first start event (center coordinates). */
-const DEFAULT_ORIGIN = { x: 180, y: 200 };
-
-/**
- * Default vertical centre-to-centre spacing between gateway branches.
- * Matches typical BPMN layout: task height (80) + standard gap (50).
- */
-const DEFAULT_BRANCH_SPACING = 130;
-
-/**
- * Padding (px) inside an expanded subprocess around its internal
- * elements.  Applied on all four sides.
- */
-const SUBPROCESS_PADDING = 40;
-
-/** Gap (px) between stacked participant pools. */
-const POOL_GAP = 68;
+// DEFAULT_ORIGIN, DEFAULT_BRANCH_SPACING, SUBPROCESS_LAYOUT_PADDING, POOL_GAP
+// are imported from ../constants.
 
 // ── Main rebuild function ──────────────────────────────────────────────────
 
@@ -215,7 +205,9 @@ function processContainerNode(
 
   // Use subprocess-internal origin for subprocesses
   const containerOrigin =
-    container.type === 'bpmn:SubProcess' ? { x: SUBPROCESS_PADDING + 18, y: origin.y } : origin;
+    container.type === 'bpmn:SubProcess'
+      ? { x: SUBPROCESS_LAYOUT_PADDING + 18, y: origin.y }
+      : origin;
 
   // Detect event subprocesses to exclude from main flow positioning
   const eventSubIds = getEventSubprocessIds(registry, container);
@@ -261,7 +253,7 @@ function processContainerNode(
   }
 
   if (container.type === 'bpmn:SubProcess' && containerNode.isExpanded) {
-    resizeSubprocessToFit(modeling, registry, container, SUBPROCESS_PADDING);
+    resizeSubprocessToFit(modeling, registry, container, SUBPROCESS_LAYOUT_PADDING);
   }
 
   repositionedCount += positionArtifacts(registry, modeling, container);
@@ -318,12 +310,12 @@ function applyParticipantLayout(
       registry,
       modeling,
       container,
-      SUBPROCESS_PADDING,
+      SUBPROCESS_LAYOUT_PADDING,
       savedLaneMap,
       skipPoolResize
     );
   } else if (!skipPoolResize) {
-    resizePoolToFit(modeling, registry, container, SUBPROCESS_PADDING);
+    resizePoolToFit(modeling, registry, container, SUBPROCESS_LAYOUT_PADDING);
   }
   rebuiltParticipants.push(container);
   return repositioned;
@@ -381,8 +373,15 @@ function rebuildContainer(
     elementLaneYs
   );
 
-  // Safety-net: spread any overlapping elements (e.g. open-fan parallel branches)
-  resolvePositionOverlaps(positions, branchSpacing);
+  // Safety-net: spread any overlapping elements (e.g. open-fan parallel branches).
+  // Also detects bounding-box near-misses using element dimensions from the graph.
+  const elementSizes = new Map<string, { width: number; height: number }>();
+  for (const [id, node] of graph.nodes) {
+    if (node.element.width !== undefined && node.element.height !== undefined) {
+      elementSizes.set(id, { width: node.element.width, height: node.element.height });
+    }
+  }
+  resolvePositionOverlaps(positions, branchSpacing, elementSizes);
 
   // Apply positions (skip pinned elements)
   let repositionedCount = 0;

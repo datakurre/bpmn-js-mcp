@@ -78,6 +78,54 @@ export const SUBPROCESS_INNER_PADDING = 30;
 export const MIN_POOL_ASPECT_RATIO = 3;
 export const MAX_POOL_ASPECT_RATIO = 5;
 
+// ── Rebuild layout engine constants ───────────────────────────────────────
+
+/**
+ * Default origin for the first start event (center coordinates).
+ * Used as a fallback when no predecessor position is known.
+ */
+export const DEFAULT_ORIGIN = { x: 180, y: 200 };
+
+/**
+ * Default vertical centre-to-centre spacing between gateway branches.
+ * Matches typical BPMN layout: task height (80) + standard gap (50).
+ */
+export const DEFAULT_BRANCH_SPACING = 130;
+
+/**
+ * Padding (px) inside an expanded subprocess around its internal elements.
+ *
+ * Applied on all four sides when resizing a subprocess to fit its contents
+ * during layout.  Uses 40px (larger than SUBPROCESS_INNER_PADDING) to leave
+ * extra room for the subprocess label/title bar at the top.
+ */
+export const SUBPROCESS_LAYOUT_PADDING = 40;
+
+/**
+ * Gap (px) between stacked participant pools in a collaboration.
+ *
+ * Chosen via visual testing to provide comfortable whitespace between
+ * vertically stacked pools without leaving too much empty space.
+ */
+export const POOL_GAP = 68;
+
+/**
+ * Grid size (pixels) used for element left-edge position snapping.
+ *
+ * Snapping left edges (rather than centres) ensures that the visible
+ * top-left corner of each element lands on a predictable grid.
+ * Matches bpmn-js's default grid-snapping module setting.
+ */
+export const POSITION_GRID = 10;
+
+/**
+ * Gap (px) between a connection segment and the nearest edge of the flow label box.
+ *
+ * Used when placing labels perpendicular to their associated segment.
+ * Kept small (5px) so labels are visually close to the line they annotate.
+ */
+export const FLOW_LABEL_SIDE_OFFSET = 5;
+
 /**
  * Calculate optimal pool dimensions based on element count and lane count.
  *

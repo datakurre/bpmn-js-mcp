@@ -10,11 +10,18 @@ import type { BpmnElement } from '../bpmn-types';
 import type { FlowGraph, FlowNode } from './topology';
 import type { LayeredNode } from './graph';
 import type { GatewayPattern } from './patterns';
+import {
+  DEFAULT_ORIGIN as CONSTANTS_DEFAULT_ORIGIN,
+  POSITION_GRID as CONSTANTS_POSITION_GRID,
+} from '../constants';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-/** Default origin for the first start event (center coordinates). */
-export const DEFAULT_ORIGIN = { x: 180, y: 200 };
+/**
+ * Default origin for the first start event (center coordinates).
+ * Re-exported from ../constants for backwards compatibility.
+ */
+export const DEFAULT_ORIGIN = CONSTANTS_DEFAULT_ORIGIN;
 
 // ── Grid snapping ──────────────────────────────────────────────────────────
 
@@ -33,8 +40,8 @@ function snapLeft(rightEdge: number, gap: number, elementWidth: number): number 
   return leftX + elementWidth / 2;
 }
 
-/** Grid size (pixels) used for element position snapping. */
-const POSITION_GRID = 10;
+/** Grid size (pixels) used for element position snapping. Re-exported from ../constants. */
+const POSITION_GRID = CONSTANTS_POSITION_GRID;
 
 // ── Pattern lookup construction ────────────────────────────────────────────
 
@@ -63,20 +70,38 @@ export function buildPatternLookups(patterns: GatewayPattern[]): {
 // ── Overlap resolution ─────────────────────────────────────────────────────
 
 /**
+ * Padding (px) applied around each element's bounding box when checking for
+ * overlaps.  Catches near-misses where elements are within 10px of each other.
+ */
+const PLACEMENT_DETECTION_PAD = 10;
+
+/**
  * Detect and resolve overlapping positions in the computed layout.
  *
- * When two or more elements share identical (x, y) coordinates after
- * `computePositions()`, nudge them vertically apart by branchSpacing/2.
- * This is a safety-net fallback for open-fan parallel patterns where the
- * gateway-pattern detector could not spread branches symmetrically.
+ * **Exact overlap:** When two or more elements share identical (x, y)
+ * coordinates after `computePositions()`, nudge them vertically apart by
+ * `branchSpacing`.  This is a safety-net fallback for open-fan parallel
+ * patterns where the gateway-pattern detector could not spread branches.
+ *
+ * **Bounding-box near-miss (when `elementSizes` provided):** Also detects
+ * elements whose bounding boxes overlap or are within `PLACEMENT_DETECTION_PAD`
+ * pixels of each other (matches bpmn-js `findFreePosition()` padding).  Uses
+ * iterative stepping by element height to push overlapping elements apart.
  *
  * Elements are grouped by their X coordinate. Within each X group,
  * any elements sharing the same Y are spread out symmetrically around
  * the common Y center using the given spacing.
+ *
+ * @param positions     Map of element ID → center position.
+ * @param branchSpacing Vertical spacing used when spreading exact overlaps.
+ * @param elementSizes  Optional map of element ID → {width, height} for
+ *                      bounding-box overlap detection.  When omitted, only
+ *                      exact-coordinate detection is performed.
  */
 export function resolvePositionOverlaps(
   positions: Map<string, { x: number; y: number }>,
-  branchSpacing: number
+  branchSpacing: number,
+  elementSizes?: Map<string, { width: number; height: number }>
 ): void {
   // Group elements by rounded X coordinate (elements in the same "column")
   const byX = new Map<number, string[]>();
@@ -116,6 +141,68 @@ export function resolvePositionOverlaps(
         const pos = positions.get(id)!;
         const offset = (i - (cluster.length - 1) / 2) * spacing;
         positions.set(id, { x: pos.x, y: clusterY + offset });
+      }
+    }
+  }
+
+  // Bounding-box overlap detection: resolve near-miss overlaps within each column
+  if (elementSizes) {
+    resolveColumnBoundingBoxOverlaps(positions, elementSizes, byX);
+  }
+}
+
+/**
+ * Resolve bounding-box overlaps within each X column.
+ *
+ * For each pair of elements in the same column, check whether their bounding
+ * boxes (center ± half-size + PLACEMENT_DETECTION_PAD) overlap vertically.
+ * If they do, push the lower element down to create at least the required
+ * separation.  The sort-and-push pass runs repeatedly until no more overlaps
+ * exist (or a max iteration limit is reached).
+ */
+function resolveColumnBoundingBoxOverlaps(
+  positions: Map<string, { x: number; y: number }>,
+  elementSizes: Map<string, { width: number; height: number }>,
+  byX: Map<number, string[]>
+): void {
+  const MAX_ITERATIONS = 10;
+
+  for (const [, columnIds] of byX) {
+    if (columnIds.length < 2) continue;
+
+    // Only process elements that have size info
+    const candidates = columnIds.filter((id) => elementSizes.has(id));
+    if (candidates.length < 2) continue;
+
+    let changed = true;
+    let iterations = 0;
+
+    while (changed && iterations < MAX_ITERATIONS) {
+      changed = false;
+      iterations++;
+
+      // Sort by current Y position (center)
+      candidates.sort((a, b) => (positions.get(a)?.y ?? 0) - (positions.get(b)?.y ?? 0));
+
+      for (let i = 0; i < candidates.length - 1; i++) {
+        const upper = candidates[i];
+        const lower = candidates[i + 1];
+
+        const upperPos = positions.get(upper)!;
+        const upperSize = elementSizes.get(upper)!;
+        const lowerPos = positions.get(lower)!;
+        const lowerSize = elementSizes.get(lower)!;
+
+        // Compute bounding box edges (top/bottom) with padding
+        const upperBottom = upperPos.y + upperSize.height / 2 + PLACEMENT_DETECTION_PAD;
+        const lowerTop = lowerPos.y - lowerSize.height / 2 - PLACEMENT_DETECTION_PAD;
+
+        if (lowerTop < upperBottom) {
+          // Overlap detected: push the lower element down
+          const overlap = upperBottom - lowerTop;
+          positions.set(lower, { x: lowerPos.x, y: lowerPos.y + overlap });
+          changed = true;
+        }
       }
     }
   }

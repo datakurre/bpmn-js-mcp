@@ -10,7 +10,7 @@
  */
 
 import type { BpmnElement, ElementRegistry, Modeling } from '../bpmn-types';
-import { DEFAULT_LABEL_SIZE, ELEMENT_LABEL_DISTANCE } from '../constants';
+import { DEFAULT_LABEL_SIZE, ELEMENT_LABEL_DISTANCE, FLOW_LABEL_SIDE_OFFSET } from '../constants';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -180,8 +180,8 @@ export function adjustLabels(registry: ElementRegistry, modeling: Modeling): num
 
 // ── Flow label centering ───────────────────────────────────────────────────
 
-/** Gap (px) between connection segment and the nearest edge of the label box. */
-const FLOW_LABEL_SIDE_OFFSET = 5;
+/** Gap (px) between connection segment and the nearest edge of the label box. Re-exported from ../constants. */
+// FLOW_LABEL_SIDE_OFFSET is imported from ../constants
 
 /**
  * Position labeled flow labels at the midpoint of their first segment,
@@ -235,8 +235,13 @@ function centerFlowLabels(registry: ElementRegistry, modeling: Modeling): number
 /**
  * Compute the bpmn-js-style label position for a flow connection.
  *
- * Takes the midpoint of the first segment (waypoints[0] → waypoints[1]),
- * then places the label on the perpendicular side with fewer shape overlaps.
+ * Picks the middle pair of waypoints using the same formula as bpmn-js
+ * `getFlowLabelPosition()`: `mid = waypoints.length / 2 - 1`.
+ * For 2-point connections this is equivalent to the first-segment midpoint;
+ * for multi-bend L-shaped or U-shaped connections the label is placed at the
+ * true path centre rather than near the source.
+ *
+ * The label is then placed on the perpendicular side with fewer shape overlaps.
  */
 function flowLabelPos(
   waypoints: Array<{ x: number; y: number }>,
@@ -244,8 +249,10 @@ function flowLabelPos(
   labelH: number,
   shapes: BpmnElement[]
 ): { x: number; y: number } {
-  const p0 = waypoints[0];
-  const p1 = waypoints[1];
+  // Use path midpoint: pick the middle waypoint pair (matches bpmn-js LabelUtil)
+  const mid = waypoints.length / 2 - 1;
+  const p0 = waypoints[Math.floor(mid)];
+  const p1 = waypoints[Math.ceil(mid + 0.01)];
 
   const midX = (p0.x + p1.x) / 2;
   const midY = (p0.y + p1.y) / 2;
