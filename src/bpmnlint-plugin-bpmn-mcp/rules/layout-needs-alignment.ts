@@ -54,7 +54,7 @@ interface EdgeEntry {
 const MIN_FLOW_ELEMENTS = 4;
 
 /** Angular tolerance (degrees) for "orthogonal" — small slopes are OK. */
-const ORTHO_TOLERANCE_DEG = 5;
+const ORTHO_TOLERANCE_DEG = 3;
 
 /** Minimum segment length to consider for orthogonality check. */
 const MIN_SEGMENT_LENGTH = 10;
@@ -151,9 +151,10 @@ function countFlowElements(planeElements: any[]): number {
 /*  Heuristic 1: non-orthogonal flows                                  */
 /* ------------------------------------------------------------------ */
 
-function countNonOrthogonalSegments(edges: EdgeEntry[]): number {
+function countFlowSegmentStats(edges: EdgeEntry[]): { total: number; nonOrthogonal: number } {
   const tolRad = (ORTHO_TOLERANCE_DEG * Math.PI) / 180;
-  let count = 0;
+  let total = 0;
+  let nonOrthogonal = 0;
 
   for (const edge of edges) {
     const wps = edge.waypoints;
@@ -163,16 +164,17 @@ function countNonOrthogonalSegments(edges: EdgeEntry[]): number {
       const len = Math.sqrt(dx * dx + dy * dy);
       if (len < MIN_SEGMENT_LENGTH) continue;
 
+      total++;
       const angle = Math.atan2(Math.abs(dy), Math.abs(dx));
       // Orthogonal if close to 0 (horizontal) or π/2 (vertical)
       const isHorizontal = angle < tolRad;
       const isVertical = Math.abs(angle - Math.PI / 2) < tolRad;
       if (!isHorizontal && !isVertical) {
-        count++;
+        nonOrthogonal++;
       }
     }
   }
-  return count;
+  return { total, nonOrthogonal };
 }
 
 /* ------------------------------------------------------------------ */
@@ -300,10 +302,14 @@ function buildIssueDescription(
   nonOrtho: number,
   overlaps: number,
   crossings: number,
-  close: number
+  close: number,
+  orthoPercent?: number
 ): string[] {
   const parts: string[] = [];
-  if (nonOrtho > 0) parts.push(`${nonOrtho} non-orthogonal flow segment${nonOrtho > 1 ? 's' : ''}`);
+  if (nonOrtho > 0) {
+    const pctSuffix = orthoPercent !== undefined ? ` (orthogonal flow: ${orthoPercent}%)` : '';
+    parts.push(`${nonOrtho} non-orthogonal flow segment${nonOrtho > 1 ? 's' : ''}${pctSuffix}`);
+  }
   if (overlaps > 0) parts.push(`${overlaps} overlapping shape pair${overlaps > 1 ? 's' : ''}`);
   if (crossings > 0) parts.push(`${crossings} crossing flow${crossings > 1 ? 's' : ''}`);
   if (close > 0) parts.push(`${close} suspiciously close shape pair${close > 1 ? 's' : ''}`);
@@ -316,7 +322,9 @@ function analyzePlane(planeElements: any[], plane: any, fallbackNode: any, repor
   const shapes = collectShapes(planeElements);
   const edges = collectEdges(planeElements);
 
-  const nonOrthoSegments = countNonOrthogonalSegments(edges);
+  const segStats = countFlowSegmentStats(edges);
+  const nonOrthoSegments = segStats.nonOrthogonal;
+  const totalSegments = segStats.total;
   const overlappingPairs = countOverlappingPairs(shapes);
   const crossingPairs = countCrossingPairs(edges);
   const closePairs = countCloseShapePairs(shapes);
@@ -330,11 +338,17 @@ function analyzePlane(planeElements: any[], plane: any, fallbackNode: any, repor
 
   if (score < SCORE_THRESHOLD) return;
 
+  const orthoPercent =
+    totalSegments > 0
+      ? Math.round(((totalSegments - nonOrthoSegments) / totalSegments) * 100)
+      : undefined;
+
   const issues = buildIssueDescription(
     nonOrthoSegments,
     overlappingPairs,
     crossingPairs,
-    closePairs
+    closePairs,
+    orthoPercent
   );
   const rootElement = plane.bpmnElement || fallbackNode;
   reporter.report(

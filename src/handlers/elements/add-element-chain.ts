@@ -315,7 +315,9 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
 
   const deferredLayoutNote = chainHasGateway
     ? 'Chain contains a gateway — elements after it were NOT auto-connected to avoid wrong sequential wiring. ' +
-      'Use connect_bpmn_elements to wire branches explicitly (do NOT re-call connect_bpmn_elements for pairs the chain already connected). ' +
+      'Check the connectionIds map in this response first: flows from elements BEFORE the gateway were already ' +
+      'created and must NOT be re-created with connect_bpmn_elements (that call will be silently skipped). ' +
+      'Use connect_bpmn_elements ONLY for new branch flows originating FROM the gateway. ' +
       'Mark exactly one outgoing branch as the default with isDefault: true in connect_bpmn_elements, ' +
       'and add conditionExpression to all other branches. ' +
       'Then run layout_bpmn_diagram after all branches are wired.'

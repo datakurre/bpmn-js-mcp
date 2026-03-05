@@ -128,6 +128,7 @@ export default tseslint.config(
       'src/handlers/elements/connect.ts',
       'src/handlers/properties/set-properties.ts',
       'src/handlers/helpers.ts',
+      'src/handlers/layout/layout-diagram.ts',
       'src/prompt-definitions.ts',
       'src/rebuild/container-layout.ts',
     ],

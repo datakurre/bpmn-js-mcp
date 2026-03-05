@@ -161,7 +161,8 @@ async function handleDryRunLayout(args: LayoutDiagramArgs): Promise<ToolResult> 
 function buildNextSteps(
   laneCrossingMetrics: ReturnType<typeof computeLaneCrossingMetrics>,
   sizingIssues: ContainerSizingIssue[],
-  poolExpansionApplied?: boolean
+  poolExpansionApplied?: boolean,
+  qualityMetrics?: ReturnType<typeof computeLayoutQualityMetrics>
 ): Array<{ tool: string; description: string }> {
   const steps: Array<{ tool: string; description: string }> = [
     {
@@ -170,6 +171,18 @@ function buildNextSteps(
         'Diagram layout is complete. Use export_bpmn with format and filePath to save the diagram.',
     },
   ];
+
+  if (qualityMetrics) {
+    const pct = qualityMetrics.orthogonalFlowPercent;
+    if (pct < 90) {
+      steps.push({
+        tool: 'layout_bpmn_diagram',
+        description:
+          `Flow orthogonality is ${pct}% (below 90%). Re-run layout_bpmn_diagram to attempt ` +
+          `improvement, or run validate_bpmn_diagram to identify specific non-orthogonal segments.`,
+      });
+    }
+  }
 
   if (laneCrossingMetrics && laneCrossingMetrics.laneCoherenceScore < 70) {
     // Suppress redistribution advice when most crossings originate from
@@ -302,6 +315,14 @@ function buildLayoutResponse(opts: {
       : {}),
     ...(sizingIssues.length > 0 ? { containerSizingIssues: sizingIssues } : {}),
     qualityMetrics,
+    ...(qualityMetrics.orthogonalFlowPercent < 90
+      ? {
+          warning:
+            `Layout produced ${qualityMetrics.orthogonalFlowPercent}% orthogonal flows ` +
+            `(${qualityMetrics.avgBendCount} avg bends/flow). ` +
+            `Re-run layout_bpmn_diagram or run validate_bpmn_diagram to identify non-orthogonal segments.`,
+        }
+      : {}),
     message:
       `Rebuild layout applied to diagram ${diagramId}` +
       `${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}` +
@@ -310,7 +331,12 @@ function buildLayoutResponse(opts: {
     ...(diWarnings.length > 0 ? { diWarnings } : {}),
     ...(poolExpansionApplied ? { poolExpansionApplied: true } : {}),
     ...(subprocessesExpanded > 0 ? { subprocessesExpanded } : {}),
-    nextSteps: buildNextSteps(laneCrossingMetrics, sizingIssues, poolExpansionApplied),
+    nextSteps: buildNextSteps(
+      laneCrossingMetrics,
+      sizingIssues,
+      poolExpansionApplied,
+      qualityMetrics
+    ),
   });
 }
 

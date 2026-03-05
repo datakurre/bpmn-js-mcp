@@ -487,6 +487,9 @@ function clampConnectionWaypointsToParticipant(
  *
  * Uses bpmn-js ManhattanLayout via modeling.layoutConnection() which
  * computes orthogonal waypoints based on element positions.
+ *
+ * After routing, runs a deduplication pass to remove consecutive identical
+ * waypoints that ManhattanLayout occasionally emits on same-row connections.
  */
 function layoutConnections(
   graph: FlowGraph,
@@ -508,6 +511,7 @@ function layoutConnections(
           // same-level connections to route upward instead of straight
           resetStaleWaypoints(conn);
           modeling.layoutConnection(conn);
+          deduplicateWaypoints(conn);
           count++;
         } catch {
           // ManhattanLayout throws "unexpected dockingDirection" when waypoints are
@@ -524,6 +528,7 @@ function layoutConnections(
       try {
         resetStaleWaypoints(conn);
         modeling.layoutConnection(conn);
+        deduplicateWaypoints(conn);
         count++;
       } catch {
         // Same docking guard for back-edge (loop) connections.
@@ -532,6 +537,27 @@ function layoutConnections(
   }
 
   return count;
+}
+
+/**
+ * Remove consecutive duplicate waypoints from a connection.
+ *
+ * ManhattanLayout occasionally emits pairs like (220,200)→(220,200) when
+ * source and target are on the same row.  These zero-length segments are
+ * harmless but inflate bend counts and can confuse downstream tools.
+ */
+function deduplicateWaypoints(conn: any): void {
+  const wps: any[] = conn.waypoints;
+  if (!wps || wps.length < 2) return;
+
+  const deduped = wps.filter(
+    (wp: any, i: number) =>
+      i === 0 || Math.abs(wp.x - wps[i - 1].x) > 0 || Math.abs(wp.y - wps[i - 1].y) > 0
+  );
+
+  if (deduped.length < wps.length) {
+    conn.waypoints = deduped;
+  }
 }
 
 // ── Back-edge U-shape routing ──────────────────────────────────────────────

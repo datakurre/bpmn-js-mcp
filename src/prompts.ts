@@ -67,12 +67,16 @@ const PROMPTS: PromptDefinition[] = [
             `- BusinessRuleTasks: set \`camunda:decisionRef\` to a DMN decision table ID.\n` +
             `- Gateways: always set condition expressions on outgoing flows and mark ` +
             `one flow as the default with \`isDefault: true\`. The default flow must NOT ` +
-            `have a conditionExpression — it is the engine fallback.\n\n` +
+            `have a conditionExpression — it is the engine fallback. When using ` +
+            `\`add_bpmn_element_chain\` with a gateway, inspect the \`connectionIds\` map ` +
+            `in the response — flows from elements BEFORE the gateway are already wired ` +
+            `and must NOT be recreated with \`connect_bpmn_elements\`.\n\n` +
             `**Workflow (when the user gives you a process to model):**\n` +
             `1. \`create_bpmn_diagram\` with \`includeImage: true\` and \`hintLevel: "minimal"\`\n` +
             `2. Build the flow using \`batch_bpmn_operations\` to add elements and connections together\n` +
             `3. Configure tasks (camunda:assignee, camunda:topic, etc.)\n` +
-            `4. \`layout_bpmn_diagram\` to arrange elements\n` +
+            `4. \`layout_bpmn_diagram\` to arrange elements — check \`qualityMetrics.orthogonalFlowPercent\` ` +
+            `in the response and re-run layout if below 90%\n` +
             `5. \`validate_bpmn_diagram\` to check for issues\n` +
             `6. Fix any reported issues\n` +
             `7. \`export_bpmn\` with \`filePath\` to save` +

@@ -606,4 +606,130 @@ describe('Layout quality regression', () => {
     expect(centreX(reviewEl)).toBeGreaterThan(centreX(splitEl));
     expect(centreX(publishEl)).toBeGreaterThan(centreX(splitEl));
   });
+
+  // ── Center-Y alignment across element types (DI-bypass regression) ───────
+
+  test('gateway center Y aligns with adjacent tasks within 1px after layout', async () => {
+    // Regression: modeling.moveElements() grid-snaps top-left to 10px grid.
+    // Gateway h=50 → top-left at 175 → snaps to 180 → center drifts to 205.
+    // Direct DI mutation must be used to place elements at exact center Y.
+    const diagramId = await createDiagram('Gateway Y Alignment');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const task1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Prepare' });
+    const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check' });
+    const task2 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Continue' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Done' });
+    const endFail = await addElement(diagramId, 'bpmn:EndEvent', { name: 'Failed' });
+
+    await connect(diagramId, start, task1);
+    await connect(diagramId, task1, gw);
+    await connect(diagramId, gw, task2, { label: 'OK' });
+    await connect(diagramId, gw, endFail, { label: 'Fail', isDefault: true });
+    await connect(diagramId, task2, end);
+
+    await handleLayoutDiagram({ diagramId });
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+
+    // The happy-path row: Start, Task1, Gateway, Task2, End must share same Y.
+    const startEl = reg.get(start);
+    const task1El = reg.get(task1);
+    const gwEl = reg.get(gw);
+    const task2El = reg.get(task2);
+    const endEl = reg.get(end);
+
+    // Use task center as reference (tasks have h=80, least grid-snap drift)
+    const refY = centreY(task1El);
+    expect(Math.abs(centreY(startEl) - refY)).toBeLessThanOrEqual(1);
+    expect(Math.abs(centreY(gwEl) - refY)).toBeLessThanOrEqual(1);
+    expect(Math.abs(centreY(task2El) - refY)).toBeLessThanOrEqual(1);
+    expect(Math.abs(centreY(endEl) - refY)).toBeLessThanOrEqual(1);
+
+    // Happy-path connections must all be orthogonal
+    const flows = reg
+      .filter((el: any) => el.type === 'bpmn:SequenceFlow')
+      .filter((el: any) => {
+        const src = el.source?.id;
+        const tgt = el.target?.id;
+        const happyIds = new Set([start, task1, gw, task2, end]);
+        return happyIds.has(src) && happyIds.has(tgt);
+      });
+    for (const conn of flows) {
+      expectOrthogonal(conn);
+    }
+  });
+
+  test('same-row connections have at most 2 waypoints after layout', async () => {
+    // Regression: when source and target share the same center Y,
+    // the connection must be a simple 2-point straight line.
+    // A 4-point L/Z-shape with duplicate midpoints means grid-snap drift
+    // is causing the router to produce an unnecessary bend.
+    const diagramId = await createDiagram('Straight Connections');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Step 1' });
+    const t2 = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Step 2' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+
+    await connect(diagramId, start, t1);
+    await connect(diagramId, t1, t2);
+    await connect(diagramId, t2, end);
+
+    await handleLayoutDiagram({ diagramId });
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+
+    // All same-row connections should use exactly 2 waypoints (straight line).
+    // ManhattanLayout may use 4 waypoints even for aligned elements, but a
+    // post-layout straightening pass should collapse them to 2 for strict
+    // same-Y connections.
+    const connections = reg.filter((el: any) => el.type === 'bpmn:SequenceFlow');
+    for (const conn of connections) {
+      const wps = conn.waypoints;
+      const srcMidY = conn.source.y + conn.source.height / 2;
+      const tgtMidY = conn.target.y + conn.target.height / 2;
+      if (Math.abs(srcMidY - tgtMidY) <= 1) {
+        // Strictly same-row: must be a 2-point straight line
+        expect(
+          wps.length,
+          `Connection ${conn.id} (${conn.source?.id}→${conn.target?.id}) ` +
+            `srcMidY=${srcMidY} tgtMidY=${tgtMidY}: expected 2 waypoints, got ${wps.length}`
+        ).toBe(2);
+      }
+    }
+  });
+
+  test('no consecutive duplicate waypoints in connections after layout', async () => {
+    // Regression: exported XML showed pairs like (220,200)→(220,200).
+    // A deduplication pass must remove consecutive identical waypoints.
+    const diagramId = await createDiagram('No Duplicate Waypoints');
+    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
+    const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Work' });
+    const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Done?' });
+    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
+    const retry = await addElement(diagramId, 'bpmn:UserTask', { name: 'Retry' });
+
+    await connect(diagramId, start, task);
+    await connect(diagramId, task, gw);
+    await connect(diagramId, gw, end, { label: 'Yes' });
+    await connect(diagramId, gw, retry, { label: 'No', isDefault: true });
+    await connect(diagramId, retry, task);
+
+    await handleLayoutDiagram({ diagramId });
+
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const connections = reg.filter((el: any) => el.type === 'bpmn:SequenceFlow');
+
+    for (const conn of connections) {
+      const wps = conn.waypoints;
+      for (let i = 1; i < wps.length; i++) {
+        const dx = Math.abs(wps[i].x - wps[i - 1].x);
+        const dy = Math.abs(wps[i].y - wps[i - 1].y);
+        expect(
+          dx > 0 || dy > 0,
+          `Connection ${conn.id}: consecutive duplicate waypoints at index ${i - 1}→${i}: ` +
+            `(${wps[i - 1].x},${wps[i - 1].y}) → (${wps[i].x},${wps[i].y})`
+        ).toBe(true);
+      }
+    }
+  });
 });

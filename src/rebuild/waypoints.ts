@@ -66,6 +66,16 @@ function getSiblingBounds(conn: any): Rect[] {
 const OBSTRUCTION_DETOUR_GAP = 20;
 
 /**
+ * Same-Y tolerance (px) for treating two element centre-Y values as identical.
+ *
+ * Zero drift is expected in headless mode (no bpmn-js grid snap on programmatic
+ * moves), but a small safety margin guards against floating-point rounding in
+ * intermediate position computations and any future UI-driven moves where the
+ * 10px top-left snap can shift gateway centres by up to 5px.
+ */
+export const SAME_Y_TOLERANCE = 5;
+
+/**
  * Shrink factor applied to element bounding boxes when testing for path
  * intersections.  Prevents false positives from elements that barely touch
  * the path at shared edges (e.g. source/target neighbours).
@@ -106,7 +116,7 @@ function findLShapeObstructions(
     if (rect.width <= 0 || rect.height <= 0) continue;
 
     // Same-Y connection uses a 2-point straight path; no midX turn.
-    const isSameY = Math.abs(sourceMidY - targetMidY) <= 1;
+    const isSameY = Math.abs(sourceMidY - targetMidY) <= SAME_Y_TOLERANCE;
     const intersects = isSameY
       ? segmentIntersectsRect(
           { x: sourceRight, y: sourceMidY },
@@ -236,7 +246,7 @@ function assignLShapeWaypoints(
   siblingBounds?: Rect[]
 ): void {
   const midX = Math.round((sourceRight + targetLeft) / 2);
-  if (Math.abs(sourceMidY - targetMidY) <= 1) {
+  if (Math.abs(sourceMidY - targetMidY) <= SAME_Y_TOLERANCE) {
     conn.waypoints = [
       { x: sourceRight, y: sourceMidY, original: { x: sourceRight, y: sourceMidY } },
       { x: targetLeft, y: targetMidY, original: { x: targetLeft, y: targetMidY } },
