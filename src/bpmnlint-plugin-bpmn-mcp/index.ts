@@ -132,7 +132,7 @@ export const configs = {
       'bpmn-mcp/parallel-gateway-merge-exclusive': 'warn',
       'bpmn-mcp/parallel-gateway-balance': 'warn',
       'bpmn-mcp/user-task-missing-assignee': 'warn',
-      'bpmn-mcp/implicit-merge': 'warn',
+      'bpmn-mcp/implicit-merge': 'error',
       'bpmn-mcp/undefined-variable': 'warn',
       'bpmn-mcp/no-duplicate-named-flow-nodes': 'warn',
       'bpmn-mcp/collaboration-participant-missing-processref': 'warn',

@@ -140,6 +140,11 @@ export interface LayoutQualityMetrics {
    * A 2-waypoint straight flow has 0 bends; each additional waypoint adds a bend.
    */
   avgBendCount: number;
+  /**
+   * IDs of non-orthogonal sequence flows (present only when orthogonalFlowPercent < 100).
+   * Allows callers to target specific flows for manual or automatic straightening.
+   */
+  nonOrthogonalFlowIds?: string[];
 }
 
 /**
@@ -157,6 +162,7 @@ export function computeLayoutQualityMetrics(elementRegistry: any): LayoutQuality
 
   let orthogonalCount = 0;
   let totalBends = 0;
+  const nonOrthogonalFlowIds: string[] = [];
 
   for (const flow of flows) {
     const wps: Array<{ x: number; y: number }> = flow.waypoints;
@@ -172,7 +178,11 @@ export function computeLayoutQualityMetrics(elementRegistry: any): LayoutQuality
       }
     }
 
-    if (isOrthogonal) orthogonalCount++;
+    if (isOrthogonal) {
+      orthogonalCount++;
+    } else {
+      nonOrthogonalFlowIds.push(flow.id);
+    }
     // Bends = number of direction changes = waypoints - 2 (minus start and end)
     totalBends += Math.max(0, wps.length - 2);
   }
@@ -184,5 +194,6 @@ export function computeLayoutQualityMetrics(elementRegistry: any): LayoutQuality
   return {
     orthogonalFlowPercent,
     avgBendCount,
+    ...(nonOrthogonalFlowIds.length > 0 ? { nonOrthogonalFlowIds } : {}),
   };
 }

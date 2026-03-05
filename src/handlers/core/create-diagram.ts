@@ -33,7 +33,7 @@ export interface CreateDiagramArgs {
   cloneFrom?: string;
   /**
    * When true (default), every mutating tool response appends an ImageContent item with
-   * the current diagram rendered as a base64-encoded SVG (mimeType: image/svg+xml).
+   * the current diagram rendered as a base64-encoded PNG (mimeType: image/png).
    * Set to false to keep responses small (e.g. in CI or batch mode). Default: true.
    */
   includeImage?: boolean;
@@ -93,19 +93,21 @@ const WORKFLOW_CONTEXT_GUIDANCE: Record<
   },
 };
 
-/** Append SVG image content to a ToolResult (non-fatal). */
-async function appendSvgImage(result: ToolResult, modeler: any): Promise<void> {
+/** Append PNG image content to a ToolResult (non-fatal). */
+async function appendPngImage(result: ToolResult, modeler: any): Promise<void> {
   try {
+    const { svgToPng } = await import('../../svg-to-png');
     const { svg } = await modeler.saveSVG();
-    const base64 = Buffer.from(svg, 'utf-8').toString('base64');
+    const pngBuffer = svgToPng(svg);
+    const base64 = pngBuffer.toString('base64');
     result.content.push({
       type: 'image',
       data: base64,
-      mimeType: 'image/svg+xml',
+      mimeType: 'image/png',
       annotations: { audience: ['user'] },
     });
   } catch {
-    // Non-fatal — image append should never break the primary operation
+    // Non-fatal — image conversion should never break the primary operation
   }
 }
 
@@ -201,10 +203,10 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
 
   const result = jsonResult(resultData);
 
-  // Append SVG image content when includeImage is set (default: true)
+  // Append PNG image content when includeImage is set (default: true)
   const effectiveIncludeImage = args.includeImage ?? true;
   if (effectiveIncludeImage) {
-    await appendSvgImage(result, modeler);
+    await appendPngImage(result, modeler);
   }
 
   return result;
@@ -261,7 +263,7 @@ export const TOOL_DEFINITION = {
         type: 'boolean',
         description:
           'When true (default), every mutating tool response appends an ImageContent item with the current ' +
-          'diagram rendered as a base64-encoded SVG (mimeType: image/svg+xml). ' +
+          'diagram rendered as a base64-encoded PNG (mimeType: image/png). ' +
           'Set to false to keep responses small (e.g. in CI pipelines or batch processing). ' +
           'Suitable for visual UIs that display a live diagram preview after each change.',
       },

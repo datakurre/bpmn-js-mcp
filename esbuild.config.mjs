@@ -9,7 +9,14 @@ const config = {
   format: 'cjs',
   outdir: 'dist',
   entryNames: '[name]',
-  external: ['jsdom', 'bpmn-js', 'bpmn-auto-layout', 'bpmnlint', 'bpmnlint-plugin-camunda-compat'],
+  external: [
+    'jsdom',
+    'bpmn-js',
+    'bpmn-auto-layout',
+    'bpmnlint',
+    'bpmnlint-plugin-camunda-compat',
+    '@resvg/resvg-js',
+  ],
   banner: {
     js: '#!/usr/bin/env node',
   },

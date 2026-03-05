@@ -56,7 +56,7 @@ export interface DiagramState {
   pinnedConnections?: Set<string>;
   /**
    * When true, every mutating tool response appends an ImageContent item
-   * with the current diagram rendered as a base64-encoded SVG.
+   * with the current diagram rendered as a base64-encoded PNG.
    *
    * Set via `create_bpmn_diagram` with `includeImage: true`.
    * Opt-in to keep responses small by default while allowing visual UIs to

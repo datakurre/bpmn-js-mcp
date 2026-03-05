@@ -77,7 +77,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/user-task-missing-assignee':
     'Use set_bpmn_element_properties to set camunda:assignee, camunda:candidateUsers, or camunda:candidateGroups{elementRef}',
   'bpmn-mcp/implicit-merge':
-    'Add an explicit merge gateway before element{elementRef} — use add_bpmn_element to insert a bpmn:ExclusiveGateway or bpmn:ParallelGateway to combine the incoming flows',
+    'Insert a merge gateway before element{elementRef}: (1) use add_bpmn_element with flowId set to one of the incoming flow IDs to insert a bpmn:ExclusiveGateway or bpmn:ParallelGateway inline, then (2) reconnect the remaining incoming flow(s) to the new gateway with connect_bpmn_elements.',
   'bpmn-mcp/undefined-variable':
     'Ensure variable{elementRef} is defined upstream via a form field, output parameter, script result variable, or call activity out-mapping before it is referenced',
   'bpmn-mcp/lane-crossing-excessive':

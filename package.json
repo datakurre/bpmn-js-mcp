@@ -44,6 +44,7 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@resvg/resvg-js": "^2.6.2",
     "bpmn-auto-layout": "^1.2.0",
     "bpmn-js": "^18.8.0",
     "bpmnlint": "^11.10.0",

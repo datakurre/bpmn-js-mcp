@@ -292,6 +292,19 @@ async function autosizePools(
   return applied;
 }
 
+/** Build the orthogonality warning string, including non-orthogonal flow IDs if available. */
+function buildOrthogonalityWarning(
+  qualityMetrics: ReturnType<typeof computeLayoutQualityMetrics>
+): string {
+  const ids = qualityMetrics.nonOrthogonalFlowIds;
+  return (
+    `Layout produced ${qualityMetrics.orthogonalFlowPercent}% orthogonal flows ` +
+    `(${qualityMetrics.avgBendCount} avg bends/flow). ` +
+    `Re-run layout_bpmn_diagram or run validate_bpmn_diagram to identify non-orthogonal segments.` +
+    (ids && ids.length > 0 ? ` Non-orthogonal flow IDs: [${ids.join(', ')}].` : '')
+  );
+}
+
 /** Build the final JSON response for a layout result. */
 function buildLayoutResponse(opts: {
   diagramId: string;
@@ -351,12 +364,7 @@ function buildLayoutResponse(opts: {
     ...(sizingIssues.length > 0 ? { containerSizingIssues: sizingIssues } : {}),
     qualityMetrics,
     ...(qualityMetrics.orthogonalFlowPercent < 90
-      ? {
-          warning:
-            `Layout produced ${qualityMetrics.orthogonalFlowPercent}% orthogonal flows ` +
-            `(${qualityMetrics.avgBendCount} avg bends/flow). ` +
-            `Re-run layout_bpmn_diagram or run validate_bpmn_diagram to identify non-orthogonal segments.`,
-        }
+      ? { warning: buildOrthogonalityWarning(qualityMetrics) }
       : {}),
     message:
       `Rebuild layout applied to diagram ${diagramId}` +

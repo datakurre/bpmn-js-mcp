@@ -144,7 +144,7 @@ describe('linter', () => {
 
       const augmented = await appendLintFeedback(result, diagram!);
       expect(augmented.content.length).toBeGreaterThan(1);
-      // Find the lint feedback text item (SVG image may also be appended when includeImage is set)
+      // Find the lint feedback text item (PNG image may also be appended when includeImage is set)
       const feedbackItem = augmented.content.find(
         (c: any) => c.type === 'text' && c.text?.includes('⚠ Lint issues')
       );

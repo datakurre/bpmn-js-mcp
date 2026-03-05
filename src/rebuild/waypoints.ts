@@ -162,7 +162,7 @@ function applyGatewayFanoutReset(
   targetLeft: number,
   sourceHalfHeight: number
 ): boolean {
-  if (Math.abs(sourceMidY - targetMidY) <= sourceHalfHeight + 20) return false;
+  if (Math.abs(sourceMidY - targetMidY) <= sourceHalfHeight) return false;
 
   const sourceMidX = source.x + (source.width || 0) / 2;
   const exitY = targetMidY < sourceMidY ? source.y : source.y + (source.height || 0);
@@ -357,7 +357,7 @@ export function resetStaleWaypoints(conn: any): void {
  * strictly vertical (dx < 1 px).  Diagonal segments — where both dx and dy
  * are ≥ 1 px — indicate a non-orthogonal (Z-shaped or skewed) path.
  */
-function isFullyOrthogonal(wps: Array<{ x: number; y: number }>): boolean {
+export function isFullyOrthogonal(wps: Array<{ x: number; y: number }>): boolean {
   for (let i = 1; i < wps.length; i++) {
     const dx = Math.abs(wps[i].x - wps[i - 1].x);
     const dy = Math.abs(wps[i].y - wps[i - 1].y);

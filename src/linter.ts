@@ -333,19 +333,21 @@ const INCREMENTAL_NOISE_RULES = new Set([
   'no-implicit-end',
 ]);
 
-/** Append SVG image content to a ToolResult (non-fatal). */
-async function appendSvgImageContent(result: ToolResult, modeler: any): Promise<void> {
+/** Append PNG image content to a ToolResult (non-fatal). */
+async function appendPngImageContent(result: ToolResult, modeler: any): Promise<void> {
   try {
+    const { svgToPng } = await import('./svg-to-png');
     const { svg } = await modeler.saveSVG();
-    const base64 = Buffer.from(svg, 'utf-8').toString('base64');
+    const pngBuffer = svgToPng(svg);
+    const base64 = pngBuffer.toString('base64');
     result.content.push({
       type: 'image',
       data: base64,
-      mimeType: 'image/svg+xml',
+      mimeType: 'image/png',
       annotations: { audience: ['user'] },
     });
   } catch {
-    // Non-fatal
+    // Non-fatal — image conversion should never break the primary operation
   }
 }
 
@@ -455,7 +457,7 @@ export async function appendLintFeedback(
   }
 
   if (willAppendImage) {
-    await appendSvgImageContent(result, diagram.modeler);
+    await appendPngImageContent(result, diagram.modeler);
   }
 
   return result;

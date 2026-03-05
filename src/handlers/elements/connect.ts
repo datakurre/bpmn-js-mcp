@@ -322,6 +322,54 @@ function buildPairConnectHints(
   return { hints, defaultConditionWarning };
 }
 
+/**
+ * Detect whether a completed connection created an implicit merge.
+ * Returns a warning string if target (non-gateway) now has ≥2 incoming flows.
+ */
+function detectImplicitMergeWarning(target: any, newConnectionId: string): string | undefined {
+  const targetBo = target.businessObject;
+  if ((target.type || '').includes('Gateway')) return undefined;
+  const incoming: any[] = targetBo?.incoming ?? [];
+  const sequenceFlows = incoming.filter(
+    (f: any) => f.$type === 'bpmn:SequenceFlow' || f.type === 'bpmn:SequenceFlow'
+  );
+  if (sequenceFlows.length < 2) return undefined;
+  return (
+    `⚠ \`${targetBo?.name ?? target.id}\` now has ${sequenceFlows.length} incoming flows without a merge gateway. ` +
+    `This creates an implicit merge that causes multiple token activations at runtime. ` +
+    `Fix: use \`add_bpmn_element\` with \`flowId\` set to one of the incoming flow IDs ` +
+    `(e.g. \`"${newConnectionId}"\`) to insert an ExclusiveGateway inline, then reconnect ` +
+    `the other incoming flow(s) to the new gateway with \`connect_bpmn_elements\`.`
+  );
+}
+
+/**
+ * Check for a duplicate sequence flow from source to target.
+ * Returns a skip result if a flow already exists, or null if no duplicate.
+ */
+function checkDuplicateFlow(
+  source: any,
+  target: any,
+  sourceElementId: string,
+  targetElementId: string
+): ReturnType<typeof jsonResult> | null {
+  const existing = (source.businessObject?.outgoing || []).find(
+    (f: any) => f.$type === 'bpmn:SequenceFlow' && f.targetRef?.id === target.businessObject?.id
+  );
+  if (!existing) return null;
+  const id: string = existing.id;
+  return jsonResult({
+    success: true,
+    skipped: true,
+    connectionId: id,
+    existingConnectionId: id,
+    warning:
+      `Skipped: a sequence flow already exists from ${sourceElementId} to ${targetElementId} ` +
+      `(connection ID: ${id}). Use the existing connection ID instead of creating a duplicate.`,
+    message: `No new flow created — ${sourceElementId} → ${targetElementId} already connected`,
+  });
+}
+
 /** Pair-mode connect: source+target with dedup guard and connection properties. */
 async function handlePairConnect(args: ConnectArgs): Promise<ToolResult> {
   const { diagramId, label, conditionExpression, isDefault, sourceElementId, targetElementId } =
@@ -333,28 +381,12 @@ async function handlePairConnect(args: ConnectArgs): Promise<ToolResult> {
 
   const source = elementRegistry.get(sourceElementId!);
   const target = elementRegistry.get(targetElementId!);
-  if (!source) {
-    throw elementNotFoundError(sourceElementId!);
-  }
-  if (!target) {
-    throw elementNotFoundError(targetElementId!);
-  }
+  if (!source) throw elementNotFoundError(sourceElementId!);
+  if (!target) throw elementNotFoundError(targetElementId!);
 
   // Dedup guard: return existing flow instead of creating a duplicate
-  const existingSeqFlow = (source.businessObject?.outgoing || []).find(
-    (f: any) => f.$type === 'bpmn:SequenceFlow' && f.targetRef?.id === target.businessObject?.id
-  );
-  if (existingSeqFlow) {
-    const id: string = existingSeqFlow.id;
-    return jsonResult({
-      success: true,
-      skipped: true,
-      connectionId: id,
-      existingConnectionId: id,
-      warning: `Skipped: a sequence flow already exists from ${sourceElementId} to ${targetElementId} (connection ID: ${id}). Use the existing connection ID instead of creating a duplicate.`,
-      message: `No new flow created — ${sourceElementId} → ${targetElementId} already connected`,
-    });
-  }
+  const dupResult = checkDuplicateFlow(source, target, sourceElementId!, targetElementId!);
+  if (dupResult) return dupResult;
 
   // EndEvents are flow sinks — they must not have outgoing sequence flows
   const sourceType: string = source.type || source.businessObject?.$type || '';
@@ -373,11 +405,9 @@ async function handlePairConnect(args: ConnectArgs): Promise<ToolResult> {
   });
 
   await syncXml(diagram);
+  if (args.autoLayout) await handleLayoutDiagram({ diagramId });
 
-  if (args.autoLayout) {
-    await handleLayoutDiagram({ diagramId });
-  }
-
+  const implicitMergeWarning = detectImplicitMergeWarning(target, connection.id);
   const { hints, defaultConditionWarning } = buildPairConnectHints(
     autoHint,
     isDefault,
@@ -394,7 +424,11 @@ async function handlePairConnect(args: ConnectArgs): Promise<ToolResult> {
     diagramCounts: buildElementCounts(elementRegistry),
     message: `Connected ${sourceElementId} to ${targetElementId}`,
     ...(hints.length > 0 ? { hint: hints.join('\n\n') } : {}),
-    ...(defaultConditionWarning ? { warning: defaultConditionWarning } : {}),
+    ...(implicitMergeWarning
+      ? { warning: implicitMergeWarning }
+      : defaultConditionWarning
+        ? { warning: defaultConditionWarning }
+        : {}),
     nextSteps: [
       {
         tool: 'layout_bpmn_diagram',

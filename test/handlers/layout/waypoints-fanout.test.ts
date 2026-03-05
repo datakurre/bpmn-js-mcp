@@ -3,11 +3,13 @@
  *
  * bpmn-js's preferred layout applies a V→H (3-waypoint) fan-out path when
  * a gateway branch target is "significantly" offset from the gateway centre.
- * The threshold for "significant" should be `sourceHalfHeight + 20` so that
- * near-horizontal connections (offset ≤ 45px for a 50px gateway) stay as
- * straight 2-point or L-shaped 4-point paths rather than the V→H variant.
+ * The threshold is `sourceHalfHeight` (25px for a 50px gateway) so that any
+ * Y-offset beyond the gateway half-height triggers a clean V→H path instead
+ * of a diagonal L-shape.
  *
- * See TODO: "Improve gateway fan-out waypoint docking".
+ * Previously the threshold was `sourceHalfHeight + 20 = 45px` which caused
+ * offsets in the 26–45px range to skip fan-out and produce diagonal segments.
+ * The threshold was lowered to `sourceHalfHeight` to fix this (see TODO).
  */
 
 import { describe, test, expect } from 'vitest';
@@ -58,63 +60,57 @@ function makeGatewayConn(targetOffsetY: number): {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Gateway fan-out threshold
+// Gateway fan-out threshold (threshold = sourceHalfHeight = 25px)
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('gateway fan-out waypoint threshold', () => {
   /**
-   * A branch offset of 30px is greater than the old threshold
-   * (sourceHalfHeight = 25px) but below the new threshold
-   * (sourceHalfHeight + 20 = 45px).
+   * A branch offset of 30px exceeds sourceHalfHeight (25px), so the V→H
+   * fan-out should be applied — producing a 3-point path.
    *
-   * Old behaviour: applies 3-point V→H fan-out (30 > 25).
-   * New behaviour: falls through to L-shape detection → 4-point path.
+   * Previously (threshold = 45) this was incorrectly skipped, causing
+   * diagonal L-shapes on common "success straight / failure drop" patterns.
    */
-  test('30px offset does NOT trigger V→H fan-out (below sourceHalfHeight + 20 threshold)', () => {
+  test('30px offset DOES trigger V→H fan-out (above sourceHalfHeight threshold)', () => {
     const conn = makeGatewayConn(30) as any;
     resetStaleWaypoints(conn);
 
-    // Old code: 30 > sourceHalfHeight=25 → V→H applied → 3 waypoints.
-    // New code: 30 ≤ sourceHalfHeight+20=45 → no fan-out → stale detection →
-    //           L-shape (4 waypoints) or 2-point straight path.
-    expect(conn.waypoints.length).not.toBe(3);
-  });
-
-  /**
-   * A branch offset of 50px exceeds the new threshold (45px), so the V→H
-   * fan-out should still be applied.
-   */
-  test('50px offset DOES trigger V→H fan-out (above sourceHalfHeight + 20 threshold)', () => {
-    const conn = makeGatewayConn(50) as any;
-    resetStaleWaypoints(conn);
-
-    // 50 > sourceHalfHeight+20=45 → fan-out applies → 3-point V→H path
+    // 30 > sourceHalfHeight=25 → fan-out applies → 3-point V→H path
     expect(conn.waypoints.length).toBe(3);
   });
 
   /**
-   * An offset exactly at the new threshold (45px) should NOT trigger fan-out.
-   * The condition is `<= threshold` so threshold is the boundary of the
-   * "no fan-out" zone.
+   * A branch offset of 50px exceeds the threshold (25px), so the V→H
+   * fan-out should still be applied.
    */
-  test('45px offset (exactly at new threshold) does NOT trigger V→H fan-out', () => {
-    const conn = makeGatewayConn(45) as any;
+  test('50px offset DOES trigger V→H fan-out (well above threshold)', () => {
+    const conn = makeGatewayConn(50) as any;
     resetStaleWaypoints(conn);
 
-    // 45 ≤ sourceHalfHeight+20=45 → no fan-out
+    // 50 > sourceHalfHeight=25 → fan-out applies → 3-point V→H path
+    expect(conn.waypoints.length).toBe(3);
+  });
+
+  /**
+   * An offset exactly at the threshold (25px) should NOT trigger fan-out.
+   * The condition is `<= sourceHalfHeight` so 25 is the boundary.
+   */
+  test('25px offset (exactly at threshold) does NOT trigger V→H fan-out', () => {
+    const conn = makeGatewayConn(25) as any;
+    resetStaleWaypoints(conn);
+
+    // 25 ≤ sourceHalfHeight=25 → no fan-out → falls through to L-shape
     expect(conn.waypoints.length).not.toBe(3);
   });
 
   /**
-   * An offset of 26px (> old threshold 25, ≤ new threshold 45) should no
-   * longer produce a V→H path after the fix.
+   * An offset of 26px (just above the threshold) should trigger fan-out.
    */
-  test('26px offset (just above old threshold) no longer triggers V→H fan-out', () => {
+  test('26px offset (just above threshold) triggers V→H fan-out', () => {
     const conn = makeGatewayConn(26) as any;
     resetStaleWaypoints(conn);
 
-    // Old code: 26 > 25 → V→H (3 points)
-    // New code: 26 ≤ 45 → no fan-out
-    expect(conn.waypoints.length).not.toBe(3);
+    // 26 > sourceHalfHeight=25 → fan-out applies → 3-point V→H path
+    expect(conn.waypoints.length).toBe(3);
   });
 });

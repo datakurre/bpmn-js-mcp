@@ -31,7 +31,7 @@ interface ValidationIssue {
   docUrl?: string;
   fix?: string;
   /** Structured tool call suggestion that would fix this issue. */
-  fixToolCall?: { tool: string; args: Record<string, any> };
+  fixToolCall?: { tool: string; args: Record<string, any>; hint?: string };
 }
 
 /** Fix tool call template. `{diagramId}` and `{elementId}` are substituted at runtime. */
@@ -40,6 +40,8 @@ interface FixTemplate {
   args: Record<string, any>;
   /** Whether this fix requires a known elementId. Default: false. */
   requiresElementId?: boolean;
+  /** Optional human-readable hint explaining the multi-step fix pattern. */
+  hint?: string;
 }
 
 /**
@@ -163,8 +165,11 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
   },
   'bpmn-mcp/implicit-merge': {
     tool: 'add_bpmn_element',
-    args: { elementType: 'bpmn:ExclusiveGateway' },
-    requiresElementId: true,
+    args: {
+      elementType: 'bpmn:ExclusiveGateway',
+      flowId: '<one-of-the-incoming-sequence-flow-ids>',
+    },
+    hint: "Two-step fix: (1) insert a merge gateway into one incoming flow using add_bpmn_element with flowId set to that flow's ID, (2) reconnect the remaining incoming flow(s) to the new gateway with connect_bpmn_elements.",
   },
   'bpmn-mcp/loop-without-limit': {
     tool: 'set_bpmn_loop_characteristics',
@@ -230,7 +235,7 @@ function suggestFixToolCall(
     }
   }
 
-  return { tool: template.tool, args };
+  return { tool: template.tool, args, ...(template.hint ? { hint: template.hint } : {}) };
 }
 
 export async function handleValidate(args: ValidateArgs): Promise<ToolResult> {
