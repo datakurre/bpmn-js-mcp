@@ -112,4 +112,35 @@ describe('getPrompt', () => {
     // Should warn that omitting creates a disconnected segment
     expect(text).toMatch(/afterElementId.*disconnected|disconnected.*afterElementId/i);
   });
+
+  test('executable and executable-pool prompts include boundary event interrupt semantics guidance', () => {
+    for (const name of ['executable', 'executable-pool']) {
+      const result = getPrompt(name);
+      const text = result.messages[0].content.text;
+      // Should explain when to use interrupting vs non-interrupting
+      expect(text).toMatch(/interrupting.*deadline|deadline.*interrupting/i);
+      expect(text).toMatch(/non-interrupting.*escalation|escalation.*non-interrupting/i);
+    }
+  });
+
+  test('executable and executable-pool prompts include compensation pattern guidance', () => {
+    for (const name of ['executable', 'executable-pool']) {
+      const result = getPrompt(name);
+      const text = result.messages[0].content.text;
+      // Should mention isForCompensation and the correct ordering
+      expect(text).toContain('isForCompensation');
+      expect(text).toContain('CompensateEventDefinition');
+      // Should instruct to layout BEFORE connecting
+      expect(text).toMatch(/layout.*before.*connect|layout_bpmn_diagram.*before/i);
+    }
+  });
+
+  test('executable and executable-pool prompts note that Association edges are not re-routed by layout', () => {
+    for (const name of ['executable', 'executable-pool']) {
+      const result = getPrompt(name);
+      const text = result.messages[0].content.text;
+      // Should warn that layout doesn't fix associations
+      expect(text).toMatch(/[Aa]ssociation.*not.*re-?rout|never.*re-?rout.*[Aa]ssociation/i);
+    }
+  });
 });

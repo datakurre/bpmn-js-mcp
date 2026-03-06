@@ -18,79 +18,10 @@
  * waypoints) or use `connect_bpmn_elements` with explicit `waypoints`.
  */
 
-import { isType } from '../utils';
+import { isType, findDefinitions, collectDI, pointWithinBounds } from '../utils';
 
 /** Tolerance in pixels for waypoint-within-bounds check. */
 const TOLERANCE = 20;
-
-interface Bounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-/** Check if a point is within bounds + tolerance. */
-function pointWithinBounds(p: Point, b: Bounds, tol: number): boolean {
-  return (
-    p.x >= b.x - tol &&
-    p.x <= b.x + b.width + tol &&
-    p.y >= b.y - tol &&
-    p.y <= b.y + b.height + tol
-  );
-}
-
-/** Walk up parent chain to find bpmn:Definitions. */
-function findDefinitions(node: any): any | null {
-  let current = node;
-  while (current) {
-    if (current.$type === 'bpmn:Definitions') return current;
-    current = current.$parent;
-  }
-  return null;
-}
-
-/**
- * Build maps from bpmnElement ID → DI bounds (for shapes) and
- * bpmnElement ID → waypoints (for edges).
- */
-function collectDI(definitions: any): {
-  shapeBounds: Map<string, Bounds>;
-  edgeWaypoints: Map<string, Point[]>;
-  edgeElementIds: Map<string, string>; // bpmndi:BPMNEdge id → bpmnElement id
-} {
-  const shapeBounds = new Map<string, Bounds>();
-  const edgeWaypoints = new Map<string, Point[]>();
-  const edgeElementIds = new Map<string, string>();
-
-  const diagrams = definitions?.diagrams ?? [];
-  for (const diagram of diagrams) {
-    const plane = diagram?.plane;
-    if (!plane?.planeElement) continue;
-
-    for (const el of plane.planeElement) {
-      if (isType(el, 'bpmndi:BPMNShape') && el.bpmnElement?.id && el.bounds) {
-        shapeBounds.set(el.bpmnElement.id, {
-          x: el.bounds.x,
-          y: el.bounds.y,
-          width: el.bounds.width,
-          height: el.bounds.height,
-        });
-      } else if (isType(el, 'bpmndi:BPMNEdge') && el.bpmnElement?.id) {
-        const wps: Point[] = (el.waypoint ?? []).map((wp: any) => ({ x: wp.x, y: wp.y }));
-        edgeWaypoints.set(el.bpmnElement.id, wps);
-        edgeElementIds.set(el.id, el.bpmnElement.id);
-      }
-    }
-  }
-
-  return { shapeBounds, edgeWaypoints, edgeElementIds };
-}
 
 export default function disconnectedAssociationDi() {
   function check(node: any, reporter: any) {

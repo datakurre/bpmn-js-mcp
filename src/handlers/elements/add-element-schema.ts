@@ -205,6 +205,14 @@ export const TOOL_DEFINITION = {
           'true = interrupting (default, host activity is cancelled when event fires). ' +
           'Ignored for non-boundary event element types.',
       },
+      isForCompensation: {
+        type: 'boolean',
+        description:
+          'Mark this task/service task as a compensation handler (isForCompensation=true). ' +
+          'Compensation handlers are NOT in the normal sequence flow — they are invoked only when ' +
+          'a compensation boundary event fires. The response includes nextSteps guidance for the ' +
+          'mandatory compensation wiring order: add BoundaryEvent → layout → connect via Association.',
+      },
       fromElementId: {
         type: 'string',
         description:

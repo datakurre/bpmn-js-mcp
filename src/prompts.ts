@@ -47,6 +47,33 @@ const EXPORT_REMINDER =
   `save the BPMN XML to disk. This ensures the work is persisted.\n` +
   `Example: \`export_bpmn({ diagramId, format: "both", filePath: "output/my-process.bpmn" })\``;
 
+// ── Shared boundary event + compensation guidance ──────────────────────────
+
+const BOUNDARY_EVENT_GUIDANCE =
+  `\n\n**Boundary event interrupt semantics:**\n` +
+  `- **Interrupting** (\`cancelActivity: true\`, solid border, the default): when the event ` +
+  `fires, the host activity is **cancelled** and the token leaves via the boundary event path. ` +
+  `Use this for **timeout/deadline** scenarios — if the task isn't done in time, cancel it ` +
+  `and escalate.\n` +
+  `- **Non-interrupting** (\`cancelActivity: false\`, dashed border): the host activity ` +
+  `**keeps running** while the event path also executes in parallel. Use this for ` +
+  `**escalation reminder** scenarios (e.g. "send reminder email after 30 min while task continues").\n` +
+  `- Rule of thumb: ask "Should the host task keep running after this event fires?" ` +
+  `— If **no** → interrupting (default). If **yes** (reminder/notification) → non-interrupting.\n` +
+  `- ⚠️ A non-interrupting timer whose only path leads to an error end or compensation throw ` +
+  `event is almost always a semantic mistake — the host task would keep running as a zombie. ` +
+  `Use an interrupting timer instead.\n\n` +
+  `**Compensation pattern (CRITICAL — ordering matters):**\n` +
+  `Association waypoints are frozen at creation time and \`layout_bpmn_diagram\` does NOT ` +
+  `re-route \`bpmn:Association\` edges. Always build compensation in this exact order:\n` +
+  `1. Add the compensation handler task with \`isForCompensation: true\`.\n` +
+  `2. Add the \`bpmn:BoundaryEvent\` with \`eventDefinitionType: "bpmn:CompensateEventDefinition"\` ` +
+  `on the task being compensated.\n` +
+  `3. Call \`layout_bpmn_diagram\` **before** connecting, so that all elements have stable ` +
+  `canvas positions.\n` +
+  `4. Call \`connect_bpmn_elements\` from the compensation boundary event to the handler ` +
+  `(auto-detected as a \`bpmn:Association\`).\n` +
+  `5. Do NOT use a \`bpmn:SequenceFlow\` from the compensation boundary event — associations only.\n`;
 // ── Prompt definitions ─────────────────────────────────────────────────────
 
 const PROMPTS: PromptDefinition[] = [
@@ -106,6 +133,7 @@ const PROMPTS: PromptDefinition[] = [
             `5. \`validate_bpmn_diagram\` to check for issues\n` +
             `6. Fix any reported issues\n` +
             `7. \`export_bpmn\` with \`filePath\` to save` +
+            BOUNDARY_EVENT_GUIDANCE +
             SHARED_EFFICIENCY_GUIDELINES +
             EXPORT_REMINDER,
         },
@@ -168,6 +196,7 @@ const PROMPTS: PromptDefinition[] = [
             `→ \`autosize_bpmn_pools_and_lanes\`\n` +
             `5. \`validate_bpmn_diagram\` → fix issues\n` +
             `6. \`export_bpmn\` with \`filePath\` to save` +
+            BOUNDARY_EVENT_GUIDANCE +
             SHARED_EFFICIENCY_GUIDELINES +
             EXPORT_REMINDER,
         },

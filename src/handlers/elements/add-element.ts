@@ -89,6 +89,17 @@ export interface AddElementArgs {
    * (when fromElementId + toLaneId are used).
    */
   connectionLabel?: string;
+  /**
+   * Mark the element as a compensation handler. Set to true on a Task or ServiceTask to
+   * indicate that it compensates another activity. The element will not appear in normal
+   * sequence flow; it must be connected to a compensation boundary event via a bpmn:Association.
+   *
+   * When true, the response includes a nextSteps sequence explaining the mandatory
+   * compensation wiring order: (1) add boundary event, (2) layout_bpmn_diagram,
+   * (3) connect_bpmn_elements — layout must run before connecting because association
+   * waypoints are frozen at creation time.
+   */
+  isForCompensation?: boolean;
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────
@@ -299,6 +310,11 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     modeling.updateProperties(createdElement, { cancelActivity: false });
   }
 
+  // isForCompensation: marks this task as a compensation handler that is not in normal flow
+  if (args.isForCompensation === true) {
+    modeling.updateProperties(createdElement, { isForCompensation: true });
+  }
+
   // bpmn:Group at negative coordinates: clamp to (0, 0)
   if (elementType === 'bpmn:Group' && (createdElement.x < 0 || createdElement.y < 0)) {
     const clampDx = createdElement.x < 0 ? -createdElement.x : 0;
@@ -378,6 +394,7 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
     warnings,
     hostInfo,
     elementRegistry,
+    isForCompensation: args.isForCompensation,
   });
   return appendLintFeedback(result, diagram);
 }

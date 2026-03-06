@@ -193,6 +193,40 @@ describe('straightenNonOrthogonalFlows — unit', () => {
     expect(msgFlow.waypoints).toEqual(originalWps);
   });
 
+  test('does NOT collapse an intentional Z-shape (4-point fully-orthogonal cross-lane flow)', () => {
+    // A Z-shaped cross-lane flow: source in lane A (midY=200), target in lane B (midY=360).
+    // The 4-point path has ALL orthogonal segments (H→V→H) and must survive the pass unchanged.
+    //
+    // Layout:
+    //   lane A: source (100,160) 100×80  → right edge at x=200, midY=200
+    //   lane B: target (400,320) 100×80  → left  edge at x=400, midY=360
+    //
+    // Z-shape waypoints (all segments orthogonal):
+    //   (200,200) → (300,200)   horizontal
+    //   (300,200) → (300,360)   vertical   ← the cross-lane drop
+    //   (300,360) → (400,360)   horizontal
+    //
+    // Guard: isFullyOrthogonal must recognise this as orthogonal so it is skipped.
+    const conn = makeForwardConn(
+      { x: 100, y: 160, width: 100, height: 80 }, // lane A — midY=200
+      { x: 400, y: 320, width: 100, height: 80 }, // lane B — midY=360
+      [
+        { x: 200, y: 200 },
+        { x: 300, y: 200 }, // horizontal segment (same Y)
+        { x: 300, y: 360 }, // vertical segment (lane drop)
+        { x: 400, y: 360 }, // horizontal segment (same Y)
+      ]
+    );
+    const originalWps = conn.waypoints.map((wp: any) => ({ ...wp }));
+
+    const count = straightenNonOrthogonalFlows([conn]);
+
+    // Must NOT be counted as needing straightening — it is already orthogonal
+    expect(count).toBe(0);
+    // Waypoints must be identical to the original Z-shape
+    expect(conn.waypoints).toEqual(originalWps);
+  });
+
   test('processes multiple connections, returning total count', () => {
     const conn1 = makeForwardConn(
       { x: 100, y: 160, width: 100, height: 80 },

@@ -233,7 +233,20 @@ function centerFlowLabels(registry: ElementRegistry, modeling: Modeling): number
     const labelW = flow.label.width || DEFAULT_LABEL_SIZE.width;
     const labelH = flow.label.height || DEFAULT_LABEL_SIZE.height;
 
-    const target = flowLabelPos(flow.waypoints, labelW, labelH, shapes);
+    // Connected element bounds: proximity penalty to keep label away from source/target.
+    const connectedBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
+    for (const endEl of [flow.source, flow.target]) {
+      if (endEl && (endEl as any).x !== undefined && (endEl as any).width !== undefined) {
+        connectedBounds.push({
+          x: (endEl as any).x,
+          y: (endEl as any).y,
+          width: (endEl as any).width,
+          height: (endEl as any).height,
+        });
+      }
+    }
+
+    const target = flowLabelPos(flow.waypoints, labelW, labelH, shapes, connectedBounds);
 
     const dx = target.x - flow.label.x;
     const dy = target.y - flow.label.y;
@@ -257,12 +270,15 @@ function centerFlowLabels(registry: ElementRegistry, modeling: Modeling): number
  * true path centre rather than near the source.
  *
  * The label is then placed on the perpendicular side with fewer shape overlaps.
+ * `connectedBounds` are the source/target element bounds — candidates within
+ * ELEMENT_LABEL_DISTANCE of them receive an additional proximity penalty.
  */
 function flowLabelPos(
   waypoints: Array<{ x: number; y: number }>,
   labelW: number,
   labelH: number,
-  shapes: BpmnElement[]
+  shapes: BpmnElement[],
+  connectedBounds?: Array<{ x: number; y: number; width: number; height: number }>
 ): { x: number; y: number } {
   // Use path midpoint: pick the middle waypoint pair (matches bpmn-js LabelUtil)
   const mid = waypoints.length / 2 - 1;
@@ -281,8 +297,8 @@ function flowLabelPos(
     ? { x: Math.round(midX - labelW / 2), y: Math.round(midY + FLOW_LABEL_SIDE_OFFSET) } // below
     : { x: Math.round(midX - FLOW_LABEL_SIDE_OFFSET - labelW), y: Math.round(midY - labelH / 2) }; // left
 
-  return labelSideScore(candidateA, labelW, labelH, shapes) <=
-    labelSideScore(candidateB, labelW, labelH, shapes)
+  return labelSideScore(candidateA, labelW, labelH, shapes, connectedBounds) <=
+    labelSideScore(candidateB, labelW, labelH, shapes, connectedBounds)
     ? candidateA
     : candidateB;
 }
@@ -292,7 +308,8 @@ function labelSideScore(
   pos: { x: number; y: number },
   w: number,
   h: number,
-  shapes: BpmnElement[]
+  shapes: BpmnElement[],
+  connectedBounds?: Array<{ x: number; y: number; width: number; height: number }>
 ): number {
   const x2 = pos.x + w;
   const y2 = pos.y + h;
@@ -302,6 +319,17 @@ function labelSideScore(
       continue;
     }
     if (pos.x < s.x + s.width && x2 > s.x && pos.y < s.y + s.height && y2 > s.y) score++;
+  }
+  // Proximity penalty: expand connected-element bounds by ELEMENT_LABEL_DISTANCE
+  // and penalise candidates that fall inside the expanded zone.
+  if (connectedBounds) {
+    for (const cb of connectedBounds) {
+      const ex = cb.x - ELEMENT_LABEL_DISTANCE;
+      const ey = cb.y - ELEMENT_LABEL_DISTANCE;
+      const ex2 = cb.x + cb.width + ELEMENT_LABEL_DISTANCE;
+      const ey2 = cb.y + cb.height + ELEMENT_LABEL_DISTANCE;
+      if (pos.x < ex2 && x2 > ex && pos.y < ey2 && y2 > ey) score++;
+    }
   }
   return score;
 }

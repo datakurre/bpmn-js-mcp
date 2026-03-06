@@ -206,7 +206,28 @@ export async function centerFlowLabels(diagram: DiagramState): Promise<number> {
       if (entry) extraObstacles.push(entry.labelRect);
     }
 
-    const target = computePathMidpointLabelPos(waypoints, labelW, labelH, shapes, extraObstacles);
+    // Connected element bounds: used by labelSideScore to penalise proximity
+    // to source/target elements (not just overlap).
+    const connectedBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
+    for (const endEl of [flow.source, flow.target]) {
+      if (endEl && endEl.x !== undefined && endEl.width !== undefined) {
+        connectedBounds.push({
+          x: endEl.x,
+          y: endEl.y,
+          width: endEl.width,
+          height: endEl.height,
+        });
+      }
+    }
+
+    const target = computePathMidpointLabelPos(
+      waypoints,
+      labelW,
+      labelH,
+      shapes,
+      extraObstacles,
+      connectedBounds
+    );
     const moveX = target.x - label.x;
     const moveY = target.y - label.y;
     if (Math.abs(moveX) > 2 || Math.abs(moveY) > 2) {

@@ -238,4 +238,137 @@ describe('bpmnlint layout-needs-alignment rule', () => {
     expect(suggestion).toBeDefined();
     expect(suggestion).toContain('layout_bpmn_diagram');
   });
+
+  test('warns when a bpmn:Association has waypoints far from its source or target element', async () => {
+    // Compensation pattern where the association has stale/displaced waypoints:
+    // the boundary event is at (250, 200) but the association first waypoint is at (50, 50) — far off
+    const staleAssocBpmn = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="Start_1" />
+    <bpmn:task id="Task_Host" name="Place Order" />
+    <bpmn:task id="Task_Handler" name="Cancel Order" isForCompensation="true" />
+    <bpmn:endEvent id="End_1" />
+    <bpmn:boundaryEvent id="BE_Comp" attachedToRef="Task_Host">
+      <bpmn:compensateEventDefinition id="CompDef_1" />
+    </bpmn:boundaryEvent>
+    <bpmn:association id="Assoc_1" sourceRef="BE_Comp" targetRef="Task_Handler" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_Host" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Host" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="152" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Host_di" bpmnElement="Task_Host">
+        <dc:Bounds x="250" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Handler_di" bpmnElement="Task_Handler">
+        <dc:Bounds x="450" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="602" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_Comp_di" bpmnElement="BE_Comp">
+        <dc:Bounds x="282" y="240" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_1_di" bpmnElement="Assoc_1">
+        <!-- Stale waypoints: far from BE_Comp (282,240) and Task_Handler (450,400) -->
+        <di:waypoint x="50" y="50" />
+        <di:waypoint x="50" y="51" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="188" y="218" />
+        <di:waypoint x="250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="350" y="218" />
+        <di:waypoint x="602" y="218" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+    const importRes = parseResult(
+      await handleImportXml({ xml: staleAssocBpmn, autoLayout: false, hintLevel: 'none' })
+    );
+    const diagramId = importRes.diagramId as string;
+    expect(diagramId).toBeTruthy();
+
+    const res = parseResult(await handleLintDiagram({ diagramId, config: LINT_CONFIG }));
+    const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/layout-needs-alignment');
+
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues[0].message).toMatch(/association|stale/i);
+  });
+
+  test('does not warn when association waypoints are close to their elements', async () => {
+    // Same structure but association waypoints are correctly placed near the elements
+    const goodAssocBpmn = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="Start_1" />
+    <bpmn:task id="Task_Host" name="Place Order" />
+    <bpmn:task id="Task_Handler" name="Cancel Order" isForCompensation="true" />
+    <bpmn:endEvent id="End_1" />
+    <bpmn:boundaryEvent id="BE_Comp" attachedToRef="Task_Host">
+      <bpmn:compensateEventDefinition id="CompDef_1" />
+    </bpmn:boundaryEvent>
+    <bpmn:association id="Assoc_1" sourceRef="BE_Comp" targetRef="Task_Handler" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_Host" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Host" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="152" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Host_di" bpmnElement="Task_Host">
+        <dc:Bounds x="250" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Handler_di" bpmnElement="Task_Handler">
+        <dc:Bounds x="450" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="602" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BE_Comp_di" bpmnElement="BE_Comp">
+        <dc:Bounds x="282" y="240" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_1_di" bpmnElement="Assoc_1">
+        <!-- Correct waypoints: near BE_Comp center (300,258) and Task_Handler left edge (450,440) -->
+        <di:waypoint x="300" y="276" />
+        <di:waypoint x="450" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="188" y="218" />
+        <di:waypoint x="250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="350" y="218" />
+        <di:waypoint x="602" y="218" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+    const importRes = parseResult(
+      await handleImportXml({ xml: goodAssocBpmn, autoLayout: false, hintLevel: 'none' })
+    );
+    const diagramId = importRes.diagramId as string;
+
+    const res = parseResult(await handleLintDiagram({ diagramId, config: LINT_CONFIG }));
+    const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/layout-needs-alignment');
+
+    expect(issues).toHaveLength(0);
+  });
 });

@@ -246,7 +246,8 @@ export function collectAddElementWarnings(opts: {
  */
 function buildElementTypeHints(
   elementType: string,
-  eventDefinitionApplied?: string
+  eventDefinitionApplied?: string,
+  isForCompensation?: boolean
 ): { nextSteps?: Hint[] } {
   const base = getTypeSpecificHints(elementType).nextSteps ?? [];
   const extra: Hint[] = [];
@@ -257,6 +258,32 @@ function buildElementTypeHints(
       description:
         'Set cancelActivity: false to make this a non-interrupting timer (dashed border — the host task continues alongside the timer branch). Default is true (interrupting — host task is cancelled when the timer fires).',
     });
+  }
+  // Compensation handler: guide through the mandatory wiring order
+  if (isForCompensation) {
+    extra.push(
+      {
+        tool: 'add_bpmn_element',
+        description:
+          'Step 1 — Add a BoundaryEvent with eventDefinitionType: "bpmn:CompensateEventDefinition" ' +
+          'on the task being compensated (the task whose failure should trigger this handler). ' +
+          'Use hostElementId to attach it to that task.',
+      },
+      {
+        tool: 'layout_bpmn_diagram',
+        description:
+          'Step 2 — Run layout_bpmn_diagram BEFORE connecting. ' +
+          'Association waypoints are frozen at creation time, so elements must have stable ' +
+          'canvas positions before you create the Association link.',
+      },
+      {
+        tool: 'connect_bpmn_elements',
+        description:
+          'Step 3 — Connect the compensation BoundaryEvent to this handler using ' +
+          'connect_bpmn_elements (auto-detected as bpmn:Association). ' +
+          'Do NOT use a sequence flow — only bpmn:Association is valid here.',
+      }
+    );
   }
   const merged = [...base, ...extra];
   return merged.length > 0 ? { nextSteps: merged } : {};
@@ -279,6 +306,7 @@ export function buildAddElementResult(opts: {
   warnings: string[];
   hostInfo?: { hostElementId: string; hostElementType: string; hostElementName?: string };
   elementRegistry: ElementRegistry;
+  isForCompensation?: boolean;
 }): ToolResult {
   const {
     createdElement,
@@ -294,6 +322,7 @@ export function buildAddElementResult(opts: {
     warnings,
     hostInfo,
     elementRegistry,
+    isForCompensation,
   } = opts;
 
   const needsConnection =
@@ -333,7 +362,7 @@ export function buildAddElementResult(opts: {
           message: `Added ${elementType} to diagram${eventDefinitionApplied ? ` with ${eventDefinitionApplied}` : ''}${hint}`,
         }),
     diagramCounts: buildElementCounts(elementRegistry),
-    ...buildElementTypeHints(elementType, eventDefinitionApplied),
+    ...buildElementTypeHints(elementType, eventDefinitionApplied, isForCompensation),
     ...getNamingHint(elementType, elementName),
   });
 }

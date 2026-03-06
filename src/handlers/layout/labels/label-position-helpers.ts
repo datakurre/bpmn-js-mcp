@@ -222,13 +222,28 @@ export function getBoundaryEventLabelPosition(
 
 // ── Flow label position ────────────────────────────────────────────────────
 
+/** Check if a label rect overlaps a single bound rect. */
+function rectOverlaps(
+  lx: number,
+  ly: number,
+  lx2: number,
+  ly2: number,
+  bx: number,
+  by: number,
+  bx2: number,
+  by2: number
+): boolean {
+  return lx < bx2 && lx2 > bx && ly < by2 && ly2 > by;
+}
+
 /** Count shape overlaps for a label candidate rect (lower score = better). */
 export function labelSideScore(
   pos: { x: number; y: number },
   w: number,
   h: number,
   shapes: any[],
-  extraObstacles?: Array<{ x: number; y: number; width: number; height: number }>
+  extraObstacles?: Array<{ x: number; y: number; width: number; height: number }>,
+  connectedBounds?: Array<{ x: number; y: number; width: number; height: number }>
 ): number {
   const x2 = pos.x + w;
   const y2 = pos.y + h;
@@ -237,13 +252,35 @@ export function labelSideScore(
     if (s.x === undefined || s.y === undefined || s.width === undefined || s.height === undefined) {
       continue;
     }
-    if (pos.x < s.x + s.width && x2 > s.x && pos.y < s.y + s.height && y2 > s.y) {
+    if (rectOverlaps(pos.x, pos.y, x2, y2, s.x, s.y, s.x + s.width, s.y + s.height)) {
       score++;
     }
   }
   if (extraObstacles) {
     for (const obs of extraObstacles) {
-      if (pos.x < obs.x + obs.width && x2 > obs.x && pos.y < obs.y + obs.height && y2 > obs.y) {
+      if (rectOverlaps(pos.x, pos.y, x2, y2, obs.x, obs.y, obs.x + obs.width, obs.y + obs.height)) {
+        score++;
+      }
+    }
+  }
+  // Proximity penalty for connected elements: expand each connected element bound
+  // by ELEMENT_LABEL_DISTANCE and treat the expanded zone as an obstacle.  A
+  // candidate inside the expanded zone (but possibly NOT overlapping the element
+  // itself) is penalised — keeping labels away from their source/target elements.
+  if (connectedBounds) {
+    for (const cb of connectedBounds) {
+      if (
+        rectOverlaps(
+          pos.x,
+          pos.y,
+          x2,
+          y2,
+          cb.x - ELEMENT_LABEL_DISTANCE,
+          cb.y - ELEMENT_LABEL_DISTANCE,
+          cb.x + cb.width + ELEMENT_LABEL_DISTANCE,
+          cb.y + cb.height + ELEMENT_LABEL_DISTANCE
+        )
+      ) {
         score++;
       }
     }
@@ -258,13 +295,16 @@ export function labelSideScore(
  * side with fewer shape overlaps.
  *
  * @param extraObstacles - additional bounding boxes (e.g. gateway labels) to avoid
+ * @param connectedBounds - bounding boxes of directly-connected elements (source/target);
+ *   candidates within ELEMENT_LABEL_DISTANCE of these receive an additional penalty
  */
 export function computePathMidpointLabelPos(
   waypoints: Array<{ x: number; y: number }>,
   labelW: number,
   labelH: number,
   shapes: any[],
-  extraObstacles?: Array<{ x: number; y: number; width: number; height: number }>
+  extraObstacles?: Array<{ x: number; y: number; width: number; height: number }>,
+  connectedBounds?: Array<{ x: number; y: number; width: number; height: number }>
 ): { x: number; y: number } {
   const mid = waypoints.length / 2 - 1;
   const p0 = waypoints[Math.floor(mid)];
@@ -278,8 +318,8 @@ export function computePathMidpointLabelPos(
   const cB = isHoriz
     ? { x: Math.round(midX - labelW / 2), y: Math.round(midY + FLOW_LABEL_SIDE_OFFSET) }
     : { x: Math.round(midX - FLOW_LABEL_SIDE_OFFSET - labelW), y: Math.round(midY - labelH / 2) };
-  return labelSideScore(cA, labelW, labelH, shapes, extraObstacles) <=
-    labelSideScore(cB, labelW, labelH, shapes, extraObstacles)
+  return labelSideScore(cA, labelW, labelH, shapes, extraObstacles, connectedBounds) <=
+    labelSideScore(cB, labelW, labelH, shapes, extraObstacles, connectedBounds)
     ? cA
     : cB;
 }

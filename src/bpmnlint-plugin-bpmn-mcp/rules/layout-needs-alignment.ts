@@ -44,6 +44,12 @@ interface ShapeEntry {
 interface EdgeEntry {
   elementId: string;
   waypoints: Point[];
+  /** bpmnElement type (e.g. 'bpmn:SequenceFlow', 'bpmn:Association') */
+  bpmnType?: string;
+  /** sourceRef element ID (for bpmn:Association) */
+  sourceRefId?: string;
+  /** targetRef element ID (for bpmn:Association) */
+  targetRefId?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -127,9 +133,13 @@ function collectEdges(planeElements: any[]): EdgeEntry[] {
     if (!el.bpmnElement) continue;
     const wps = el.waypoint;
     if (!wps || wps.length < 2) continue;
+    const bpmnEl = el.bpmnElement;
     edges.push({
-      elementId: el.bpmnElement.id,
+      elementId: bpmnEl.id,
       waypoints: wps.map((wp: any) => ({ x: wp.x, y: wp.y })),
+      bpmnType: bpmnEl.$type,
+      sourceRefId: bpmnEl.sourceRef?.id,
+      targetRefId: bpmnEl.targetRef?.id,
     });
   }
   return edges;
@@ -295,6 +305,62 @@ function countCloseShapePairs(shapes: ShapeEntry[]): number {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Heuristic 5: stale association waypoints                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Maximum distance (px) from element bounds for an association waypoint
+ * to be considered "connected". If first/last waypoint is further away
+ * than this, the association is likely stale (element moved after layout).
+ *
+ * NOTE: `layout_bpmn_diagram` never re-routes `bpmn:Association` edges,
+ * so associations can be left behind when elements are repositioned.
+ */
+const ASSOC_WAYPOINT_TOLERANCE = 50;
+
+/**
+ * Check if a point is within tolerance px of the given element bounds.
+ * The bounds represent the element's bounding box; the point should be
+ * at or near the element's edge (where a connection would attach).
+ */
+function isPointNearBounds(p: Point, bounds: Bounds, tolerance: number): boolean {
+  const nearX = p.x >= bounds.x - tolerance && p.x <= bounds.x + bounds.width + tolerance;
+  const nearY = p.y >= bounds.y - tolerance && p.y <= bounds.y + bounds.height + tolerance;
+  return nearX && nearY;
+}
+
+/**
+ * Count bpmn:Association edges whose first or last waypoint is farther than
+ * ASSOC_WAYPOINT_TOLERANCE from the source/target element bounds.
+ * This detects stale associations left behind when elements were moved after
+ * the association was created (layout_bpmn_diagram does not re-route them).
+ */
+function countStaleAssociationEdges(edges: EdgeEntry[], shapeMap: Map<string, Bounds>): number {
+  let count = 0;
+  for (const edge of edges) {
+    if (edge.bpmnType !== 'bpmn:Association') continue;
+    const wps = edge.waypoints;
+    const firstWp = wps[0];
+    const lastWp = wps[wps.length - 1];
+
+    if (edge.sourceRefId) {
+      const sourceBounds = shapeMap.get(edge.sourceRefId);
+      if (sourceBounds && !isPointNearBounds(firstWp, sourceBounds, ASSOC_WAYPOINT_TOLERANCE)) {
+        count++;
+        continue;
+      }
+    }
+    if (edge.targetRefId) {
+      const targetBounds = shapeMap.get(edge.targetRefId);
+      if (targetBounds && !isPointNearBounds(lastWp, targetBounds, ASSOC_WAYPOINT_TOLERANCE)) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Per-plane analysis                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -303,6 +369,7 @@ function buildIssueDescription(
   overlaps: number,
   crossings: number,
   close: number,
+  staleAssociations: number,
   orthoPercent?: number
 ): string[] {
   const parts: string[] = [];
@@ -313,6 +380,12 @@ function buildIssueDescription(
   if (overlaps > 0) parts.push(`${overlaps} overlapping shape pair${overlaps > 1 ? 's' : ''}`);
   if (crossings > 0) parts.push(`${crossings} crossing flow${crossings > 1 ? 's' : ''}`);
   if (close > 0) parts.push(`${close} suspiciously close shape pair${close > 1 ? 's' : ''}`);
+  if (staleAssociations > 0) {
+    parts.push(
+      `${staleAssociations} association${staleAssociations > 1 ? 's' : ''} with stale waypoints ` +
+        `(re-create via connect_bpmn_elements to fix — layout does not re-route associations)`
+    );
+  }
   return parts;
 }
 
@@ -322,19 +395,40 @@ function analyzePlane(planeElements: any[], plane: any, fallbackNode: any, repor
   const shapes = collectShapes(planeElements);
   const edges = collectEdges(planeElements);
 
+  // Build a map from bpmnElement id → bounds for association endpoint checks
+  const shapeMap = new Map<string, Bounds>();
+  for (const s of shapes) {
+    shapeMap.set(s.elementId, s.bounds);
+  }
+  // Also include BoundaryEvent shapes (which are in collectShapes for DI but skipped for overlaps)
+  for (const el of planeElements) {
+    if (!isType(el, 'bpmndi:BPMNShape')) continue;
+    if (!el.bpmnElement || !el.bounds || el.isLabel) continue;
+    if (!shapeMap.has(el.bpmnElement.id)) {
+      shapeMap.set(el.bpmnElement.id, {
+        x: el.bounds.x,
+        y: el.bounds.y,
+        width: el.bounds.width,
+        height: el.bounds.height,
+      });
+    }
+  }
+
   const segStats = countFlowSegmentStats(edges);
   const nonOrthoSegments = segStats.nonOrthogonal;
   const totalSegments = segStats.total;
   const overlappingPairs = countOverlappingPairs(shapes);
   const crossingPairs = countCrossingPairs(edges);
   const closePairs = countCloseShapePairs(shapes);
+  const staleAssociations = countStaleAssociationEdges(edges, shapeMap);
 
   // Weighted score: each issue type contributes to an overall "messiness" score
   const score =
     nonOrthoSegments * 1 + // each diagonal segment adds 1
     overlappingPairs * 3 + // overlapping shapes are a strong signal
     crossingPairs * 1 + // each crossing adds 1
-    closePairs * 2; // near-overlaps are a moderate signal
+    closePairs * 2 + // near-overlaps are a moderate signal
+    staleAssociations * 3; // stale associations are a strong signal (layout won't fix them)
 
   if (score < SCORE_THRESHOLD) return;
 
@@ -348,6 +442,7 @@ function analyzePlane(planeElements: any[], plane: any, fallbackNode: any, repor
     overlappingPairs,
     crossingPairs,
     closePairs,
+    staleAssociations,
     orthoPercent
   );
   const rootElement = plane.bpmnElement || fallbackNode;

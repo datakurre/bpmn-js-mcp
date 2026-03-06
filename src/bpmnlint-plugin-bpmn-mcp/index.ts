@@ -59,6 +59,7 @@ import gatewayLabelOverlapsFlow from './rules/gateway-label-overlaps-flow';
 import layoutNeedsAlignment from './rules/layout-needs-alignment';
 import defaultFlowWithCondition from './rules/default-flow-with-condition';
 import disconnectedAssociationDi from './rules/disconnected-association-di';
+import nonInterruptingBoundarySemantics from './rules/non-interrupting-boundary-semantics';
 
 /**
  * All custom lint rules keyed by rule name (without plugin prefix).
@@ -117,6 +118,7 @@ export const rules: Record<string, any> = {
   'layout-needs-alignment': layoutNeedsAlignment,
   'default-flow-with-condition': defaultFlowWithCondition,
   'disconnected-association-di': disconnectedAssociationDi,
+  'non-interrupting-boundary-semantics': nonInterruptingBoundarySemantics,
 };
 
 export const configs = {
@@ -171,6 +173,7 @@ export const configs = {
       'bpmn-mcp/layout-needs-alignment': 'warn',
       'bpmn-mcp/default-flow-with-condition': 'warn',
       'bpmn-mcp/disconnected-association-di': 'warn',
+      'bpmn-mcp/non-interrupting-boundary-semantics': 'warn',
     },
   },
 };
