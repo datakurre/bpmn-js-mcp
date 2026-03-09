@@ -1,10 +1,11 @@
 {
   "servers": {
     "bpmn": {
-      "command": "npm",
+      "command": "npx",
       "args": [
-        "run",
-        "dev"
+        ".",
+        "--persist-dir", "./memory"
+        
       ],
       "env": {}
     }
