@@ -257,7 +257,7 @@ npm run lint    # ESLint (sonarjs + unicorn + typescript-eslint)
 npm run typecheck  # tsc --noEmit (type check only, no emit)
 ```
 
-Node.js **≥ 18** is required.
+Node.js **≥ 22** is required.
 
 ### Project Layout
 

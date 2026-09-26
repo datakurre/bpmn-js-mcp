@@ -15,7 +15,7 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 ## Tech Stack
 
 - **Language:** TypeScript (ES2022, CommonJS)
-- **Runtime:** Node.js ≥ 16
+- **Runtime:** Node.js ≥ 22
 - **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `bpmn-auto-layout` (from `github:datakurre/bpmn-auto-layout`), `jsdom`, `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
 - **Test:** Vitest
 - **Lint:** ESLint 9 + typescript-eslint 8
