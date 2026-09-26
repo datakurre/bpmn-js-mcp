@@ -13,7 +13,7 @@ export const TOOL_DEFINITION = {
   name: 'connect_bpmn_elements',
   description:
     "Connect BPMN elements. Supports pair mode (sourceElementId + targetElementId) or chain mode (elementIds array for sequential connections). Auto-detects connection type: SequenceFlow for normal flow, MessageFlow for cross-pool, Association for text annotations, and DataAssociation for data objects/stores. Supports optional condition expressions for gateway branches and isDefault flag for gateway default flows. To modify an existing connection's label or condition after creation, use set_bpmn_element_properties with the connection's ID. " +
-    'Also supports waypoint mode: provide connectionId + waypoints to set custom routing on an existing connection — equivalent to the former set_bpmn_connection_waypoints tool.',
+    'Also supports waypoint mode: provide connectionId + waypoints to set custom routing on an existing connection.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -67,8 +67,7 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'ID of an existing connection to update waypoints on (waypoint mode). ' +
-          'Must be provided together with waypoints. ' +
-          'Equivalent to the former set_bpmn_connection_waypoints tool.',
+          'Must be provided together with waypoints.',
       },
       waypoints: {
         type: 'array',

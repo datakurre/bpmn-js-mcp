@@ -388,8 +388,9 @@ function buildValidateResult(
     nextSteps: dryRun
       ? [
           {
-            tool: 'redistribute_bpmn_elements_across_lanes',
-            description: 'Run again without dryRun to apply the changes.',
+            tool: 'analyze_bpmn_lanes',
+            description:
+              'Run again with mode: redistribute and dryRun: false to apply the changes.',
           },
         ]
       : [

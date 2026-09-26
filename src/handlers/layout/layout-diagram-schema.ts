@@ -64,7 +64,6 @@ export const TOOL_DEFINITION = {
         type: 'boolean',
         description:
           'When true, only resize pools and lanes to fit their contents without running full layout. ' +
-          'Equivalent to the former autosize_bpmn_pools_and_lanes tool. ' +
           'Accepts participantId to scope resizing to a single pool. Default: false.',
       },
       participantId: {

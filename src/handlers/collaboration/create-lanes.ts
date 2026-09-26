@@ -190,8 +190,9 @@ export function buildCreateLanesNextSteps(
       description: 'Move existing elements into lanes using the laneId parameter',
     },
     {
-      tool: 'redistribute_bpmn_elements_across_lanes',
-      description: 'Bulk-assign multiple existing elements to a lane (strategy: manual)',
+      tool: 'analyze_bpmn_lanes',
+      description:
+        'Bulk-assign multiple existing elements to a lane (mode: redistribute, strategy: manual)',
     }
   );
   return steps;
@@ -490,7 +491,7 @@ export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResu
     const existingNames = existingLanes.map((l: any) => l.businessObject?.name || l.id).join(', ');
     throw new Error(
       `Participant "${participantId}" already has ${existingLanes.length} lane(s): ${existingNames}. ` +
-        'Use redistribute_bpmn_elements_across_lanes (strategy: manual) to modify lane assignments, or delete existing lanes first.'
+        'Use analyze_bpmn_lanes (mode: redistribute, strategy: manual) to modify lane assignments, or delete existing lanes first.'
     );
   }
 

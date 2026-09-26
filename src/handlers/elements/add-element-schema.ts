@@ -16,7 +16,7 @@ export const TOOL_DEFINITION = {
     'Do NOT use bpmn:IntermediateCatchEvent for boundary events. ' +
     '**Subprocesses:** Default is expanded (350×200); set isExpanded=false for collapsed. ' +
     '**Cross-lane handoff:** Use fromElementId + toLaneId to place the new element in a target lane and ' +
-    'auto-connect from a source element (replaces handoff_bpmn_to_lane). ' +
+    'auto-connect from a source element. ' +
     'See bpmn://guides/modeling-elements for naming conventions, integration patterns, and event subprocess guidance.',
   inputSchema: {
     type: 'object',

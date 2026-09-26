@@ -378,7 +378,7 @@ function buildRecommendation(
   }
   const stats = `${coherence}% coherence (${intraLane} intra-lane vs ${crossLane} cross-lane flows)`;
   if (coherence >= 70) {
-    return `Suggested organization achieves ${stats}. This is a good lane structure. Use create_bpmn_lanes and redistribute_bpmn_elements_across_lanes (strategy: manual) to apply.`;
+    return `Suggested organization achieves ${stats}. This is a good lane structure. Use create_bpmn_lanes and analyze_bpmn_lanes (mode: redistribute, strategy: manual) to apply.`;
   }
   return `Suggested organization achieves ${stats}. Consider organizing by business role (e.g. "Requester", "Approver", "System") rather than task type for better flow coherence.`;
 }
@@ -635,7 +635,7 @@ function checkLanePopulation(laneDetails: LaneDetail[], issues: LaneIssue[]): vo
         message: `Lane "${detail.laneName}" is empty. Remove it or assign elements to it.`,
         elementIds: [detail.laneId],
         suggestion:
-          'Use delete_bpmn_element to remove the empty lane, or redistribute_bpmn_elements_across_lanes (strategy: manual) to populate it.',
+          'Use delete_bpmn_element to remove the empty lane, or analyze_bpmn_lanes (mode: redistribute, strategy: manual) to populate it.',
       });
     } else if (detail.elementCount <= 1) {
       issues.push({
@@ -644,7 +644,7 @@ function checkLanePopulation(laneDetails: LaneDetail[], issues: LaneIssue[]): vo
         message: `Lane "${detail.laneName}" contains only ${detail.elementCount} element(s). Consider merging with another lane.`,
         elementIds: [detail.laneId],
         suggestion:
-          "Consider using redistribute_bpmn_elements_across_lanes (strategy: manual) to merge this lane's elements into a related lane.",
+          "Consider using analyze_bpmn_lanes (mode: redistribute, strategy: manual) to merge this lane's elements into a related lane.",
       });
     }
   }
@@ -660,7 +660,7 @@ function checkUnassigned(flowNodes: any[], laneMap: Map<string, any>, issues: La
       message: `${unassigned.length} flow node(s) are not assigned to any lane: ${unassigned.map((e: any) => e.name || e.id).join(', ')}`,
       elementIds: unassigned.map((e: any) => e.id),
       suggestion:
-        'Use redistribute_bpmn_elements_across_lanes (strategy: manual) to assign these elements to appropriate lanes.',
+        'Use analyze_bpmn_lanes (mode: redistribute, strategy: manual) to assign these elements to appropriate lanes.',
     });
   }
 }
@@ -704,7 +704,7 @@ function buildZigzagIssue(
     code: 'zigzag-flow',
     message: `Zigzag flow: ${pName} → ${nName} (${nodeLane.name || nodeLane.id}) → ${sName}. Consider moving "${nName}" to lane "${predLane.name || predLane.id}".`,
     elementIds: [node.id],
-    suggestion: `Use redistribute_bpmn_elements_across_lanes (strategy: manual) to move "${nName}" to lane "${predLane.name || predLane.id}".`,
+    suggestion: `Use analyze_bpmn_lanes (mode: redistribute, strategy: manual) to move "${nName}" to lane "${predLane.name || predLane.id}".`,
   };
 }
 
@@ -1241,7 +1241,7 @@ export const TOOL_DEFINITION = {
     'zigzag patterns, single-element lanes, and overall coherence. Returns structured issues with fix suggestions. ' +
     "'pool-vs-lanes' — evaluate whether a collaboration should use separate pools (different organizations/systems) " +
     'or lanes (role separation within one organization). Returns recommendation with confidence and reasoning. ' +
-    "'redistribute' — rebalance element placement across existing lanes. Equivalent to the former redistribute_bpmn_elements_across_lanes tool. " +
+    "'redistribute' — rebalance element placement across existing lanes. " +
     'Supports strategy (role-based, balance, minimize-crossings, manual), dryRun, validate, and reposition options.',
   inputSchema: {
     type: 'object',

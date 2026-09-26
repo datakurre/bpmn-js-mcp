@@ -190,7 +190,7 @@ const PROMPTS: PromptDefinition[] = [
             `improve non-orthogonal flows; a low \`qualityMetrics.orthogonalFlowPercent\` usually ` +
             `reflects the diagram's topology. Use \`layout_bpmn_diagram\` with \`labelsOnly: true\` ` +
             `after structural changes to reposition gateway labels onto their flow-free side ` +
-            `without moving other elements. → \`autosize_bpmn_pools_and_lanes\`\n` +
+            `without moving other elements. → \`layout_bpmn_diagram\` with \`autosizeOnly: true\`\n` +
             `5. \`validate_bpmn_diagram\` → fix issues\n` +
             `6. \`export_bpmn\` with \`filePath\` to save` +
             BOUNDARY_EVENT_GUIDANCE +
@@ -244,7 +244,7 @@ const PROMPTS: PromptDefinition[] = [
             `2. \`create_bpmn_participant\` with multiple expanded pools\n` +
             `3. Build each pool's internal flow using \`batch_bpmn_operations\`\n` +
             `4. \`connect_bpmn_elements\` for message flows between pools\n` +
-            `5. \`layout_bpmn_diagram\` → \`autosize_bpmn_pools_and_lanes\`\n` +
+            `5. \`layout_bpmn_diagram\` (auto-resizes pools; pass \`autosizeOnly: true\` to only resize)\n` +
             `6. \`export_bpmn\` with \`filePath\` and \`skipLint: true\` to save ` +
             `(non-executable diagrams may trigger lint warnings)` +
             SHARED_EFFICIENCY_GUIDELINES +

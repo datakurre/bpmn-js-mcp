@@ -301,8 +301,8 @@ function buildNextSteps(
         description: `Lane coherence score is ${laneCrossingMetrics.laneCoherenceScore}% (below 70%). Run analyze_bpmn_lanes with mode: 'validate' for detailed lane improvement suggestions.`,
       });
       steps.push({
-        tool: 'redistribute_bpmn_elements_across_lanes',
-        description: `Lane coherence is low (${laneCrossingMetrics.laneCoherenceScore}%). Run redistribute_bpmn_elements_across_lanes with validate: true to automatically minimize cross-lane flows.`,
+        tool: 'analyze_bpmn_lanes',
+        description: `Lane coherence is low (${laneCrossingMetrics.laneCoherenceScore}%). Run analyze_bpmn_lanes with mode: 'redistribute' and validate: true to automatically minimize cross-lane flows.`,
       });
     }
   }
@@ -310,13 +310,13 @@ function buildNextSteps(
   const poolIssues = sizingIssues.filter((i) => i.severity === 'warning');
   if (poolIssues.length > 0 && !poolExpansionApplied) {
     steps.push({
-      tool: 'autosize_bpmn_pools_and_lanes',
+      tool: 'layout_bpmn_diagram',
       description:
         `${poolIssues.length} pool(s) need resizing: ` +
         poolIssues
           .map((i) => `${i.containerName} → ${i.recommendedWidth}×${i.recommendedHeight}px`)
           .join(', ') +
-        '. Run autosize_bpmn_pools_and_lanes to fix automatically, or use move_bpmn_element with width/height for manual control.',
+        '. Run layout_bpmn_diagram with autosizeOnly: true to fix automatically, or use move_bpmn_element with width/height for manual control.',
     });
   }
 

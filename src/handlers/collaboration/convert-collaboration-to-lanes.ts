@@ -328,8 +328,8 @@ function buildConversionResult(
         description: 'Check lane organization quality and coherence (mode: validate)',
       },
       {
-        tool: 'redistribute_bpmn_elements_across_lanes',
-        description: 'Fine-tune element lane assignments if needed (strategy: manual)',
+        tool: 'analyze_bpmn_lanes',
+        description: 'Fine-tune element lane assignments if needed (mode: redistribute, strategy: manual)',
       },
     ],
   };

@@ -424,8 +424,7 @@ export const TOOL_DEFINITION = {
     'camunda:retryTimeCycle, isExpanded on SubProcess, and cancelActivity on BoundaryEvent (false = non-interrupting). ' +
     'See bpmn://guides/element-properties for the full property catalog by element type. ' +
     'For loop characteristics, use set_bpmn_loop_characteristics. ' +
-    'Supports optional elementType to replace the element type (e.g. bpmn:Task → bpmn:UserTask) — ' +
-    'equivalent to the former replace_bpmn_element tool.',
+    'Supports optional elementType to replace the element type (e.g. bpmn:Task → bpmn:UserTask).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -444,8 +443,7 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Optional element type to replace the element with (e.g. "bpmn:UserTask", "bpmn:ServiceTask"). ' +
-          'When provided, replaces the element type before setting properties. ' +
-          'Equivalent to the former replace_bpmn_element tool.',
+          'When provided, replaces the element type before setting properties.',
         enum: [
           'bpmn:Task',
           'bpmn:UserTask',

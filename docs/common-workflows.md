@@ -193,7 +193,7 @@ Create a pool with lanes and assign tasks to the appropriate lane.
                                       afterElementId: "<reviewId>" }
 5. add_bpmn_element              → { elementType: "bpmn:EndEvent", name: "Completed",
                                       afterElementId: "<approveId>" }
-6. wrap_bpmn_process_in_collaboration → { participants: [{ name: "Approval Process" }] }
+6. create_bpmn_participant       → { wrapExisting: true, name: "Approval Process" }
 7. create_bpmn_lanes             → { participantId: "<poolId>",
                                       lanes: [{ name: "Requester" }, { name: "Approver" }] }
 8. assign_bpmn_elements_to_lane  → { laneId: "<requesterId>",
@@ -214,7 +214,7 @@ Migrate an existing flat process into lanes without duplicating elements.
 
 ```
 1. list_bpmn_elements            → identify element IDs and their roles
-2. wrap_bpmn_process_in_collaboration → { participants: [{ name: "My Process" }] }
+2. create_bpmn_participant       → { wrapExisting: true, name: "My Process" }
 3. create_bpmn_lanes             → { participantId: "<poolId>",
                                       lanes: [
                                         { name: "Customer" },
@@ -232,7 +232,7 @@ Migrate an existing flat process into lanes without duplicating elements.
 
 **Key points:**
 
-- `wrap_bpmn_process_in_collaboration` preserves existing elements — no duplication.
+- `create_bpmn_participant` with `wrapExisting: true` preserves existing elements — no duplication.
 - Assign elements to lanes by **role** (Requester, Approver, Finance),
   not by task type (UserTask, ServiceTask).
 - Keep 2–3 lanes for readability. More than 4 usually means the process
@@ -243,12 +243,12 @@ Migrate an existing flat process into lanes without duplicating elements.
 
 ## 13. Create a cross-lane handoff
 
-Use `handoff_bpmn_to_lane` when one role passes work to another.
+Use `add_bpmn_element` with `fromElementId` + `toLaneId` when one role passes work to another.
 
 ```
-1. handoff_bpmn_to_lane          → { fromElementId: "<customerTaskId>",
+1. add_bpmn_element              → { elementType: "bpmn:UserTask",
+                                      fromElementId: "<customerTaskId>",
                                       toLaneId: "<supportLaneId>",
-                                      mode: "sequence",
                                       name: "Handle Request" }
 ```
 

@@ -53,7 +53,7 @@ export const TOOL_DEFINITION = {
     'When diagramId is provided, returns a lightweight summary: process name, element counts by type, ' +
     'participant/lane names, named elements, and connectivity stats. ' +
     'When both diagramId and compareWith are provided, returns a structured diff between the two diagrams ' +
-    '(additions, removals, and changes) — equivalent to the former diff_bpmn_diagrams tool.',
+    '(additions, removals, and changes).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -65,8 +65,7 @@ export const TOOL_DEFINITION = {
       compareWith: {
         type: 'string',
         description:
-          'Optional. When provided alongside diagramId, returns a structured diff between diagramId (base) and compareWith (changed). ' +
-          'Equivalent to the former diff_bpmn_diagrams tool.',
+          'Optional. When provided alongside diagramId, returns a structured diff between diagramId (base) and compareWith (changed).',
       },
     },
   },

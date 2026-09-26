@@ -72,8 +72,9 @@ export interface DiagramState {
   pinnedElements?: Set<string>;
   /**
    * Set of connection IDs whose waypoints have been manually set by the user
-   * (via set_bpmn_connection_waypoints). Layout preserves these waypoints
-   * and restores them after the pipeline. Full layout clears this set.
+   * (via connect_bpmn_elements with connectionId + waypoints). Layout
+   * preserves these waypoints and restores them after the pipeline. Full
+   * layout clears this set.
    */
   pinnedConnections?: Set<string>;
   /**

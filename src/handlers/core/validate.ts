@@ -113,8 +113,8 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'bpmn-mcp/parallel-gateway-merge-exclusive': {
-    tool: 'replace_bpmn_element',
-    args: { newType: 'bpmn:ExclusiveGateway' },
+    tool: 'set_bpmn_element_properties',
+    args: { elementType: 'bpmn:ExclusiveGateway' },
     requiresElementId: true,
   },
   'bpmn-mcp/empty-participant-with-lanes': {
