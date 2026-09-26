@@ -1,6 +1,13 @@
 /**
- * Export helper utilities shared between export.ts and other handlers.
+ * Export helper utilities shared between export.ts, export-media.ts, and
+ * other handlers.
  */
+
+import { tightenSvgViewBox } from 'bpmn-to-image';
+import { type ToolResult } from '../../types';
+import { exportFailedError } from '../../errors';
+import { getVisibleElements, getService } from '../helpers';
+import { lintDiagramFlat } from '../../linter';
 
 /**
  * Build an ID→index order map by parsing the process-definition section of
@@ -180,5 +187,152 @@ export function normalizePlaneElementOrder(xml: string): string {
     );
   } catch {
     return xml;
+  }
+}
+
+// ── Shared by export.ts and export-media.ts ────────────────────────────────
+
+/** Run lint and return blocking issues, or empty array on skip/failure. */
+export async function checkLintGate(
+  diagram: any,
+  skipLint: boolean,
+  lintMinSeverity: string
+): Promise<{ blocked: boolean; content?: ToolResult['content']; skipLintWarning?: string }> {
+  if (skipLint) {
+    try {
+      const issues = await lintDiagramFlat(diagram);
+      const errors = issues.filter((i) => i.severity === 'error');
+      if (errors.length > 0) {
+        const summary = errors
+          .slice(0, 5)
+          .map((i) => `[${i.rule}]${i.elementId ? ` ${i.elementId}` : ''}`)
+          .join(', ');
+        const suffix = errors.length > 5 ? `, ... (${errors.length} total)` : '';
+        return {
+          blocked: false,
+          skipLintWarning:
+            `⚠️ skipLint bypassed ${errors.length} error(s): ${summary}${suffix}. ` +
+            'The exported diagram may have structural issues. ' +
+            'Run validate_bpmn_diagram to review all issues.',
+        };
+      }
+    } catch {
+      // Lint failure is non-fatal when skipping
+    }
+    return { blocked: false };
+  }
+
+  try {
+    const issues = await lintDiagramFlat(diagram);
+    const blocking = issues.filter((i) =>
+      lintMinSeverity === 'warning'
+        ? i.severity === 'error' || i.severity === 'warning'
+        : i.severity === 'error'
+    );
+    if (blocking.length > 0) {
+      const lines = blocking.map(
+        (i) => `- [${i.rule}] ${i.message}${i.elementId ? ` (${i.elementId})` : ''}`
+      );
+      return {
+        blocked: true,
+        content: [
+          {
+            type: 'text',
+            text: [
+              `Export blocked: ${blocking.length} lint issue(s) at '${lintMinSeverity}' severity or above must be resolved first.`,
+              'Fix the issues below or re-export with skipLint: true.',
+              '',
+              ...lines,
+            ].join('\n'),
+          },
+        ],
+      };
+    }
+  } catch {
+    // Linting failure should not block export
+  }
+  return { blocked: false };
+}
+
+/**
+ * Remove duplicate BPMNShape and BPMNEdge elements from exported XML.
+ *
+ * Multiple operations (insert, layout, export) can occasionally create
+ * duplicate DI elements with the same `id` attribute. This function
+ * detects and removes the duplicates, keeping the last occurrence
+ * (which typically has the most up-to-date coordinates).
+ */
+export function deduplicateDiElements(xml: string): string {
+  if (!xml) return xml;
+
+  // Match BPMNShape and BPMNEdge elements with their id attributes
+  const diElementPattern =
+    /(<bpmndi:BPMN(?:Shape|Edge)\s+id="([^"]+)"[^>]*>[\s\S]*?<\/bpmndi:BPMN(?:Shape|Edge)>)/g;
+
+  const seen = new Map<string, { index: number; match: string }>();
+  const duplicateIndices: Array<{ start: number; length: number }> = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = diElementPattern.exec(xml)) !== null) {
+    const fullMatch = match[1];
+    const id = match[2];
+    const startIndex = match.index;
+
+    const existing = seen.get(id);
+    if (existing) {
+      // Mark the earlier occurrence for removal (keep the later one)
+      duplicateIndices.push({ start: existing.index, length: existing.match.length });
+    }
+    seen.set(id, { index: startIndex, match: fullMatch });
+  }
+
+  if (duplicateIndices.length === 0) return xml;
+
+  // Remove duplicates from end to start to preserve indices
+  duplicateIndices.sort((a, b) => b.start - a.start);
+  let result = xml;
+  for (const dup of duplicateIndices) {
+    // Also remove any trailing whitespace/newline after the duplicate
+    let endIndex = dup.start + dup.length;
+    while (endIndex < result.length && (result[endIndex] === '\n' || result[endIndex] === '\r')) {
+      endIndex++;
+    }
+    result = result.slice(0, dup.start) + result.slice(endIndex);
+  }
+
+  return result;
+}
+
+/**
+ * Validate that exported XML is well-formed by checking structure markers.
+ * Throws if the XML appears corrupted (e.g. from terminal heredoc corruption).
+ */
+export function validateXmlOutput(xml: string): void {
+  if (!xml || xml.length === 0) {
+    throw exportFailedError('Export produced empty XML output');
+  }
+  if (!xml.includes('</bpmn:definitions>') && !xml.includes('</definitions>')) {
+    throw exportFailedError(
+      'Export produced malformed XML: missing closing </bpmn:definitions> tag'
+    );
+  }
+}
+
+/**
+ * Adjust the SVG viewBox to tightly fit the diagram content, using the
+ * same `tightenSvgViewBox` helper (and default 10px padding) as the
+ * `includeImage` SVG produced by `create_bpmn_diagram`/`appendLintFeedback`,
+ * so all SVG output paths agree on the same viewBox. See ADR-022 for the
+ * bpmn-to-image dependency this delegates to.
+ */
+export function adjustSvgViewBox(svg: string, diagram: any): string {
+  if (!svg) return svg;
+
+  try {
+    const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+    const allElements = getVisibleElements(elementRegistry);
+    return tightenSvgViewBox(svg, allElements);
+  } catch {
+    return svg;
   }
 }

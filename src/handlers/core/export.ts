@@ -1,17 +1,16 @@
 /**
- * Unified handler for export_bpmn tool (XML and SVG).
+ * Unified handler for export_bpmn tool (XML, SVG, PNG, animated, HTML).
  *
  * Merges the former export_bpmn_xml, export_bpmn_svg, and
  * export_bpmn_subprocess tools into a single tool with a required
  * `format` parameter and an optional `elementId` for scoping to a
- * subprocess or participant.
+ * subprocess or participant (xml/svg/both only).
  *
  * Implicit lint: by default, export runs bpmnlint and appends error-level
  * issues to the response.  Set `skipLint: true` to bypass.
  */
 // @readonly
 
-import { tightenSvgViewBox } from 'bpmn-to-image';
 import { type ToolResult, type ToolContext } from '../../types';
 import { exportFailedError } from '../../errors';
 import {
@@ -22,148 +21,33 @@ import {
   getVisibleElements,
   getService,
 } from '../helpers';
-import { lintDiagramFlat } from '../../linter';
 import { handleScopedExport } from './export-scoped';
-import { normalizePlaneElementOrder } from './export-helpers';
+import {
+  normalizePlaneElementOrder,
+  checkLintGate,
+  deduplicateDiElements,
+  validateXmlOutput,
+  adjustSvgViewBox,
+} from './export-helpers';
+import { isMediaFormat, handleMediaExport, type MediaFormat } from './export-media';
 
 export interface ExportBpmnArgs {
   diagramId: string;
-  format: 'xml' | 'svg' | 'both';
+  format: 'xml' | 'svg' | 'both' | MediaFormat;
   skipLint?: boolean;
   lintMinSeverity?: 'error' | 'warning';
   elementId?: string;
   filePath?: string;
-}
-
-/** Run lint and return blocking issues, or empty array on skip/failure. */
-async function checkLintGate(
-  diagram: any,
-  skipLint: boolean,
-  lintMinSeverity: string
-): Promise<{ blocked: boolean; content?: ToolResult['content']; skipLintWarning?: string }> {
-  if (skipLint) {
-    try {
-      const issues = await lintDiagramFlat(diagram);
-      const errors = issues.filter((i) => i.severity === 'error');
-      if (errors.length > 0) {
-        const summary = errors
-          .slice(0, 5)
-          .map((i) => `[${i.rule}]${i.elementId ? ` ${i.elementId}` : ''}`)
-          .join(', ');
-        const suffix = errors.length > 5 ? `, ... (${errors.length} total)` : '';
-        return {
-          blocked: false,
-          skipLintWarning:
-            `⚠️ skipLint bypassed ${errors.length} error(s): ${summary}${suffix}. ` +
-            'The exported diagram may have structural issues. ' +
-            'Run validate_bpmn_diagram to review all issues.',
-        };
-      }
-    } catch {
-      // Lint failure is non-fatal when skipping
-    }
-    return { blocked: false };
-  }
-
-  try {
-    const issues = await lintDiagramFlat(diagram);
-    const blocking = issues.filter((i) =>
-      lintMinSeverity === 'warning'
-        ? i.severity === 'error' || i.severity === 'warning'
-        : i.severity === 'error'
-    );
-    if (blocking.length > 0) {
-      const lines = blocking.map(
-        (i) => `- [${i.rule}] ${i.message}${i.elementId ? ` (${i.elementId})` : ''}`
-      );
-      return {
-        blocked: true,
-        content: [
-          {
-            type: 'text',
-            text: [
-              `Export blocked: ${blocking.length} lint issue(s) at '${lintMinSeverity}' severity or above must be resolved first.`,
-              'Fix the issues below or re-export with skipLint: true.',
-              '',
-              ...lines,
-            ].join('\n'),
-          },
-        ],
-      };
-    }
-  } catch {
-    // Linting failure should not block export
-  }
-  return { blocked: false };
-}
-
-/**
- * Adjust the SVG viewBox to tightly fit the diagram content, using the
- * same `tightenSvgViewBox` helper (and default 10px padding) as the
- * `includeImage` SVG produced by `create_bpmn_diagram`/`appendLintFeedback`,
- * so all three SVG output paths agree on the same viewBox (ADR-018 in
- * agents/adrs covers earlier layout consolidation; see ADR-022 for the
- * bpmn-to-image dependency this delegates to).
- */
-function adjustSvgViewBox(svg: string, diagram: any): string {
-  if (!svg) return svg;
-
-  try {
-    const elementRegistry = getService(diagram.modeler, 'elementRegistry');
-    const allElements = getVisibleElements(elementRegistry);
-    return tightenSvgViewBox(svg, allElements);
-  } catch {
-    return svg;
-  }
-}
-
-/**
- * Remove duplicate BPMNShape and BPMNEdge elements from exported XML.
- *
- * Multiple operations (insert, layout, export) can occasionally create
- * duplicate DI elements with the same `id` attribute. This function
- * detects and removes the duplicates, keeping the last occurrence
- * (which typically has the most up-to-date coordinates).
- */
-function deduplicateDiElements(xml: string): string {
-  if (!xml) return xml;
-
-  // Match BPMNShape and BPMNEdge elements with their id attributes
-  const diElementPattern =
-    /(<bpmndi:BPMN(?:Shape|Edge)\s+id="([^"]+)"[^>]*>[\s\S]*?<\/bpmndi:BPMN(?:Shape|Edge)>)/g;
-
-  const seen = new Map<string, { index: number; match: string }>();
-  const duplicateIndices: Array<{ start: number; length: number }> = [];
-
-  let match: RegExpExecArray | null;
-  while ((match = diElementPattern.exec(xml)) !== null) {
-    const fullMatch = match[1];
-    const id = match[2];
-    const startIndex = match.index;
-
-    const existing = seen.get(id);
-    if (existing) {
-      // Mark the earlier occurrence for removal (keep the later one)
-      duplicateIndices.push({ start: existing.index, length: existing.match.length });
-    }
-    seen.set(id, { index: startIndex, match: fullMatch });
-  }
-
-  if (duplicateIndices.length === 0) return xml;
-
-  // Remove duplicates from end to start to preserve indices
-  duplicateIndices.sort((a, b) => b.start - a.start);
-  let result = xml;
-  for (const dup of duplicateIndices) {
-    // Also remove any trailing whitespace/newline after the duplicate
-    let endIndex = dup.start + dup.length;
-    while (endIndex < result.length && (result[endIndex] === '\n' || result[endIndex] === '\r')) {
-      endIndex++;
-    }
-    result = result.slice(0, dup.start) + result.slice(endIndex);
-  }
-
-  return result;
+  /** PNG/animated formats: pixel density multiplier. Default: 2 for PNG, 1 for animations. */
+  scale?: number;
+  /** PNG/animated/HTML formats: background color (CSS color string). Default: transparent. */
+  background?: string;
+  /** Animated formats (gif/apng/mp4/webp): TOML scenario steering token-simulation. Omit for the diagram's default scenario. */
+  scenario?: string;
+  /** Animated formats: frames per second. */
+  fps?: number;
+  /** gif format only: encoder to use. Default: 'auto' (ffmpeg when on PATH, else bundled gifenc). */
+  encoder?: 'auto' | 'gifenc' | 'ffmpeg';
 }
 
 /** Perform the actual XML/SVG export from the modeler. */
@@ -218,6 +102,20 @@ export async function handleExportBpmn(
   } = args;
   const diagram = requireDiagram(diagramId);
 
+  if (isMediaFormat(format)) {
+    if (!filePath) {
+      throw exportFailedError(
+        `format '${format}' produces binary/large output and must be written to a file — pass filePath.`
+      );
+    }
+    if (elementId) {
+      throw exportFailedError(
+        `format '${format}' is not supported together with elementId (subprocess/participant scoped export). Export the full diagram instead.`
+      );
+    }
+    return handleMediaExport(diagram, format, args, filePath, context);
+  }
+
   // Scoped export (subprocess / participant)
   if (elementId) return handleScopedExport(diagram, elementId, format);
 
@@ -264,21 +162,6 @@ export async function handleExportBpmn(
 }
 
 // ── Layout quality warnings ──────────────────────────────────────────────
-
-/**
- * Validate that exported XML is well-formed by checking structure markers.
- * Throws if the XML appears corrupted (e.g. from terminal heredoc corruption).
- */
-function validateXmlOutput(xml: string): void {
-  if (!xml || xml.length === 0) {
-    throw exportFailedError('Export produced empty XML output');
-  }
-  if (!xml.includes('</bpmn:definitions>') && !xml.includes('</definitions>')) {
-    throw exportFailedError(
-      'Export produced malformed XML: missing closing </bpmn:definitions> tag'
-    );
-  }
-}
 
 /**
  * Detect layout issues (overlapping elements, missing layout) and return
@@ -354,23 +237,28 @@ function boundsOverlap(a: any, b: any): boolean {
 export const TOOL_DEFINITION = {
   name: 'export_bpmn',
   description:
-    'Export a BPMN diagram as XML or SVG and write it to a file. By default, runs bpmnlint and blocks export if there are error-level lint issues. Set skipLint to true to bypass validation. Optionally scope to a subprocess or participant via elementId. ' +
+    'Export a BPMN diagram as XML, SVG, PNG, an animated GIF/APNG/MP4/WebP, or a standalone interactive HTML embed, and write it to a file. By default, runs bpmnlint and blocks export if there are error-level lint issues. Set skipLint to true to bypass validation. Optionally scope to a subprocess or participant via elementId (xml/svg/both only). ' +
     "Use format 'both' to get XML and SVG in a single call. " +
-    'The exported content is also returned in the response.',
+    'PNG/animated/HTML formats always write to filePath (required for those formats) rather than inlining. ' +
+    "Animated formats render token-simulation driven by an optional TOML scenario (see the executable-Camunda-7 guide resource); omit scenario to use the diagram's own default. " +
+    'gif/apng/mp4/webp/html require optional dependencies (gifenc or ffmpeg for encoding, smol-toml for scenario parsing) — errors name the missing one. ' +
+    'The exported text content is also returned in the response (binary/HTML formats return a confirmation only).',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
       format: {
         type: 'string',
-        enum: ['xml', 'svg', 'both'],
+        enum: ['xml', 'svg', 'both', 'png', 'gif', 'apng', 'mp4', 'webp', 'html'],
         description:
-          "The export format: 'xml' for BPMN XML, 'svg' for SVG image, 'both' for XML and SVG in one call",
+          "The export format: 'xml' for BPMN XML, 'svg' for SVG image, 'both' for XML and SVG in one call, " +
+          "'png' for a static image, 'gif'/'apng'/'mp4'/'webp' for an animated token-simulation, " +
+          "'html' for a standalone interactive embed.",
       },
       filePath: {
         type: 'string',
         description:
-          "File path to write the exported content to. For 'both' format, writes the XML portion. Directories are created automatically.",
+          "File path to write the exported content to. For 'both' format, writes the XML portion. Required for png/gif/apng/mp4/webp/html. Directories are created automatically.",
       },
       skipLint: {
         type: 'boolean',
@@ -386,7 +274,32 @@ export const TOOL_DEFINITION = {
       elementId: {
         type: 'string',
         description:
-          'Optional ID of a SubProcess or Participant to export as a standalone diagram. When provided, lint gating is skipped.',
+          'Optional ID of a SubProcess or Participant to export as a standalone diagram (xml/svg/both only). When provided, lint gating is skipped.',
+      },
+      scale: {
+        type: 'number',
+        description:
+          'png/animated formats: pixel density multiplier. Default: 2 for png, 1 for animations.',
+      },
+      background: {
+        type: 'string',
+        description:
+          'png/animated/html formats: background color (CSS color string, e.g. "white"). Default: transparent.',
+      },
+      scenario: {
+        type: 'string',
+        description:
+          "gif/apng/mp4/webp only: TOML scenario steering token-simulation (which gateway branches/events fire, and when). Omit to render the diagram's own default scenario.",
+      },
+      fps: {
+        type: 'number',
+        description: 'gif/apng/mp4/webp only: rendered animation frame rate.',
+      },
+      encoder: {
+        type: 'string',
+        enum: ['auto', 'gifenc', 'ffmpeg'],
+        description:
+          "gif format only: 'auto' (default) prefers ffmpeg when on PATH for better quality, else the bundled gifenc.",
       },
     },
     required: ['diagramId', 'format', 'filePath'],

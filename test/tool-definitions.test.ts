@@ -151,7 +151,17 @@ describe('tool-definitions', () => {
     const tool = TOOL_DEFINITIONS.find((t) => t.name === 'export_bpmn');
     const schema = getSchema(tool);
     expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'format', 'filePath']));
-    expect(schema.properties!.format.enum).toEqual(['xml', 'svg', 'both']);
+    expect(schema.properties!.format.enum).toEqual([
+      'xml',
+      'svg',
+      'both',
+      'png',
+      'gif',
+      'apng',
+      'mp4',
+      'webp',
+      'html',
+    ]);
   });
 
   test('connect_bpmn_elements has connectionType and conditionExpression params', () => {
@@ -309,7 +319,10 @@ describe('tool-definitions', () => {
     test('no tool schema embeds an examples array (moved to bpmn:// guide resources)', () => {
       for (const tool of TOOL_DEFINITIONS) {
         const schema = getSchema(tool);
-        expect((schema as any).examples, `${tool.name} still has an examples array`).toBeUndefined();
+        expect(
+          (schema as any).examples,
+          `${tool.name} still has an examples array`
+        ).toBeUndefined();
       }
     });
   });
