@@ -5,8 +5,20 @@
  * response appends ImageContent items for the requested formats.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleCreateDiagram, handleAddElement, handleConnect } from '../../../src/handlers';
+import {
+  handleCreateDiagram,
+  handleAddElement,
+  handleConnect,
+  handleExportBpmn,
+} from '../../../src/handlers';
 import { parseResult, clearDiagrams } from '../../helpers';
+
+/** Extract the `viewBox="..."` attribute value from an SVG string. */
+function extractViewBox(svg: string): string {
+  const match = svg.match(/viewBox="([^"]+)"/);
+  if (!match) throw new Error('SVG has no viewBox attribute');
+  return match[1];
+}
 
 describe('includeImage option on create_bpmn_diagram', () => {
   beforeEach(() => {
@@ -173,5 +185,51 @@ describe('includeImage option on create_bpmn_diagram', () => {
     const imageItem = connectResult.content.find((c: any) => c.type === 'image');
     expect(imageItem).toBeDefined();
     expect((imageItem as any).mimeType).toBe('image/png');
+  });
+
+  // ADR-022: export_bpmn's SVG, create_bpmn_diagram's includeImage SVG, and a
+  // mutating tool's includeImage SVG all tighten the viewBox through the same
+  // bpmn-to-image helper, so they must agree on the same diagram state.
+  test('viewBox is identical across export_bpmn SVG and includeImage SVG', async () => {
+    const createResult = await handleCreateDiagram({ includeImage: ['svg'] });
+    const { diagramId } = parseResult(createResult);
+    const createSvgItem = createResult.content.find(
+      (c: any) => c.type === 'image' && c.mimeType === 'image/svg+xml'
+    ) as any;
+    const createSvg = Buffer.from(createSvgItem.data, 'base64').toString('utf-8');
+
+    const startRes = parseResult(
+      await handleAddElement({ diagramId, elementType: 'bpmn:StartEvent', name: 'Start' })
+    );
+    const taskRes = parseResult(
+      await handleAddElement({ diagramId, elementType: 'bpmn:UserTask', name: 'Task' })
+    );
+    const endRes = parseResult(
+      await handleAddElement({ diagramId, elementType: 'bpmn:EndEvent', name: 'End' })
+    );
+    await handleConnect({
+      diagramId,
+      sourceElementId: startRes.elementId,
+      targetElementId: taskRes.elementId,
+    });
+    const finalConnectResult = await handleConnect({
+      diagramId,
+      sourceElementId: taskRes.elementId,
+      targetElementId: endRes.elementId,
+    });
+
+    const mutatingSvgItem = finalConnectResult.content.find(
+      (c: any) => c.type === 'image' && c.mimeType === 'image/svg+xml'
+    ) as any;
+    const mutatingSvg = Buffer.from(mutatingSvgItem.data, 'base64').toString('utf-8');
+
+    const exportResult = await handleExportBpmn({ diagramId, format: 'svg', skipLint: true });
+    const exportSvg = exportResult.content[0].text!;
+
+    // The empty-process create() viewBox necessarily differs (less content),
+    // but the final mutating includeImage SVG and export_bpmn SVG describe
+    // the exact same diagram state and must produce the same viewBox.
+    expect(extractViewBox(mutatingSvg)).toBe(extractViewBox(exportSvg));
+    expect(createSvg).toContain('viewBox=');
   });
 });

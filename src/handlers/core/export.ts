@@ -11,6 +11,7 @@
  */
 // @readonly
 
+import { tightenSvgViewBox } from 'bpmn-to-image';
 import { type ToolResult, type ToolContext } from '../../types';
 import { exportFailedError } from '../../errors';
 import {
@@ -96,17 +97,13 @@ async function checkLintGate(
   return { blocked: false };
 }
 
-/** Padding (px) around diagram content in exported SVG. */
-const SVG_PADDING = 5;
-
 /**
- * Adjust the SVG viewBox to tightly fit the diagram content with
- * consistent padding.  Computes the bounding box from the element
- * registry (all shapes + labels + connection waypoints) and sets
- * the viewBox to `(minX-pad, minY-pad, width+2*pad, height+2*pad)`.
- *
- * This matches the reference convention where SVG viewBoxes preserve
- * the BPMN DI coordinate space with 5px padding on all sides.
+ * Adjust the SVG viewBox to tightly fit the diagram content, using the
+ * same `tightenSvgViewBox` helper (and default 10px padding) as the
+ * `includeImage` SVG produced by `create_bpmn_diagram`/`appendLintFeedback`,
+ * so all three SVG output paths agree on the same viewBox (ADR-018 in
+ * agents/adrs covers earlier layout consolidation; see ADR-022 for the
+ * bpmn-to-image dependency this delegates to).
  */
 function adjustSvgViewBox(svg: string, diagram: any): string {
   if (!svg) return svg;
@@ -114,63 +111,9 @@ function adjustSvgViewBox(svg: string, diagram: any): string {
   try {
     const elementRegistry = getService(diagram.modeler, 'elementRegistry');
     const allElements = getVisibleElements(elementRegistry);
-    const bounds = computeDiagramBounds(allElements);
-
-    if (!bounds) return svg;
-
-    const vbX = Math.round(bounds.minX - SVG_PADDING);
-    const vbY = Math.round(bounds.minY - SVG_PADDING);
-    const vbW = Math.round(bounds.maxX - bounds.minX + 2 * SVG_PADDING);
-    const vbH = Math.round(bounds.maxY - bounds.minY + 2 * SVG_PADDING);
-
-    return svg.replace(/viewBox="[^"]*"/, `viewBox="${vbX} ${vbY} ${vbW} ${vbH}"`);
+    return tightenSvgViewBox(svg, allElements);
   } catch {
     return svg;
-  }
-}
-
-/** Compute the tight bounding box of all diagram elements, labels, and waypoints. */
-function computeDiagramBounds(
-  elements: any[]
-): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  let minX = Infinity,
-    minY = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity;
-
-  for (const el of elements) {
-    expandBoundsForShape(el);
-    expandBoundsForLabel(el);
-    expandBoundsForWaypoints(el);
-  }
-
-  if (minX === Infinity) return null;
-  return { minX, minY, maxX, maxY };
-
-  function expandBoundsForShape(el: any): void {
-    if (el.x === undefined || el.y === undefined) return;
-    update(el.x, el.y, el.x + (el.width || 0), el.y + (el.height || 0));
-  }
-
-  function expandBoundsForLabel(el: any): void {
-    if (!el.label || el.label.x === undefined || el.label.y === undefined) return;
-    const lx = el.label.x,
-      ly = el.label.y;
-    update(lx, ly, lx + (el.label.width || 90), ly + (el.label.height || 20));
-  }
-
-  function expandBoundsForWaypoints(el: any): void {
-    if (!el.waypoints) return;
-    for (const wp of el.waypoints) {
-      update(wp.x, wp.y, wp.x, wp.y);
-    }
-  }
-
-  function update(x1: number, y1: number, x2: number, y2: number): void {
-    if (x1 < minX) minX = x1;
-    if (y1 < minY) minY = y1;
-    if (x2 > maxX) maxX = x2;
-    if (y2 > maxY) maxY = y2;
   }
 }
 
