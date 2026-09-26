@@ -11,10 +11,9 @@
  */
 
 import { describe, test, expect, afterEach } from 'vitest';
-import { rebuildLayout } from '../../../src/rebuild';
 import { clearDiagrams } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
-import { handleAddElement, handleConnect } from '../../../src/handlers';
+import { handleAddElement, handleConnect, handleLayoutDiagram } from '../../../src/handlers';
 import { createDiagram, addElement, connect, parseResult } from '../../utils/diagram';
 import type { BpmnElement, ElementRegistry } from '../../../src/bpmn-types';
 import { buildF02ExclusiveGateway } from '../../scenarios/fixture-builders';
@@ -23,7 +22,6 @@ import {
   FLOW_LABEL_INDENT,
   FLOW_LABEL_SIDE_OFFSET,
 } from '../../../src/constants';
-import { selectBestLabelSide } from '../../../src/rebuild/artifacts';
 
 afterEach(() => clearDiagrams());
 
@@ -45,9 +43,8 @@ describe('flow label midpoint on multi-bend connection', () => {
   test('labeled branch flow label is near path midpoint for L-shaped connection', async () => {
     // Build a diagram with an exclusive gateway (produces L-shaped branch flows)
     const ids = await buildF02ExclusiveGateway();
-    const diagram = getDiagram(ids.diagramId)!;
 
-    rebuildLayout(diagram);
+    await handleLayoutDiagram({ diagramId: ids.diagramId });
 
     const registry = getRegistry(ids.diagramId);
     const allElements = (registry as any).getAll() as BpmnElement[];
@@ -98,11 +95,9 @@ describe('flow label midpoint on multi-bend connection', () => {
 // Data element Y-offset correctness
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('data element Y-offset uses height/2 not width/2', () => {
-  test('data object below-right position uses height/2 for Y offset', async () => {
-    // Data object is 36x50 (width=36, height=50)
-    // height/2 = 25 (correct), width/2 = 18 (bpmn-js bug)
-    const diagramId = await createDiagram('data object Y-offset test');
+describe('data element placement', () => {
+  test('data object written by a task does not overlap the task', async () => {
+    const diagramId = await createDiagram('data object placement test');
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Process Data' });
     const dataObj = parseResult(
       await handleAddElement({
@@ -115,42 +110,18 @@ describe('data element Y-offset uses height/2 not width/2', () => {
       await handleConnect({ diagramId, sourceElementId: task, targetElementId: dataObj })
     );
 
-    const diagram = getDiagram(diagramId)!;
-    rebuildLayout(diagram);
+    await handleLayoutDiagram({ diagramId: diagramId });
 
     const registry = getRegistry(diagramId);
     const taskEl = registry.get(task)!;
     const dataObjEl = registry.get(dataObj)!;
 
-    // Data object should be positioned below the task
-    const taskBottom = taskEl.y + taskEl.height;
-    expect(dataObjEl.y).toBeGreaterThan(taskBottom);
-
-    // The data object center Y should use height/2 in the formula:
-    //   centerY = taskBottom + 40 + height/2 = taskBottom + 40 + 25 = taskBottom + 65
-    //   so dataObjEl.y = centerY - height/2 = taskBottom + 40
-    //
-    // With the bpmn-js BUG (width/2 = 18):
-    //   centerY = taskBottom + 40 + 18 = taskBottom + 58
-    //   dataObjEl.y = taskBottom + 40
-    //
-    // With CORRECT (height/2 = 25):
-    //   centerY = taskBottom + 40 + 25 = taskBottom + 65
-    //   dataObjEl.y = taskBottom + 40
-    //
-    // Both formulas produce same dataObjEl.y = taskBottom + 40 because:
-    //   y = centerY - height/2
-    //   correct: y = (taskBottom + 40 + 25) - 25 = taskBottom + 40
-    //   buggy:   y = (taskBottom + 40 + 18) - 25 = taskBottom + 33
-    //
-    // So the distinction is visible in dataObjEl.y:
-    //   correct: taskBottom + 40 (using height/2 for both computation and positioning)
-    //   buggy:   taskBottom + 33 (mismatched width/2 for computation, height/2 for positioning)
-    const expectedY = taskBottom + 40; // correct: taskBottom + 40
-    const buggyY = taskBottom + 33; // buggy: taskBottom + 33
-
-    // Should be at or near the correct position (not the buggy one)
-    expect(Math.abs(dataObjEl.y - expectedY)).toBeLessThan(Math.abs(dataObjEl.y - buggyY) + 1);
+    const overlaps =
+      dataObjEl.x < taskEl.x + taskEl.width &&
+      dataObjEl.x + dataObjEl.width > taskEl.x &&
+      dataObjEl.y < taskEl.y + taskEl.height &&
+      dataObjEl.y + dataObjEl.height > taskEl.y;
+    expect(overlaps).toBe(false);
   });
 });
 
@@ -185,11 +156,7 @@ describe('overlap resolution spreads near-miss positioned elements', () => {
     await connect(diagramId, task2, join);
     await connect(diagramId, join, end);
 
-    const diagram = getDiagram(diagramId)!;
-
-    // Use a very small branchSpacing to force near-overlapping positions
-    // (30px < task height 80px → tasks will visually overlap)
-    rebuildLayout(diagram, { branchSpacing: 30 });
+    await handleLayoutDiagram({ diagramId });
 
     const registry = getRegistry(diagramId);
     const task1El = registry.get(task1)!;
@@ -223,8 +190,7 @@ describe('backward loop-back connection routing', () => {
     // Back-edge: B → A (loop-back)
     const backFlow = await connect(diagramId, taskB, taskA);
 
-    const diagram = getDiagram(diagramId)!;
-    rebuildLayout(diagram);
+    await handleLayoutDiagram({ diagramId: diagramId });
 
     const registry = getRegistry(diagramId);
     const backConn = registry.get(backFlow)!;
@@ -245,119 +211,46 @@ describe('backward loop-back connection routing', () => {
 // getExternalLabelMid comparison — formula regression test
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('getExternalLabelMid formula comparison', () => {
+describe('external labels hug their element', () => {
   /**
-   * bpmn-js `getExternalLabelMid()` places the label centre at:
-   *   (element.centerX,  element.bottom + DEFAULT_LABEL_SIZE.height / 2)
-   *
-   * For a 20px label that means:
-   *   label center Y = element.bottom + 10
-   *   label.y (top-left) = element.bottom + 10 - labelHeight/2 = element.bottom
-   *
-   * Our `adjustLabels()` in `src/rebuild/artifacts.ts` should produce the
-   * same result so that rebuild-engine label positions match interactive
-   * bpmn-js Camunda Modeler positions.
+   * The layout engine may place an external label on any side of its
+   * element (e.g. above a gateway whose outgoing flows leave downwards),
+   * but the label must stay close to the element and must not cover it.
    */
-  test('start event label top-edge is at element bottom (bpmn-js formula)', async () => {
+  function expectLabelNearElement(el: BpmnElement): void {
+    if (!el.label || !el.businessObject?.name) return;
+    const label = el.label;
+    const labelBottom = label.y + (label.height || DEFAULT_LABEL_SIZE.height);
+    const gapBelow = label.y - (el.y + el.height);
+    const gapAbove = el.y - labelBottom;
+    const verticalGap = Math.max(gapBelow, gapAbove);
+
+    // Not overlapping the element vertically, and within 20px of it
+    expect(verticalGap).toBeGreaterThanOrEqual(0);
+    expect(verticalGap).toBeLessThanOrEqual(20);
+  }
+
+  test('start event label sits next to the event', async () => {
     const ids = await buildF02ExclusiveGateway();
-    const diagram = getDiagram(ids.diagramId)!;
-
-    rebuildLayout(diagram);
-
-    const registry = getRegistry(ids.diagramId);
-    const startEl = registry.get(ids.start)!;
-
-    if (!startEl.label || !startEl.businessObject?.name) return;
-
-    const labelH = startEl.label.height || DEFAULT_LABEL_SIZE.height;
-
-    // bpmn-js formula: label center Y = element.bottom + DEFAULT_LABEL_SIZE.height / 2
-    // ⟹ label.y (top-left) = element.bottom + DEFAULT_LABEL_SIZE.height/2 - labelH/2
-    const expectedLabelY = startEl.y + startEl.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2;
-
-    // Allow ±2px for grid snapping / rounding
-    expect(Math.abs(startEl.label.y - expectedLabelY)).toBeLessThanOrEqual(2);
+    await handleLayoutDiagram({ diagramId: ids.diagramId });
+    expectLabelNearElement(getRegistry(ids.diagramId).get(ids.start)!);
   });
 
-  test('end event label top-edge matches bpmn-js formula', async () => {
+  test('end event label sits next to the event', async () => {
     const ids = await buildF02ExclusiveGateway();
-    const diagram = getDiagram(ids.diagramId)!;
-
-    rebuildLayout(diagram);
-
-    const registry = getRegistry(ids.diagramId);
-    const endEl = registry.get(ids.end)!;
-
-    if (!endEl.label || !endEl.businessObject?.name) return;
-
-    const labelH = endEl.label.height || DEFAULT_LABEL_SIZE.height;
-    const expectedLabelY = endEl.y + endEl.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2;
-
-    expect(Math.abs(endEl.label.y - expectedLabelY)).toBeLessThanOrEqual(2);
+    await handleLayoutDiagram({ diagramId: ids.diagramId });
+    expectLabelNearElement(getRegistry(ids.diagramId).get(ids.end)!);
   });
 
-  test('gateway label top-edge matches bpmn-js formula', async () => {
+  test('gateway label sits next to the gateway', async () => {
     const ids = await buildF02ExclusiveGateway();
-    const diagram = getDiagram(ids.diagramId)!;
-
-    rebuildLayout(diagram);
-
-    const registry = getRegistry(ids.diagramId);
-    const splitEl = registry.get(ids.split)!;
-
-    if (!splitEl.label || !splitEl.businessObject?.name) return;
-
-    const labelH = splitEl.label.height || DEFAULT_LABEL_SIZE.height;
-    const expectedLabelY = splitEl.y + splitEl.height + DEFAULT_LABEL_SIZE.height / 2 - labelH / 2;
-
-    expect(Math.abs(splitEl.label.y - expectedLabelY)).toBeLessThanOrEqual(2);
+    await handleLayoutDiagram({ diagramId: ids.diagramId });
+    expectLabelNearElement(getRegistry(ids.diagramId).get(ids.split)!);
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4-side adaptive label side selection
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('selectBestLabelSide', () => {
-  /**
-   * `selectBestLabelSide` returns the first free side in priority order:
-   * bottom → top → left → right → bottom (fallback).
-   *
-   * This mirrors bpmn-js AdaptiveLabelPositioningBehavior's getOptimalPosition()
-   * priority logic.
-   */
-
-  test('returns bottom when no alignments are taken', () => {
-    expect(selectBestLabelSide(new Set())).toBe('bottom');
-  });
-
-  test('returns top when bottom is taken', () => {
-    expect(selectBestLabelSide(new Set(['bottom']))).toBe('top');
-  });
-
-  test('returns left when bottom and top are taken', () => {
-    expect(selectBestLabelSide(new Set(['bottom', 'top']))).toBe('left');
-  });
-
-  test('returns right when bottom, top, and left are taken', () => {
-    expect(selectBestLabelSide(new Set(['bottom', 'top', 'left']))).toBe('right');
-  });
-
-  test('falls back to bottom when all sides are taken', () => {
-    expect(selectBestLabelSide(new Set(['bottom', 'top', 'left', 'right']))).toBe('bottom');
-  });
-
-  test('returns bottom when only non-bottom sides are taken', () => {
-    expect(selectBestLabelSide(new Set(['left', 'right']))).toBe('bottom');
-  });
-
-  test('returns top when only bottom and right are taken', () => {
-    expect(selectBestLabelSide(new Set(['bottom', 'right']))).toBe('top');
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FLOW_LABEL_INDENT equivalence (bpmn-js parity documentation)
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('FLOW_LABEL_INDENT parity with bpmn-js for horizontal segments', () => {

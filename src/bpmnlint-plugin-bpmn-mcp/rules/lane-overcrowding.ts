@@ -2,9 +2,9 @@
  * Custom bpmnlint rule: lane-overcrowding
  *
  * Warns when a lane contains more elements than can comfortably fit given
- * its height. Uses a density heuristic: each flow node needs approximately
- * 80px of vertical space (element height + spacing). If the lane height
- * is insufficient for the assigned elements, this rule fires.
+ * its height. The number of rows is counted from the elements' DI (elements
+ * whose vertical extents overlap share a row); without DI it is estimated
+ * as ceil(sqrt(N)).  Each row needs roughly 40px plus the lane margins.
  *
  * Only applies to processes that have at least 2 lanes.
  *
@@ -36,9 +36,9 @@ function countLanes(laneSets: any[]): number {
 }
 
 /**
- * Get lane height from DI.
+ * Get the DI bounds of an element.
  */
-function getLaneHeight(laneId: string, definitions: any): number | undefined {
+function getShapeBounds(elementId: string, definitions: any): any {
   const diagrams = definitions?.diagrams;
   if (!diagrams) return undefined;
 
@@ -47,12 +47,37 @@ function getLaneHeight(laneId: string, definitions: any): number | undefined {
     if (!plane?.planeElement) continue;
 
     for (const el of plane.planeElement) {
-      if (isType(el, 'bpmndi:BPMNShape') && el.bpmnElement?.id === laneId) {
-        return el.bounds?.height;
+      if (isType(el, 'bpmndi:BPMNShape') && el.bpmnElement?.id === elementId) {
+        return el.bounds;
       }
     }
   }
   return undefined;
+}
+
+/**
+ * Count the rows the lane's elements occupy, grouping elements whose
+ * vertical extents overlap.  Falls back to ceil(sqrt(N)) without DI.
+ */
+function countRows(lane: any, elementCount: number, definitions: any): number {
+  const extents = (lane.flowNodeRef || [])
+    .map((ref: any) => getShapeBounds(typeof ref === 'string' ? ref : ref.id, definitions))
+    .filter(Boolean)
+    .map((b: any) => ({ top: b.y, bottom: b.y + b.height }))
+    .sort((a: any, b: any) => a.top - b.top);
+  if (extents.length === 0) return Math.max(1, Math.ceil(Math.sqrt(elementCount)));
+
+  let rows = 1;
+  let rowBottom = extents[0].bottom;
+  for (const e of extents.slice(1)) {
+    if (e.top < rowBottom) {
+      rowBottom = Math.max(rowBottom, e.bottom);
+    } else {
+      rows++;
+      rowBottom = e.bottom;
+    }
+  }
+  return rows;
 }
 
 /**
@@ -99,15 +124,11 @@ export default function laneOvercrowding() {
         const elementCount = laneCounts.get(lane.id) || 0;
         if (elementCount === 0) continue;
 
-        const laneHeight = definitions ? getLaneHeight(lane.id, definitions) : undefined;
+        const laneHeight = definitions ? getShapeBounds(lane.id, definitions)?.height : undefined;
         if (laneHeight === undefined) continue;
 
-        // Calculate minimum height needed for the elements.
-        // Elements in a lane are typically arranged horizontally in rows.
-        // Use sqrt(elementCount) as an estimate of the number of rows needed,
-        // since each additional element in a horizontal flow adds minimal vertical space.
-        // This avoids false positives when many elements share a row (common after layout).
-        const estimatedRows = Math.max(1, Math.ceil(Math.sqrt(elementCount)));
+        // Minimum height for the rows of elements the lane actually holds.
+        const estimatedRows = countRows(lane, elementCount, definitions);
         const minHeight = Math.max(
           MIN_LANE_HEIGHT,
           estimatedRows * VERTICAL_SPACE_PER_ELEMENT + 2 * LANE_MARGIN

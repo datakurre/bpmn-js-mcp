@@ -18,8 +18,11 @@ interface Bounds {
   height: number;
 }
 
-/** Minimum margin between element extent and pool edge (pixels). */
-const MIN_MARGIN = 30;
+/**
+ * Minimum margin between element extent and pool edge (pixels).
+ * The layout engine pads pools and lanes by ~20px around their content.
+ */
+const MIN_MARGIN = 15;
 
 /**
  * Find the BPMNShape DI for a given element ID and return its bounds.

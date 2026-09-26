@@ -1,25 +1,21 @@
 /**
  * Handler for layout_diagram tool.
  *
- * Uses the rebuild-based layout engine that repositions elements using
- * topology-driven placement with bpmn-js native positioning.
+ * Delegates layout to the `bpmn-auto-layout` library (see src/auto-layout.ts)
+ * and applies the generated DI to the modeler as a single undoable command.
  *
- * Supports pinned element skipping, pre/post-processing (DI repair,
- * grid snap, pool autosize, labels), and dry-run previews.
+ * Supports whole-diagram layout, scoped layout of one participant or
+ * subprocess, layout of an arbitrary element subset, pinned element
+ * skipping, pre/post-processing (DI repair, grid snap, pool autosize,
+ * labels), and dry-run previews.
  */
 // @mutating
 
 import { type ToolResult, type ToolContext, type DiagramState } from '../../types';
-import {
-  requireDiagram,
-  jsonResult,
-  syncXml,
-  getVisibleElements,
-  getService,
-  isCollaboration,
-} from '../helpers';
+import { requireDiagram, jsonResult, syncXml, getVisibleElements, getService } from '../helpers';
 import { appendLintFeedback, resetMutationCounter } from '../../linter';
 import { adjustDiagramLabels, centerFlowLabels } from './labels/adjust-labels';
+import { autoLayoutDiagram } from '../../auto-layout';
 import {
   applyPixelGridSnap,
   checkDiIntegrity,
@@ -30,9 +26,6 @@ import {
 } from './layout-helpers';
 import { handleAutosizePoolsAndLanes } from '../collaboration/autosize-pools-and-lanes';
 import { expandCollapsedSubprocesses } from './expand-subprocesses';
-import { rebuildLayout, applyAllBackEdgeUShapes } from '../../rebuild';
-import { straightenNonOrthogonalFlows } from '../../rebuild/waypoints';
-import { stackPools } from '../../rebuild/container-layout';
 import {
   generateDiagramId,
   storeDiagram,
@@ -153,6 +146,12 @@ export interface LayoutDiagramArgs {
   diagramId: string;
   /** Optional ID of a Participant or SubProcess to layout in isolation. */
   scopeElementId?: string;
+  /**
+   * Optional list of sibling flow element IDs to layout in isolation.
+   * The subset is laid out on its own and keeps its current top-left corner;
+   * connections to the rest of the diagram are re-routed.
+   */
+  elementIds?: string[];
   /** Pixel grid snap: snap element positions to the nearest multiple of this value. */
   gridSnap?: number;
   /** When true, preview layout changes without applying them. */
@@ -181,59 +180,28 @@ export interface LayoutDiagramArgs {
   autosizeOnly?: boolean;
   /** When autosizeOnly is true, scope pool resizing to this participant ID. */
   participantId?: string;
-  /**
-   * When false, disable the post-layout pass that replaces non-orthogonal
-   * (Z-shaped or diagonal) forward sequence-flow waypoints with clean
-   * L-shaped or 2-point straight paths.
-   *
-   * Works in full layout mode (runs after rebuild + connection routing)
-   * and in labelsOnly mode (standalone routing cleanup without moving elements).
-   * Default: true (always-on).
-   */
-  straightenFlows?: boolean;
 }
 
 /** Handle labels-only mode: just adjust labels without full layout. */
-async function handleLabelsOnlyMode(
-  diagramId: string,
-  opts?: { straightenFlows?: boolean }
-): Promise<ToolResult> {
+async function handleLabelsOnlyMode(diagramId: string): Promise<ToolResult> {
   const diagram = requireDiagram(diagramId);
   const flowLabelsCentered = await centerFlowLabels(diagram);
   const elementLabelsMoved = await adjustDiagramLabels(diagram);
   const totalMoved = flowLabelsCentered + elementLabelsMoved;
-
-  let straightenedFlowCount = 0;
-  if (opts?.straightenFlows !== false) {
-    const elementRegistry = getService(diagram.modeler, 'elementRegistry');
-    const modeling = getService(diagram.modeler, 'modeling');
-    straightenedFlowCount = straightenNonOrthogonalFlows(elementRegistry.getAll(), modeling);
-    if (straightenedFlowCount > 0) await syncXml(diagram);
-  }
 
   return jsonResult({
     success: true,
     flowLabelsCentered,
     elementLabelsMoved,
     totalMoved,
-    ...(opts?.straightenFlows !== false ? { straightenedFlowCount } : {}),
     message:
-      totalMoved > 0 || straightenedFlowCount > 0
-        ? [
-            totalMoved > 0
-              ? `Adjusted ${totalMoved} label(s) to reduce overlap (${elementLabelsMoved} element labels, ${flowLabelsCentered} flow labels centered)`
-              : null,
-            straightenedFlowCount > 0
-              ? `Straightened ${straightenedFlowCount} non-orthogonal flow(s) to L-shape/straight paths`
-              : null,
-          ]
-            .filter(Boolean)
-            .join('. ')
+      totalMoved > 0
+        ? `Adjusted ${totalMoved} label(s) to reduce overlap (${elementLabelsMoved} element labels, ${flowLabelsCentered} flow labels centered)`
         : 'No label adjustments needed \u2014 all labels are well-positioned',
   });
 }
 
-/** Perform a dry-run layout: clone → rebuild → diff → discard clone. */
+/** Perform a dry-run layout: clone → layout → diff → discard clone. */
 async function handleDryRunLayout(args: LayoutDiagramArgs): Promise<ToolResult> {
   const { diagramId } = args;
   const diagram = requireDiagram(diagramId);
@@ -255,9 +223,12 @@ async function handleDryRunLayout(args: LayoutDiagramArgs): Promise<ToolResult> 
       }
     }
 
-    // Run rebuild layout on the clone (pass gridSnap for forward-pass alignment)
+    // Run auto-layout on the clone
     const pixelGridSnap = typeof args.gridSnap === 'number' ? args.gridSnap : undefined;
-    rebuildLayout(tempDiagram, { gridSnap: pixelGridSnap });
+    await autoLayoutDiagram(tempDiagram, {
+      scopeElementId: args.scopeElementId,
+      elementIds: args.elementIds,
+    });
 
     if (pixelGridSnap && pixelGridSnap > 0) applyPixelGridSnap(tempDiagram, pixelGridSnap);
 
@@ -365,23 +336,17 @@ function buildNextSteps(
   return steps;
 }
 
-/** Run labels adjustment (center flow labels + adjust element labels). */
-async function adjustAllLabels(diagram: DiagramState): Promise<number> {
-  const flowLabelsCentered = await centerFlowLabels(diagram);
-  const elLabelsMoved = await adjustDiagramLabels(diagram);
-  return flowLabelsCentered + elLabelsMoved;
-}
-
-/** Auto-resize pools/lanes if needed, returns whether resizing was applied. */
+/**
+ * Resize pools/lanes after layout when explicitly requested.
+ * The layout library already sizes pools and lanes to fit their contents,
+ * so this only runs with `poolExpansion: true`.
+ */
 async function autosizePools(
   args: LayoutDiagramArgs,
   diagram: DiagramState,
   elementRegistry: any
 ): Promise<boolean> {
-  const shouldAutosize =
-    args.poolExpansion === true ||
-    (args.poolExpansion === undefined && isCollaboration(elementRegistry));
-  if (!shouldAutosize) return false;
+  if (args.poolExpansion !== true) return false;
 
   const poolResult = await handleAutosizePoolsAndLanes({ diagramId: args.diagramId });
   const poolData = JSON.parse(poolResult.content[0].text as string);
@@ -389,9 +354,6 @@ async function autosizePools(
   if (applied) {
     const modeling = getService(diagram.modeler, 'modeling');
     alignCollapsedPoolsAfterAutosize(elementRegistry, modeling);
-    // Re-stack pools to fix gaps after height changes from autosizing
-    const pools = elementRegistry.filter((el: any) => el.type === 'bpmn:Participant');
-    if (pools.length >= 2) stackPools(pools, modeling, 30);
   }
   return applied;
 }
@@ -500,6 +462,7 @@ function fixStaleAssocWaypoints(diagram: any): {
 function buildLayoutResponse(opts: {
   diagramId: string;
   scopeElementId?: string;
+  elementIds?: string[];
   elementCount: number;
   labelsMoved: number;
   result: { repositionedCount: number; reroutedCount: number };
@@ -509,8 +472,7 @@ function buildLayoutResponse(opts: {
   diWarnings: string[];
   poolExpansionApplied: boolean;
   subprocessesExpanded: number;
-  boundaryEventWarning?: string;
-  straightenedFlowCount?: number;
+  layoutWarnings: string[];
   gatewayFlowFixes?: Array<{ flowId: string; tool: string; args: Record<string, any> }>;
   associationWaypointsFixed?: number;
   fixedAssociationIds?: string[];
@@ -518,6 +480,7 @@ function buildLayoutResponse(opts: {
   const {
     diagramId,
     scopeElementId,
+    elementIds,
     elementCount,
     labelsMoved,
     result,
@@ -527,16 +490,16 @@ function buildLayoutResponse(opts: {
     diWarnings,
     poolExpansionApplied,
     subprocessesExpanded,
-    boundaryEventWarning,
-    straightenedFlowCount,
+    layoutWarnings,
     gatewayFlowFixes,
     associationWaypointsFixed,
     fixedAssociationIds,
   } = opts;
 
-  const scopeNote = scopeElementId
-    ? 'Message flows crossing the scope boundary were not re-routed. Run a full layout (without scopeElementId) or use set_bpmn_connection_waypoints to fix any displaced message flow waypoints.'
-    : undefined;
+  const scopeNote =
+    scopeElementId || elementIds?.length
+      ? 'Connections crossing the layout boundary were re-routed with a default path, and the laid-out part may now overlap neighbouring elements. Run a full layout (without scopeElementId/elementIds) if the result looks crowded.'
+      : undefined;
 
   return jsonResult({
     success: true,
@@ -544,9 +507,8 @@ function buildLayoutResponse(opts: {
     labelsMoved,
     repositionedCount: result.repositionedCount,
     reroutedCount: result.reroutedCount,
-    ...(straightenedFlowCount ? { straightenedFlowCount } : {}),
     ...buildAssocWaypointsBlock(associationWaypointsFixed, fixedAssociationIds),
-    ...(boundaryEventWarning ? { boundaryEventWarning } : {}),
+    ...(layoutWarnings.length > 0 ? { layoutWarnings } : {}),
     ...buildLaneCrossingBlock(laneCrossingMetrics),
     ...(sizingIssues.length > 0 ? { containerSizingIssues: sizingIssues } : {}),
     qualityMetrics,
@@ -555,8 +517,9 @@ function buildLayoutResponse(opts: {
       : {}),
     ...(gatewayFlowFixes && gatewayFlowFixes.length > 0 ? { gatewayFlowFixes } : {}),
     message:
-      `Rebuild layout applied to diagram ${diagramId}` +
+      `Auto-layout applied to diagram ${diagramId}` +
       `${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}` +
+      `${elementIds?.length ? ` (limited to ${elementIds.length} element(s))` : ''}` +
       ` — ${elementCount} elements arranged, ${result.repositionedCount} repositioned, ${result.reroutedCount} connections re-routed`,
     ...(scopeNote ? { scopeNote } : {}),
     ...(diWarnings.length > 0 ? { diWarnings } : {}),
@@ -596,57 +559,17 @@ function validateScopeElement(diagram: any, scopeElementId: string): void {
   }
 }
 
-/**
- * Determine whether pool autosize will run after layout.
- * Used to skip the redundant internal resize in rebuildLayout (task 7b).
- */
-function shouldAutosizePools(args: LayoutDiagramArgs, diagram: any): boolean {
-  if (args.poolExpansion === false) return false;
+/** Validate the elementIds argument — throws if invalid. */
+function validateElementIds(diagram: any, args: LayoutDiagramArgs): void {
+  if (!args.elementIds?.length) return;
+  if (args.scopeElementId) {
+    throw new Error('Pass either scopeElementId or elementIds, not both');
+  }
   const registry = getService(diagram.modeler, 'elementRegistry');
-  return args.poolExpansion === true || isCollaboration(registry);
-}
-
-/**
- * Apply the optional post-layout straightening pass.
- * Replaces non-orthogonal forward-flow waypoints with clean L-shapes.
- * Returns the count of straightened connections (added to reroutedCount).
- * Runs by default; pass straightenFlows: false to disable.
- * Passes the modeling service to ensure DI is synced via updateWaypoints().
- */
-function applyPostLayoutStraighten(args: LayoutDiagramArgs, diagram: any): number {
-  if (args.straightenFlows === false) return 0;
-  const allElements = getService(diagram.modeler, 'elementRegistry').getAll();
-  const modeling = getService(diagram.modeler, 'modeling');
-  return straightenNonOrthogonalFlows(allElements, modeling);
-}
-
-/** Compute boundary-event warning text (or undefined when none present). */
-function computeBoundaryWarning(elementRegistry: any): string | undefined {
-  const count = elementRegistry
-    .getAll()
-    .filter((el: any) => el.type === 'bpmn:BoundaryEvent').length;
-  if (count === 0) return undefined;
-  return (
-    `\u26a0 This diagram has ${count} boundary event(s). ` +
-    `Full layout repositions them relative to their host tasks — verify positions after layout. ` +
-    `Use labelsOnly: true for label-only cleanup, or scopeElementId to scope layout to one participant.`
-  );
-}
-
-/**
- * Re-route U-shaped back-edges and re-straighten flows after pool autosize.
- * Pool autosize re-routes connections via MoveShapeHandler.postExecute which
- * can produce Z-shaped waypoints; this pass restores orthogonality.
- */
-function applyPoolExpansionReRouting(
-  args: LayoutDiagramArgs,
-  diagram: any,
-  elementRegistry: any,
-  result: any
-): void {
-  const modeling = getService(diagram.modeler, 'modeling');
-  result.reroutedCount += applyAllBackEdgeUShapes(elementRegistry, modeling);
-  result.reroutedCount += applyPostLayoutStraighten(args, diagram);
+  const missing = args.elementIds.filter((id) => !registry.get(id));
+  if (missing.length > 0) {
+    throw new Error(`Elements not found in diagram: ${missing.join(', ')}`);
+  }
 }
 
 export async function handleLayoutDiagram(
@@ -661,68 +584,46 @@ export async function handleLayoutDiagram(
     const data = JSON.parse(result.content[0].text as string);
     return jsonResult({ ...data, autosizeOnly: true });
   }
-  if (args.labelsOnly) {
-    return handleLabelsOnlyMode(args.diagramId, { straightenFlows: args.straightenFlows });
-  }
+  if (args.labelsOnly) return handleLabelsOnlyMode(args.diagramId);
+
+  const { diagramId, scopeElementId, elementIds } = args;
+  const diagram = requireDiagram(diagramId);
+  validateElementIds(diagram, args);
+  if (scopeElementId) validateScopeElement(diagram, scopeElementId);
+
   if (args.dryRun) return handleDryRunLayout(args);
 
-  const { diagramId, scopeElementId } = args;
-  const diagram = requireDiagram(diagramId);
   const progress = context?.sendProgress;
-
-  if (scopeElementId) validateScopeElement(diagram, scopeElementId);
 
   await progress?.(0, 100, 'Preparing layout…');
   const subprocessesExpanded = args.expandSubprocesses ? expandCollapsedSubprocesses(diagram) : 0;
   const preRepairs = repairMissingDiShapes(diagram);
-  const boundaryEventWarning = computeBoundaryWarning(
-    getService(diagram.modeler, 'elementRegistry')
-  );
 
-  // Determine whether pool autosize will run after layout (task 7b):
-  // when poolExpansion is enabled (or auto-detected), `handleAutosizePoolsAndLanes`
-  // will resize pools/lanes — skip the redundant internal resize in rebuildLayout.
-  const willAutosize = shouldAutosizePools(args, diagram);
-
-  await progress?.(10, 100, 'Running rebuild layout…');
-  const pixelGridSnap = typeof args.gridSnap === 'number' ? args.gridSnap : undefined;
-  const result = rebuildLayout(diagram, {
+  await progress?.(10, 100, 'Running auto-layout…');
+  const isPartial = !!scopeElementId || !!elementIds?.length;
+  const result = await autoLayoutDiagram(diagram, {
+    scopeElementId,
+    elementIds,
     pinnedElementIds: diagram.pinnedElements,
-    skipPoolResize: willAutosize,
-    // Pass gridSnap into the rebuild engine so snapLeft() uses the configured
-    // grid during the forward pass (not only as a post-processing step).
-    gridSnap: pixelGridSnap,
   });
 
   await progress?.(60, 100, 'Post-processing layout…');
-  // applyPixelGridSnap is still applied after rebuild to snap Y coordinates
-  // (which are not aligned by snapLeft()) and to handle any residual drift
-  // from boundary-event and pool-resize operations.
+  const pixelGridSnap = typeof args.gridSnap === 'number' ? args.gridSnap : undefined;
   if (pixelGridSnap) applyPixelGridSnap(diagram, pixelGridSnap);
   deduplicateDiInModeler(diagram);
 
-  // DI integrity check + post-layout repair (task 6b):
-  // Re-run repairMissingDiShapes after layout to recover any pool/lane/flow DI shapes
-  // that may have been lost or invalidated by element repositioning (e.g. jsdom
-  // headless polyfill inconsistencies with resizeShape on stale element references).
+  // Re-run repairMissingDiShapes after layout to recover any DI shapes
+  // that may have been lost or invalidated by element repositioning.
   const postRepairs = repairMissingDiShapes(diagram);
   const allRepairs = [...preRepairs, ...postRepairs];
 
-  if (!scopeElementId) {
+  if (!isPartial) {
     diagram.pinnedElements = undefined;
     diagram.pinnedConnections = undefined;
   }
 
-  // Post-layout straightening: replace non-orthogonal forward flows with
-  // clean L-shape / 2-point straight paths after all routing is settled.
-  // Runs before syncXml so the corrected waypoints are captured in diagram.xml.
-  const straightenedFlowCount = applyPostLayoutStraighten(args, diagram);
-  result.reroutedCount += straightenedFlowCount;
-
-  // Recompute stale association waypoints after element repositioning.
-  // modeling.layoutConnection() skips bpmn:Association, so association
-  // waypoints created at connection-time may be far outside their connected
-  // element bounds after layout moves the elements.
+  // Safety net for associations whose waypoints were not produced by the
+  // layout library (e.g. outside the laid-out subset).
   const { assocCount, assocIds } = fixStaleAssocWaypoints(diagram);
   result.reroutedCount += assocCount;
 
@@ -731,14 +632,8 @@ export async function handleLayoutDiagram(
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
-  await progress?.(70, 100, 'Adjusting labels…');
-  const labelsMoved = await adjustAllLabels(diagram);
-
   await progress?.(85, 100, 'Resizing pools…');
   const poolExpansionApplied = await autosizePools(args, diagram, elementRegistry);
-
-  // Re-apply U-shaped back-edge routing and re-straighten flows after pool autosize.
-  if (poolExpansionApplied) applyPoolExpansionReRouting(args, diagram, elementRegistry, result);
 
   const finalQualityMetrics = computeLayoutQualityMetrics(elementRegistry);
   const nonOrthIds = finalQualityMetrics.nonOrthogonalFlowIds ?? [];
@@ -746,8 +641,9 @@ export async function handleLayoutDiagram(
   const layoutResult = buildLayoutResponse({
     diagramId,
     scopeElementId,
+    elementIds,
     elementCount: countFlowElements(elementRegistry),
-    labelsMoved,
+    labelsMoved: 0,
     result,
     laneCrossingMetrics: computeLaneCrossingMetrics(elementRegistry),
     sizingIssues: detectContainerSizingIssues(elementRegistry),
@@ -755,8 +651,7 @@ export async function handleLayoutDiagram(
     diWarnings: [...allRepairs, ...checkDiIntegrity(diagram, elementRegistry)],
     poolExpansionApplied,
     subprocessesExpanded,
-    boundaryEventWarning,
-    straightenedFlowCount,
+    layoutWarnings: result.warnings.map((w) => w.message),
     gatewayFlowFixes:
       nonOrthIds.length > 0
         ? buildGatewayFlowFixes(diagramId, nonOrthIds, elementRegistry)

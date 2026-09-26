@@ -113,20 +113,32 @@ export function clearDiagrams(): void {
 /** Shared moddle-extensions option used by every modeler instance. */
 const moddleExtensions = { camunda: camundaModdle };
 
-/** Create a fresh BpmnModeler initialised with the default blank diagram. */
-export async function createModeler(): Promise<any> {
+/**
+ * Instantiate a headless BpmnModeler.
+ *
+ * Interactive label direct-editing is disabled: bpmn-js opens an editing
+ * session after `autoPlace`/`create`, and the next canvas event completes
+ * it with an `element.updateLabel` command — which throws when that event
+ * fires in the middle of another command's execution.
+ */
+function newModeler(): any {
   const container = createHeadlessCanvas();
   const BpmnModeler = getBpmnModeler();
   const modeler = new BpmnModeler({ container, moddleExtensions });
+  modeler.get('directEditing').activate = () => false;
+  return modeler;
+}
+
+/** Create a fresh BpmnModeler initialised with the default blank diagram. */
+export async function createModeler(): Promise<any> {
+  const modeler = newModeler();
   await modeler.importXML(INITIAL_XML);
   return modeler;
 }
 
 /** Create a BpmnModeler and import the supplied XML into it. */
 export async function createModelerFromXml(xml: string): Promise<any> {
-  const container = createHeadlessCanvas();
-  const BpmnModeler = getBpmnModeler();
-  const modeler = new BpmnModeler({ container, moddleExtensions });
+  const modeler = newModeler();
   await modeler.importXML(xml);
   return modeler;
 }

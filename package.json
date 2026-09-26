@@ -12,7 +12,6 @@
     "start": "node dist/index.js",
     "eval": "node dist/eval-cli.js",
     "eval:ci": "node dist/eval-cli.js --failBelowScore 70",
-    "agent-loop": "node dist/agent-loop-cli.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src/ test/",
@@ -46,8 +45,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@resvg/resvg-js": "^2.6.2",
-    "bpmn-auto-layout": "^1.2.0",
-    "bpmn-js": "^18.8.0",
+    "bpmn-auto-layout": "github:datakurre/bpmn-auto-layout",
+    "bpmn-js": "^18.28.0",
     "bpmnlint": "^11.10.0",
     "bpmnlint-plugin-camunda-compat": "^2.47.0",
     "camunda-bpmn-moddle": "^7.0.1",

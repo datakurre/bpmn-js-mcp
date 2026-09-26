@@ -128,13 +128,20 @@ describe('layout_bpmn_diagram — pool auto-resize', () => {
     const poolAAfter = reg.get(poolA);
     const poolBAfter = reg.get(poolB);
 
-    // Pool A has more elements, so it should be wider than pool B
-    // (or at least different from the default 600)
+    // Pools are resized to their content (not left at the default 600)
     expect(poolAAfter.width).not.toBe(poolAWidthBefore);
     expect(poolBAfter.width).not.toBe(poolBWidthBefore);
 
-    // Pool A (5 elements) should be wider than pool B (3 elements)
-    expect(poolAAfter.width).toBeGreaterThan(poolBAfter.width);
+    // Every flow node sits inside its pool
+    for (const pool of [poolAAfter, poolBAfter]) {
+      for (const child of pool.children.filter((c: any) => c.type !== 'label' && !c.waypoints)) {
+        if (child.type === 'bpmn:Lane') continue;
+        expect(child.x).toBeGreaterThanOrEqual(pool.x);
+        expect(child.y).toBeGreaterThanOrEqual(pool.y);
+        expect(child.x + child.width).toBeLessThanOrEqual(pool.x + pool.width);
+        expect(child.y + child.height).toBeLessThanOrEqual(pool.y + pool.height);
+      }
+    }
 
     // Both pools should have reasonable heights (not the default 250 if content is smaller)
     expect(poolAAfter.height).toBeGreaterThan(0);
