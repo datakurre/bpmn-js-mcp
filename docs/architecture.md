@@ -44,14 +44,6 @@ graph TD
         lib["bpmn-auto-layout (npm)"]
     end
 
-    subgraph "Eval (tooling, not MCP)"
-        evalcli["eval-cli.ts"]
-        evaltypes["eval/types.ts"]
-        scenarios["eval/scenarios.ts"]
-        score["eval/score.ts"]
-        runeval["eval/run-eval.ts"]
-    end
-
     index --> bpmnmod
     bpmnmod --> mod
     bpmnmod --> hindex
@@ -86,21 +78,9 @@ graph TD
     autolayout --> lib
     autolayout --> bpmntypes
 
-    evalcli --> runeval
-    runeval --> scenarios
-    runeval --> score
-    runeval --> evaltypes
-    scenarios --> hindex
-    score --> evaltypes
-
     style lintplugin fill:#e8f5e9
     style autolayout fill:#e8f5e9
     style autolayoutinput fill:#e8f5e9
-    style evalcli fill:#fff3e0
-    style evaltypes fill:#fff3e0
-    style scenarios fill:#fff3e0
-    style score fill:#fff3e0
-    style runeval fill:#fff3e0
 ```
 
 ## Module Boundaries
@@ -165,9 +145,6 @@ Allowed dependency direction: top → bottom
 | `src/auto-layout.ts`            | Bridge to `bpmn-auto-layout`: runs the library and applies its DI as one undoable command      |
 | `src/auto-layout-input.ts`      | Prepares library input: boundary-event lane sync, element-subset extraction                    |
 | `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                    |
-| `src/eval/`                     | Layout quality scoring harness: scenario builders, metrics, and `run-eval.ts` orchestrator     |
-| `src/eval/scenarios.ts`         | Deterministic BPMN scenario builders used for eval and CI scoring                              |
-| `src/eval/score.ts`             | Layout quality scoring algorithm (overlaps, crossings, spacing, orthogonality, etc.)           |
 
 ## Where to Put New Code
 

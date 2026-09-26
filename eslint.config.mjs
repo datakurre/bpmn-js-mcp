@@ -135,16 +135,6 @@ export default tseslint.config(
     },
   },
 
-  // ── Eval scoring — algorithmic layout quality metrics ────────────────────
-  {
-    files: ['src/eval/score.ts'],
-    rules: {
-      'max-lines': 'off',
-      complexity: 'off',
-      'sonarjs/cognitive-complexity': 'off',
-    },
-  },
-
   // ── ELK layout engine — algorithmic code with inherent complexity ────────
   {
     files: ['src/elk/**/*.ts'],
@@ -210,17 +200,6 @@ export default tseslint.config(
           ],
         },
       ],
-    },
-  },
-
-  // ── Eval scenarios — scenario builders are inherently long ─────────────
-  {
-    files: ['src/eval/scenarios.ts'],
-    rules: {
-      // Scenario builders describe full diagrams; 80-line limit is impractical.
-      'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
-      // The scenarios file grows with each new scenario.
-      'max-lines': 'off',
     },
   },
 

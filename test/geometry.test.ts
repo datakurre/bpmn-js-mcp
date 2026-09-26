@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { rectsOverlap, rectsNearby, segmentIntersectsRect } from '../src/geometry';
+import { rectsOverlap, rectsNearby, segmentIntersectsRect } from './utils/geometry';
 
 describe('geometry', () => {
   describe('rectsOverlap', () => {

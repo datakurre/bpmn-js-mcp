@@ -246,7 +246,6 @@ Node.js **≥ 18** is required.
 src/handlers/      tool handlers, one file per tool domain
 src/auto-layout*.ts  bridge to the bpmn-auto-layout library (full, scoped and subset layout)
 src/bpmnlint-plugin-bpmn-mcp/  custom lint rules
-src/eval/          layout quality scoring harness
 test/              Vitest tests mirroring src/ structure
 docs/              architecture, best practices, ADRs
 agents/adrs/       Architecture Decision Records

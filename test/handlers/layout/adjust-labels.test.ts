@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAdjustLabels } from '../../../src/handlers/layout/labels/adjust-labels-handler';
 import { adjustDiagramLabels } from '../../../src/handlers/layout/labels/adjust-labels';
-import { rectsOverlap } from '../../../src/geometry';
+import { rectsOverlap } from '../../utils/geometry';
 import { handleLayoutDiagram } from '../../../src/handlers/layout/layout-diagram';
 
 import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../../helpers';

@@ -1,4 +1,4 @@
-.PHONY: help install build typecheck lint check format format-check watch start clean prepare test test-watch coverage bundle-size eval eval-ci all
+.PHONY: help install build typecheck lint check format format-check watch start clean prepare test test-watch coverage bundle-size all
 
 # Default target
 help:
@@ -17,8 +17,6 @@ help:
 	@echo "  make test-watch   - Run tests in watch mode"
 	@echo "  make coverage     - Run tests with coverage report"
 	@echo "  make bundle-size  - Report dist/index.js bundle size"
-	@echo "  make eval         - Generate layout score report + artifacts"
-	@echo "  make eval-ci      - Run eval with a minimum score gate"
 	@echo "  make clean        - Remove dist/ and node_modules/"
 	@echo "  make all          - Install and build"
 
@@ -81,14 +79,6 @@ coverage: node_modules
 # Report bundle size after building
 bundle-size: build
 	@npm run bundle-size --silent
-
-# Generate deterministic evaluation diagrams + score report
-eval: build
-	npm run eval
-
-# CI gate for regression detection (tune the threshold as the scorer evolves)
-eval-ci: build
-	npm run eval:ci
 
 # Clean build artifacts
 clean:
