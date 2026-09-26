@@ -255,11 +255,24 @@ describe('Compensation handler positioning (G2)', () => {
       connectionType: 'bpmn:Association',
     });
 
-    // Run layout — stale association waypoints should be detected and fixed
+    // Run layout — the association must be re-routed along with its elements
     const layoutResult = await handleLayoutDiagram({ diagramId });
     const resultData = parseResult(layoutResult);
+    expect(resultData.success).toBe(true);
 
-    // The response should report that 1 association had stale waypoints fixed
-    expect(resultData.associationWaypointsFixed).toBeGreaterThan(0);
+    // Every association's endpoints must touch its source and target
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
+    const near = (p: any, el: any) =>
+      p.x >= el.x - 20 &&
+      p.x <= el.x + el.width + 20 &&
+      p.y >= el.y - 20 &&
+      p.y <= el.y + el.height + 20;
+    const associations = reg.filter((el: any) => el.type === 'bpmn:Association');
+    expect(associations.length).toBeGreaterThan(0);
+    for (const assoc of associations) {
+      const wps = assoc.waypoints;
+      expect(near(wps[0], assoc.source)).toBe(true);
+      expect(near(wps[wps.length - 1], assoc.target)).toBe(true);
+    }
   });
 });

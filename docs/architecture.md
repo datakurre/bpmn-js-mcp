@@ -38,19 +38,18 @@ graph TD
         helpers["handlers/helpers.ts"]
     end
 
-    subgraph "Layout Engine"
-        rebuild["rebuild/engine.ts"]
-        rebuildcore["rebuild/ internals"]
+    subgraph "Layout"
+        autolayout["auto-layout.ts"]
+        autolayoutinput["auto-layout-input.ts"]
+        lib["bpmn-auto-layout (npm)"]
     end
 
-    subgraph "Eval & Agent Loop (tooling, not MCP)"
+    subgraph "Eval (tooling, not MCP)"
         evalcli["eval-cli.ts"]
-        agentcli["agent-loop-cli.ts"]
         evaltypes["eval/types.ts"]
         scenarios["eval/scenarios.ts"]
         score["eval/score.ts"]
         runeval["eval/run-eval.ts"]
-        agentloop["agent-loop-*.ts"]
     end
 
     index --> bpmnmod
@@ -65,7 +64,7 @@ graph TD
     handlers --> linter
     handlers --> dm
     handlers --> persist
-    handlers --> rebuild
+    handlers --> autolayout
 
     helpers --> dm
     helpers --> persist
@@ -83,42 +82,38 @@ graph TD
 
     persist --> dm
 
-    rebuild --> rebuildcore
-    rebuildcore --> types
-    rebuildcore --> bpmntypes
+    autolayout --> autolayoutinput
+    autolayout --> lib
+    autolayout --> bpmntypes
 
     evalcli --> runeval
-    agentcli --> agentloop
     runeval --> scenarios
     runeval --> score
     runeval --> evaltypes
     scenarios --> hindex
     score --> evaltypes
-    agentloop --> evaltypes
 
     style lintplugin fill:#e8f5e9
-    style rebuildcore fill:#e8f5e9
-    style rebuild fill:#e8f5e9
+    style autolayout fill:#e8f5e9
+    style autolayoutinput fill:#e8f5e9
     style evalcli fill:#fff3e0
-    style agentcli fill:#fff3e0
     style evaltypes fill:#fff3e0
     style scenarios fill:#fff3e0
     style score fill:#fff3e0
     style runeval fill:#fff3e0
-    style agentloop fill:#fff3e0
 ```
 
 ## Module Boundaries
 
 The project enforces strict dependency boundaries (via ESLint `no-restricted-imports`):
 
-| Module                          | May import from                             | Must NOT import from                     |
-| ------------------------------- | ------------------------------------------- | ---------------------------------------- |
-| `src/rebuild/`                  | `types.ts`, `bpmn-types.ts`, `constants.ts` | `handlers/`, `bpmnlint-plugin-bpmn-mcp/` |
-| `src/bpmnlint-plugin-bpmn-mcp/` | `bpmnlint`                                  | `handlers/`, `rebuild/`                  |
-| `src/handlers/`                 | Everything above                            | _(no restrictions)_                      |
+| Module                          | May import from                                 | Must NOT import from                     |
+| ------------------------------- | ----------------------------------------------- | ---------------------------------------- |
+| `src/auto-layout*.ts`           | `types.ts`, `bpmn-types.ts`, `bpmn-auto-layout` | `handlers/`, `bpmnlint-plugin-bpmn-mcp/` |
+| `src/bpmnlint-plugin-bpmn-mcp/` | `bpmnlint`                                      | `handlers/`                              |
+| `src/handlers/`                 | Everything above                                | _(no restrictions)_                      |
 
-These rules keep `rebuild/` and `bpmnlint-plugin-bpmn-mcp/` as independent leaf modules that can be extracted into separate packages if needed.
+These rules keep the layout bridge and `bpmnlint-plugin-bpmn-mcp/` as independent leaf modules. The layout algorithm itself lives in the external [`bpmn-auto-layout`](https://github.com/datakurre/bpmn-auto-layout) package.
 
 ## Dependency Flow
 
@@ -131,7 +126,7 @@ Allowed dependency direction: top → bottom
            │
     handlers/*.ts
       │    │    │
-      │    │    └──► rebuild/engine.ts ──► rebuild/ internals
+      │    │    └──► auto-layout.ts ──► bpmn-auto-layout (npm)
       │    │
       │    └──► linter.ts ──► bpmnlint-plugin-bpmn-mcp/
       │
@@ -167,13 +162,12 @@ Allowed dependency direction: top → bottom
 | `src/handlers/properties/`      | Property setters: set-properties, set-input-output, set-event-definition, set-form-data, etc.  |
 | `src/handlers/layout/`          | Layout & alignment: layout-diagram, align-elements, label adjustment                           |
 | `src/handlers/collaboration/`   | Collaboration: create-participant, create-lanes, assign-to-lane, wrap-process, handoff, etc.   |
-| `src/rebuild/`                  | Rebuild-based layout engine — topology-driven positioning using bpmn-js native AutoPlace       |
-| `src/rebuild/engine.ts`         | Main layout entry point: topological walk + positioning                                        |
+| `src/auto-layout.ts`            | Bridge to `bpmn-auto-layout`: runs the library and applies its DI as one undoable command      |
+| `src/auto-layout-input.ts`      | Prepares library input: boundary-event lane sync, element-subset extraction                    |
 | `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                    |
 | `src/eval/`                     | Layout quality scoring harness: scenario builders, metrics, and `run-eval.ts` orchestrator     |
 | `src/eval/scenarios.ts`         | Deterministic BPMN scenario builders used for eval and CI scoring                              |
 | `src/eval/score.ts`             | Layout quality scoring algorithm (overlaps, crossings, spacing, orthogonality, etc.)           |
-| `src/agent-loop-*.ts`           | Agent-loop CLI: iterative "eval → AI patch → test → keep/revert" automation harness            |
 
 ## Where to Put New Code
 
@@ -189,7 +183,8 @@ A shared handler utility             → src/handlers/helpers.ts barrel
 
 A new bpmnlint rule                  → src/bpmnlint-plugin-bpmn-mcp/rules/
 
-A layout algorithm improvement       → src/rebuild/
+A layout algorithm improvement       → github.com/datakurre/bpmn-auto-layout
+How layout results are applied       → src/auto-layout.ts
 
 A new bpmn-js type/interface         → src/bpmn-types.ts
 
@@ -215,6 +210,6 @@ A polyfill for headless bpmn-js      → src/headless-polyfills.ts
 
 7. **Export lint gate** — `export_bpmn` blocks export when error-level lint issues exist, unless `skipLint: true` is passed.
 
-8. **Rebuild layout engine** — The rebuild engine in `src/rebuild/` walks the process graph topologically and positions elements using `STANDARD_BPMN_GAP` spacing. Containers (subprocesses, participants) are rebuilt inside-out: deepest first. Connections are re-routed via `modeling.layoutConnection()`.
+8. **Library-based layout** — Layout is delegated to [`bpmn-auto-layout`](https://github.com/datakurre/bpmn-auto-layout) (XML in, XML with DI out). `src/auto-layout.ts` exports the modeler's XML, runs the library, and applies the resulting shape bounds, waypoints and label bounds through `modeling` commands wrapped in one compound command, so a layout is a single undo step. Partial layout: `scopeElementId` takes one participant/subprocess from a full layout and keeps it anchored; `elementIds` lays out a pruned copy of the process holding only the chosen siblings. Connections crossing the boundary of a partial layout are re-routed with `modeling.layoutConnection()`. See [ADR-020](../agents/adrs/ADR-020-bpmn-auto-layout-library.md).
 
 9. **Label adjustment** — Geometry-based scoring positions external labels away from connection paths to reduce visual overlap.

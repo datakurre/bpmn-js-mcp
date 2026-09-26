@@ -146,7 +146,7 @@ const ARIAL_CHAR_RATIOS: Record<string, number> = {
  * Measure the pixel width of a string using proportional Arial metrics.
  * Falls back to the flat `AVG_CHAR_WIDTH` estimate if font size is unknown.
  */
-function measureTextWidth(text: string, fontSize: number): number {
+export function measureTextWidth(text: string, fontSize: number): number {
   let width = 0;
   for (let i = 0; i < text.length; i++) {
     const ratio = ARIAL_CHAR_RATIOS[text[i]] ?? DEFAULT_CHAR_RATIO;

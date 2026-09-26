@@ -182,16 +182,18 @@ function resizeLanesInPool(
   return resizes;
 }
 
-/** Re-centre flow elements vertically inside each lane of a pool. */
+/**
+ * Re-centre flow elements vertically inside each lane of a pool.
+ * Centres the bounding box of the lane's elements (not a single row), so
+ * lanes with several rows of elements keep all rows inside the lane.
+ */
 function centerElementsInLanes(reg: any, m: any, poolId: string): void {
   for (const lane of getLanes(reg, poolId)) {
     const elements = getLaneElements(lane, reg);
-    if (elements.length === 0) continue;
+    const bb = computeBBox(elements);
+    if (!bb) continue;
     const laneCY = lane.y + lane.height / 2;
-    const yc = elements
-      .map((el: any) => el.y + (el.height || 0) / 2)
-      .sort((a: number, b: number) => a - b);
-    const dy = Math.round(laneCY - yc[Math.floor(yc.length / 2)]);
+    const dy = Math.round(laneCY - (bb.minY + bb.maxY) / 2);
     if (Math.abs(dy) > 2) m.moveElements(elements, { x: 0, y: dy });
   }
 }

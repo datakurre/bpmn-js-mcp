@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleImportXml } from '../../../src/handlers';
-import { INITIAL_XML } from '../../../src/diagram-manager';
+import { INITIAL_XML, getDiagram } from '../../../src/diagram-manager';
 import { parseResult, clearDiagrams } from '../../helpers';
 
 // ── Minimal BPMN fixtures ──────────────────────────────────────────────────
@@ -21,7 +21,7 @@ const SIMPLE_LINEAR_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
-/** Process with an exclusive gateway — should always use rebuild. */
+/** Process with an exclusive gateway. */
 const GATEWAY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
@@ -42,7 +42,7 @@ const GATEWAY_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
-/** Process with a subprocess — should always use rebuild. */
+/** Process with a subprocess. */
 const SUBPROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
@@ -73,37 +73,61 @@ describe('import_bpmn_xml', () => {
     expect(res.diagramId).toMatch(/^diagram_/);
   });
 
-  // ── Rebuild skip heuristic ───────────────────────────────────────────────
+  // ── Auto-layout on import ────────────────────────────────────────────────
 
-  test('skips rebuild for simple linear processes (no gateways/subprocesses)', async () => {
+  function registryOf(diagramId: string): any {
+    return getDiagram(diagramId)!.modeler.get('elementRegistry');
+  }
+
+  test('lays out a simple linear process left to right', async () => {
     const res = parseResult(await handleImportXml({ xml: SIMPLE_LINEAR_XML, autoLayout: true }));
     expect(res.success).toBe(true);
     expect(res.autoLayoutApplied).toBe(true);
-    // Simple linear process: rebuild is skipped since bpmn-auto-layout output is clean
-    expect(res.rebuildApplied).toBe(false);
+    const reg = registryOf(res.diagramId);
+    expect(reg.get('Start_1').x).toBeLessThan(reg.get('Task_1').x);
+    expect(reg.get('Task_1').x).toBeLessThan(reg.get('End_1').x);
   });
 
-  test('uses rebuild for processes with gateways', async () => {
+  test('lays out gateway branches without overlap', async () => {
     const res = parseResult(await handleImportXml({ xml: GATEWAY_XML, autoLayout: true }));
-    expect(res.success).toBe(true);
     expect(res.autoLayoutApplied).toBe(true);
-    // Gateway process: rebuild is always applied for better layout quality
-    expect(res.rebuildApplied).toBe(true);
+    const reg = registryOf(res.diagramId);
+    const a = reg.get('Task_A');
+    const b = reg.get('Task_B');
+    expect(a.x).toBeGreaterThan(reg.get('GW_1').x);
+    expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(a.height);
   });
 
-  test('uses rebuild for processes with subprocesses', async () => {
+  test('places subprocess children inside the subprocess', async () => {
     const res = parseResult(await handleImportXml({ xml: SUBPROCESS_XML, autoLayout: true }));
-    expect(res.success).toBe(true);
     expect(res.autoLayoutApplied).toBe(true);
-    // Subprocess process: rebuild is always applied
-    expect(res.rebuildApplied).toBe(true);
+    const reg = registryOf(res.diagramId);
+    const sub = reg.get('Sub_1');
+    for (const id of ['SubStart_1', 'SubEnd_1']) {
+      const el = reg.get(id);
+      expect(el.x).toBeGreaterThanOrEqual(sub.x);
+      expect(el.y).toBeGreaterThanOrEqual(sub.y);
+      expect(el.x + el.width).toBeLessThanOrEqual(sub.x + sub.width);
+      expect(el.y + el.height).toBeLessThanOrEqual(sub.y + sub.height);
+    }
   });
 
-  test('rebuildApplied is false when autoLayout is not applied', async () => {
-    // Use INITIAL_XML which already has DI coordinates so autoLayout: false works
+  test('preserves Camunda extension attributes through auto-layout', async () => {
+    const xml = SIMPLE_LINEAR_XML.replace(
+      'xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"',
+      'xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn"'
+    ).replace('<bpmn:task id="Task_1"', '<bpmn:userTask camunda:assignee="demo" id="Task_1"');
+    expect(xml).toContain('camunda:assignee="demo"');
+    const res = parseResult(await handleImportXml({ xml, autoLayout: true }));
+    expect(res.autoLayoutApplied).toBe(true);
+    const task = registryOf(res.diagramId).get('Task_1');
+    expect(task.businessObject.assignee).toBe('demo');
+  });
+
+  test('keeps embedded DI when autoLayout is false', async () => {
+    // INITIAL_XML already has DI coordinates so autoLayout: false works
     const res = parseResult(await handleImportXml({ xml: INITIAL_XML, autoLayout: false }));
     expect(res.success).toBe(true);
     expect(res.autoLayoutApplied).toBe(false);
-    expect(res.rebuildApplied).toBe(false);
   });
 });

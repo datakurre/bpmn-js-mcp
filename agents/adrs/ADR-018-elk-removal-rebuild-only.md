@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-020](ADR-020-bpmn-auto-layout-library.md)
 
 ## Context
 

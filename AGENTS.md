@@ -16,7 +16,7 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 
 - **Language:** TypeScript (ES2022, CommonJS)
 - **Runtime:** Node.js ≥ 16
-- **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `jsdom`, `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
+- **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `bpmn-auto-layout` (from `github:datakurre/bpmn-auto-layout`), `jsdom`, `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
 - **Test:** Vitest
 - **Lint:** ESLint 9 + typescript-eslint 8
 - **Dev env:** Nix (devenv) with devcontainer support
@@ -41,7 +41,8 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 | `src/constants.ts`              | Centralised magic numbers: element sizes, spacing, pool/lane sizing — single source of truth for all constants                                                                    |
 | `src/headless-canvas.ts`        | jsdom setup, lazy `BpmnModeler` init                                                                                                                                              |
 | `src/headless-polyfills.ts`     | SVG/CSS polyfills for headless bpmn-js (SVGMatrix, getBBox, transform with DOM sync, etc.)                                                                                        |
-| `src/rebuild/`                  | Rebuild-based layout engine — topology-driven positioning using bpmn-js native AutoPlace and ManhattanLayout                                                                      |
+| `src/auto-layout.ts`            | Bridge to the `bpmn-auto-layout` library — runs it and applies the generated DI to the modeler as one undoable command (full, scoped, or element-subset layout)                   |
+| `src/auto-layout-input.ts`      | Prepares the XML handed to `bpmn-auto-layout`: boundary-event lane sync, element-subset extraction                                                                                |
 | `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                             |
 | `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                                                         |
 | `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router + unified TOOL_REGISTRY                                                                                                                |
@@ -137,8 +138,9 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-012](agents/adrs/ADR-012-geometry-based-label-adjustment.md) — Geometry-based label adjustment
 - [ADR-013](agents/adrs/ADR-013-element-id-naming.md) — 2-part element ID naming
 - [ADR-015](agents/adrs/ADR-015-bpmn-in-tool-names.md) — All tool names include "bpmn"
-- [ADR-018](agents/adrs/ADR-018-elk-removal-rebuild-only.md) — ELK removal — rebuild-only layout
+- [ADR-018](agents/adrs/ADR-018-elk-removal-rebuild-only.md) — ELK removal — rebuild-only layout (superseded by ADR-020)
 - [ADR-019](agents/adrs/ADR-019-tool-consolidation.md) — Tool consolidation
+- [ADR-020](agents/adrs/ADR-020-bpmn-auto-layout-library.md) — Layout delegated to bpmn-auto-layout
 
 ## Key Gotchas
 
@@ -151,5 +153,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - The `DEFAULT_LINT_CONFIG` extends `bpmnlint:recommended`, `plugin:camunda-compat/camunda-platform-7-24`, and `plugin:bpmn-mcp/recommended`. It downgrades `label-required` and `no-disconnected` to warnings (AI callers build diagrams incrementally), and disables `no-overlapping-elements` (false positives in headless mode).
 - Custom bpmnlint rules live in `src/bpmnlint-plugin-bpmn-mcp/` and are registered as a proper bpmnlint plugin via `McpPluginResolver` in `src/linter.ts`. They can be referenced in config as `plugin:bpmn-mcp/recommended` or individually as `bpmn-mcp/rule-name`.
 - Element IDs prefer short 2-part naming: `UserTask_EnterName`, `Flow_Done`. On collision, falls back to 3-part with random middle: `UserTask_a1b2c3d_EnterName`, `Flow_m4n5p6q_Done`. Unnamed elements use `StartEvent_x9y8z7w`. The random 7-char part ensures uniqueness for copy/paste across diagrams.
-- The rebuild layout engine in `src/rebuild/` walks the process graph topologically and positions elements using `STANDARD_BPMN_GAP` spacing. Containers (subprocesses, participants) are rebuilt inside-out: deepest first. Connections are re-routed via `modeling.layoutConnection()`.
+- Layout is delegated to `bpmn-auto-layout` (`github:datakurre/bpmn-auto-layout`); layout algorithm changes belong in that repository. `src/auto-layout.ts` applies the library's DI through `modeling` commands inside one compound command, so undo reverts a whole layout. Layout DI is keyed by BPMN (business object) ID, which can differ from the element registry ID — always look up via `businessObject.id`.
+- bpmn-js ≥ 18.2x measures text with `canvas.measureText()`; jsdom has no canvas, so `src/headless-polyfills.ts` provides a `measureText` polyfill. Without it every label measures 0px wide.
+- Label direct-editing is disabled on headless modelers (`diagram-manager.ts`): an editing session opened by `autoPlace` would otherwise be completed mid-command and throw.
 - bpmnlint has no rule to detect semantic gateway-type mismatches (e.g. using a parallel gateway to merge mutually exclusive paths). Such errors require manual review or domain-specific rules.

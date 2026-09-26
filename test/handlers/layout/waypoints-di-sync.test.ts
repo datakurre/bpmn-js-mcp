@@ -14,7 +14,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { handleLayoutDiagram } from '../../../src/handlers';
 import {
-  parseResult,
   createDiagram,
   addElement,
   connect,
@@ -22,7 +21,6 @@ import {
   getRegistry,
   exportXml,
 } from '../../helpers';
-import { getDiagram } from '../../../src/diagram-manager';
 
 /** Assert all waypoint segments are strictly horizontal or vertical (within 1 px). */
 function assertOrthogonalWps(wps: Array<{ x: number; y: number }>, label: string): void {
@@ -61,64 +59,9 @@ function extractXmlWaypoints(xml: string, flowId: string): Array<{ x: number; y:
   return wps;
 }
 
-describe('waypoints DI sync — straightenNonOrthogonalFlows', () => {
+describe('waypoints DI sync after layout', () => {
   beforeEach(() => {
     clearDiagrams();
-  });
-
-  test('exported XML waypoints are orthogonal after labelsOnly+straightenFlows', async () => {
-    const diagramId = await createDiagram('DI Sync Test');
-    const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
-    const gw = await addElement(diagramId, 'bpmn:ExclusiveGateway', { name: 'Check' });
-    const task = await addElement(diagramId, 'bpmn:Task', { name: 'Task' });
-    const end = await addElement(diagramId, 'bpmn:EndEvent', { name: 'End' });
-    await connect(diagramId, start, gw);
-    const f2 = await connect(diagramId, gw, task);
-    await connect(diagramId, task, end);
-
-    // Run initial layout to stabilise element positions
-    await handleLayoutDiagram({ diagramId });
-
-    const diagram = getDiagram(diagramId)!;
-    const reg = diagram.modeler.get('elementRegistry') as any;
-    const modeling = diagram.modeler.get('modeling') as any;
-
-    // Corrupt f2 with a diagonal waypoint via modeling.updateWaypoints
-    // (correctly updates both canvas AND DI — we're introducing a real diagonal)
-    const conn = reg.get(f2);
-    const src = conn.source;
-    const tgt = conn.target;
-    modeling.updateWaypoints(conn, [
-      { x: src.x + src.width / 2, y: src.y + src.height / 2 },
-      { x: (src.x + src.width + tgt.x) / 2, y: src.y + src.height / 2 + 20 }, // diagonal!
-      { x: tgt.x, y: tgt.y + tgt.height / 2 },
-    ]);
-
-    // Verify corruption is in the exported XML (DI model)
-    const xmlBefore = await exportXml(diagramId);
-    const wpsBefore = extractXmlWaypoints(xmlBefore, f2);
-    expect(wpsBefore.length).toBeGreaterThanOrEqual(2);
-    const dx0 = Math.abs(wpsBefore[1].x - wpsBefore[0].x);
-    const dy0 = Math.abs(wpsBefore[1].y - wpsBefore[0].y);
-    expect(
-      dx0 > 1 && dy0 > 1,
-      'setup: exported XML should contain diagonal before straighten'
-    ).toBe(true);
-
-    // Run straighten-only pass
-    const result = parseResult(
-      await handleLayoutDiagram({ diagramId, labelsOnly: true, straightenFlows: true })
-    );
-    expect(result.straightenedFlowCount).toBeGreaterThanOrEqual(1);
-
-    // ASSERTION 1: canvas waypoints are orthogonal
-    assertOrthogonalWps(reg.get(f2).waypoints, 'canvas waypoints after straighten');
-
-    // ASSERTION 2 (the regression): exported XML waypoints MUST ALSO be orthogonal.
-    // Without the fix, saveXML() produces Z-shaped paths because the DI is not updated.
-    const xmlAfter = await exportXml(diagramId);
-    const wpsAfter = extractXmlWaypoints(xmlAfter, f2);
-    assertOrthogonalWps(wpsAfter, 'exported XML waypoints after straighten');
   });
 
   test('exported XML waypoints are orthogonal after full layout (gateway fan-out)', async () => {

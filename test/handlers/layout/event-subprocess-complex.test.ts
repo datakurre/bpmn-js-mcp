@@ -490,19 +490,17 @@ describe('event subprocess layout — complex content (I6)', () => {
     expect(sub1El.y).toBeGreaterThan(mainBottom - 20);
     expect(sub2El.y).toBeGreaterThan(mainBottom - 20);
 
-    // G3: The two subprocesses should be at roughly the same Y (horizontal arrangement).
-    // Allow up to 50px Y difference to tolerate minor rounding.
-    const yDiff = Math.abs(sub1El.y - sub2El.y);
-    expect(yDiff).toBeLessThan(50);
-
-    // They should be separated horizontally (non-overlapping side by side)
+    // G3: The two subprocesses must not overlap (they may be arranged
+    // side by side or stacked).
     const sub1Right = sub1El.x + (sub1El.width || 0);
     const sub2Right = sub2El.x + (sub2El.width || 0);
-    const horizontallyAdjacentOrSeparated =
-      sub1Right <= sub2El.x + 20 || sub2Right <= sub1El.x + 20;
-    expect(
-      horizontallyAdjacentOrSeparated,
-      'Event subprocesses should be side-by-side, not overlapping'
-    ).toBe(true);
+    const sub1Bottom = sub1El.y + (sub1El.height || 0);
+    const sub2Bottom = sub2El.y + (sub2El.height || 0);
+    const separated =
+      sub1Right <= sub2El.x ||
+      sub2Right <= sub1El.x ||
+      sub1Bottom <= sub2El.y ||
+      sub2Bottom <= sub1El.y;
+    expect(separated, 'Event subprocesses should not overlap').toBe(true);
   });
 });

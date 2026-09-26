@@ -114,10 +114,10 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 
 ### Layout & Alignment Tools
 
-| Tool                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `layout_bpmn_diagram` | Auto-layout using rebuild engine (labelsOnly mode available) |
-| `align_bpmn_elements` | Align or distribute elements (with optional compaction)      |
+| Tool                  | Description                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `layout_bpmn_diagram` | Auto-layout using [bpmn-auto-layout](https://github.com/datakurre/bpmn-auto-layout) — whole diagram, one pool/subprocess, or a subset of elements |
+| `align_bpmn_elements` | Align or distribute elements (with optional compaction)                                                                                           |
 
 ### Camunda 7 / Operaton Tools
 
@@ -244,7 +244,7 @@ Node.js **≥ 18** is required.
 
 ```
 src/handlers/      tool handlers, one file per tool domain
-src/rebuild/       topology-driven layout engine
+src/auto-layout*.ts  bridge to the bpmn-auto-layout library (full, scoped and subset layout)
 src/bpmnlint-plugin-bpmn-mcp/  custom lint rules
 src/eval/          layout quality scoring harness
 test/              Vitest tests mirroring src/ structure
@@ -264,7 +264,7 @@ The dispatch map and `TOOL_DEFINITIONS` array are auto-derived from `TOOL_REGIST
 
 - **Never edit `.bpmn` files directly** — always use the MCP tools (`import_bpmn_xml` → edit → `export_bpmn`).
 - **Never write BPMN XML via terminal heredocs** — line-wrapping can corrupt element names. Use `create_file` or MCP export.
-- `src/rebuild/` and `src/bpmnlint-plugin-bpmn-mcp/` must not import from `src/handlers/` (enforced by ESLint).
+- `src/bpmnlint-plugin-bpmn-mcp/` must not import from `src/handlers/` (enforced by ESLint).
 - Mutating handlers must call `appendLintFeedback()` from `src/linter.ts` to surface error-level issues.
 
 See [AGENTS.md](AGENTS.md) for full architecture details and decision records.

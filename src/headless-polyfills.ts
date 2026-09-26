@@ -13,7 +13,7 @@
  * The getBBox/getComputedTextLength implementations live in `./headless-bbox.ts`.
  */
 
-import { polyfillGetBBox, polyfillGetComputedTextLength } from './headless-bbox';
+import { measureTextWidth, polyfillGetBBox, polyfillGetComputedTextLength } from './headless-bbox';
 
 // ── SVGTransform polyfill ──────────────────────────────────────────────────
 
@@ -341,10 +341,49 @@ function applySvgSvgElementPolyfills(win: any): void {
   }
 }
 
+// ── Canvas text measurement polyfill ───────────────────────────────────────
+
+/** Default font size (px) when a canvas font string has no px size. */
+const DEFAULT_CANVAS_FONT_SIZE = 12;
+
+/**
+ * Minimal `CanvasRenderingContext2D` for text measurement.
+ *
+ * diagram-js ≥ 15.2 measures label text with `canvas.measureText()` instead
+ * of SVG `getBBox()`.  jsdom has no canvas implementation, so without this
+ * every label measures 0px wide.  Widths use the same proportional Arial
+ * metrics as the `getBBox` polyfill; line height is 1.2 × font size.
+ */
+function createTextMeasureContext(): Record<string, any> {
+  return {
+    font: `${DEFAULT_CANVAS_FONT_SIZE}px sans-serif`,
+    letterSpacing: '0px',
+    measureText(this: { font: string }, text: string) {
+      const match = /(\d+(?:\.\d+)?)px/.exec(this.font);
+      const fontSize = match ? Number.parseFloat(match[1]) : DEFAULT_CANVAS_FONT_SIZE;
+      const lineHeight = Math.round(fontSize * 1.2);
+      return {
+        width: measureTextWidth(String(text), fontSize),
+        fontBoundingBoxAscent: lineHeight * 0.8,
+        fontBoundingBoxDescent: lineHeight * 0.2,
+        actualBoundingBoxAscent: lineHeight * 0.8,
+        actualBoundingBoxDescent: lineHeight * 0.2,
+      };
+    },
+  };
+}
+
+function applyCanvasPolyfills(win: any): void {
+  win.HTMLCanvasElement.prototype.getContext = function (type: string) {
+    return type === '2d' ? createTextMeasureContext() : null;
+  };
+}
+
 /** Apply all SVG/CSS polyfills to a jsdom instance's window. */
 export function applyPolyfills(instance: any): void {
   const win = instance.window;
   applyGlobalPolyfills(win);
+  applyCanvasPolyfills(win);
   applySvgPathPolyfills(win);
   applySvgElementPolyfills(win);
   applySvgSvgElementPolyfills(win);

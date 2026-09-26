@@ -8,11 +8,12 @@
 export const TOOL_DEFINITION = {
   name: 'layout_bpmn_diagram',
   description:
-    'Automatically arrange elements in a BPMN diagram using the rebuild-based layout engine, producing a clean left-to-right layout. Handles parallel branches, reconverging gateways, boundary events, subprocesses, pools, lanes, and nested containers. Use this after structural changes (adding gateways, splitting flows) to automatically clean up the layout. ' +
+    'Automatically arrange elements in a BPMN diagram using bpmn-auto-layout, producing a clean left-to-right layout with orthogonal connections and placed labels. Handles parallel branches, reconverging gateways, loops, boundary events, subprocesses, pools, lanes, message flows, and artifacts. Use this after structural changes (adding gateways, splitting flows) to automatically clean up the layout. ' +
+    'The whole layout is a single undo step in bpmn_history. ' +
     'Use dryRun to preview changes before applying them. ' +
     'Use labelsOnly: true to only adjust label positions without moving elements. ' +
-    'Non-orthogonal (Z-shaped) connection routing is automatically corrected after layout (pass straightenFlows: false to disable). ' +
-    '**When NOT to use full layout:** If the diagram has carefully positioned elements, custom label placements, or boundary events, full re-layout may reposition them destructively. In such cases, prefer: (1) labelsOnly: true for label cleanup only, (2) move_bpmn_element for targeted repositioning, (3) scopeElementId parameter to re-layout only one participant/subprocess.',
+    '**Partial layout:** pass scopeElementId to re-layout only one participant/subprocess, or elementIds to re-layout only a set of sibling elements (e.g. a newly added branch); the rest of the diagram is left unchanged and connections crossing the boundary are re-routed. ' +
+    'Elements positioned with move_bpmn_element are pinned and keep their position until the next full layout.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -20,7 +21,13 @@ export const TOOL_DEFINITION = {
       scopeElementId: {
         type: 'string',
         description:
-          'Optional ID of a Participant or SubProcess to layout in isolation, leaving the rest of the diagram unchanged.',
+          'Optional ID of a Participant or SubProcess to layout in isolation, leaving the rest of the diagram unchanged. The scope element keeps its top-left position but may be resized.',
+      },
+      elementIds: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional IDs of flow elements to layout in isolation. All elements must share the same parent process or subprocess; boundary events follow their host task. The subset keeps its current top-left position. Cannot be combined with scopeElementId.',
       },
       gridSnap: {
         type: 'number',
@@ -35,9 +42,9 @@ export const TOOL_DEFINITION = {
       poolExpansion: {
         type: 'boolean',
         description:
-          'Automatically resize pools and lanes after layout to fit all elements ' +
-          'with proper padding. Prevents elements from overflowing pool/lane boundaries after ' +
-          'layout repositioning. Default: auto-enabled when the diagram contains pools.',
+          'Additionally run the pool/lane autosize pass after layout. ' +
+          'The layout engine already sizes pools and lanes to fit their contents, so this is ' +
+          'rarely needed. Default: false.',
       },
       labelsOnly: {
         type: 'boolean',
@@ -64,15 +71,6 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Optional. When autosizeOnly is true, scope pool resizing to this participant ID.',
-      },
-      straightenFlows: {
-        type: 'boolean',
-        description:
-          'When false, disable the post-layout pass that replaces non-orthogonal (Z-shaped or diagonal) ' +
-          'forward sequence-flow waypoints with clean L-shaped or 2-point straight paths. ' +
-          'Works in both full layout mode and labelsOnly mode (standalone routing cleanup). ' +
-          'Useful for preserving custom waypoints when importing diagrams from external tools. ' +
-          'Default: true (always-on).',
       },
     },
     required: ['diagramId'],

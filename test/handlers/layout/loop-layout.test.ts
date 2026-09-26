@@ -16,7 +16,6 @@ import {
 } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams, connect } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
-import { rebuildLayout } from '../../../src/rebuild';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -362,8 +361,7 @@ describe('U-shaped back-edge routing', () => {
     await connect(diagramId, taskB, end);
     const backEdge = await connect(diagramId, taskB, taskA, { label: 'Retry' });
 
-    const diagram = getDiagram(diagramId)!;
-    rebuildLayout(diagram);
+    await handleLayoutDiagram({ diagramId: diagramId });
 
     const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
     const taskAEl = reg.get(taskA)!;
@@ -419,8 +417,7 @@ describe('U-shaped back-edge routing', () => {
     await connect(diagramId, start, taskA);
     const forwardFlow = await connect(diagramId, taskA, end);
 
-    const diagram = getDiagram(diagramId)!;
-    rebuildLayout(diagram);
+    await handleLayoutDiagram({ diagramId: diagramId });
 
     const reg = getDiagram(diagramId)!.modeler.get('elementRegistry');
     const taskAEl = reg.get(taskA)!;

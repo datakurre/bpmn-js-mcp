@@ -129,12 +129,9 @@ export default tseslint.config(
       'src/handlers/properties/set-properties.ts',
       'src/handlers/helpers.ts',
       'src/handlers/layout/layout-diagram.ts',
-      'src/rebuild/container-layout.ts',
     ],
     rules: {
       'max-lines': 'off',
-      // container-layout.ts contains inherently complex boundary-event routing logic
-      'sonarjs/cognitive-complexity': 'off',
     },
   },
 
@@ -144,17 +141,6 @@ export default tseslint.config(
     rules: {
       'max-lines': 'off',
       complexity: 'off',
-      'sonarjs/cognitive-complexity': 'off',
-    },
-  },
-
-  // ── Rebuild layout engine — algorithmic and inherently branchy ───────────
-  {
-    files: ['src/rebuild/engine.ts'],
-    rules: {
-      complexity: ['error', 60],
-      'max-lines': 'off',
-      'max-lines-per-function': 'off',
       'sonarjs/cognitive-complexity': 'off',
     },
   },

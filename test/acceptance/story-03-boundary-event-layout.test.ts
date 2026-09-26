@@ -240,12 +240,6 @@ describe('Story 3: Boundary Event Layout — Regression Guard', () => {
     const layoutRes = parseResult(await handleLayoutDiagram({ diagramId: s.diagramId }));
     expect(layoutRes.success).toBe(true);
 
-    // Boundary event warning should be present (fix #16).
-    expect(
-      layoutRes.boundaryEventWarning,
-      'Layout should warn about boundary events (fix #16)'
-    ).toBeTruthy();
-
     // Get all element positions.
     const listRes = parseResult(await handleListElements({ diagramId: s.diagramId }));
     const elements: any[] = listRes.elements;

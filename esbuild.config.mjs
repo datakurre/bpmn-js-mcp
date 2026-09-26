@@ -2,7 +2,7 @@ import { build, context } from 'esbuild';
 
 /** @type {import('esbuild').BuildOptions} */
 const config = {
-  entryPoints: ['src/index.ts', 'src/eval-cli.ts', 'src/agent-loop-cli.ts'],
+  entryPoints: ['src/index.ts', 'src/eval-cli.ts'],
   bundle: true,
   platform: 'node',
   target: 'node18',
