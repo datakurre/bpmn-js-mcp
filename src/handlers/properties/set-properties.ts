@@ -412,8 +412,6 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
   return appendLintFeedback(result, diagram);
 }
 
-const EXAMPLE_DIAGRAM_ID = '<diagram-id>';
-
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_element_properties',
   description:
@@ -467,62 +465,5 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId', 'properties'],
-    examples: [
-      {
-        title: 'Configure an external service task',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'ServiceTask_ProcessPayment',
-          properties: {
-            'camunda:type': 'external',
-            'camunda:topic': 'process-payment',
-          },
-        },
-      },
-      {
-        title: 'Assign a user task to a candidate group',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'UserTask_ReviewOrder',
-          properties: {
-            'camunda:candidateGroups': 'managers',
-            'camunda:dueDate': '${dateTime().plusDays(3).toDate()}',
-          },
-        },
-      },
-      {
-        title: 'Set a condition on a sequence flow',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'Flow_Approved',
-          properties: {
-            name: 'Yes',
-            conditionExpression: '${approved == true}',
-          },
-        },
-      },
-      {
-        title: 'Set the default flow on an exclusive gateway',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'Gateway_OrderValid',
-          properties: {
-            default: 'Flow_Approved',
-          },
-        },
-      },
-      {
-        title: 'Set inline Groovy script on a ScriptTask',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'ScriptTask_CalcTotal',
-          properties: {
-            scriptFormat: 'groovy',
-            script: 'def total = orderItems.sum { it.price * it.quantity }\ntotal',
-            'camunda:resultVariable': 'orderTotal',
-          },
-        },
-      },
-    ],
   },
 } as const;

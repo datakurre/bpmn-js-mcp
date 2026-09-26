@@ -100,32 +100,5 @@ export const TOOL_DEFINITION = {
         required: ['connectionId', 'waypoints'],
       },
     ],
-    examples: [
-      {
-        title: 'Connect two elements with a sequence flow',
-        value: {
-          diagramId: '<diagram-id>',
-          sourceElementId: 'UserTask_Review',
-          targetElementId: 'EndEvent_Done',
-        },
-      },
-      {
-        title: 'Connect a chain of elements sequentially',
-        value: {
-          diagramId: '<diagram-id>',
-          elementIds: ['StartEvent_1', 'UserTask_Enter', 'Gateway_Valid', 'EndEvent_Done'],
-        },
-      },
-      {
-        title: 'Gateway branch with condition expression',
-        value: {
-          diagramId: '<diagram-id>',
-          sourceElementId: 'Gateway_Approved',
-          targetElementId: 'UserTask_Process',
-          label: 'Yes',
-          conditionExpression: '${approved == true}',
-        },
-      },
-    ],
   },
 } as const;

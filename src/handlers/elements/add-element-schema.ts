@@ -275,48 +275,5 @@ export const TOOL_DEFINITION = {
         },
       },
     ],
-    examples: [
-      {
-        title: 'Attach boundary timer event to a task',
-        value: {
-          diagramId: '<diagram-id>',
-          elementType: 'bpmn:BoundaryEvent',
-          name: 'Timeout',
-          hostElementId: 'UserTask_ReviewOrder',
-          eventDefinitionType: 'bpmn:TimerEventDefinition',
-          eventDefinitionProperties: { timeDuration: 'PT30M' },
-        },
-      },
-      {
-        title: 'Insert element into an existing sequence flow',
-        value: {
-          diagramId: '<diagram-id>',
-          elementType: 'bpmn:UserTask',
-          name: 'Approve Request',
-          flowId: 'Flow_StartToEnd',
-        },
-      },
-      {
-        title: 'Add element into a specific participant pool',
-        value: {
-          diagramId: '<diagram-id>',
-          elementType: 'bpmn:ServiceTask',
-          name: 'Send Notification',
-          participantId: 'Participant_ServiceDesk',
-          afterElementId: 'UserTask_ReviewTicket',
-        },
-      },
-      {
-        title: 'Cross-lane handoff: add element in a lane and connect from source',
-        value: {
-          diagramId: '<diagram-id>',
-          elementType: 'bpmn:UserTask',
-          name: 'Approve Request',
-          fromElementId: 'UserTask_SubmitRequest',
-          toLaneId: 'Lane_Approver',
-          connectionLabel: 'Submit for approval',
-        },
-      },
-    ],
   },
 } as const;

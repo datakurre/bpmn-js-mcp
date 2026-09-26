@@ -296,49 +296,21 @@ function buildAnnotations(name: string): Record<string, unknown> {
   };
 }
 
-/** Property definition for `_clientRequestId` injected into mutating tools. */
-const CLIENT_REQUEST_ID_PROP = {
-  type: 'string',
-  description:
-    'Optional client-provided request ID for idempotent retry. ' +
-    'If the same ID is sent again, the server returns the cached result ' +
-    'without re-executing the operation.',
-} as const;
-
 /**
  * MCP tool definitions (passed to ListTools).
  *
  * Every tool is augmented with `annotations` (title, readOnlyHint,
  * destructiveHint, idempotentHint, openWorldHint) so clients can auto-approve
  * read-only calls and group or hide tools without parsing descriptions.
- * Mutating tools also get an optional `_clientRequestId` property so callers
- * can safely retry on network errors.
+ *
+ * Every mutating tool also accepts an optional `_clientRequestId` string for
+ * idempotent retry (see `dispatchToolCall` below), advertised once in the
+ * server's top-level `instructions` (src/index.ts) rather than repeated in
+ * every tool's schema — at ~190 characters each, doing so across ~22 tools
+ * added roughly 5 KB to the tool list every session pays for.
  */
 export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.map(
-  (r) => {
-    const name = r.definition.name as string;
-    const annotations = buildAnnotations(name);
-
-    if (READONLY_TOOLS.has(name)) return { ...r.definition, annotations };
-
-    // Augment mutating tool definitions with _clientRequestId
-    const def = r.definition as Record<string, any>;
-    const schema = def.inputSchema as Record<string, any> | undefined;
-    if (!schema?.properties) return { ...def, annotations };
-
-    return {
-      ...def,
-      name,
-      annotations,
-      inputSchema: {
-        ...schema,
-        properties: {
-          ...schema.properties,
-          _clientRequestId: CLIENT_REQUEST_ID_PROP,
-        },
-      },
-    };
-  }
+  (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
 );
 
 // ── Idempotency cache ──────────────────────────────────────────────────────

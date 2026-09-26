@@ -273,4 +273,26 @@ describe('tool-definitions', () => {
       }
     });
   });
+
+  describe('size budget (#6)', () => {
+    // The full serialized tool list is loaded by every session before it does
+    // anything, so it's a direct, per-session context cost. This budget caps
+    // regressions (e.g. a verbose new tool, a re-added examples block) without
+    // itself being the primary reduction mechanism: reaching the eventual
+    // ~25 KB target on top of this also needs the structural changes tracked
+    // separately (consolidating the Camunda setters, tool tiers).
+    const MAX_TOOL_DEFINITIONS_BYTES = 68 * 1024;
+
+    test(`serialized TOOL_DEFINITIONS stays under ${MAX_TOOL_DEFINITIONS_BYTES} bytes`, () => {
+      const bytes = Buffer.byteLength(JSON.stringify(TOOL_DEFINITIONS), 'utf8');
+      expect(bytes).toBeLessThan(MAX_TOOL_DEFINITIONS_BYTES);
+    });
+
+    test('no tool schema embeds an examples array (moved to bpmn:// guide resources)', () => {
+      for (const tool of TOOL_DEFINITIONS) {
+        const schema = getSchema(tool);
+        expect((schema as any).examples, `${tool.name} still has an examples array`).toBeUndefined();
+      }
+    });
+  });
 });
