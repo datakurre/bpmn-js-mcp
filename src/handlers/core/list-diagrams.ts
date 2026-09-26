@@ -69,4 +69,12 @@ export const TOOL_DEFINITION = {
       },
     },
   },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      success: { type: 'boolean' },
+    },
+    required: ['success'],
+    additionalProperties: true,
+  },
 } as const;

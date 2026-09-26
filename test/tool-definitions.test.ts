@@ -301,6 +301,25 @@ describe('tool-definitions', () => {
     });
   });
 
+  describe('outputSchema (ADR-024)', () => {
+    test('the 4 stable-shape tools declare a minimal outputSchema', () => {
+      const namesWithOutputSchema = [
+        'validate_bpmn_diagram',
+        'list_bpmn_diagrams',
+        'list_bpmn_elements',
+        'list_bpmn_process_variables',
+      ];
+      for (const name of namesWithOutputSchema) {
+        const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
+        expect(tool, `${name} not found`).toBeDefined();
+        const outputSchema = (tool as any).outputSchema;
+        expect(outputSchema, `${name} has no outputSchema`).toBeDefined();
+        expect(outputSchema.type).toBe('object');
+        expect(outputSchema.additionalProperties).toBe(true);
+      }
+    });
+  });
+
   describe('size budget (#6, #8)', () => {
     // The full serialized tool list is loaded by every session before it does
     // anything, so it's a direct, per-session context cost. This budget caps
@@ -309,7 +328,13 @@ describe('tool-definitions', () => {
     // ~25 KB target on top of this also needs tool tiers (#9), so a core-only
     // tier can stay well under budget even while the full tier carries every
     // tool's complete schema.
-    const MAX_TOOL_DEFINITIONS_BYTES = 63 * 1024;
+    //
+    // Raised from 63 KB to 66 KB (ADR-024) to fit minimal `outputSchema`
+    // entries (~150 bytes each: `success`/one count field, `additionalProperties: true`)
+    // on the 4 tools with a stable top-level shape (validate_bpmn_diagram,
+    // list_bpmn_diagrams, list_bpmn_elements, list_bpmn_process_variables) —
+    // a deliberate, one-time, small increase, not a regression.
+    const MAX_TOOL_DEFINITIONS_BYTES = 66 * 1024;
 
     test(`serialized TOOL_DEFINITIONS stays under ${MAX_TOOL_DEFINITIONS_BYTES} bytes`, () => {
       const bytes = Buffer.byteLength(JSON.stringify(TOOL_DEFINITIONS), 'utf8');

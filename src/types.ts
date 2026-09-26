@@ -126,6 +126,13 @@ export interface ToolResult {
     /** Optional audience annotation. */
     annotations?: Record<string, unknown>;
   }>;
+  /**
+   * Machine-readable duplicate of a JSON tool result, per the MCP
+   * `structuredContent` field. Additive only — `content[0].text` always
+   * carries the same JSON as a string, so existing callers that do
+   * `JSON.parse(result.content[0].text)` are unaffected.
+   */
+  structuredContent?: Record<string, unknown>;
 }
 
 // ── Tool execution context ─────────────────────────────────────────────────

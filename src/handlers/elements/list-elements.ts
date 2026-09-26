@@ -208,4 +208,13 @@ export const TOOL_DEFINITION = {
     },
     required: ['diagramId'],
   },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      success: { type: 'boolean' },
+      count: { type: 'number' },
+    },
+    required: ['success'],
+    additionalProperties: true,
+  },
 } as const;

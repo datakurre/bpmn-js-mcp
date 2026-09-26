@@ -111,7 +111,7 @@ Output goes to `dist/`. Entry point is `dist/index.js` (also declared as the `bp
 
 - Uses ES `import` throughout; esbuild converts to CJS for the bundle.
 - `tsc` is used only for type-checking (`--noEmit`), esbuild for actual output.
-- Tool responses use `{ content: [{ type: "text", text: ... }] }` MCP format.
+- Tool responses use `{ content: [{ type: "text", text: ... }] }` MCP format. JSON-returning handlers built via `jsonResult()` additionally get `structuredContent` set to the same object (ADR-024) — purely additive, `content[0].text` is unchanged.
 - Tool definitions are co-located with their handler as `TOOL_DEFINITION` exports.
 - Warnings/hints are appended to export outputs when elements appear disconnected.
 - `clearDiagrams()` exposed for test teardown.
@@ -143,6 +143,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-021](agents/adrs/ADR-021-camunda-setter-consolidation.md) — Camunda setters consolidated into set_bpmn_element_properties
 - [ADR-022](agents/adrs/ADR-022-bpmn-to-image-library.md) — Headless rendering delegated to bpmn-to-image
 - [ADR-023](agents/adrs/ADR-023-large-output-resource-links.md) — Resource links instead of inlining large output
+- [ADR-024](agents/adrs/ADR-024-structured-content-and-output-schema.md) — structuredContent and outputSchema for tool results
 
 ## Key Gotchas
 
