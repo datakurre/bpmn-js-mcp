@@ -160,6 +160,13 @@ import { handleAutosizePoolsAndLanes } from './collaboration/autosize-pools-and-
 interface ToolRegistration {
   readonly definition: { readonly name: string; readonly [key: string]: unknown };
   readonly handler: (args: any, context?: ToolContext) => Promise<ToolResult>;
+  /**
+   * When true, the tool is still fully dispatchable but excluded from
+   * TOOL_DEFINITIONS (ListTools) — a hidden alias kept for one release after
+   * being consolidated into another tool (see ADR-021), so prompts and
+   * scripts written against the old name keep working.
+   */
+  readonly hidden?: boolean;
 }
 
 const TOOL_REGISTRY: ToolRegistration[] = [
@@ -177,15 +184,22 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: LIST_DIAGRAMS_DEF, handler: handleListDiagrams },
   { definition: VALIDATE_DEF, handler: handleValidate },
   { definition: ALIGN_ELEMENTS_DEF, handler: handleAlignElements },
-  { definition: SET_INPUT_OUTPUT_DEF, handler: handleSetInputOutput },
+  // Hidden aliases: consolidated into set_bpmn_element_properties's inputOutput/
+  // formData/listeners/callActivityVariables/loop sub-objects (ADR-021). Kept
+  // dispatchable for one release so existing prompts/scripts keep working.
+  { definition: SET_INPUT_OUTPUT_DEF, handler: handleSetInputOutput, hidden: true },
   { definition: SET_EVENT_DEFINITION_DEF, handler: handleSetEventDefinition },
-  { definition: SET_FORM_DATA_DEF, handler: handleSetFormData },
+  { definition: SET_FORM_DATA_DEF, handler: handleSetFormData, hidden: true },
   { definition: LAYOUT_DIAGRAM_DEF, handler: handleLayoutDiagram },
-  { definition: SET_LOOP_CHARACTERISTICS_DEF, handler: handleSetLoopCharacteristics },
+  { definition: SET_LOOP_CHARACTERISTICS_DEF, handler: handleSetLoopCharacteristics, hidden: true },
   { definition: BPMN_HISTORY_DEF, handler: handleBpmnHistory },
   { definition: BATCH_OPERATIONS_DEF, handler: handleBatchOperations },
-  { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners },
-  { definition: SET_CALL_ACTIVITY_VARIABLES_DEF, handler: handleSetCallActivityVariables },
+  { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners, hidden: true },
+  {
+    definition: SET_CALL_ACTIVITY_VARIABLES_DEF,
+    handler: handleSetCallActivityVariables,
+    hidden: true,
+  },
   { definition: MANAGE_ROOT_ELEMENTS_DEF, handler: handleManageRootElements },
   { definition: CREATE_LANES_DEF, handler: handleCreateLanes },
   { definition: CREATE_PARTICIPANT_DEF, handler: handleCreateParticipant },
@@ -309,8 +323,16 @@ function buildAnnotations(name: string): Record<string, unknown> {
  * every tool's schema — at ~190 characters each, doing so across ~22 tools
  * added roughly 5 KB to the tool list every session pays for.
  */
-export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.map(
-  (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
+export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.filter(
+  (r) => !r.hidden
+).map((r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) }));
+
+/**
+ * Every dispatchable tool name, including hidden aliases (see `ToolRegistration.hidden`).
+ * Exposed for tests that need to distinguish "not a real tool" from "hidden alias".
+ */
+export const ALL_DISPATCHABLE_TOOL_NAMES: string[] = TOOL_REGISTRY.map(
+  (r) => r.definition.name as string
 );
 
 // ── Idempotency cache ──────────────────────────────────────────────────────

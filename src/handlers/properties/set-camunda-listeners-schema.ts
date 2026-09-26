@@ -44,21 +44,9 @@ const SCRIPT_SCHEMA = {
   required: ['scriptFormat', 'value'],
 } as const;
 
-export const TOOL_DEFINITION = {
-  name: 'set_bpmn_camunda_listeners',
-  description:
-    'Set Camunda extension elements on a BPMN element: execution listeners, task listeners, and/or error event definitions. ' +
-    'Execution listeners can be attached to any flow node or process. Task listeners are specific to UserTasks. ' +
-    'Error definitions (camunda:ErrorEventDefinition) are specific to ServiceTasks for Camunda 7 External Task error handling.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elementId: {
-        type: 'string',
-        description: 'The ID of the element to configure',
-      },
-      executionListeners: {
+/** Shared `{ executionListeners, taskListeners, errorDefinitions }` schema fragment (no diagramId/elementId). */
+export const CAMUNDA_LISTENERS_SCHEMA_PROPERTIES = {
+  executionListeners: {
         type: 'array',
         description: 'Execution listeners to set (replaces existing)',
         items: {
@@ -172,6 +160,23 @@ export const TOOL_DEFINITION = {
           required: ['id'],
         },
       },
+} as const;
+
+export const TOOL_DEFINITION = {
+  name: 'set_bpmn_camunda_listeners',
+  description:
+    'Set Camunda extension elements on a BPMN element: execution listeners, task listeners, and/or error event definitions. ' +
+    'Execution listeners can be attached to any flow node or process. Task listeners are specific to UserTasks. ' +
+    'Error definitions (camunda:ErrorEventDefinition) are specific to ServiceTasks for Camunda 7 External Task error handling.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      diagramId: { type: 'string', description: 'The diagram ID' },
+      elementId: {
+        type: 'string',
+        description: 'The ID of the element to configure',
+      },
+      ...CAMUNDA_LISTENERS_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId'],
   },

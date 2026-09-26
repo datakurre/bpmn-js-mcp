@@ -61,7 +61,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 1. A shared `jsdom` instance polyfills browser APIs (SVG, CSS, structuredClone) so `bpmn-js` can run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
-3. **30 MCP tools** are exposed (see "Tool Naming" below), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
+3. **25 MCP tools** are exposed (see "Tool Naming" below), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
 5. `camunda-bpmn-moddle` is registered as a moddle extension, enabling Camunda-specific attributes (e.g. `camunda:assignee`, `camunda:class`, `camunda:formKey`) on elements.
 6. Each handler file **co-locates** its MCP tool definition (`TOOL_DEFINITION`) alongside the handler function, preventing definition drift.
@@ -74,12 +74,13 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 **Every tool name includes `bpmn`** to avoid collisions with other MCPs.
 
 - **Core structural tools:** `create_bpmn_diagram` (includes cloning via `cloneFrom`), `add_bpmn_element` (includes insert-into-flow via `flowId`, cross-lane handoff via `fromElementId`+`toLaneId`), `connect_bpmn_elements` (includes waypoint editing via `connectionId`+`waypoints`), `delete_bpmn_element`, `move_bpmn_element` (includes resize via `width`/`height`), `list_bpmn_elements`, `validate_bpmn_diagram`, `align_bpmn_elements` (includes distribute via `orientation`), `export_bpmn`, `import_bpmn_xml`
-- **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties` (includes element-type replacement via `elementType`), `set_bpmn_input_output_mapping`, `set_bpmn_event_definition`, `set_bpmn_form_data`, `set_bpmn_camunda_listeners` (includes error definitions), `set_bpmn_loop_characteristics`, `set_bpmn_call_activity_variables`
+- **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties` (includes element-type replacement via `elementType`, plus `inputOutput`/`formData`/`listeners`/`callActivityVariables`/`loop` sub-objects — see ADR-021), `set_bpmn_event_definition`
 - **Collaboration tools:** `create_bpmn_participant` (includes wrapping an existing process via `wrapExisting`), `create_bpmn_lanes` (includes merging an existing collaboration via `mergeFrom`), `assign_bpmn_elements_to_lane`, `manage_bpmn_root_elements`, `analyze_bpmn_lanes` (modes: suggest, validate, pool-vs-lanes, redistribute)
 - **History tools:** `bpmn_history`
 - **Batch tools:** `batch_bpmn_operations`
 - **Utility tools:** `delete_bpmn_diagram`, `list_bpmn_diagrams` (includes diagram summary via `diagramId`, diffing via `compareWith`), `list_bpmn_process_variables`, `layout_bpmn_diagram` (includes pool/lane autosizing via `autosizeOnly`), `add_bpmn_element_chain`
 - **Internal-only handlers (not registered as MCP tools):** `handleCreateCollaboration`, `handleInsertElement`, `handleSplitParticipantIntoLanes`, `handleSummarizeDiagram`, `handleDuplicateElement`, `handleSetScript`, `handleAdjustLabels`, `handleSuggestLaneOrganization`, `handleValidateLaneOrganization`, `handleSuggestPoolVsLanes`, `handleHandoffToLane`, `handleReplaceElement`, `handleSetConnectionWaypoints`, `handleRedistributeElementsAcrossLanes`, `handleAutosizePoolsAndLanes`, `handleWrapProcessInCollaboration`, `handleConvertCollaborationToLanes`, `handleCloneDiagram`, `handleDiffDiagrams`
+- **Hidden aliases (registered, dispatchable, excluded from `TOOL_DEFINITIONS`/`ListTools` — ADR-021):** `set_bpmn_input_output_mapping`, `set_bpmn_form_data`, `set_bpmn_camunda_listeners`, `set_bpmn_call_activity_variables`, `set_bpmn_loop_characteristics` — consolidated into `set_bpmn_element_properties`'s `inputOutput`/`formData`/`listeners`/`callActivityVariables`/`loop` sub-objects
 
 ## Build & Run
 
@@ -141,6 +142,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-018](agents/adrs/ADR-018-elk-removal-rebuild-only.md) — ELK removal — rebuild-only layout (superseded by ADR-020)
 - [ADR-019](agents/adrs/ADR-019-tool-consolidation.md) — Tool consolidation
 - [ADR-020](agents/adrs/ADR-020-bpmn-auto-layout-library.md) — Layout delegated to bpmn-auto-layout
+- [ADR-021](agents/adrs/ADR-021-camunda-setter-consolidation.md) — Camunda setters consolidated into set_bpmn_element_properties
 
 ## Key Gotchas
 

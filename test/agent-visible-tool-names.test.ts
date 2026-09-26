@@ -12,6 +12,7 @@
  */
 import { describe, test, expect } from 'vitest';
 import { TOOL_DEFINITIONS } from '../src/tool-definitions';
+import { ALL_DISPATCHABLE_TOOL_NAMES } from '../src/handlers/index';
 import { FIX_SUGGESTIONS } from '../src/lint-suggestions';
 import {
   EXECUTABLE_CAMUNDA7_GUIDE,
@@ -41,7 +42,10 @@ function collectAgentVisibleText(): Record<string, string> {
 }
 
 describe('agent-visible text only references registered tools', () => {
-  const validToolNames = new Set(TOOL_DEFINITIONS.map((t) => t.name));
+  // Includes hidden aliases (tools consolidated into another tool but kept
+  // dispatchable for one release, see ADR-021) — a "former X tool" mention
+  // of one of those is accurate, not stale.
+  const validToolNames = new Set(ALL_DISPATCHABLE_TOOL_NAMES);
   const sources = collectAgentVisibleText();
 
   for (const [source, blob] of Object.entries(sources)) {

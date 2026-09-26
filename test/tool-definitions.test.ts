@@ -14,7 +14,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(30);
+    expect(TOOL_DEFINITIONS.length).toBe(25);
   });
 
   test.each([
@@ -32,15 +32,10 @@ describe('tool-definitions', () => {
     'list_bpmn_diagrams',
     'validate_bpmn_diagram',
     'align_bpmn_elements',
-    'set_bpmn_input_output_mapping',
     'set_bpmn_event_definition',
-    'set_bpmn_form_data',
     'layout_bpmn_diagram',
-    'set_bpmn_loop_characteristics',
     'bpmn_history',
     'batch_bpmn_operations',
-    'set_bpmn_camunda_listeners',
-    'set_bpmn_call_activity_variables',
     'manage_bpmn_root_elements',
     'create_bpmn_lanes',
     'create_bpmn_participant',
@@ -57,9 +52,29 @@ describe('tool-definitions', () => {
     // handoff_bpmn_to_lane removed — use add_bpmn_element with fromElementId + toLaneId
     // convert_bpmn_collaboration_to_lanes removed — use create_bpmn_lanes with mergeFrom
     // autosize_bpmn_pools_and_lanes removed — use layout_bpmn_diagram with autosizeOnly
+    // set_bpmn_input_output_mapping, set_bpmn_form_data, set_bpmn_camunda_listeners,
+    // set_bpmn_call_activity_variables, set_bpmn_loop_characteristics: hidden aliases
+    // (ADR-021) — use set_bpmn_element_properties's inputOutput/formData/listeners/
+    // callActivityVariables/loop sub-objects
   ])("includes tool '%s'", (name) => {
     expect(toolNames).toContain(name);
   });
+
+  test.each([
+    'set_bpmn_input_output_mapping',
+    'set_bpmn_form_data',
+    'set_bpmn_camunda_listeners',
+    'set_bpmn_call_activity_variables',
+    'set_bpmn_loop_characteristics',
+  ])(
+    "'%s' is a hidden alias — not listed in TOOL_DEFINITIONS but still dispatchable",
+    async (name) => {
+      expect(toolNames).not.toContain(name);
+      const { dispatchToolCall } = await import('../src/handlers/index');
+      // Calling with no args should fail on missing required params, not "Unknown tool".
+      await expect(dispatchToolCall(name, {})).rejects.toThrow(/diagramId|elementId/i);
+    }
+  );
 
   test('create_bpmn_diagram has cloneFrom parameter (merged from clone_bpmn_diagram)', () => {
     const tool = TOOL_DEFINITIONS.find((t) => t.name === 'create_bpmn_diagram');
@@ -152,13 +167,14 @@ describe('tool-definitions', () => {
     expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elementIds']));
   });
 
-  test('set_bpmn_input_output_mapping has inputParameters and outputParameters but not source', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_input_output_mapping');
+  test('set_bpmn_element_properties.inputOutput has inputParameters and outputParameters but not source', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_element_properties');
     const schema = getSchema(tool);
-    expect(schema.properties!.inputParameters).toBeDefined();
-    expect(schema.properties!.outputParameters).toBeDefined();
+    const ioProps = schema.properties!.inputOutput.properties;
+    expect(ioProps.inputParameters).toBeDefined();
+    expect(ioProps.outputParameters).toBeDefined();
     // source and sourceExpression should have been removed
-    const inputItemProps = schema.properties!.inputParameters.items.properties;
+    const inputItemProps = ioProps.inputParameters.items.properties;
     expect(inputItemProps.source).toBeUndefined();
     expect(inputItemProps.sourceExpression).toBeUndefined();
   });
@@ -169,10 +185,10 @@ describe('tool-definitions', () => {
     expect(schema.required).toContain('eventDefinitionType');
   });
 
-  test('set_bpmn_form_data requires fields', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_form_data');
+  test('set_bpmn_element_properties.formData requires fields', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_element_properties');
     const schema = getSchema(tool);
-    expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elementId', 'fields']));
+    expect(schema.properties!.formData.required).toEqual(expect.arrayContaining(['fields']));
   });
 
   test('align_bpmn_elements has compact and distribute parameters', () => {
@@ -206,17 +222,18 @@ describe('tool-definitions', () => {
     expect(schema.required).toContain('diagramId');
   });
 
-  test('set_bpmn_camunda_listeners has errorDefinitions parameter', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_camunda_listeners');
+  test('set_bpmn_element_properties.listeners has errorDefinitions parameter', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_element_properties');
     const schema = getSchema(tool);
-    expect(schema.properties!.errorDefinitions).toBeDefined();
-    expect(schema.properties!.errorDefinitions.type).toBe('array');
+    const listenersProps = schema.properties!.listeners.properties;
+    expect(listenersProps.errorDefinitions).toBeDefined();
+    expect(listenersProps.errorDefinitions.type).toBe('array');
   });
 
-  test('set_bpmn_loop_characteristics requires loopType', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_loop_characteristics');
+  test('set_bpmn_element_properties.loop requires loopType', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_element_properties');
     const schema = getSchema(tool);
-    expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elementId', 'loopType']));
+    expect(schema.properties!.loop.required).toEqual(expect.arrayContaining(['loopType']));
   });
 
   describe('annotations', () => {
@@ -274,14 +291,15 @@ describe('tool-definitions', () => {
     });
   });
 
-  describe('size budget (#6)', () => {
+  describe('size budget (#6, #8)', () => {
     // The full serialized tool list is loaded by every session before it does
     // anything, so it's a direct, per-session context cost. This budget caps
     // regressions (e.g. a verbose new tool, a re-added examples block) without
     // itself being the primary reduction mechanism: reaching the eventual
-    // ~25 KB target on top of this also needs the structural changes tracked
-    // separately (consolidating the Camunda setters, tool tiers).
-    const MAX_TOOL_DEFINITIONS_BYTES = 68 * 1024;
+    // ~25 KB target on top of this also needs tool tiers (#9), so a core-only
+    // tier can stay well under budget even while the full tier carries every
+    // tool's complete schema.
+    const MAX_TOOL_DEFINITIONS_BYTES = 63 * 1024;
 
     test(`serialized TOOL_DEFINITIONS stays under ${MAX_TOOL_DEFINITIONS_BYTES} bytes`, () => {
       const bytes = Buffer.byteLength(JSON.stringify(TOOL_DEFINITIONS), 'utf8');

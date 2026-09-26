@@ -36,6 +36,75 @@ export interface SetFormDataArgs {
   }>;
 }
 
+/** Shared `{ businessKey, fields }` schema fragment (no diagramId/elementId). */
+export const FORM_DATA_SCHEMA_PROPERTIES = {
+  businessKey: {
+    type: 'string',
+    description: 'Optional field ID to use as the business key for the process instance',
+  },
+  fields: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Field ID (unique within the form)' },
+        label: { type: 'string', description: 'Display label for the field' },
+        type: {
+          type: 'string',
+          enum: ['string', 'long', 'boolean', 'date', 'enum'],
+          description: 'Field type',
+        },
+        defaultValue: {
+          type: 'string',
+          description: 'Default value for the field',
+        },
+        datePattern: {
+          type: 'string',
+          description: "Date pattern for date fields (e.g. 'dd/MM/yyyy')",
+        },
+        properties: {
+          type: 'object',
+          description: 'Custom key-value properties on the field',
+          additionalProperties: { type: 'string' },
+        },
+        validation: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description:
+                  "Constraint name (e.g. 'required', 'minlength', 'maxlength', 'min', 'max', 'readonly', 'regex')",
+              },
+              config: {
+                type: 'string',
+                description: "Constraint config value (e.g. '5' for minlength)",
+              },
+            },
+            required: ['name'],
+          },
+          description: 'Validation constraints for the field',
+        },
+        values: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'Enum value ID' },
+              name: { type: 'string', description: 'Enum value display name' },
+            },
+            required: ['id', 'name'],
+          },
+          description: "Enum values (required when type is 'enum')",
+        },
+      },
+      required: ['id', 'label', 'type'],
+    },
+    description: 'Array of form field definitions',
+  },
+} as const;
+
 export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId', 'elementId', 'fields']);
   const { diagramId, elementId, businessKey, fields } = args;
@@ -140,71 +209,7 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'The ID of the element to update (must be bpmn:UserTask or bpmn:StartEvent)',
       },
-      businessKey: {
-        type: 'string',
-        description: 'Optional field ID to use as the business key for the process instance',
-      },
-      fields: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', description: 'Field ID (unique within the form)' },
-            label: { type: 'string', description: 'Display label for the field' },
-            type: {
-              type: 'string',
-              enum: ['string', 'long', 'boolean', 'date', 'enum'],
-              description: 'Field type',
-            },
-            defaultValue: {
-              type: 'string',
-              description: 'Default value for the field',
-            },
-            datePattern: {
-              type: 'string',
-              description: "Date pattern for date fields (e.g. 'dd/MM/yyyy')",
-            },
-            properties: {
-              type: 'object',
-              description: 'Custom key-value properties on the field',
-              additionalProperties: { type: 'string' },
-            },
-            validation: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  name: {
-                    type: 'string',
-                    description:
-                      "Constraint name (e.g. 'required', 'minlength', 'maxlength', 'min', 'max', 'readonly', 'regex')",
-                  },
-                  config: {
-                    type: 'string',
-                    description: "Constraint config value (e.g. '5' for minlength)",
-                  },
-                },
-                required: ['name'],
-              },
-              description: 'Validation constraints for the field',
-            },
-            values: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string', description: 'Enum value ID' },
-                  name: { type: 'string', description: 'Enum value display name' },
-                },
-                required: ['id', 'name'],
-              },
-              description: "Enum values (required when type is 'enum')",
-            },
-          },
-          required: ['id', 'label', 'type'],
-        },
-        description: 'Array of form field definitions',
-      },
+      ...FORM_DATA_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId', 'fields'],
   },

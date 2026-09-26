@@ -137,19 +137,9 @@ export async function handleSetCallActivityVariables(
   return appendLintFeedback(result, diagram);
 }
 
-export const TOOL_DEFINITION = {
-  name: 'set_bpmn_call_activity_variables',
-  description:
-    "Set Camunda variable mappings (camunda:in / camunda:out) on a CallActivity element. These pass variables between the parent process and the called process. Distinct from camunda:InputParameter/OutputParameter which are for tasks. Supports source/target variable mapping, sourceExpression, and 'all' variables shorthand.",
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elementId: {
-        type: 'string',
-        description: 'The ID of the CallActivity element',
-      },
-      inMappings: {
+/** Shared `{ inMappings, outMappings }` schema fragment (no diagramId/elementId). */
+export const CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES = {
+  inMappings: {
         type: 'array',
         description: 'Variable mappings from parent process INTO the called process',
         items: {
@@ -214,6 +204,21 @@ export const TOOL_DEFINITION = {
           },
         },
       },
+} as const;
+
+export const TOOL_DEFINITION = {
+  name: 'set_bpmn_call_activity_variables',
+  description:
+    "Set Camunda variable mappings (camunda:in / camunda:out) on a CallActivity element. These pass variables between the parent process and the called process. Distinct from camunda:InputParameter/OutputParameter which are for tasks. Supports source/target variable mapping, sourceExpression, and 'all' variables shorthand.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      diagramId: { type: 'string', description: 'The diagram ID' },
+      elementId: {
+        type: 'string',
+        description: 'The ID of the CallActivity element',
+      },
+      ...CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId'],
   },

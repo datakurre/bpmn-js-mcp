@@ -35,6 +35,99 @@ export interface SetInputOutputArgs {
   outputParameters?: IoParameterValue[];
 }
 
+/** Shared `{ inputParameters, outputParameters }` schema fragment (no diagramId/elementId). */
+export const IO_PARAMETERS_SCHEMA_PROPERTIES = {
+  inputParameters: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Parameter name' },
+        value: {
+          type: 'string',
+          description:
+            "Static value or expression. Examples: '123', '${myVar}', '${execution.getVariable('orderId')}'.",
+        },
+        list: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'List of values (creates camunda:List). Mutually exclusive with value/map/script.',
+        },
+        map: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+          description:
+            'Key-value map (creates camunda:Map). Mutually exclusive with value/list/script.',
+        },
+        script: {
+          type: 'object',
+          properties: {
+            scriptFormat: {
+              type: 'string',
+              description: "Script language (e.g. 'groovy', 'javascript')",
+            },
+            value: { type: 'string', description: 'Inline script body' },
+            resource: {
+              type: 'string',
+              description: 'External script resource path (alternative to inline value)',
+            },
+          },
+          required: ['scriptFormat'],
+          description:
+            'Script value (creates camunda:Script). Mutually exclusive with value/list/map.',
+        },
+      },
+      required: ['name'],
+    },
+    description: 'Input parameters to set',
+  },
+  outputParameters: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Parameter name' },
+        value: {
+          type: 'string',
+          description: "Static value or expression. Examples: 'ok', '${result}'.",
+        },
+        list: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'List of values (creates camunda:List). Mutually exclusive with value/map/script.',
+        },
+        map: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+          description:
+            'Key-value map (creates camunda:Map). Mutually exclusive with value/list/script.',
+        },
+        script: {
+          type: 'object',
+          properties: {
+            scriptFormat: {
+              type: 'string',
+              description: "Script language (e.g. 'groovy', 'javascript')",
+            },
+            value: { type: 'string', description: 'Inline script body' },
+            resource: {
+              type: 'string',
+              description: 'External script resource path (alternative to inline value)',
+            },
+          },
+          required: ['scriptFormat'],
+          description:
+            'Script value (creates camunda:Script). Mutually exclusive with value/list/map.',
+        },
+      },
+      required: ['name'],
+    },
+    description: 'Output parameters to set',
+  },
+} as const;
+
 /** Build a camunda:InputParameter or camunda:OutputParameter with optional complex value. */
 function buildParameter(
   moddle: any,
@@ -137,95 +230,7 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'The ID of the element to update',
       },
-      inputParameters: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Parameter name' },
-            value: {
-              type: 'string',
-              description:
-                "Static value or expression. Examples: '123', '${myVar}', '${execution.getVariable('orderId')}'.",
-            },
-            list: {
-              type: 'array',
-              items: { type: 'string' },
-              description:
-                'List of values (creates camunda:List). Mutually exclusive with value/map/script.',
-            },
-            map: {
-              type: 'object',
-              additionalProperties: { type: 'string' },
-              description:
-                'Key-value map (creates camunda:Map). Mutually exclusive with value/list/script.',
-            },
-            script: {
-              type: 'object',
-              properties: {
-                scriptFormat: {
-                  type: 'string',
-                  description: "Script language (e.g. 'groovy', 'javascript')",
-                },
-                value: { type: 'string', description: 'Inline script body' },
-                resource: {
-                  type: 'string',
-                  description: 'External script resource path (alternative to inline value)',
-                },
-              },
-              required: ['scriptFormat'],
-              description:
-                'Script value (creates camunda:Script). Mutually exclusive with value/list/map.',
-            },
-          },
-          required: ['name'],
-        },
-        description: 'Input parameters to set',
-      },
-      outputParameters: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Parameter name' },
-            value: {
-              type: 'string',
-              description: "Static value or expression. Examples: 'ok', '${result}'.",
-            },
-            list: {
-              type: 'array',
-              items: { type: 'string' },
-              description:
-                'List of values (creates camunda:List). Mutually exclusive with value/map/script.',
-            },
-            map: {
-              type: 'object',
-              additionalProperties: { type: 'string' },
-              description:
-                'Key-value map (creates camunda:Map). Mutually exclusive with value/list/script.',
-            },
-            script: {
-              type: 'object',
-              properties: {
-                scriptFormat: {
-                  type: 'string',
-                  description: "Script language (e.g. 'groovy', 'javascript')",
-                },
-                value: { type: 'string', description: 'Inline script body' },
-                resource: {
-                  type: 'string',
-                  description: 'External script resource path (alternative to inline value)',
-                },
-              },
-              required: ['scriptFormat'],
-              description:
-                'Script value (creates camunda:Script). Mutually exclusive with value/list/map.',
-            },
-          },
-          required: ['name'],
-        },
-        description: 'Output parameters to set',
-      },
+      ...IO_PARAMETERS_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId'],
   },
