@@ -324,22 +324,26 @@ source element's lane to avoid landing in an unrelated middle lane.
 
 ## 16. Manually route a loopback flow
 
-When a gateway has a "No" branch that loops back to an earlier task,
-the auto-router may create zigzag paths. Use `set_bpmn_connection_waypoints`
-to set clean U-shaped waypoints:
+`layout_bpmn_diagram` (delegated to `bpmn-auto-layout`) routes loop-back
+flows automatically — run it after adding a "No"/retry branch that loops
+back to an earlier task rather than routing it by hand.
+
+If a specific connection still needs a custom path, use
+`connect_bpmn_elements` with `connectionId` + `waypoints` to set an
+explicit route:
 
 ```
-1. list_bpmn_elements          → find the loopback flow ID and element positions
-2. set_bpmn_connection_waypoints → { connectionId: "Flow_No",
-                                      waypoints: [
-                                        { x: 425, y: 230 },   // gateway bottom
-                                        { x: 425, y: 350 },   // drop down
-                                        { x: 250, y: 350 },   // go left
-                                        { x: 250, y: 230 }    // rise up to target
-                                      ] }
+1. list_bpmn_elements     → find the loopback flow ID and element positions
+2. connect_bpmn_elements  → { connectionId: "Flow_No",
+                               waypoints: [
+                                 { x: 425, y: 230 },   // gateway bottom
+                                 { x: 425, y: 350 },   // drop down
+                                 { x: 250, y: 350 },   // go left
+                                 { x: 250, y: 230 }    // rise up to target
+                               ] }
 ```
 
-This creates a clean U-shape below the main path. The waypoints should:
+The waypoints should:
 
 - Start at the gateway's bottom center
 - Drop below the main path (50–100px gap)

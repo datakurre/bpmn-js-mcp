@@ -11,7 +11,7 @@ export const STANDARD_BPMN_GAP = 50;
 /**
  * Inter-layer spacing (px) used when inserting elements into existing flows.
  *
- * Matches the spacing the rebuild layout engine produces between layers
+ * Matches the spacing `bpmn-auto-layout` produces between layers
  * (left-to-right), ensuring inserted elements align with the surrounding
  * layout.
  */

@@ -1,4 +1,4 @@
-.PHONY: help install build typecheck lint check format format-check watch start clean prepare test test-watch coverage update-snapshots bundle-size eval eval-ci all
+.PHONY: help install build typecheck lint check format format-check watch start clean prepare test test-watch coverage bundle-size eval eval-ci all
 
 # Default target
 help:
@@ -16,7 +16,6 @@ help:
 	@echo "  make test         - Run tests (vitest)"
 	@echo "  make test-watch   - Run tests in watch mode"
 	@echo "  make coverage     - Run tests with coverage report"
-	@echo "  make update-snapshots - Regenerate layout golden files"
 	@echo "  make bundle-size  - Report dist/index.js bundle size"
 	@echo "  make eval         - Generate layout score report + artifacts"
 	@echo "  make eval-ci      - Run eval with a minimum score gate"
@@ -78,11 +77,6 @@ test-watch: node_modules
 # Run tests with coverage
 coverage: node_modules
 	npm run coverage
-
-# Regenerate layout snapshot golden files from current engine output.
-# Run after confirmed layout improvements to update the baseline.
-update-snapshots: node_modules
-	npm run update:snapshots
 
 # Report bundle size after building
 bundle-size: build

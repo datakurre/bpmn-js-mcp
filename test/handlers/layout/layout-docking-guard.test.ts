@@ -2,10 +2,10 @@
  * Regression test: `layout_bpmn_diagram` must NOT crash with
  * "unexpected dockingDirection: <undefined>" after lane reassignment.
  *
- * The crash fires when the rebuild engine calls modeling.layoutConnection()
- * on a connection whose waypoints are in an inconsistent state (e.g.
- * after elements were moved to lanes). The fix wraps each layoutConnection
- * call in a try/catch in the rebuild engine.
+ * The crash fires when bpmn-js' ManhattanLayout repositions an element whose
+ * sequence-flow connections have waypoints in an inconsistent state (e.g.
+ * after elements were moved to lanes). The fix wraps the reposition call in
+ * a try/catch in `assign-elements-to-lane.ts` and degrades gracefully.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
 import {

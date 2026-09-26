@@ -1,5 +1,5 @@
 /**
- * Tests for label positioning behaviors in the rebuild engine.
+ * Tests for label positioning behaviors after auto-layout.
  *
  * Covers:
  * - Multi-bend flow label positioning (midpoint of path, not first segment)
@@ -37,7 +37,7 @@ function getRegistry(diagramId: string): ElementRegistry {
 
 describe('flow label midpoint on multi-bend connection', () => {
   /**
-   * After rebuild, an L-shaped (4+ waypoint) connection should have its label
+   * After layout, an L-shaped (4+ waypoint) connection should have its label
    * near the path midpoint, not near the source end.
    */
   test('labeled branch flow label is near path midpoint for L-shaped connection', async () => {
@@ -130,10 +130,10 @@ describe('data element placement', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('overlap resolution spreads near-miss positioned elements', () => {
-  test('two tasks 30px apart vertically are spread apart after rebuild', async () => {
+  test('two tasks 30px apart vertically are spread apart after layout', async () => {
     /**
      * Task height = 80px. Two tasks at Y=200 and Y=230 overlap by 50px.
-     * rebuildLayout should detect this and spread them apart.
+     * Layout should detect this and spread them apart.
      *
      * This tests the bounding-box overlap detection, not just exact-coordinate
      * matching (the old behavior only caught y=200 vs y=200 exact).
@@ -177,7 +177,7 @@ describe('overlap resolution spreads near-miss positioned elements', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('backward loop-back connection routing', () => {
-  test('back-edge connection (A → B → A) has valid waypoints after rebuild', async () => {
+  test('back-edge connection (A → B → A) has valid waypoints after layout', async () => {
     const diagramId = await createDiagram('loop-back routing test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const taskA = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task A' });

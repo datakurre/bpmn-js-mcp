@@ -268,8 +268,7 @@ async function handleDryRunLayout(args: LayoutDiagramArgs): Promise<ToolResult> 
 function buildNextSteps(
   laneCrossingMetrics: ReturnType<typeof computeLaneCrossingMetrics>,
   sizingIssues: ContainerSizingIssue[],
-  poolExpansionApplied?: boolean,
-  qualityMetrics?: ReturnType<typeof computeLayoutQualityMetrics>
+  poolExpansionApplied?: boolean
 ): Array<{ tool: string; description: string }> {
   const steps: Array<{ tool: string; description: string }> = [
     {
@@ -278,18 +277,6 @@ function buildNextSteps(
         'Diagram layout is complete. Use export_bpmn with format and filePath to save the diagram.',
     },
   ];
-
-  if (qualityMetrics) {
-    const pct = qualityMetrics.orthogonalFlowPercent;
-    if (pct < 90) {
-      steps.push({
-        tool: 'layout_bpmn_diagram',
-        description:
-          `Flow orthogonality is ${pct}% (below 90%). Re-run layout_bpmn_diagram to attempt ` +
-          `improvement, or run validate_bpmn_diagram to identify specific non-orthogonal segments.`,
-      });
-    }
-  }
 
   if (laneCrossingMetrics && laneCrossingMetrics.laneCoherenceScore < 70) {
     // Suppress redistribution advice when most crossings originate from
@@ -358,61 +345,6 @@ async function autosizePools(
   return applied;
 }
 
-/** Build the orthogonality warning string, including non-orthogonal flow IDs if available. */
-function buildOrthogonalityWarning(
-  qualityMetrics: ReturnType<typeof computeLayoutQualityMetrics>
-): string {
-  const ids = qualityMetrics.nonOrthogonalFlowIds;
-  return (
-    `Layout produced ${qualityMetrics.orthogonalFlowPercent}% orthogonal flows ` +
-    `(${qualityMetrics.avgBendCount} avg bends/flow). ` +
-    `Re-run layout_bpmn_diagram or run validate_bpmn_diagram to identify non-orthogonal segments.` +
-    (ids && ids.length > 0 ? ` Non-orthogonal flow IDs: [${ids.join(', ')}].` : '')
-  );
-}
-
-/**
- * For each non-orthogonal flow whose source is a gateway, compute concrete
- * set_bpmn_connection_waypoints fix hints with 2-point straight waypoints.
- *
- * Returns an array of fix objects (empty when no gateway-sourced non-orthogonal flows exist).
- */
-function buildGatewayFlowFixes(
-  diagramId: string,
-  nonOrthogonalFlowIds: string[],
-  elementRegistry: any
-): Array<{ flowId: string; tool: string; args: Record<string, any> }> {
-  const fixes: Array<{ flowId: string; tool: string; args: Record<string, any> }> = [];
-
-  for (const flowId of nonOrthogonalFlowIds) {
-    const conn = elementRegistry.get(flowId);
-    if (!conn || !conn.waypoints || conn.waypoints.length < 2) continue;
-
-    // Only emit fixes for gateway-sourced flows
-    const sourceType: string = conn.source?.type ?? '';
-    if (!sourceType.includes('Gateway')) continue;
-
-    const wps: Array<{ x: number; y: number }> = conn.waypoints;
-    const first = wps[0];
-    const last = wps[wps.length - 1];
-
-    fixes.push({
-      flowId,
-      tool: 'set_bpmn_connection_waypoints',
-      args: {
-        diagramId,
-        connectionId: flowId,
-        waypoints: [
-          { x: Math.round(first.x), y: Math.round(first.y) },
-          { x: Math.round(last.x), y: Math.round(last.y) },
-        ],
-      },
-    });
-  }
-
-  return fixes;
-}
-
 /** Build the association stale-waypoint block for the layout response. */
 function buildAssocWaypointsBlock(
   associationWaypointsFixed: number | undefined,
@@ -464,7 +396,6 @@ function buildLayoutResponse(opts: {
   scopeElementId?: string;
   elementIds?: string[];
   elementCount: number;
-  labelsMoved: number;
   result: { repositionedCount: number; reroutedCount: number };
   laneCrossingMetrics: ReturnType<typeof computeLaneCrossingMetrics>;
   sizingIssues: ContainerSizingIssue[];
@@ -473,7 +404,6 @@ function buildLayoutResponse(opts: {
   poolExpansionApplied: boolean;
   subprocessesExpanded: number;
   layoutWarnings: string[];
-  gatewayFlowFixes?: Array<{ flowId: string; tool: string; args: Record<string, any> }>;
   associationWaypointsFixed?: number;
   fixedAssociationIds?: string[];
 }): ToolResult {
@@ -482,7 +412,6 @@ function buildLayoutResponse(opts: {
     scopeElementId,
     elementIds,
     elementCount,
-    labelsMoved,
     result,
     laneCrossingMetrics,
     sizingIssues,
@@ -491,7 +420,6 @@ function buildLayoutResponse(opts: {
     poolExpansionApplied,
     subprocessesExpanded,
     layoutWarnings,
-    gatewayFlowFixes,
     associationWaypointsFixed,
     fixedAssociationIds,
   } = opts;
@@ -504,7 +432,6 @@ function buildLayoutResponse(opts: {
   return jsonResult({
     success: true,
     elementCount,
-    labelsMoved,
     repositionedCount: result.repositionedCount,
     reroutedCount: result.reroutedCount,
     ...buildAssocWaypointsBlock(associationWaypointsFixed, fixedAssociationIds),
@@ -512,10 +439,6 @@ function buildLayoutResponse(opts: {
     ...buildLaneCrossingBlock(laneCrossingMetrics),
     ...(sizingIssues.length > 0 ? { containerSizingIssues: sizingIssues } : {}),
     qualityMetrics,
-    ...(qualityMetrics.orthogonalFlowPercent < 90
-      ? { warning: buildOrthogonalityWarning(qualityMetrics) }
-      : {}),
-    ...(gatewayFlowFixes && gatewayFlowFixes.length > 0 ? { gatewayFlowFixes } : {}),
     message:
       `Auto-layout applied to diagram ${diagramId}` +
       `${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}` +
@@ -525,12 +448,7 @@ function buildLayoutResponse(opts: {
     ...(diWarnings.length > 0 ? { diWarnings } : {}),
     ...(poolExpansionApplied ? { poolExpansionApplied: true } : {}),
     ...(subprocessesExpanded > 0 ? { subprocessesExpanded } : {}),
-    nextSteps: buildNextSteps(
-      laneCrossingMetrics,
-      sizingIssues,
-      poolExpansionApplied,
-      qualityMetrics
-    ),
+    nextSteps: buildNextSteps(laneCrossingMetrics, sizingIssues, poolExpansionApplied),
   });
 }
 
@@ -636,14 +554,12 @@ export async function handleLayoutDiagram(
   const poolExpansionApplied = await autosizePools(args, diagram, elementRegistry);
 
   const finalQualityMetrics = computeLayoutQualityMetrics(elementRegistry);
-  const nonOrthIds = finalQualityMetrics.nonOrthogonalFlowIds ?? [];
 
   const layoutResult = buildLayoutResponse({
     diagramId,
     scopeElementId,
     elementIds,
     elementCount: countFlowElements(elementRegistry),
-    labelsMoved: 0,
     result,
     laneCrossingMetrics: computeLaneCrossingMetrics(elementRegistry),
     sizingIssues: detectContainerSizingIssues(elementRegistry),
@@ -652,10 +568,6 @@ export async function handleLayoutDiagram(
     poolExpansionApplied,
     subprocessesExpanded,
     layoutWarnings: result.warnings.map((w) => w.message),
-    gatewayFlowFixes:
-      nonOrthIds.length > 0
-        ? buildGatewayFlowFixes(diagramId, nonOrthIds, elementRegistry)
-        : undefined,
     associationWaypointsFixed: assocCount,
     fixedAssociationIds: assocIds,
   });

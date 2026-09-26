@@ -56,7 +56,7 @@ describe('user-pinned elements', () => {
     expect(diagram.pinnedElements?.has(task)).toBeFalsy();
   });
 
-  test('layout skips pinned elements during rebuild', async () => {
+  test('layout skips pinned elements during a scoped layout run', async () => {
     const diagramId = await createDiagram();
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });
     const task1 = await addElement(diagramId, 'bpmn:Task', { name: 'T1' });
@@ -78,7 +78,7 @@ describe('user-pinned elements', () => {
     const pinnedX = task1Before.x;
     const pinnedY = task1Before.y;
 
-    // Scoped layout — pinned elements should be skipped by rebuild engine
+    // Scoped layout — pinned elements should be skipped by the layout library
     const { getDiagram } = await import('../../../src/diagram-manager');
     const diagram = getDiagram(diagramId)!;
     expect(diagram.pinnedElements?.has(task1)).toBe(true);

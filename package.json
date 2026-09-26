@@ -21,7 +21,6 @@
     "test:acceptance": "vitest run test/acceptance/",
     "test:coverage": "vitest run --coverage",
     "coverage": "vitest run --coverage",
-    "update:snapshots": "vitest run test/handlers/layout/reference-snapshots.test.ts",
     "bundle-size": "node -e \"const s=require('fs').statSync('dist/index.js').size; console.log('Bundle: '+(s/1024).toFixed(1)+'KB ('+s+' bytes)')\""
   },
   "keywords": [

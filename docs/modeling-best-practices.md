@@ -167,9 +167,8 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 **Layout guidance:**
 
 - Keep the **happy path** (Yes branch) straight and horizontal — it should flow left-to-right without vertical detours.
-- Route the **loopback** (No branch) **below** the main path with a clean U-shape: down → left → up. This keeps the loopback visually distinct.
-- Use `set_bpmn_connection_waypoints` to manually set clean U-shaped waypoints when the auto-router creates zigzag paths.
-- When inserting a gateway into an existing straight flow, use `insert_bpmn_element` — it preserves horizontal alignment between source, gateway, and target.
+- Route the **loopback** (No branch) **below** the main path with a clean U-shape: down → left → up. `layout_bpmn_diagram` routes this automatically; if a specific connection still needs a custom path, use `connect_bpmn_elements` with `connectionId` + `waypoints`.
+- When inserting a gateway into an existing straight flow, use `add_bpmn_element` with `flowId` set to the flow being split — it preserves horizontal alignment between source, gateway, and target.
 
 **Modeling tips:**
 

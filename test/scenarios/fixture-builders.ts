@@ -4,13 +4,8 @@
  * Each builder creates a diagram via the MCP handler API and returns a
  * typed object with named element IDs.  The builder-based approach is
  * transparent (readable names), maintainable, and ID-stable across
- * layout engine changes.
- *
- * Replaces `importReference('01-linear-flow')` et al. from
- * `test/helpers.ts` in `rebuild-engine.test.ts` and
- * `rebuild-topology.test.ts`.
- *
- * See TODO.md §0a and §0b for the migration plan.
+ * layout algorithm changes (layout is delegated to `bpmn-auto-layout`,
+ * see ADR-020).
  */
 
 import {
@@ -394,7 +389,7 @@ export async function buildF08CollaborationCollapsed(): Promise<F08Ids> {
 
 // ── F09: Complex workflow (topology-test subset) ───────────────────────────
 //
-// Reproduces only the structural properties needed for rebuild-topology
+// Reproduces only the structural properties needed for topology-focused
 // tests: Gateway_RegistrationType (exclusive split), ServiceTask_ProcessPayment
 // (with error boundary), UserTask_ReviewAndConfirm (with timer boundary).
 // Uses descriptive names that generate IDs matching the fixture where possible.
@@ -720,8 +715,7 @@ export interface F13Ids {
  * boundary event.  The exception chain (boundary → timeout end) runs in
  * parallel with the main flow (start → task → done).
  *
- * Used to test that connection waypoints stay within pool Y bounds after
- * rebuildLayout — see TODO #1 (Waypoint clamping).
+ * Used to test that connection waypoints stay within pool Y bounds after layout.
  */
 export async function buildF13PoolWithNonInterruptingBoundary(): Promise<F13Ids> {
   const diagramId = await createDiagram('F13 Pool With Non-Interrupting Boundary');
