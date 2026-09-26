@@ -71,6 +71,14 @@ export const TOOL_DEFINITION = {
         description:
           'Optional. When autosizeOnly is true, scope pool resizing to this participant ID.',
       },
+      verbose: {
+        type: 'boolean',
+        description:
+          'When true, include full diagnostics: the non-orthogonal flow ID list, per-pool/lane ' +
+          'sizing issues, cross-lane crossing flow IDs, the recomputed association ID list, and ' +
+          'the full nextSteps list. Default: false — a compact summary with only actionable ' +
+          'warnings and up to two nextSteps.',
+      },
     },
     required: ['diagramId'],
   },

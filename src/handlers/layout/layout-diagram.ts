@@ -180,6 +180,13 @@ export interface LayoutDiagramArgs {
   autosizeOnly?: boolean;
   /** When autosizeOnly is true, scope pool resizing to this participant ID. */
   participantId?: string;
+  /**
+   * When true, include full diagnostics: the non-orthogonal flow ID list,
+   * per-pool/lane sizing issues, cross-lane crossing flow IDs, and the
+   * recomputed association ID list. Default: false — the response stays a
+   * compact summary with only actionable warnings and up to two nextSteps.
+   */
+  verbose?: boolean;
 }
 
 /** Handle labels-only mode: just adjust labels without full layout. */
@@ -264,11 +271,18 @@ async function handleDryRunLayout(args: LayoutDiagramArgs): Promise<ToolResult> 
   }
 }
 
-/** Build the nextSteps array with lane and sizing advice. */
+/**
+ * Build the nextSteps array with lane and sizing advice.
+ *
+ * By default (verbose: false) the array is capped to at most 2 entries —
+ * the always-present export reminder plus the single most relevant
+ * situational hint. Pass verbose: true for the full, uncapped list.
+ */
 function buildNextSteps(
   laneCrossingMetrics: ReturnType<typeof computeLaneCrossingMetrics>,
   sizingIssues: ContainerSizingIssue[],
-  poolExpansionApplied?: boolean
+  poolExpansionApplied?: boolean,
+  verbose?: boolean
 ): Array<{ tool: string; description: string }> {
   const steps: Array<{ tool: string; description: string }> = [
     {
@@ -320,7 +334,7 @@ function buildNextSteps(
     });
   }
 
-  return steps;
+  return verbose ? steps : steps.slice(0, 2);
 }
 
 /**
@@ -345,12 +359,18 @@ async function autosizePools(
   return applied;
 }
 
-/** Build the association stale-waypoint block for the layout response. */
+/**
+ * Build the association stale-waypoint block for the layout response.
+ * By default only the count is included; verbose adds the ID list and a
+ * detailed warning explaining how to fix a bad recomputed path.
+ */
 function buildAssocWaypointsBlock(
   associationWaypointsFixed: number | undefined,
-  fixedAssociationIds: string[] | undefined
+  fixedAssociationIds: string[] | undefined,
+  verbose?: boolean
 ): Record<string, unknown> {
   if (!associationWaypointsFixed || associationWaypointsFixed === 0) return {};
+  if (!verbose) return { associationWaypointsFixed };
   return {
     associationWaypointsFixed,
     ...(fixedAssociationIds && fixedAssociationIds.length > 0 ? { fixedAssociationIds } : {}),
@@ -362,9 +382,13 @@ function buildAssocWaypointsBlock(
   };
 }
 
-/** Build the laneCrossingMetrics block for the layout response. */
+/**
+ * Build the laneCrossingMetrics block for the layout response.
+ * By default omits the per-flow crossingFlowIds list; verbose includes it.
+ */
 function buildLaneCrossingBlock(
-  laneCrossingMetrics: ReturnType<typeof computeLaneCrossingMetrics>
+  laneCrossingMetrics: ReturnType<typeof computeLaneCrossingMetrics>,
+  verbose?: boolean
 ): Record<string, unknown> {
   if (!laneCrossingMetrics) return {};
   return {
@@ -372,11 +396,25 @@ function buildLaneCrossingBlock(
       totalLaneFlows: laneCrossingMetrics.totalLaneFlows,
       crossingLaneFlows: laneCrossingMetrics.crossingLaneFlows,
       laneCoherenceScore: laneCrossingMetrics.laneCoherenceScore,
-      ...(laneCrossingMetrics.crossingFlowIds
+      ...(verbose && laneCrossingMetrics.crossingFlowIds
         ? { crossingFlowIds: laneCrossingMetrics.crossingFlowIds }
         : {}),
     },
   };
+}
+
+/**
+ * Compact quality metrics for the default response: drops the
+ * nonOrthogonalFlowIds list, which can be large and is only actionable
+ * together with the full nextSteps/lint detail available via verbose.
+ */
+function compactQualityMetrics(
+  qualityMetrics: ReturnType<typeof computeLayoutQualityMetrics>,
+  verbose?: boolean
+): ReturnType<typeof computeLayoutQualityMetrics> {
+  if (verbose) return qualityMetrics;
+  const { orthogonalFlowPercent, avgBendCount } = qualityMetrics;
+  return { orthogonalFlowPercent, avgBendCount };
 }
 
 /** Apply association waypoint recomputation after layout and return layout-response props. */
@@ -406,6 +444,7 @@ function buildLayoutResponse(opts: {
   layoutWarnings: string[];
   associationWaypointsFixed?: number;
   fixedAssociationIds?: string[];
+  verbose?: boolean;
 }): ToolResult {
   const {
     diagramId,
@@ -422,6 +461,7 @@ function buildLayoutResponse(opts: {
     layoutWarnings,
     associationWaypointsFixed,
     fixedAssociationIds,
+    verbose,
   } = opts;
 
   const scopeNote =
@@ -434,11 +474,11 @@ function buildLayoutResponse(opts: {
     elementCount,
     repositionedCount: result.repositionedCount,
     reroutedCount: result.reroutedCount,
-    ...buildAssocWaypointsBlock(associationWaypointsFixed, fixedAssociationIds),
+    ...buildAssocWaypointsBlock(associationWaypointsFixed, fixedAssociationIds, verbose),
     ...(layoutWarnings.length > 0 ? { layoutWarnings } : {}),
-    ...buildLaneCrossingBlock(laneCrossingMetrics),
-    ...(sizingIssues.length > 0 ? { containerSizingIssues: sizingIssues } : {}),
-    qualityMetrics,
+    ...buildLaneCrossingBlock(laneCrossingMetrics, verbose),
+    ...(verbose && sizingIssues.length > 0 ? { containerSizingIssues: sizingIssues } : {}),
+    qualityMetrics: compactQualityMetrics(qualityMetrics, verbose),
     message:
       `Auto-layout applied to diagram ${diagramId}` +
       `${scopeElementId ? ` (scoped to ${scopeElementId})` : ''}` +
@@ -448,7 +488,7 @@ function buildLayoutResponse(opts: {
     ...(diWarnings.length > 0 ? { diWarnings } : {}),
     ...(poolExpansionApplied ? { poolExpansionApplied: true } : {}),
     ...(subprocessesExpanded > 0 ? { subprocessesExpanded } : {}),
-    nextSteps: buildNextSteps(laneCrossingMetrics, sizingIssues, poolExpansionApplied),
+    nextSteps: buildNextSteps(laneCrossingMetrics, sizingIssues, poolExpansionApplied, verbose),
   });
 }
 
@@ -570,6 +610,7 @@ export async function handleLayoutDiagram(
     layoutWarnings: result.warnings.map((w) => w.message),
     associationWaypointsFixed: assocCount,
     fixedAssociationIds: assocIds,
+    verbose: args.verbose,
   });
 
   return appendLintFeedback(layoutResult, diagram);
