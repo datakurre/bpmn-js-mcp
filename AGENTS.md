@@ -59,7 +59,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 1. `bpmn-to-image` provides the shared `jsdom` instance, browser API polyfills (SVG, CSS, structuredClone), and the headless `BpmnModeler` factory that let `bpmn-js` run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
-3. **25 MCP tools** are exposed (see "Tool Naming" below; set `BPMN_MCP_TOOLS=core` for a 12-tool subset via the `tier` field on `TOOL_REGISTRY` entries — dispatch always accepts every tool regardless of tier), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
+3. **25 MCP tools** are exposed (see "Tool Naming" below; set `BPMN_MCP_TOOLS=core` for a 12-tool subset via the `tier` field on `TOOL_REGISTRY` entries — dispatch always accepts every tool regardless of tier), plus **6 resource templates** (diagram summary, lint, variables, XML, SVG, and elements) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
 5. `camunda-bpmn-moddle` is registered as a moddle extension, enabling Camunda-specific attributes (e.g. `camunda:assignee`, `camunda:class`, `camunda:formKey`) on elements.
 6. Each handler file **co-locates** its MCP tool definition (`TOOL_DEFINITION`) alongside the handler function, preventing definition drift.
@@ -142,6 +142,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-020](agents/adrs/ADR-020-bpmn-auto-layout-library.md) — Layout delegated to bpmn-auto-layout
 - [ADR-021](agents/adrs/ADR-021-camunda-setter-consolidation.md) — Camunda setters consolidated into set_bpmn_element_properties
 - [ADR-022](agents/adrs/ADR-022-bpmn-to-image-library.md) — Headless rendering delegated to bpmn-to-image
+- [ADR-023](agents/adrs/ADR-023-large-output-resource-links.md) — Resource links instead of inlining large output
 
 ## Key Gotchas
 

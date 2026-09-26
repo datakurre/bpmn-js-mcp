@@ -9,6 +9,7 @@
  *   bpmn://diagram/{id}/lint    — validation issues + fix suggestions
  *   bpmn://diagram/{id}/variables — process variable references
  *   bpmn://diagram/{id}/xml    — current BPMN XML
+ *   bpmn://diagram/{id}/svg    — current diagram SVG
  *   bpmn://diagram/{id}/elements — all elements with properties
  *   bpmn://guides/executable-camunda7 — Camunda 7 deployment guide
  *   bpmn://guides/modeling-elements — element modeling best practices
@@ -27,6 +28,7 @@ import {
   MODELING_ELEMENTS_GUIDE,
   ELEMENT_PROPERTIES_GUIDE,
 } from './resource-guides';
+import { adjustSvgViewBox } from './handlers/core/export-helpers';
 
 const MIME_MARKDOWN = 'text/markdown';
 
@@ -60,6 +62,13 @@ export const RESOURCE_TEMPLATES = [
     description:
       'Current BPMN 2.0 XML of the diagram. Useful for re-grounding context during iterative editing sessions.',
     mimeType: 'application/xml',
+  },
+  {
+    uriTemplate: 'bpmn://diagram/{diagramId}/svg',
+    name: 'Diagram SVG',
+    description:
+      'Current SVG rendering of the diagram, viewBox-tightened to content bounds (same as export_bpmn format: "svg").',
+    mimeType: 'image/svg+xml',
   },
   {
     uriTemplate: 'bpmn://diagram/{diagramId}/elements',
@@ -149,6 +158,12 @@ export function listResources(): any[] {
       mimeType: 'application/xml',
     });
     resources.push({
+      uri: `bpmn://diagram/${id}/svg`,
+      name: `${name} — SVG`,
+      description: `SVG rendering of diagram "${name}"`,
+      mimeType: 'image/svg+xml',
+    });
+    resources.push({
       uri: `bpmn://diagram/${id}/elements`,
       name: `${name} — elements`,
       description: `All elements in diagram "${name}"`,
@@ -224,6 +239,10 @@ export async function readResource(
     };
   }
 
+  // bpmn://diagram/{id}/svg
+  const svgResult = await tryReadSvgResource(uri);
+  if (svgResult) return svgResult;
+
   // bpmn://diagram/{id}/elements
   const elementsMatch = uri.match(/^bpmn:\/\/diagram\/([^/]+)\/elements$/);
   if (elementsMatch) {
@@ -264,4 +283,21 @@ function ensureDiagramExists(diagramId: string): void {
   if (!getDiagram(diagramId)) {
     throw new McpError(ErrorCode.InvalidRequest, `Diagram not found: ${diagramId}`);
   }
+}
+
+/** Handle `bpmn://diagram/{id}/svg`, or return undefined if the URI doesn't match. */
+async function tryReadSvgResource(
+  uri: string
+): Promise<{ contents: Array<{ uri: string; mimeType: string; text: string }> } | undefined> {
+  const match = uri.match(/^bpmn:\/\/diagram\/([^/]+)\/svg$/);
+  if (!match) return undefined;
+
+  const diagramId = match[1];
+  ensureDiagramExists(diagramId);
+  const diagram = getDiagram(diagramId)!;
+  const { svg } = await diagram.modeler.saveSVG();
+  const tightSvg = adjustSvgViewBox(svg || '', diagram);
+  return {
+    contents: [{ uri, mimeType: 'image/svg+xml', text: tightSvg }],
+  };
 }

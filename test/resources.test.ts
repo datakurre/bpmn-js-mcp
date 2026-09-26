@@ -13,13 +13,14 @@ import {
 afterEach(() => clearDiagrams());
 
 describe('RESOURCE_TEMPLATES', () => {
-  test('has templates for summary, lint, variables, xml, and elements', () => {
-    expect(RESOURCE_TEMPLATES).toHaveLength(5);
+  test('has templates for summary, lint, variables, xml, svg, and elements', () => {
+    expect(RESOURCE_TEMPLATES).toHaveLength(6);
     const uris = RESOURCE_TEMPLATES.map((t) => t.uriTemplate);
     expect(uris).toContain('bpmn://diagram/{diagramId}/summary');
     expect(uris).toContain('bpmn://diagram/{diagramId}/lint');
     expect(uris).toContain('bpmn://diagram/{diagramId}/variables');
     expect(uris).toContain('bpmn://diagram/{diagramId}/xml');
+    expect(uris).toContain('bpmn://diagram/{diagramId}/svg');
     expect(uris).toContain('bpmn://diagram/{diagramId}/elements');
   });
 });
@@ -45,8 +46,8 @@ describe('listResources', () => {
   test('returns per-diagram resources when diagrams exist', async () => {
     const id = await createDiagram('Test Process');
     const resources = listResources();
-    // 1 (diagrams list) + static resources + 5 (summary, lint, variables, xml, elements)
-    expect(resources).toHaveLength(1 + STATIC_RESOURCES.length + 5);
+    // 1 (diagrams list) + static resources + 6 (summary, lint, variables, xml, svg, elements)
+    expect(resources).toHaveLength(1 + STATIC_RESOURCES.length + 6);
     const uris = resources.map((r: any) => r.uri);
     expect(uris).toContain('bpmn://diagrams');
     expect(uris).toContain('bpmn://guides/executable-camunda7');
@@ -54,6 +55,7 @@ describe('listResources', () => {
     expect(uris).toContain(`bpmn://diagram/${id}/lint`);
     expect(uris).toContain(`bpmn://diagram/${id}/variables`);
     expect(uris).toContain(`bpmn://diagram/${id}/xml`);
+    expect(uris).toContain(`bpmn://diagram/${id}/svg`);
     expect(uris).toContain(`bpmn://diagram/${id}/elements`);
   });
 });
@@ -102,6 +104,16 @@ describe('readResource', () => {
     expect(result.contents[0].mimeType).toBe('application/xml');
     expect(result.contents[0].text).toContain('bpmn:definitions');
     expect(result.contents[0].text).toContain('StartEvent');
+  });
+
+  test('reads bpmn://diagram/{id}/svg', async () => {
+    const id = await createDiagram('SVG Test');
+    await addElement(id, 'bpmn:StartEvent', { name: 'Start' });
+    const result = await readResource(`bpmn://diagram/${id}/svg`);
+    expect(result.contents).toHaveLength(1);
+    expect(result.contents[0].mimeType).toBe('image/svg+xml');
+    expect(result.contents[0].text).toContain('<svg');
+    expect(result.contents[0].text).toContain('viewBox=');
   });
 
   test('reads bpmn://diagram/{id}/elements', async () => {

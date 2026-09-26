@@ -13,6 +13,7 @@
 
 import { type ToolResult, type ToolContext } from '../../types';
 import { exportFailedError } from '../../errors';
+import { LARGE_XML_CHARS, LARGE_SVG_CHARS } from '../../constants';
 import {
   requireDiagram,
   buildConnectivityWarnings,
@@ -38,6 +39,12 @@ export interface ExportBpmnArgs {
   lintMinSeverity?: 'error' | 'warning';
   elementId?: string;
   filePath?: string;
+  /**
+   * xml/svg/both: force full text inline even when the content is large
+   * enough to be replaced by a `bpmn://diagram/{id}/xml|svg` resource_link
+   * + short summary. Default: false.
+   */
+  inline?: boolean;
   /** PNG/animated formats: pixel density multiplier. Default: 2 for PNG, 1 for animations. */
   scale?: number;
   /** PNG/animated/HTML formats: background color (CSS color string). Default: transparent. */
@@ -48,6 +55,53 @@ export interface ExportBpmnArgs {
   fps?: number;
   /** gif format only: encoder to use. Default: 'auto' (ffmpeg when on PATH, else bundled gifenc). */
   encoder?: 'auto' | 'gifenc' | 'ffmpeg';
+}
+
+/** Which resource kind each performExport() content item corresponds to, by index. */
+function contentKinds(format: string): Array<'xml' | 'svg'> {
+  if (format === 'both') return ['xml', 'svg'];
+  if (format === 'svg') return ['svg'];
+  return ['xml'];
+}
+
+/** Per-kind size threshold — SVG runs far more verbose per element than XML. */
+function thresholdFor(kind: 'xml' | 'svg'): number {
+  return kind === 'xml' ? LARGE_XML_CHARS : LARGE_SVG_CHARS;
+}
+
+/**
+ * Replace text content items beyond their kind's size threshold
+ * (`LARGE_XML_CHARS`/`LARGE_SVG_CHARS`) with a `bpmn://diagram/{id}/xml|svg`
+ * resource_link + short summary, so a large diagram's export doesn't inline
+ * tens of thousands of characters into the tool response by default. Pass
+ * `inline: true` to keep the full text. Only affects what's *returned*; a
+ * `filePath` write always gets the full content regardless (see
+ * performExport's caller).
+ */
+function summarizeIfLarge(
+  content: ToolResult['content'],
+  diagramId: string,
+  format: string,
+  inline: boolean
+): ToolResult['content'] {
+  if (inline) return content;
+  const kinds = contentKinds(format);
+
+  return content.map((item, i) => {
+    const kind = kinds[i];
+    const text = item.text ?? '';
+    if (!kind || text.length <= thresholdFor(kind)) return item;
+
+    return {
+      type: 'resource_link',
+      uri: `bpmn://diagram/${diagramId}/${kind}`,
+      name: `${kind.toUpperCase()} (${text.length.toLocaleString()} chars)`,
+      description:
+        `Diagram export is large (${text.length.toLocaleString()} characters) — ` +
+        'read it via this resource instead of inlining. Pass inline: true to force full text.',
+      mimeType: kind === 'xml' ? 'application/xml' : 'image/svg+xml',
+    };
+  });
 }
 
 /** Perform the actual XML/SVG export from the modeler. */
@@ -127,12 +181,19 @@ export async function handleExportBpmn(
 
   await context?.sendProgress?.(50, 100, 'Exporting diagram…');
 
-  // Perform export
-  const content = await performExport(diagram, format);
+  // Perform export (always the full content, regardless of size)
+  const fullContent = await performExport(diagram, format);
 
-  // Write to file if requested
+  // Write to file if requested — always the full content.
   if (filePath) {
-    await writeExportToFile(filePath, content);
+    await writeExportToFile(filePath, fullContent);
+  }
+
+  // What's actually returned may summarize large text content into a
+  // resource_link instead (see summarizeIfLarge's doc comment).
+  const content = summarizeIfLarge(fullContent, diagramId, format, args.inline ?? false);
+
+  if (filePath) {
     content.push({ type: 'text', text: `\n✅ Written to ${filePath}` });
   }
 
@@ -242,7 +303,7 @@ export const TOOL_DEFINITION = {
     'PNG/animated/HTML formats always write to filePath (required for those formats) rather than inlining. ' +
     "Animated formats render token-simulation driven by an optional TOML scenario (see the executable-Camunda-7 guide resource); omit scenario to use the diagram's own default. " +
     'gif/apng/mp4/webp/html require optional dependencies (gifenc or ffmpeg for encoding, smol-toml for scenario parsing) — errors name the missing one. ' +
-    'The exported text content is also returned in the response (binary/HTML formats return a confirmation only).',
+    'The exported text content is also returned in the response, unless it is large — beyond a size threshold, xml/svg/both return a bpmn://diagram/{id}/xml or /svg resource_link plus a short summary instead of the full text; pass inline: true to force full text regardless of size. Binary/HTML formats return a confirmation only.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -275,6 +336,11 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Optional ID of a SubProcess or Participant to export as a standalone diagram (xml/svg/both only). When provided, lint gating is skipped.',
+      },
+      inline: {
+        type: 'boolean',
+        description:
+          'xml/svg/both only: force full text inline even for a large diagram that would otherwise be summarized as a bpmn://diagram/{id}/xml or /svg resource_link. Default: false.',
       },
       scale: {
         type: 'number',

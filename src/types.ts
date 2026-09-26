@@ -115,8 +115,14 @@ export interface ToolResult {
     text?: string;
     /** For image content items. */
     data?: string;
-    /** For image content items. */
+    /** For image and resource_link content items. */
     mimeType?: string;
+    /** For resource_link content items: the bpmn:// resource URI. */
+    uri?: string;
+    /** For resource_link content items: a short display name. */
+    name?: string;
+    /** For resource_link content items: what the resource contains. */
+    description?: string;
     /** Optional audience annotation. */
     annotations?: Record<string, unknown>;
   }>;
