@@ -218,4 +218,59 @@ describe('tool-definitions', () => {
     const schema = getSchema(tool);
     expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elementId', 'loopType']));
   });
+
+  describe('annotations', () => {
+    const readOnlyToolNames = [
+      'export_bpmn',
+      'list_bpmn_diagrams',
+      'list_bpmn_elements',
+      'get_bpmn_element_properties',
+      'validate_bpmn_diagram',
+      'analyze_bpmn_lanes',
+      'list_bpmn_process_variables',
+    ];
+
+    test('every tool has a title and boolean readOnlyHint/openWorldHint', () => {
+      for (const tool of TOOL_DEFINITIONS) {
+        const annotations = (tool as any).annotations;
+        expect(annotations, `${tool.name} is missing annotations`).toBeDefined();
+        expect(typeof annotations.title).toBe('string');
+        expect(annotations.title.length).toBeGreaterThan(0);
+        expect(typeof annotations.readOnlyHint).toBe('boolean');
+        expect(typeof annotations.openWorldHint).toBe('boolean');
+      }
+    });
+
+    test.each(readOnlyToolNames)('%s has readOnlyHint: true', (name) => {
+      const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
+      expect((tool as any).annotations.readOnlyHint).toBe(true);
+    });
+
+    test.each(['delete_bpmn_diagram', 'delete_bpmn_element'])(
+      '%s has destructiveHint: true',
+      (name) => {
+        const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
+        expect((tool as any).annotations.destructiveHint).toBe(true);
+      }
+    );
+
+    test('non-destructive tools do not set destructiveHint', () => {
+      for (const tool of TOOL_DEFINITIONS) {
+        if (tool.name === 'delete_bpmn_diagram' || tool.name === 'delete_bpmn_element') continue;
+        expect((tool as any).annotations.destructiveHint).toBeUndefined();
+      }
+    });
+
+    test.each(['import_bpmn_xml', 'export_bpmn'])('%s has openWorldHint: true', (name) => {
+      const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
+      expect((tool as any).annotations.openWorldHint).toBe(true);
+    });
+
+    test('tools other than import/export have openWorldHint: false', () => {
+      for (const tool of TOOL_DEFINITIONS) {
+        if (tool.name === 'import_bpmn_xml' || tool.name === 'export_bpmn') continue;
+        expect((tool as any).annotations.openWorldHint).toBe(false);
+      }
+    });
+  });
 });

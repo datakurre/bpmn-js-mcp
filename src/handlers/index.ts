@@ -218,8 +218,83 @@ const READONLY_TOOLS = new Set([
   'list_bpmn_elements',
   'get_bpmn_element_properties',
   'analyze_bpmn_lanes',
-  'diff_bpmn_diagrams',
 ]);
+
+/** Tools whose primary effect is permanently removing a diagram or element. */
+const DESTRUCTIVE_TOOLS = new Set(['delete_bpmn_diagram', 'delete_bpmn_element']);
+
+/**
+ * Tools that read or write local files (via `filePath`), so they interact
+ * with something outside the in-memory diagram model.
+ */
+const OPEN_WORLD_TOOLS = new Set(['import_bpmn_xml', 'export_bpmn']);
+
+/**
+ * Tools where repeating an identical call has no additional effect beyond
+ * the first — setting the same properties, moving to the same position, or
+ * deleting an already-deleted target. Excludes tools that create new
+ * elements/diagrams/connections, where a repeat call duplicates state.
+ */
+const IDEMPOTENT_TOOLS = new Set([
+  'set_bpmn_element_properties',
+  'set_bpmn_input_output_mapping',
+  'set_bpmn_event_definition',
+  'set_bpmn_form_data',
+  'set_bpmn_loop_characteristics',
+  'set_bpmn_camunda_listeners',
+  'set_bpmn_call_activity_variables',
+  'move_bpmn_element',
+  'align_bpmn_elements',
+  'layout_bpmn_diagram',
+  'manage_bpmn_root_elements',
+  'delete_bpmn_element',
+  'delete_bpmn_diagram',
+]);
+
+/** Short human-readable title per tool, for clients that label/group tools. */
+const TOOL_TITLES: Record<string, string> = {
+  create_bpmn_diagram: 'Create Diagram',
+  add_bpmn_element: 'Add Element',
+  connect_bpmn_elements: 'Connect Elements',
+  delete_bpmn_element: 'Delete Element',
+  move_bpmn_element: 'Move/Resize Element',
+  get_bpmn_element_properties: 'Get Element Properties',
+  export_bpmn: 'Export Diagram',
+  list_bpmn_elements: 'List Elements',
+  set_bpmn_element_properties: 'Set Element Properties',
+  import_bpmn_xml: 'Import Diagram',
+  delete_bpmn_diagram: 'Delete Diagram',
+  list_bpmn_diagrams: 'List Diagrams',
+  validate_bpmn_diagram: 'Validate Diagram',
+  align_bpmn_elements: 'Align/Distribute Elements',
+  set_bpmn_input_output_mapping: 'Set Input/Output Mapping',
+  set_bpmn_event_definition: 'Set Event Definition',
+  set_bpmn_form_data: 'Set Form Data',
+  layout_bpmn_diagram: 'Auto-Layout Diagram',
+  set_bpmn_loop_characteristics: 'Set Loop Characteristics',
+  bpmn_history: 'Diagram History (Undo/Redo)',
+  batch_bpmn_operations: 'Batch Operations',
+  set_bpmn_camunda_listeners: 'Set Camunda Listeners',
+  set_bpmn_call_activity_variables: 'Set Call Activity Variables',
+  manage_bpmn_root_elements: 'Manage Root Elements',
+  create_bpmn_lanes: 'Create Lanes',
+  create_bpmn_participant: 'Create Participant/Pool',
+  analyze_bpmn_lanes: 'Analyze Lanes',
+  list_bpmn_process_variables: 'List Process Variables',
+  add_bpmn_element_chain: 'Add Element Chain',
+  assign_bpmn_elements_to_lane: 'Assign Elements to Lane',
+};
+
+/** Build the MCP `annotations` object for a tool (see MCP spec ToolAnnotations). */
+function buildAnnotations(name: string): Record<string, unknown> {
+  return {
+    title: TOOL_TITLES[name] ?? name,
+    readOnlyHint: READONLY_TOOLS.has(name),
+    ...(DESTRUCTIVE_TOOLS.has(name) ? { destructiveHint: true } : {}),
+    ...(IDEMPOTENT_TOOLS.has(name) ? { idempotentHint: true } : {}),
+    openWorldHint: OPEN_WORLD_TOOLS.has(name),
+  };
+}
 
 /** Property definition for `_clientRequestId` injected into mutating tools. */
 const CLIENT_REQUEST_ID_PROP = {
@@ -233,21 +308,28 @@ const CLIENT_REQUEST_ID_PROP = {
 /**
  * MCP tool definitions (passed to ListTools).
  *
- * Mutating tools are augmented with an optional `_clientRequestId` property
- * so callers can safely retry on network errors.
+ * Every tool is augmented with `annotations` (title, readOnlyHint,
+ * destructiveHint, idempotentHint, openWorldHint) so clients can auto-approve
+ * read-only calls and group or hide tools without parsing descriptions.
+ * Mutating tools also get an optional `_clientRequestId` property so callers
+ * can safely retry on network errors.
  */
 export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.map(
   (r) => {
-    if (READONLY_TOOLS.has(r.definition.name as string)) return r.definition;
+    const name = r.definition.name as string;
+    const annotations = buildAnnotations(name);
+
+    if (READONLY_TOOLS.has(name)) return { ...r.definition, annotations };
 
     // Augment mutating tool definitions with _clientRequestId
     const def = r.definition as Record<string, any>;
     const schema = def.inputSchema as Record<string, any> | undefined;
-    if (!schema?.properties) return r.definition;
+    if (!schema?.properties) return { ...def, annotations };
 
     return {
       ...def,
-      name: def.name as string,
+      name,
+      annotations,
       inputSchema: {
         ...schema,
         properties: {
