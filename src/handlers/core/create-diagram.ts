@@ -110,7 +110,7 @@ async function appendImages(
 ): Promise<void> {
   if (formats.length === 0) return;
   try {
-    const { svgToPngWithFallback, cropSvgToViewBox } = await import('../../svg-to-png');
+    const { svgToPngWithFallback, cropSvgToViewBox } = await import('bpmn-to-image');
     const { svg } = await modeler.saveSVG();
 
     if (formats.includes('png')) {

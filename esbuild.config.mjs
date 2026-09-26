@@ -10,12 +10,11 @@ const config = {
   outdir: 'dist',
   entryNames: '[name]',
   external: [
-    'jsdom',
     'bpmn-js',
     'bpmn-auto-layout',
+    'bpmn-to-image',
     'bpmnlint',
     'bpmnlint-plugin-camunda-compat',
-    '@resvg/resvg-js',
   ],
   banner: {
     js: '#!/usr/bin/env node',

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-MCP (Model Context Protocol) server that lets AI assistants create and manipulate BPMN 2.0 workflow diagrams. Uses `bpmn-js` running headlessly via `jsdom` to produce valid BPMN XML and SVG output.
+MCP (Model Context Protocol) server that lets AI assistants create and manipulate BPMN 2.0 workflow diagrams. Uses `bpmn-js` running headlessly via `jsdom` (delegated to `bpmn-to-image`) to produce valid BPMN XML and SVG output.
 
 ## BPMN File Editing Policy
 
@@ -16,7 +16,7 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 
 - **Language:** TypeScript (ES2022, CommonJS)
 - **Runtime:** Node.js ≥ 22
-- **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `bpmn-auto-layout` (from `github:datakurre/bpmn-auto-layout`), `jsdom`, `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
+- **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `bpmn-auto-layout` (from `github:datakurre/bpmn-auto-layout`), `bpmn-to-image` (from `github:datakurre/bpmn-to-image` — headless jsdom canvas, polyfills, SVG/PNG rendering), `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
 - **Test:** Vitest
 - **Lint:** ESLint 9 + typescript-eslint 8
 - **Dev env:** Nix (devenv) with devcontainer support
@@ -39,8 +39,6 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 | `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                                  |
 | `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                                  |
 | `src/constants.ts`              | Centralised magic numbers: element sizes, spacing, pool/lane sizing — single source of truth for all constants                                                                    |
-| `src/headless-canvas.ts`        | jsdom setup, lazy `BpmnModeler` init                                                                                                                                              |
-| `src/headless-polyfills.ts`     | SVG/CSS polyfills for headless bpmn-js (SVGMatrix, getBBox, transform with DOM sync, etc.)                                                                                        |
 | `src/auto-layout.ts`            | Bridge to the `bpmn-auto-layout` library — runs it and applies the generated DI to the modeler as one undoable command (full, scoped, or element-subset layout)                   |
 | `src/auto-layout-input.ts`      | Prepares the XML handed to `bpmn-auto-layout`: boundary-event lane sync, element-subset extraction                                                                                |
 | `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                             |
@@ -59,7 +57,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 **Core pattern:**
 
-1. A shared `jsdom` instance polyfills browser APIs (SVG, CSS, structuredClone) so `bpmn-js` can run headlessly.
+1. `bpmn-to-image` provides the shared `jsdom` instance, browser API polyfills (SVG, CSS, structuredClone), and the headless `BpmnModeler` factory that let `bpmn-js` run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
 3. **25 MCP tools** are exposed (see "Tool Naming" below; set `BPMN_MCP_TOOLS=core` for a 12-tool subset via the `tier` field on `TOOL_REGISTRY` entries — dispatch always accepts every tool regardless of tier), plus **5 resource templates** (diagram summary, lint, variables, XML, and an executable-Camunda-7 guide) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
@@ -96,7 +94,7 @@ npm test           # vitest run
 
 `make` targets mirror npm scripts — run `make help` to list them.
 
-**Bundling:** esbuild bundles all source + `@modelcontextprotocol/sdk` + `camunda-bpmn-moddle` into one CJS file. `jsdom`, `bpmn-js`, `bpmn-auto-layout`, `bpmnlint`, and `bpmnlint-plugin-camunda-compat` are externalised (remain in `node_modules`).
+**Bundling:** esbuild bundles all source + `@modelcontextprotocol/sdk` + `camunda-bpmn-moddle` into one CJS file. `bpmn-js`, `bpmn-auto-layout`, `bpmn-to-image`, `bpmnlint`, and `bpmnlint-plugin-camunda-compat` are externalised (remain in `node_modules`).
 
 **Install from git:** `npm install github:datakurre/bpmn-js-mcp` works — `prepare` triggers `npm run build`.
 
@@ -143,19 +141,20 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-019](agents/adrs/ADR-019-tool-consolidation.md) — Tool consolidation
 - [ADR-020](agents/adrs/ADR-020-bpmn-auto-layout-library.md) — Layout delegated to bpmn-auto-layout
 - [ADR-021](agents/adrs/ADR-021-camunda-setter-consolidation.md) — Camunda setters consolidated into set_bpmn_element_properties
+- [ADR-022](agents/adrs/ADR-022-bpmn-to-image-library.md) — Headless rendering delegated to bpmn-to-image
 
 ## Key Gotchas
 
 - **Never write BPMN XML or structured files via terminal commands.** Using `cat > file << EOF` or similar heredoc patterns can corrupt XML through terminal line wrapping (e.g. `<bpmndi:BPMNEdge>` becoming `<bpmndi:BPMEdge>`). Always use `create_file` or `replace_string_in_file` tools which handle content atomically. For BPMN files specifically, always use the BPMN MCP tools (`export_bpmn` → write) rather than hand-editing XML.
-- The `bpmn-js` browser bundle is loaded via `eval` inside jsdom; polyfills for `SVGMatrix`, `getBBox`, `getScreenCTM`, `transform`, `createSVGMatrix`, and `createSVGTransform` are manually defined in `headless-canvas.ts`.
+- The headless jsdom canvas, SVG/CSS polyfills (`SVGMatrix`, `getBBox`, `getScreenCTM`, `transform`, `createSVGMatrix`, `createSVGTransform`), and the `bpmn-js` browser bundle's `eval`-loading are all owned by `bpmn-to-image` (`createHeadlessCanvas`/`getBpmnModeler`), not this repo. `src/diagram-manager.ts` builds on top of it via `createModeler({ robot: false })`.
 - Diagram state is in-memory by default. Optional file-backed persistence can be enabled via `enablePersistence(dir)` from `src/persistence.ts`.
-- The `jsdom` instance and `BpmnModeler` constructor are lazily initialized on first use and then reused.
+- The shared jsdom instance and `BpmnModeler` constructor (inside `bpmn-to-image`) are lazily initialized on first use and then reused.
 - bpmnlint requires moddle root elements (not raw XML). Use `getDefinitionsFromModeler()` from `src/linter.ts` to extract the `bpmn:Definitions` element from a bpmn-js modeler.
 - **Do not cache a bpmnlint `Linter` instance.** Some rules use closure state that accumulates across calls. `createLinter()` in `src/linter.ts` always creates a fresh instance.
 - The `DEFAULT_LINT_CONFIG` extends `bpmnlint:recommended`, `plugin:camunda-compat/camunda-platform-7-24`, and `plugin:bpmn-mcp/recommended`. It downgrades `label-required` and `no-disconnected` to warnings (AI callers build diagrams incrementally), and disables `no-overlapping-elements` (false positives in headless mode).
 - Custom bpmnlint rules live in `src/bpmnlint-plugin-bpmn-mcp/` and are registered as a proper bpmnlint plugin via `McpPluginResolver` in `src/linter.ts`. They can be referenced in config as `plugin:bpmn-mcp/recommended` or individually as `bpmn-mcp/rule-name`.
 - Element IDs prefer short 2-part naming: `UserTask_EnterName`, `Flow_Done`. On collision, falls back to 3-part with random middle: `UserTask_a1b2c3d_EnterName`, `Flow_m4n5p6q_Done`. Unnamed elements use `StartEvent_x9y8z7w`. The random 7-char part ensures uniqueness for copy/paste across diagrams.
 - Layout is delegated to `bpmn-auto-layout` (`github:datakurre/bpmn-auto-layout`); layout algorithm changes belong in that repository. `src/auto-layout.ts` applies the library's DI through `modeling` commands inside one compound command, so undo reverts a whole layout. Layout DI is keyed by BPMN (business object) ID, which can differ from the element registry ID — always look up via `businessObject.id`.
-- bpmn-js ≥ 18.2x measures text with `canvas.measureText()`; jsdom has no canvas, so `src/headless-polyfills.ts` provides a `measureText` polyfill. Without it every label measures 0px wide.
+- bpmn-js ≥ 18.2x measures text with `canvas.measureText()`; jsdom has no canvas, so `bpmn-to-image`'s canvas-2d polyfill provides a `measureText` implementation. Without it every label measures 0px wide.
 - Label direct-editing is disabled on headless modelers (`diagram-manager.ts`): an editing session opened by `autoPlace` would otherwise be completed mid-command and throw.
 - bpmnlint has no rule to detect semantic gateway-type mismatches (e.g. using a parallel gateway to merge mutually exclusive paths). Such errors require manual review or domain-specific rules.

@@ -35,24 +35,21 @@
   },
   "files": [
     "dist/",
-    "fonts/",
     "README.md",
     "LICENSE"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "@resvg/resvg-js": "^2.6.2",
     "bpmn-auto-layout": "github:datakurre/bpmn-auto-layout",
     "bpmn-js": "^18.28.0",
+    "bpmn-to-image": "github:datakurre/bpmn-to-image",
     "bpmnlint": "^11.10.0",
     "bpmnlint-plugin-camunda-compat": "^2.47.0",
-    "camunda-bpmn-moddle": "^7.0.1",
-    "jsdom": "^25.0.1"
+    "camunda-bpmn-moddle": "^7.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@types/bpmn-moddle": "^9.0.0",
-    "@types/jsdom": "^21.1.7",
     "@types/node": "^22.10.2",
     "@vitest/coverage-v8": "^4.0.18",
     "esbuild": "^0.27.3",

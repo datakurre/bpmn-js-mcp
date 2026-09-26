@@ -28,8 +28,8 @@ describe('export_bpmn — SVG snapshots', () => {
         .replace(/id="[^"]*"/g, 'id="<ID>"')
         // Normalise xlink:href references
         .replace(/xlink:href="#[^"]*"/g, 'xlink:href="#<REF>"')
-        // Normalise marker references in style/url(#...)
-        .replace(/url\(#[^)]*\)/g, 'url(#<REF>)')
+        // Normalise marker references in style/url(#...) or url('#...')
+        .replace(/url\(['"]?#[^)'"]*['"]?\)/g, 'url(#<REF>)')
         // Normalise data-element-id attributes
         .replace(/data-element-id="[^"]*"/g, 'data-element-id="<ID>"')
     );
