@@ -524,11 +524,13 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   const initialElement = requireElement(elementRegistry, elementId);
-  const {
-    element,
-    hints,
-    updatedPropertyKeys,
-  } = applyStandardProperties(initialElement, props, diagram, elementRegistry, modeling);
+  const { element, hints, updatedPropertyKeys } = applyStandardProperties(
+    initialElement,
+    props,
+    diagram,
+    elementRegistry,
+    modeling
+  );
 
   // Delegate any Camunda-concern sub-objects (inputOutput, formData, listeners,
   // callActivityVariables, loop) to their dedicated handlers.

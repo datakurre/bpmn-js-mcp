@@ -57,10 +57,10 @@ the same content is already available on demand via the `bpmn://diagram/{id}/xml
    `src/resources.ts`, computed the same way as `export_bpmn`'s `svg` format
    (`adjustSvgViewBox`, shared from `export-helpers.ts`).
 6. **Additive content, not a replaced shape.** The JSON summary for
-   list_bpmn_elements/list_bpmn_process_variables is still a single
+   list*bpmn_elements/list_bpmn_process_variables is still a single
    `content[0]` text/JSON item (so `JSON.parse(result.content[0].text)` —
    the pattern ~1500 existing tests use via `parseResult()` — keeps working);
-   the `resource_link` is an _extra_ `content[1]` item. `export_bpmn`'s
+   the `resource_link` is an \_extra* `content[1]` item. `export_bpmn`'s
    `content[0]` genuinely becomes a `resource_link` (no `.text`) when large,
    since there's no equivalent "still JSON" fallback for a raw XML/SVG
    export — safe only because no existing test's diagram crosses either

@@ -329,7 +329,8 @@ function buildConversionResult(
       },
       {
         tool: 'analyze_bpmn_lanes',
-        description: 'Fine-tune element lane assignments if needed (mode: redistribute, strategy: manual)',
+        description:
+          'Fine-tune element lane assignments if needed (mode: redistribute, strategy: manual)',
       },
     ],
   };

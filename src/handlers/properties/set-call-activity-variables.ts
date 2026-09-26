@@ -140,70 +140,70 @@ export async function handleSetCallActivityVariables(
 /** Shared `{ inMappings, outMappings }` schema fragment (no diagramId/elementId). */
 export const CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES = {
   inMappings: {
-        type: 'array',
-        description: 'Variable mappings from parent process INTO the called process',
-        items: {
-          type: 'object',
-          properties: {
-            source: {
-              type: 'string',
-              description: 'Source variable name in the parent process',
-            },
-            sourceExpression: {
-              type: 'string',
-              description: "Expression to evaluate (e.g. '${myVar + 1}')",
-            },
-            target: {
-              type: 'string',
-              description: 'Target variable name in the called process',
-            },
-            variables: {
-              type: 'string',
-              enum: ['all'],
-              description: "Set to 'all' to pass all variables",
-            },
-            local: {
-              type: 'boolean',
-              description: 'Whether to use local scope (default: false)',
-            },
-            businessKey: {
-              type: 'string',
-              description:
-                "Expression for the business key to propagate to the called process (e.g. '${execution.processBusinessKey}')",
-            },
-          },
+    type: 'array',
+    description: 'Variable mappings from parent process INTO the called process',
+    items: {
+      type: 'object',
+      properties: {
+        source: {
+          type: 'string',
+          description: 'Source variable name in the parent process',
+        },
+        sourceExpression: {
+          type: 'string',
+          description: "Expression to evaluate (e.g. '${myVar + 1}')",
+        },
+        target: {
+          type: 'string',
+          description: 'Target variable name in the called process',
+        },
+        variables: {
+          type: 'string',
+          enum: ['all'],
+          description: "Set to 'all' to pass all variables",
+        },
+        local: {
+          type: 'boolean',
+          description: 'Whether to use local scope (default: false)',
+        },
+        businessKey: {
+          type: 'string',
+          description:
+            "Expression for the business key to propagate to the called process (e.g. '${execution.processBusinessKey}')",
         },
       },
-      outMappings: {
-        type: 'array',
-        description: 'Variable mappings from the called process back to the parent',
-        items: {
-          type: 'object',
-          properties: {
-            source: {
-              type: 'string',
-              description: 'Source variable name in the called process',
-            },
-            sourceExpression: {
-              type: 'string',
-              description: "Expression to evaluate (e.g. '${result}')",
-            },
-            target: {
-              type: 'string',
-              description: 'Target variable name in the parent process',
-            },
-            variables: {
-              type: 'string',
-              enum: ['all'],
-              description: "Set to 'all' to pass all variables back",
-            },
-            local: {
-              type: 'boolean',
-              description: 'Whether to use local scope (default: false)',
-            },
-          },
+    },
+  },
+  outMappings: {
+    type: 'array',
+    description: 'Variable mappings from the called process back to the parent',
+    items: {
+      type: 'object',
+      properties: {
+        source: {
+          type: 'string',
+          description: 'Source variable name in the called process',
+        },
+        sourceExpression: {
+          type: 'string',
+          description: "Expression to evaluate (e.g. '${result}')",
+        },
+        target: {
+          type: 'string',
+          description: 'Target variable name in the parent process',
+        },
+        variables: {
+          type: 'string',
+          enum: ['all'],
+          description: "Set to 'all' to pass all variables back",
+        },
+        local: {
+          type: 'boolean',
+          description: 'Whether to use local scope (default: false)',
         },
       },
+    },
+  },
 } as const;
 
 export const TOOL_DEFINITION = {

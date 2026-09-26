@@ -138,13 +138,13 @@ Configure with `camunda:type="external"` and `camunda:topic` for Camunda 7 exter
 
 ## MCP tool reference for message flows
 
-| Task                  | Tool                            | Notes                                          |
-| --------------------- | ------------------------------- | ---------------------------------------------- |
-| Create collaboration  | `create_bpmn_participant`       | Set `collapsed: true` for non-executable pools |
-| Connect across pools  | `connect_bpmn_elements`         | Auto-detects `bpmn:MessageFlow`                |
-| Define messages       | `manage_bpmn_root_elements`     | Create shared `bpmn:Message` definitions       |
-| Set message on event  | `set_bpmn_event_definition`     | With `messageRef` to reference shared message  |
-| Align paired elements | `align_bpmn_elements`           | Use `alignment: "center"` on paired elements   |
-| Resize pools          | `move_bpmn_element`             | Set `width`/`height`                           |
-| Auto-size pools       | `layout_bpmn_diagram` (`autosizeOnly: true`) | Auto-expands to fit content       |
-| Full layout           | `layout_bpmn_diagram`           | Includes pool/lane finalization                |
+| Task                  | Tool                                         | Notes                                          |
+| --------------------- | -------------------------------------------- | ---------------------------------------------- |
+| Create collaboration  | `create_bpmn_participant`                    | Set `collapsed: true` for non-executable pools |
+| Connect across pools  | `connect_bpmn_elements`                      | Auto-detects `bpmn:MessageFlow`                |
+| Define messages       | `manage_bpmn_root_elements`                  | Create shared `bpmn:Message` definitions       |
+| Set message on event  | `set_bpmn_event_definition`                  | With `messageRef` to reference shared message  |
+| Align paired elements | `align_bpmn_elements`                        | Use `alignment: "center"` on paired elements   |
+| Resize pools          | `move_bpmn_element`                          | Set `width`/`height`                           |
+| Auto-size pools       | `layout_bpmn_diagram` (`autosizeOnly: true`) | Auto-expands to fit content                    |
+| Full layout           | `layout_bpmn_diagram`                        | Includes pool/lane finalization                |
