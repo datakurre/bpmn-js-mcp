@@ -55,6 +55,13 @@ Options:
                         minimal (lint errors only), none (no implicit feedback).
   --help                Show this help message and exit.
 
+Environment variables:
+  BPMN_MCP_TOOLS        Tool tier exposed via ListTools. Values: full (default,
+                        every tool), core (the 12 most-used tools, for agents
+                        with limited context). Every tool is always dispatchable
+                        regardless of tier.
+  BPMN_MCP_MAX_DIAGRAMS Max diagrams held in memory at once (default: 100).
+
 Examples:
   bpmn-js-mcp
   bpmn-js-mcp --persist-dir ./diagrams

@@ -167,22 +167,29 @@ interface ToolRegistration {
    * scripts written against the old name keep working.
    */
   readonly hidden?: boolean;
+  /**
+   * When `'core'`, the tool is included in both the `core` and `full` tiers
+   * (see `resolveToolTier` / `BPMN_MCP_TOOLS`). Tools without this field are
+   * `full`-tier only. Irrelevant to dispatch — a `core`-tier server still
+   * accepts calls to any registered tool; only `ListTools` is filtered.
+   */
+  readonly tier?: 'core';
 }
 
 const TOOL_REGISTRY: ToolRegistration[] = [
-  { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram },
-  { definition: ADD_ELEMENT_DEF, handler: handleAddElement },
-  { definition: CONNECT_DEF, handler: handleConnect },
-  { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement },
-  { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement },
+  { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram, tier: 'core' },
+  { definition: ADD_ELEMENT_DEF, handler: handleAddElement, tier: 'core' },
+  { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
+  { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
+  { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
   { definition: GET_PROPERTIES_DEF, handler: handleGetProperties },
-  { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn },
+  { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn, tier: 'core' },
   { definition: LIST_ELEMENTS_DEF, handler: handleListElements },
-  { definition: SET_PROPERTIES_DEF, handler: handleSetProperties },
-  { definition: IMPORT_XML_DEF, handler: handleImportXml },
+  { definition: SET_PROPERTIES_DEF, handler: handleSetProperties, tier: 'core' },
+  { definition: IMPORT_XML_DEF, handler: handleImportXml, tier: 'core' },
   { definition: DELETE_DIAGRAM_DEF, handler: handleDeleteDiagram },
   { definition: LIST_DIAGRAMS_DEF, handler: handleListDiagrams },
-  { definition: VALIDATE_DEF, handler: handleValidate },
+  { definition: VALIDATE_DEF, handler: handleValidate, tier: 'core' },
   { definition: ALIGN_ELEMENTS_DEF, handler: handleAlignElements },
   // Hidden aliases: consolidated into set_bpmn_element_properties's inputOutput/
   // formData/listeners/callActivityVariables/loop sub-objects (ADR-021). Kept
@@ -190,10 +197,10 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: SET_INPUT_OUTPUT_DEF, handler: handleSetInputOutput, hidden: true },
   { definition: SET_EVENT_DEFINITION_DEF, handler: handleSetEventDefinition },
   { definition: SET_FORM_DATA_DEF, handler: handleSetFormData, hidden: true },
-  { definition: LAYOUT_DIAGRAM_DEF, handler: handleLayoutDiagram },
+  { definition: LAYOUT_DIAGRAM_DEF, handler: handleLayoutDiagram, tier: 'core' },
   { definition: SET_LOOP_CHARACTERISTICS_DEF, handler: handleSetLoopCharacteristics, hidden: true },
   { definition: BPMN_HISTORY_DEF, handler: handleBpmnHistory },
-  { definition: BATCH_OPERATIONS_DEF, handler: handleBatchOperations },
+  { definition: BATCH_OPERATIONS_DEF, handler: handleBatchOperations, tier: 'core' },
   { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners, hidden: true },
   {
     definition: SET_CALL_ACTIVITY_VARIABLES_DEF,
@@ -209,7 +216,7 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
   // clone_bpmn_diagram removed: cloneFrom parameter on create_bpmn_diagram
   // diff_bpmn_diagrams removed: compareWith parameter on list_bpmn_diagrams
-  { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain },
+  { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain, tier: 'core' },
   // set_bpmn_connection_waypoints removed: waypoints+connectionId parameters on connect_bpmn_elements
   { definition: ASSIGN_ELEMENTS_TO_LANE_DEF, handler: handleAssignElementsToLane },
   // wrap_bpmn_process_in_collaboration removed: wrapExisting on create_bpmn_participant
@@ -311,6 +318,27 @@ function buildAnnotations(name: string): Record<string, unknown> {
 }
 
 /**
+ * Resolve the active tool tier from `BPMN_MCP_TOOLS` (`core` | `full`).
+ * Anything else (unset, `full`, or an unrecognized value) resolves to `full`
+ * — the complete tool set, unchanged from before tiers existed.
+ */
+function resolveToolTier(): 'core' | 'full' {
+  return (process.env.BPMN_MCP_TOOLS ?? '').trim().toLowerCase() === 'core' ? 'core' : 'full';
+}
+
+/** The tier this server process resolved at startup (see `BPMN_MCP_TOOLS`). */
+export const TOOL_TIER: 'core' | 'full' = resolveToolTier();
+
+/** Build the ListTools payload for a given tier. Exposed for direct testing. */
+export function computeToolDefinitions(
+  tier: 'core' | 'full'
+): Array<{ name: string; [key: string]: unknown }> {
+  return TOOL_REGISTRY.filter((r) => !r.hidden && (tier === 'full' || r.tier === 'core')).map(
+    (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
+  );
+}
+
+/**
  * MCP tool definitions (passed to ListTools).
  *
  * Every tool is augmented with `annotations` (title, readOnlyHint,
@@ -322,10 +350,16 @@ function buildAnnotations(name: string): Record<string, unknown> {
  * server's top-level `instructions` (src/index.ts) rather than repeated in
  * every tool's schema — at ~190 characters each, doing so across ~22 tools
  * added roughly 5 KB to the tool list every session pays for.
+ *
+ * Filtered to the `core` tier's 12 tools when `BPMN_MCP_TOOLS=core` is set
+ * (see `resolveToolTier`), for agents with limited context — collaboration,
+ * lane, history/diff, process-variable, and Camunda-listener tools are
+ * `full`-tier only. `dispatchToolCall` still accepts every registered tool
+ * regardless of tier, so `batch_bpmn_operations` and existing clients that
+ * cached the full list keep working.
  */
-export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.filter(
-  (r) => !r.hidden
-).map((r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) }));
+export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> =
+  computeToolDefinitions(TOOL_TIER);
 
 /**
  * Every dispatchable tool name, including hidden aliases (see `ToolRegistration.hidden`).

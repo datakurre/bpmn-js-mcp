@@ -54,6 +54,25 @@ You can also combine `--persist-dir` with `--hint-level` to reduce response verb
 
 `--hint-level` values: `full` (default — includes lint errors, layout hints, connectivity warnings), `minimal` (lint errors only), `none` (no implicit feedback).
 
+### Tool tiers
+
+For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 12 most-used tools (`create_bpmn_diagram`, `import_bpmn_xml`, `export_bpmn`, `add_bpmn_element`, `add_bpmn_element_chain`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
+
+```json
+{
+  "servers": {
+    "bpmn": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["git+https://github.com/datakurre/bpmn-js-mcp"],
+      "env": { "BPMN_MCP_TOOLS": "core" }
+    }
+  }
+}
+```
+
+The default (`full`, or `BPMN_MCP_TOOLS` unset) exposes every tool, including collaboration/lane tools, history/diff, process variables, and the Camunda extension setters. Calls to a tool outside the active tier still work — tiering only filters what `ListTools` advertises, not what the server accepts — so `batch_bpmn_operations` and existing clients that cached the full list keep working either way.
+
 ## AI Agent Instructions
 
 > **When working with `.bpmn` files, always use the BPMN MCP tools instead of editing BPMN XML directly.** The MCP tools ensure valid BPMN 2.0 structure, proper diagram layout coordinates, and semantic correctness that hand-editing XML cannot guarantee.
