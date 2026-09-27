@@ -133,10 +133,12 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'bpmn-mcp/timer-missing-definition': {
-    tool: 'set_bpmn_event_definition',
+    tool: 'set_bpmn_element_properties',
     args: {
-      eventDefinitionType: 'bpmn:TimerEventDefinition',
-      properties: { timeDuration: 'PT15M' },
+      eventDefinition: {
+        eventDefinitionType: 'bpmn:TimerEventDefinition',
+        properties: { timeDuration: 'PT15M' },
+      },
     },
     requiresElementId: true,
   },
@@ -192,8 +194,8 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     args: {},
   },
   'bpmn-mcp/event-subprocess-missing-trigger': {
-    tool: 'set_bpmn_event_definition',
-    args: { eventDefinitionType: 'bpmn:ErrorEventDefinition' },
+    tool: 'set_bpmn_element_properties',
+    args: { eventDefinition: { eventDefinitionType: 'bpmn:ErrorEventDefinition' } },
     requiresElementId: true,
   },
   'bpmn-mcp/compensation-missing-association': {

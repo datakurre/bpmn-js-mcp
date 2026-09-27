@@ -120,8 +120,9 @@ Business Rule Tasks primarily integrate with DMN decision tables:
 - Use **Link throw/catch event pairs** to split a long flow into sections
   within the same process, improving readability without creating separate
   deployment units.
-- Link events must have matching names (set via \`set_bpmn_event_definition\`
-  with \`bpmn:LinkEventDefinition\` and \`properties: { name: "LinkName" }\`).
+- Link events must have matching names (set via \`set_bpmn_element_properties\`'s
+  \`eventDefinition\` sub-object with \`eventDefinitionType: "bpmn:LinkEventDefinition"\`
+  and \`properties: { name: "LinkName" }\`).
 - Multiple throw events can target one catch event (many-to-one pattern).
 - Useful for keeping everything in one file while avoiding long, tangled
   sequence flows.
@@ -192,8 +193,8 @@ export const MODELING_ELEMENTS_GUIDE = `# BPMN Element Modeling Guide
   to a task or subprocess.
 - Do **NOT** use \`bpmn:IntermediateCatchEvent\` for boundary events —
   that creates a standalone event not attached to any host.
-- After adding, use \`set_bpmn_event_definition\` to set the type
-  (error, timer, message, signal).
+- After adding, use \`set_bpmn_element_properties\`'s \`eventDefinition\`
+  sub-object to set the type (error, timer, message, signal).
 - Or use the \`eventDefinitionType\` shorthand parameter on \`add_bpmn_element\`.
 
 ## Subprocesses
@@ -289,7 +290,7 @@ Use the \`camunda:\` prefix for Camunda extension attributes.
 
 - \`set_bpmn_form_data\` — generated task form fields
 - \`set_bpmn_input_output_mapping\` — input/output parameter mappings
-- \`set_bpmn_event_definition\` — event definitions (timer, error, message, etc.)
+- \`set_bpmn_element_properties\`'s \`eventDefinition\` sub-object — event definitions (timer, error, message, etc.)
 - \`set_bpmn_loop_characteristics\` — loop/multi-instance configuration
 - \`set_bpmn_camunda_listeners\` — execution/task listeners
 `;

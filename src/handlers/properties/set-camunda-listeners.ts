@@ -139,6 +139,7 @@ function createListenerElement(
 function createErrorDefinitions(
   diagram: any,
   moddle: any,
+  modeling: any,
   extensionElements: any,
   errorDefinitions: SetCamundaListenersArgs['errorDefinitions']
 ): void {
@@ -150,7 +151,7 @@ function createErrorDefinitions(
 
   for (const errDef of errorDefinitions) {
     const errorElement = errDef.errorRef
-      ? resolveOrCreateError(moddle, definitions, errDef.errorRef)
+      ? resolveOrCreateError(moddle, modeling, rootElement, definitions, errDef.errorRef)
       : undefined;
 
     const camundaErrDef = moddle.create('camunda:ErrorEventDefinition', {
@@ -246,7 +247,7 @@ export function applySetCamundaListenersCore(
     extensionElements!.values.push(el);
   }
 
-  createErrorDefinitions(diagram, moddle, extensionElements!, errorDefinitions);
+  createErrorDefinitions(diagram, moddle, modeling, extensionElements!, errorDefinitions);
   modeling.updateProperties(element, { extensionElements });
 
   return {

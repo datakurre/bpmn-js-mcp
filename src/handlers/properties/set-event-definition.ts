@@ -1,10 +1,18 @@
 /**
- * Handler for set_event_definition tool.
+ * Event-definition mutation logic, plus the internal handleSetEventDefinition
+ * function (no longer a registered MCP tool — see ADR-028; set_bpmn_event_definition
+ * was removed outright and folded into set_bpmn_element_properties's
+ * eventDefinition sub-object, per #23's no-alias policy).
  */
 // @mutating
 
 import { type ToolResult } from '../../types';
-import { illegalCombinationError, missingRequiredError, typeMismatchError } from '../../errors';
+import {
+  illegalCombinationError,
+  missingRequiredError,
+  typeMismatchError,
+  invalidEnumError,
+} from '../../errors';
 import {
   requireDiagram,
   requireElement,
@@ -18,6 +26,7 @@ import {
   getService,
 } from '../helpers';
 import { appendLintFeedback } from '../../linter';
+import { EVENT_DEFINITION_TYPE_VALUES } from './set-event-definition-schema';
 
 export interface SetEventDefinitionArgs {
   diagramId: string;
@@ -40,8 +49,10 @@ export interface SetEventDefinitionArgs {
 
 // ── Type-specific attribute builders ───────────────────────────────────────
 
-/** Build timer attributes (exactly one of timeDuration/timeDate/timeCycle). */
-function buildTimerAttrs(moddle: any, defProps: Record<string, any>): Record<string, any> {
+const EVENT_DEFINITION_TYPES = new Set<string>(EVENT_DEFINITION_TYPE_VALUES);
+
+/** Throws unless exactly one of timeDuration/timeDate/timeCycle is present; returns that key. */
+function validateTimerKeys(defProps: Record<string, any>): string[] {
   const timerKeys = ['timeDuration', 'timeDate', 'timeCycle'].filter((k) => defProps[k]);
   if (timerKeys.length > 1) {
     throw illegalCombinationError(
@@ -52,6 +63,12 @@ function buildTimerAttrs(moddle: any, defProps: Record<string, any>): Record<str
   if (timerKeys.length === 0) {
     throw missingRequiredError(['timeDuration']);
   }
+  return timerKeys;
+}
+
+/** Build timer attributes (exactly one of timeDuration/timeDate/timeCycle). */
+function buildTimerAttrs(moddle: any, defProps: Record<string, any>): Record<string, any> {
+  const timerKeys = validateTimerKeys(defProps);
   const attrs: Record<string, any> = {};
   for (const key of timerKeys) {
     attrs[key] = moddle.create('bpmn:FormalExpression', { body: defProps[key] });
@@ -206,11 +223,72 @@ function buildEventDefAttrs(
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
-export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
+/** Throws unless `effectiveType` is an event element. */
+export function assertEventDefinitionTarget(effectiveType: string, elementId: string): void {
+  if (!effectiveType.includes('Event')) {
+    throw typeMismatchError(elementId, effectiveType, [
+      'bpmn:StartEvent',
+      'bpmn:EndEvent',
+      'bpmn:IntermediateCatchEvent',
+      'bpmn:IntermediateThrowEvent',
+      'bpmn:BoundaryEvent',
+    ]);
+  }
+}
+
+export interface SetEventDefinitionCoreResult {
+  eventDefinitionType: string;
+}
+
+/**
+ * Validate `eventDefinition` args without mutating or creating anything:
+ * `eventDefinitionType` is present and recognized, ref args match the type,
+ * and (for timers) exactly one of timeDuration/timeDate/timeCycle is given.
+ * Run this before applying any item in a batch (see `set-properties.ts`) so a
+ * bad item fails before anything is changed, with a clear message — the same
+ * checks `applySetEventDefinitionCore` performs, but without the side
+ * effects that would otherwise land mid-batch, before that item's own
+ * `assertEventDefinitionTarget`/element-existence checks even run.
+ */
+export function validateEventDefinitionArgs(
+  args: Omit<SetEventDefinitionArgs, 'diagramId' | 'elementId'>
+): void {
   const {
-    diagramId,
-    elementId,
+    eventDefinitionType,
+    properties: defProps = {},
+    errorRef,
+    messageRef,
+    signalRef,
+    escalationRef,
+  } = args;
+
+  if (!eventDefinitionType) {
+    throw missingRequiredError(['eventDefinitionType']);
+  }
+  if (!EVENT_DEFINITION_TYPES.has(eventDefinitionType)) {
+    throw invalidEnumError('eventDefinitionType', eventDefinitionType, [
+      ...EVENT_DEFINITION_TYPE_VALUES,
+    ]);
+  }
+  validateRefArgs(eventDefinitionType, { errorRef, messageRef, signalRef, escalationRef });
+  if (eventDefinitionType === 'bpmn:TimerEventDefinition') {
+    validateTimerKeys(defProps);
+  }
+}
+
+/**
+ * Build and apply an event definition, replacing any existing one. Synchronous
+ * — no XML sync or lint feedback — so it is safe to call from within a
+ * command-stack `preExecute` (see `applyPropertyUpdateItem` in
+ * `set-properties.ts`) alongside other elements' updates, grouped into one
+ * undo step.
+ */
+export function applySetEventDefinitionCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Omit<SetEventDefinitionArgs, 'diagramId' | 'elementId'>
+): SetEventDefinitionCoreResult {
+  const {
     eventDefinitionType,
     properties: defProps = {},
     errorRef,
@@ -223,8 +301,6 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   // Validate that ref args match the event definition type
   validateRefArgs(eventDefinitionType, { errorRef, messageRef, signalRef, escalationRef });
 
-  const diagram = requireDiagram(diagramId);
-
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
   const moddle = getService(diagram.modeler, 'moddle');
@@ -232,33 +308,29 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   const element = requireElement(elementRegistry, elementId);
   const bo = element.businessObject;
 
-  // Verify element is an event type
-  if (!bo.$type.includes('Event')) {
-    throw typeMismatchError(elementId, bo.$type, [
-      'bpmn:StartEvent',
-      'bpmn:EndEvent',
-      'bpmn:IntermediateCatchEvent',
-      'bpmn:IntermediateThrowEvent',
-      'bpmn:BoundaryEvent',
-    ]);
-  }
+  assertEventDefinitionTarget(bo.$type, elementId);
 
   // Build event definition attributes based on type
   const eventDefAttrs = buildEventDefAttrs(moddle, eventDefinitionType, defProps);
 
-  // Resolve root-level references (error, message, signal, escalation)
+  // Resolve root-level references (error, message, signal, escalation) —
+  // through `modeling` (via resolveOrCreate*) so a newly created root
+  // element is captured on the command stack and undoable.
   const refArgs: Record<string, any> = { errorRef, messageRef, signalRef, escalationRef };
   const refEntry = REF_RESOLVERS[eventDefinitionType];
   if (refEntry && refArgs[refEntry.argKey]) {
     const definitions = getDefinitions(diagram);
     eventDefAttrs[refEntry.attrKey] = refEntry.resolver(
       moddle,
+      modeling,
+      element,
       definitions,
       refArgs[refEntry.argKey]
     );
   }
 
   const eventDef = moddle.create(eventDefinitionType, eventDefAttrs);
+  eventDef.$parent = bo;
 
   // Apply Camunda extension attributes on the event definition itself
   applyCamundaEventDefProps(eventDef, eventDefinitionType, defProps);
@@ -268,14 +340,24 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
     applySignalInMappings(moddle, eventDef, eventDefinitionType, inMappings);
   }
 
-  // Replace existing event definitions
-  bo.eventDefinitions = [eventDef];
-  eventDef.$parent = bo;
-
-  // Use modeling to trigger proper updates
+  // Replace existing event definitions through `modeling` — NOT a direct
+  // `bo.eventDefinitions = [eventDef]` first, which would make
+  // UpdatePropertiesHandler read the *new* value as the "old" value to
+  // restore on undo (it reads `businessObject.get('eventDefinitions')` at
+  // execute time), turning undo into a no-op for this property.
   modeling.updateProperties(element, {
-    eventDefinitions: bo.eventDefinitions,
+    eventDefinitions: [eventDef],
   });
+
+  return { eventDefinitionType };
+}
+
+export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const { eventDefinitionType } = applySetEventDefinitionCore(diagram, elementId, args);
 
   await syncXml(diagram);
 
@@ -298,5 +380,5 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   return appendLintFeedback(result, diagram);
 }
 
-// Schema extracted to set-event-definition-schema.ts for readability.
-export { TOOL_DEFINITION } from './set-event-definition-schema';
+// Schema extracted to set-event-definition-schema.ts to stay under max-lines.
+export { EVENT_DEFINITION_SCHEMA_PROPERTIES } from './set-event-definition-schema';

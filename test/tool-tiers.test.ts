@@ -32,7 +32,7 @@ const CORE_TOOL_NAMES = [
 describe('tool tiers (#9)', () => {
   test('default tier (no BPMN_MCP_TOOLS set) is full', () => {
     expect(TOOL_TIER).toBe('full');
-    expect(TOOL_DEFINITIONS.length).toBe(24);
+    expect(TOOL_DEFINITIONS.length).toBe(23);
   });
 
   test('core tier exposes exactly the documented 12 tools', () => {
@@ -59,7 +59,6 @@ describe('tool tiers (#9)', () => {
       'manage_bpmn_root_elements',
       'bpmn_history',
       'list_bpmn_process_variables',
-      'set_bpmn_event_definition',
     ]) {
       expect(coreNames.has(name)).toBe(false);
     }

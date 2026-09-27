@@ -36,7 +36,7 @@ function ruleFactory() {
           node.id,
           'Timer event has no timeDuration, timeDate, or timeCycle — ' +
             'the timer will never fire. ' +
-            'Use set_bpmn_event_definition to configure the timer trigger'
+            "Use set_bpmn_element_properties's eventDefinition sub-object to configure the timer trigger"
         );
       }
     }

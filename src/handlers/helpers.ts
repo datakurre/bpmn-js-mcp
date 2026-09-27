@@ -181,7 +181,7 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
     match: (t) => t === 'bpmn:BoundaryEvent',
     hints: [
       {
-        tool: 'set_bpmn_event_definition',
+        tool: 'set_bpmn_element_properties',
         description:
           'Set event type (error, timer, message, signal) if not already set via eventDefinitionType shorthand',
       },
@@ -269,7 +269,7 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
     match: (t) => t === 'bpmn:IntermediateThrowEvent' || t === 'bpmn:IntermediateCatchEvent',
     hints: [
       {
-        tool: 'set_bpmn_event_definition',
+        tool: 'set_bpmn_element_properties',
         description:
           'Set the event type (message, timer, signal, link, conditional, compensation). Use LinkEventDefinition for cross-page flow references in large diagrams.',
       },

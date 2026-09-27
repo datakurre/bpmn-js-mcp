@@ -83,10 +83,7 @@ import {
   handleSetInputOutput,
   TOOL_DEFINITION as SET_INPUT_OUTPUT_DEF,
 } from './properties/set-input-output';
-import {
-  handleSetEventDefinition,
-  TOOL_DEFINITION as SET_EVENT_DEFINITION_DEF,
-} from './properties/set-event-definition';
+import { handleSetEventDefinition } from './properties/set-event-definition';
 import {
   handleSetFormData,
   TOOL_DEFINITION as SET_FORM_DATA_DEF,
@@ -192,7 +189,6 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   // formData/listeners/callActivityVariables/loop sub-objects (ADR-021). Kept
   // dispatchable for one release so existing prompts/scripts keep working.
   { definition: SET_INPUT_OUTPUT_DEF, handler: handleSetInputOutput, hidden: true },
-  { definition: SET_EVENT_DEFINITION_DEF, handler: handleSetEventDefinition },
   { definition: SET_FORM_DATA_DEF, handler: handleSetFormData, hidden: true },
   { definition: LAYOUT_DIAGRAM_DEF, handler: handleLayoutDiagram, tier: 'core' },
   { definition: SET_LOOP_CHARACTERISTICS_DEF, handler: handleSetLoopCharacteristics, hidden: true },
@@ -264,7 +260,6 @@ const OPEN_WORLD_TOOLS = new Set(['import_bpmn_xml', 'export_bpmn']);
 const IDEMPOTENT_TOOLS = new Set([
   'set_bpmn_element_properties',
   'set_bpmn_input_output_mapping',
-  'set_bpmn_event_definition',
   'set_bpmn_form_data',
   'set_bpmn_loop_characteristics',
   'set_bpmn_camunda_listeners',
@@ -293,7 +288,6 @@ const TOOL_TITLES: Record<string, string> = {
   validate_bpmn_diagram: 'Validate Diagram',
   align_bpmn_elements: 'Align/Distribute Elements',
   set_bpmn_input_output_mapping: 'Set Input/Output Mapping',
-  set_bpmn_event_definition: 'Set Event Definition',
   set_bpmn_form_data: 'Set Form Data',
   layout_bpmn_diagram: 'Auto-Layout Diagram',
   set_bpmn_loop_characteristics: 'Set Loop Characteristics',

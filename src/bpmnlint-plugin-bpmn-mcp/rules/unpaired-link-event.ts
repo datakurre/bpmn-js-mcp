@@ -39,7 +39,8 @@ export default function unpairedLinkEvent() {
         reporter.report(
           el.id,
           'Link event has no name — link throw/catch pairs are matched by name. ' +
-            'Set a name using set_bpmn_event_definition with properties: { name: "MyLink" }.'
+            "Set a name using set_bpmn_element_properties's eventDefinition sub-object: " +
+            '{ eventDefinition: { eventDefinitionType: "bpmn:LinkEventDefinition", properties: { name: "MyLink" } } }.'
         );
         continue;
       }

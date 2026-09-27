@@ -30,7 +30,7 @@ function ruleFactory() {
           startEvent.id,
           'Event subprocess start event has no event definition (timer, message, error, signal, etc.) — ' +
             'the event subprocess has no trigger and will never activate. ' +
-            'Use set_bpmn_event_definition to add a trigger'
+            "Use set_bpmn_element_properties's eventDefinition sub-object to add a trigger"
         );
       }
     }
