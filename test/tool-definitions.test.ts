@@ -14,7 +14,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(23);
+    expect(TOOL_DEFINITIONS.length).toBe(22);
   });
 
   test.each([
@@ -26,7 +26,7 @@ describe('tool-definitions', () => {
     'export_bpmn',
     'list_bpmn_elements',
     'set_bpmn_element_properties',
-    'import_bpmn_xml',
+    // import_bpmn_xml removed — use create_bpmn_diagram with xml/filePath
     'delete_bpmn_diagram',
     'list_bpmn_diagrams',
     'validate_bpmn_diagram',
@@ -295,14 +295,14 @@ describe('tool-definitions', () => {
       }
     });
 
-    test.each(['import_bpmn_xml', 'export_bpmn'])('%s has openWorldHint: true', (name) => {
+    test.each(['create_bpmn_diagram', 'export_bpmn'])('%s has openWorldHint: true', (name) => {
       const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
       expect((tool as any).annotations.openWorldHint).toBe(true);
     });
 
-    test('tools other than import/export have openWorldHint: false', () => {
+    test('tools other than create_bpmn_diagram/export have openWorldHint: false', () => {
       for (const tool of TOOL_DEFINITIONS) {
-        if (tool.name === 'import_bpmn_xml' || tool.name === 'export_bpmn') continue;
+        if (tool.name === 'create_bpmn_diagram' || tool.name === 'export_bpmn') continue;
         expect((tool as any).annotations.openWorldHint).toBe(false);
       }
     });

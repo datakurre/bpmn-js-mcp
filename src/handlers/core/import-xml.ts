@@ -1,5 +1,10 @@
 /**
- * Handler for import_bpmn_xml tool.
+ * Internal handler backing create_bpmn_diagram's xml/filePath import mode.
+ *
+ * Former standalone import_bpmn_xml tool, folded into create_bpmn_diagram
+ * and removed outright (no hidden alias) — see ADR-030. Kept as a plain
+ * exported function since create-diagram.ts calls it directly, and many
+ * existing tests call it directly too.
  *
  * Supports an optional `autoLayout` boolean:
  *  - `true`:  always run auto-layout after import
@@ -127,52 +132,3 @@ export async function handleImportXml(
   });
   return appendLintFeedback(result, diagram);
 }
-
-export const TOOL_DEFINITION = {
-  name: 'import_bpmn_xml',
-  description:
-    'Import an existing BPMN XML diagram. If the XML lacks diagram coordinates (DI), auto-layout is applied ' +
-    'using auto-layout. Use autoLayout to force or skip auto-layout. ' +
-    '**Warning:** Forcing autoLayout: true on diagrams that already have DI coordinates may reposition ' +
-    'elements and can affect boundary event placement. For diagrams with boundary events, subprocesses, ' +
-    'or complex structures, prefer autoLayout: false (or omit it to use auto-detection). ' +
-    '**History:** Each import creates a fresh modeler with an empty undo/redo stack. ' +
-    'Use bpmn_history to undo/redo changes made after import. ' +
-    'Provide either xml (inline content) or filePath (read from disk). ' +
-    'Combine with export_bpmn filePath to implement an open→edit→save workflow.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      xml: {
-        type: 'string',
-        description: 'The BPMN XML to import. Required unless filePath is provided.',
-      },
-      filePath: {
-        type: 'string',
-        description:
-          'Path to a .bpmn file to read and import. When provided, xml parameter is ignored.',
-      },
-      autoLayout: {
-        type: 'boolean',
-        description:
-          'Force (true) or skip (false) auto-layout. When omitted, auto-layout runs only if the XML has no diagram coordinates.',
-      },
-      draftMode: {
-        type: 'boolean',
-        description:
-          'When true, suppress implicit lint feedback on every operation. ' +
-          'Useful during incremental diagram editing to reduce noise. Default: false. ' +
-          'Deprecated: use hintLevel instead.',
-      },
-      hintLevel: {
-        type: 'string',
-        enum: ['none', 'minimal', 'full'],
-        description:
-          "Controls implicit feedback verbosity. 'full' (default) includes " +
-          "lint errors, layout hints, and connectivity warnings. 'minimal' " +
-          "includes only lint errors. 'none' suppresses all implicit feedback " +
-          '(equivalent to draftMode: true). Overrides draftMode when set.',
-      },
-    },
-  },
-} as const;

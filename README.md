@@ -56,7 +56,7 @@ You can also combine `--persist-dir` with `--hint-level` to reduce response verb
 
 ### Tool tiers
 
-For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 12 most-used tools (`create_bpmn_diagram`, `import_bpmn_xml`, `export_bpmn`, `add_bpmn_element`, `add_bpmn_element_chain`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
+For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 11 most-used tools (`create_bpmn_diagram`, `export_bpmn`, `add_bpmn_element`, `add_bpmn_element_chain`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
 
 ```json
 {
@@ -77,7 +77,7 @@ The default (`full`, or `BPMN_MCP_TOOLS` unset) exposes every tool, including co
 
 > **When working with `.bpmn` files, always use the BPMN MCP tools instead of editing BPMN XML directly.** The MCP tools ensure valid BPMN 2.0 structure, proper diagram layout coordinates, and semantic correctness that hand-editing XML cannot guarantee.
 
-**To modify an existing `.bpmn` file**, use `import_bpmn_xml` to load it, make changes with the MCP tools, then `export_bpmn` and write the result back to the file.
+**To modify an existing `.bpmn` file**, use `create_bpmn_diagram` with `filePath` (or `xml`) to load it, make changes with the MCP tools, then `export_bpmn` and write the result back to the file.
 
 **To create a new diagram**, use `create_bpmn_diagram`, build it with `add_bpmn_element` / `connect_bpmn_elements`, then `export_bpmn` to get the XML.
 
@@ -112,22 +112,21 @@ For best results, follow this recommended workflow after structural changes:
 
 No separate "repair layout" tool is needed — chain these existing tools for fine-grained control.
 
-## Available Tools (28)
+## Available Tools (27)
 
 ### Core BPMN Tools
 
 | Tool                        | Description                                                                                                             |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `create_bpmn_diagram`       | Create a new diagram (use `cloneFrom` to duplicate an existing one)                                                     |
+| `create_bpmn_diagram`       | Create a new diagram: blank, cloned (`cloneFrom`), or imported (`xml`/`filePath`, auto-layout if no DI)                 |
 | `add_bpmn_element`          | Add elements (use `flowId` to insert, `fromElementId`+`toLaneId` for cross-lane handoff)                                |
 | `add_bpmn_element_chain`    | Add a chain of elements connected in sequence                                                                           |
-| `connect_bpmn_elements`     | Connect elements (use `connectionId`+`waypoints` for custom routing)                                                    |
+| `connect_bpmn_elements`     | Connect elements (use `connectionId`+`waypoints` for custom routing, or `connections` for arbitrary pairs)              |
 | `delete_bpmn_element`       | Remove an element or connection                                                                                         |
 | `move_bpmn_element`         | Move, resize, or reassign an element to a lane                                                                          |
 | `list_bpmn_elements`        | List elements with filters (name pattern, type, property), or inspect specific elements in full detail via `elementIds` |
 | `validate_bpmn_diagram`     | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)                                                    |
 | `export_bpmn`               | Export as BPMN 2.0 XML or SVG (with implicit lint gate)                                                                 |
-| `import_bpmn_xml`           | Import existing BPMN XML (auto-layout if no DI)                                                                         |
 | `manage_bpmn_root_elements` | Create or update shared Message and Signal definitions                                                                  |
 
 ### Layout & Alignment Tools
@@ -278,7 +277,7 @@ The dispatch map and `TOOL_DEFINITIONS` array are auto-derived from `TOOL_REGIST
 
 ### Key Constraints
 
-- **Never edit `.bpmn` files directly** — always use the MCP tools (`import_bpmn_xml` → edit → `export_bpmn`).
+- **Never edit `.bpmn` files directly** — always use the MCP tools (`create_bpmn_diagram` with `filePath` → edit → `export_bpmn`).
 - **Never write BPMN XML via terminal heredocs** — line-wrapping can corrupt element names. Use `create_file` or MCP export.
 - `src/bpmnlint-plugin-bpmn-mcp/` must not import from `src/handlers/` (enforced by ESLint).
 - Mutating handlers must call `appendLintFeedback()` from `src/linter.ts` to surface error-level issues.

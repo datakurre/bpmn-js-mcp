@@ -25,7 +25,7 @@ import { handleDeleteDiagram, TOOL_DEFINITION as DELETE_DIAGRAM_DEF } from './co
 import { handleCloneDiagram } from './core/clone-diagram';
 import { handleListDiagrams, TOOL_DEFINITION as LIST_DIAGRAMS_DEF } from './core/list-diagrams';
 import { handleSummarizeDiagram } from './core/summarize-diagram';
-import { handleImportXml, TOOL_DEFINITION as IMPORT_XML_DEF } from './core/import-xml';
+import { handleImportXml } from './core/import-xml';
 import { handleExportBpmn, TOOL_DEFINITION as EXPORT_BPMN_DEF } from './core/export';
 import { handleValidate, TOOL_DEFINITION as VALIDATE_DEF } from './core/validate';
 import {
@@ -180,7 +180,7 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn, tier: 'core' },
   { definition: LIST_ELEMENTS_DEF, handler: handleListElements },
   { definition: SET_PROPERTIES_DEF, handler: handleSetProperties, tier: 'core' },
-  { definition: IMPORT_XML_DEF, handler: handleImportXml, tier: 'core' },
+  // import_bpmn_xml removed: xml/filePath/autoLayout parameters on create_bpmn_diagram (ADR-030)
   { definition: DELETE_DIAGRAM_DEF, handler: handleDeleteDiagram },
   { definition: LIST_DIAGRAMS_DEF, handler: handleListDiagrams },
   { definition: VALIDATE_DEF, handler: handleValidate, tier: 'core' },
@@ -249,7 +249,7 @@ const MCP_APP_VIEW_EXCLUDED_TOOLS = new Set(['delete_bpmn_diagram']);
  * Tools that read or write local files (via `filePath`), so they interact
  * with something outside the in-memory diagram model.
  */
-const OPEN_WORLD_TOOLS = new Set(['import_bpmn_xml', 'export_bpmn']);
+const OPEN_WORLD_TOOLS = new Set(['create_bpmn_diagram', 'export_bpmn']);
 
 /**
  * Tools where repeating an identical call has no additional effect beyond
@@ -282,7 +282,6 @@ const TOOL_TITLES: Record<string, string> = {
   export_bpmn: 'Export Diagram',
   list_bpmn_elements: 'List Elements',
   set_bpmn_element_properties: 'Set Element Properties',
-  import_bpmn_xml: 'Import Diagram',
   delete_bpmn_diagram: 'Delete Diagram',
   list_bpmn_diagrams: 'List Diagrams',
   validate_bpmn_diagram: 'Validate Diagram',

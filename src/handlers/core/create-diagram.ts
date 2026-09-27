@@ -5,6 +5,7 @@
 
 import {
   type ToolResult,
+  type ToolContext,
   type HintLevel,
   type IncludeImage,
   type IncludeImageFormat,
@@ -19,6 +20,7 @@ import {
 import { jsonResult, getService, getProcesses } from '../helpers';
 import { appendMcpAppContent } from '../../linter';
 import { isMcpAppsHostSupported } from '../../mcp-apps/host-support';
+import { handleImportXml } from './import-xml';
 
 /** Workflow context hint for guiding pool/lane usage. */
 export type WorkflowContext = 'single-organization' | 'multi-organization' | 'multi-system';
@@ -39,6 +41,21 @@ export interface CreateDiagramArgs {
    * Provide the diagram ID to clone from.
    */
   cloneFrom?: string;
+  /**
+   * Import existing BPMN XML instead of creating a blank diagram. Alternative
+   * to filePath. Ignored when cloneFrom is given.
+   */
+  xml?: string;
+  /**
+   * Import a BPMN XML file from disk instead of creating a blank diagram.
+   * Alternative to xml. Ignored when cloneFrom is given.
+   */
+  filePath?: string;
+  /**
+   * With xml/filePath: force (true) or skip (false) auto-layout. When
+   * omitted, auto-layout runs only if the XML has no diagram coordinates.
+   */
+  autoLayout?: boolean;
   /**
    * Which image formats to append to every mutating tool response.
    * - `['png']`        — 2× resolution PNG only (default when omitted)
@@ -171,10 +188,43 @@ async function cloneDiagram(args: CreateDiagramArgs): Promise<ToolResult> {
   });
 }
 
-export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<ToolResult> {
+/** Set the process name + a meaningful id, when a name was provided (blank-diagram mode). */
+function applyDiagramName(modeler: any, name: string | undefined): void {
+  if (!name) return;
+  const elementRegistry = getService(modeler, 'elementRegistry');
+  const modeling = getService(modeler, 'modeling');
+  const process = getProcesses(elementRegistry)[0];
+  if (process) {
+    modeling.updateProperties(process, { name, id: toProcessId(name) });
+  }
+}
+
+/** Handle import mode: create a diagram from existing BPMN XML or a file on disk. */
+function importDiagram(args: CreateDiagramArgs, context?: ToolContext): Promise<ToolResult> {
+  return handleImportXml(
+    {
+      xml: args.xml,
+      filePath: args.filePath,
+      autoLayout: args.autoLayout,
+      draftMode: args.draftMode,
+      hintLevel: args.hintLevel,
+    },
+    context
+  );
+}
+
+export async function handleCreateDiagram(
+  args: CreateDiagramArgs,
+  context?: ToolContext
+): Promise<ToolResult> {
   // Clone mode: duplicate an existing diagram
   if (args.cloneFrom) {
     return cloneDiagram(args);
+  }
+
+  // Import mode: create a diagram from existing BPMN XML or a file on disk
+  if (args.xml || args.filePath) {
+    return importDiagram(args, context);
   }
 
   const diagramId = generateDiagramId();
@@ -182,17 +232,7 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
   const { xml } = await modeler.saveXML({ format: true });
 
   // If a name was provided, set it on the process along with a meaningful id
-  if (args.name) {
-    const elementRegistry = getService(modeler, 'elementRegistry');
-    const modeling = getService(modeler, 'modeling');
-    const process = getProcesses(elementRegistry)[0];
-    if (process) {
-      modeling.updateProperties(process, {
-        name: args.name,
-        id: toProcessId(args.name),
-      });
-    }
-  }
+  applyDiagramName(modeler, args.name);
 
   const savedXml = args.name ? (await modeler.saveXML({ format: true })).xml || '' : xml || '';
 
@@ -228,16 +268,10 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
     nextSteps.push(ctx.step);
   }
 
-  nextSteps.push(
-    {
-      tool: 'add_bpmn_element',
-      description: 'Add a bpmn:StartEvent to begin building the process.',
-    },
-    {
-      tool: 'import_bpmn_xml',
-      description: 'Or import an existing BPMN XML file instead of building from scratch.',
-    }
-  );
+  nextSteps.push({
+    tool: 'add_bpmn_element',
+    description: 'Add a bpmn:StartEvent to begin building the process.',
+  });
   resultData.nextSteps = nextSteps;
 
   const result = jsonResult(resultData);
@@ -256,7 +290,15 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
 export const TOOL_DEFINITION = {
   name: 'create_bpmn_diagram',
   description:
-    'Create a new BPMN diagram. Returns a diagram ID that can be used with other tools. ' +
+    'Create a new BPMN diagram: blank, cloned from an existing diagram (cloneFrom), or imported ' +
+    'from existing BPMN XML (xml or filePath). Returns a diagram ID that can be used with other ' +
+    'tools. For an xml/filePath import, if the XML lacks diagram coordinates (DI), auto-layout is ' +
+    'applied; use autoLayout to force or skip it. ' +
+    '**Warning:** Forcing autoLayout: true on diagrams that already have DI coordinates may ' +
+    'reposition elements and can affect boundary event placement — for diagrams with boundary ' +
+    'events, subprocesses, or complex structures, prefer autoLayout: false (or omit it to use ' +
+    'auto-detection). An xml/filePath import creates a fresh modeler with an empty undo/redo ' +
+    'history; combine with export_bpmn filePath to implement an open→edit→save workflow. ' +
     'Use draftMode: true to suppress lint feedback during incremental construction.',
   inputSchema: {
     type: 'object',
@@ -299,6 +341,24 @@ export const TOOL_DEFINITION = {
         description:
           'Clone an existing diagram instead of creating a blank one. ' +
           'Provide the diagram ID to clone from. Returns a new diagram ID.',
+      },
+      xml: {
+        type: 'string',
+        description:
+          'Import existing BPMN XML instead of creating a blank diagram. Alternative to filePath. ' +
+          'Ignored when cloneFrom is given.',
+      },
+      filePath: {
+        type: 'string',
+        description:
+          'Path to a .bpmn file to read and import instead of creating a blank diagram. ' +
+          'Alternative to xml. Ignored when cloneFrom is given.',
+      },
+      autoLayout: {
+        type: 'boolean',
+        description:
+          'With xml/filePath: force (true) or skip (false) auto-layout. When omitted, ' +
+          'auto-layout runs only if the XML has no diagram coordinates. Ignored otherwise.',
       },
       includeImage: {
         description:

@@ -8,7 +8,7 @@ describe('progress notifications', () => {
     clearDiagrams();
   });
 
-  test('import_bpmn_xml emits progress when context has sendProgress', async () => {
+  test('create_bpmn_diagram (xml import mode) emits progress when context has sendProgress', async () => {
     const progressCalls: Array<{ progress: number; total?: number; message?: string }> = [];
     const context: ToolContext = {
       sendProgress: vi.fn(async (progress, total, message) => {
@@ -26,7 +26,7 @@ describe('progress notifications', () => {
 </bpmn:definitions>`;
 
     const res = parseResult(
-      await dispatchToolCall('import_bpmn_xml', { xml: simpleXml, autoLayout: true }, context)
+      await dispatchToolCall('create_bpmn_diagram', { xml: simpleXml, autoLayout: true }, context)
     );
     expect(res.success).toBe(true);
     expect(progressCalls.length).toBeGreaterThan(0);
