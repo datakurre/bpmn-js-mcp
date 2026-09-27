@@ -103,27 +103,14 @@ export interface SetLoopCharacteristicsArgs {
   elementVariable?: string;
 }
 
-export async function handleSetLoopCharacteristics(
-  args: SetLoopCharacteristicsArgs
-): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId', 'loopType']);
-  const { diagramId, elementId, loopType, ...options } = args;
-  const diagram = requireDiagram(diagramId);
-
-  const modeling = getService(diagram.modeler, 'modeling');
-  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
-  const moddle = getService(diagram.modeler, 'moddle');
-
-  const element = requireElement(elementRegistry, elementId);
-  const bo = element.businessObject;
-
-  // Verify element is a task-like type
+/** Throws unless `effectiveType` is task-like, a SubProcess, or a CallActivity. */
+export function assertLoopTarget(effectiveType: string, elementId: string): void {
   if (
-    !bo.$type.includes('Task') &&
-    bo.$type !== 'bpmn:SubProcess' &&
-    bo.$type !== 'bpmn:CallActivity'
+    !effectiveType.includes('Task') &&
+    effectiveType !== 'bpmn:SubProcess' &&
+    effectiveType !== 'bpmn:CallActivity'
   ) {
-    throw typeMismatchError(elementId, bo.$type, [
+    throw typeMismatchError(elementId, effectiveType, [
       'bpmn:Task',
       'bpmn:UserTask',
       'bpmn:ServiceTask',
@@ -131,23 +118,40 @@ export async function handleSetLoopCharacteristics(
       'bpmn:CallActivity',
     ]);
   }
+}
 
-  let loopChar: any;
+export interface SetLoopCharacteristicsCoreResult {
+  loopType: 'none' | 'standard' | 'parallel' | 'sequential';
+  hints: Array<{ tool: string; description: string }>;
+}
+
+/**
+ * Build and apply (or remove) loop characteristics. Synchronous — no XML
+ * sync or lint feedback — so it is safe to call from within a command-stack
+ * `preExecute` (see `applyPropertyUpdateItem` in `set-properties.ts`)
+ * alongside other elements' updates, grouped into one undo step.
+ */
+export function applySetLoopCharacteristicsCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Omit<SetLoopCharacteristicsArgs, 'diagramId' | 'elementId'>
+): SetLoopCharacteristicsCoreResult {
+  const { loopType, ...options } = args;
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  const moddle = getService(diagram.modeler, 'moddle');
+
+  const element = requireElement(elementRegistry, elementId);
+  const bo = element.businessObject;
+
+  assertLoopTarget(bo.$type, elementId);
 
   if (loopType === 'none') {
-    // Remove loop characteristics
     modeling.updateProperties(element, { loopCharacteristics: undefined });
-    await syncXml(diagram);
-
-    const result = jsonResult({
-      success: true,
-      elementId,
-      loopType: 'none',
-      message: `Removed loop characteristics from ${elementId}`,
-    });
-    return appendLintFeedback(result, diagram);
+    return { loopType: 'none', hints: [] };
   }
 
+  let loopChar: any;
   if (loopType === 'standard') {
     loopChar = buildStandardLoop(moddle, options);
   } else if (loopType === 'parallel' || loopType === 'sequential') {
@@ -157,15 +161,29 @@ export async function handleSetLoopCharacteristics(
   }
 
   modeling.updateProperties(element, { loopCharacteristics: loopChar });
-  await syncXml(diagram);
 
-  const hints = buildLoopHints(loopType, options);
+  return { loopType, hints: buildLoopHints(loopType, options) };
+}
+
+export async function handleSetLoopCharacteristics(
+  args: SetLoopCharacteristicsArgs
+): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId', 'loopType']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const { loopType, hints } = applySetLoopCharacteristicsCore(diagram, elementId, args);
+
+  await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     elementId,
     loopType,
-    message: `Set ${loopType} loop characteristics on ${elementId}`,
+    message:
+      loopType === 'none'
+        ? `Removed loop characteristics from ${elementId}`
+        : `Set ${loopType} loop characteristics on ${elementId}`,
     ...(hints.length > 0 ? { nextSteps: hints } : {}),
   });
   return appendLintFeedback(result, diagram);

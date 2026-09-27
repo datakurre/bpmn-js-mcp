@@ -105,11 +105,31 @@ export const FORM_DATA_SCHEMA_PROPERTIES = {
   },
 } as const;
 
-export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId', 'fields']);
-  const { diagramId, elementId, businessKey, fields } = args;
-  const diagram = requireDiagram(diagramId);
+/** Throws unless `effectiveType` is a UserTask or StartEvent (camunda:FormData target types). */
+export function assertFormDataTarget(effectiveType: string, elementId: string): void {
+  if (effectiveType !== 'bpmn:UserTask' && effectiveType !== 'bpmn:StartEvent') {
+    throw typeMismatchError(elementId, effectiveType, ['bpmn:UserTask', 'bpmn:StartEvent']);
+  }
+}
 
+export interface SetFormDataCoreResult {
+  fieldCount: number;
+  businessKey?: string;
+}
+
+/**
+ * Build and upsert the camunda:FormData extension element. Synchronous — no
+ * XML sync or lint feedback — so it is safe to call from within a
+ * command-stack `preExecute` (see `applyPropertyUpdateItem` in
+ * `set-properties.ts`) alongside other elements' updates, grouped into one
+ * undo step.
+ */
+export function applySetFormDataCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Pick<SetFormDataArgs, 'businessKey' | 'fields'>
+): SetFormDataCoreResult {
+  const { businessKey, fields } = args;
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
   const moddle = getService(diagram.modeler, 'moddle');
@@ -117,10 +137,7 @@ export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResu
   const element = requireElement(elementRegistry, elementId);
   const bo = element.businessObject;
 
-  // Verify element is a UserTask or StartEvent
-  if (bo.$type !== 'bpmn:UserTask' && bo.$type !== 'bpmn:StartEvent') {
-    throw typeMismatchError(elementId, bo.$type, ['bpmn:UserTask', 'bpmn:StartEvent']);
-  }
+  assertFormDataTarget(bo.$type, elementId);
 
   // Build camunda:FormField elements
   const formFields = fields.map((f) => {
@@ -171,14 +188,24 @@ export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResu
 
   upsertExtensionElement(moddle, bo, modeling, element, 'camunda:FormData', formData);
 
+  return { fieldCount: formFields.length, businessKey: businessKey || undefined };
+}
+
+export async function handleSetFormData(args: SetFormDataArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId', 'fields']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const { fieldCount, businessKey } = applySetFormDataCore(diagram, elementId, args);
+
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     elementId,
-    fieldCount: formFields.length,
-    businessKey: businessKey || undefined,
-    message: `Set form data with ${formFields.length} field(s) on ${elementId}`,
+    fieldCount,
+    businessKey,
+    message: `Set form data with ${fieldCount} field(s) on ${elementId}`,
     nextSteps: [
       {
         tool: 'connect_bpmn_elements',

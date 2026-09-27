@@ -176,11 +176,24 @@ function buildParameter(
   return param;
 }
 
-export async function handleSetInputOutput(args: SetInputOutputArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId']);
-  const { diagramId, elementId, inputParameters = [], outputParameters = [] } = args;
-  const diagram = requireDiagram(diagramId);
+export interface SetInputOutputCoreResult {
+  inputParameterCount: number;
+  outputParameterCount: number;
+}
 
+/**
+ * Build and upsert the camunda:InputOutput extension element. Synchronous —
+ * no XML sync or lint feedback — so it is safe to call from within a
+ * command-stack `preExecute` (see `applyPropertyUpdateItem` in
+ * `set-properties.ts`) alongside other elements' updates, grouped into one
+ * undo step.
+ */
+export function applySetInputOutputCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Pick<SetInputOutputArgs, 'inputParameters' | 'outputParameters'>
+): SetInputOutputCoreResult {
+  const { inputParameters = [], outputParameters = [] } = args;
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
   const moddle = getService(diagram.modeler, 'moddle');
@@ -206,13 +219,22 @@ export async function handleSetInputOutput(args: SetInputOutputArgs): Promise<To
 
   upsertExtensionElement(moddle, bo, modeling, element, 'camunda:InputOutput', inputOutput);
 
+  return { inputParameterCount: inputParams.length, outputParameterCount: outputParams.length };
+}
+
+export async function handleSetInputOutput(args: SetInputOutputArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const counts = applySetInputOutputCore(diagram, elementId, args);
+
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     elementId,
-    inputParameterCount: inputParams.length,
-    outputParameterCount: outputParams.length,
+    ...counts,
     message: `Set input/output mapping on ${elementId}`,
   });
   return appendLintFeedback(result, diagram);

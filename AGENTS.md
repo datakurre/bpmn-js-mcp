@@ -75,7 +75,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 **Every tool name includes `bpmn`** to avoid collisions with other MCPs.
 
 - **Core structural tools:** `create_bpmn_diagram` (includes cloning via `cloneFrom`), `add_bpmn_element` (includes insert-into-flow via `flowId`, cross-lane handoff via `fromElementId`+`toLaneId`), `connect_bpmn_elements` (includes waypoint editing via `connectionId`+`waypoints`), `delete_bpmn_element`, `move_bpmn_element` (includes resize via `width`/`height`), `list_bpmn_elements`, `validate_bpmn_diagram`, `align_bpmn_elements` (includes distribute via `orientation`), `export_bpmn` (formats: `xml`/`svg`/`both`, plus `png`/`gif`/`apng`/`mp4`/`webp`/`html` via `bpmn-to-image`'s token-simulation and interactive-viewer rendering — see ADR-022), `import_bpmn_xml`
-- **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties` (includes element-type replacement via `elementType`, plus `inputOutput`/`formData`/`listeners`/`callActivityVariables`/`loop` sub-objects — see ADR-021), `set_bpmn_event_definition`
+- **Property / extension tools:** `get_bpmn_element_properties`, `set_bpmn_element_properties` (includes element-type replacement via `elementType`, plus `inputOutput`/`formData`/`listeners`/`callActivityVariables`/`loop` sub-objects — see ADR-021 — and a multi-element `updates` array applied as a single undo step — see ADR-026), `set_bpmn_event_definition`
 - **Collaboration tools:** `create_bpmn_participant` (includes wrapping an existing process via `wrapExisting`), `create_bpmn_lanes` (includes merging an existing collaboration via `mergeFrom`), `assign_bpmn_elements_to_lane`, `manage_bpmn_root_elements`, `analyze_bpmn_lanes` (modes: suggest, validate, pool-vs-lanes, redistribute)
 - **History tools:** `bpmn_history`
 - **Batch tools:** `batch_bpmn_operations`
@@ -148,6 +148,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-023](agents/adrs/ADR-023-large-output-resource-links.md) — Resource links instead of inlining large output
 - [ADR-024](agents/adrs/ADR-024-structured-content-and-output-schema.md) — structuredContent and outputSchema for tool results
 - [ADR-025](agents/adrs/ADR-025-mcp-apps-diagram-viewer.md) — MCP Apps diagram viewer
+- [ADR-026](agents/adrs/ADR-026-multi-element-property-updates.md) — Multi-element `updates` form for set_bpmn_element_properties
 
 ## Key Gotchas
 
