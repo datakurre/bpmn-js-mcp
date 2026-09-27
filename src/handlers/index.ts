@@ -229,7 +229,8 @@ const TOOL_REGISTRY: ToolRegistration[] = [
 
 /**
  * Tools that only read diagram state — no idempotency caching needed.
- * Derived from handler files tagged `// @readonly`.
+ * Derived from handler files tagged `// @readonly`.  `analyze_bpmn_lanes`
+ * is not listed: its `redistribute` mode moves elements between lanes.
  */
 const READONLY_TOOLS = new Set([
   'export_bpmn',
@@ -238,7 +239,6 @@ const READONLY_TOOLS = new Set([
   'validate_bpmn_diagram',
   'list_bpmn_elements',
   'get_bpmn_element_properties',
-  'analyze_bpmn_lanes',
 ]);
 
 /** Tools whose primary effect is permanently removing a diagram or element. */
