@@ -22,6 +22,7 @@ import {
 } from './bpmnlint-plugin-bpmn-mcp';
 import { getDiagramId } from './diagram-manager';
 import { buildConnectivityWarnings } from './handlers/helpers';
+import { LARGE_XML_CHARS } from './constants';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -382,6 +383,34 @@ async function appendImageContent(
   }
 }
 
+/**
+ * Embed the diagram's current XML as an `audience: ['user']` resource
+ * content item, for MCP Apps-capable hosts to feed into the
+ * `ui://bpmn-diagram-viewer` view via `ontoolresult` (issue #11 / ADR-025).
+ * `audience: ['user']` keeps this out of the model's context, same as the
+ * existing PNG/SVG image content. Skipped for diagrams beyond
+ * `LARGE_XML_CHARS` — same threshold as export_bpmn's resource_link
+ * summarization (ADR-023).
+ */
+export async function appendMcpAppContent(
+  result: ToolResult,
+  diagram: DiagramState
+): Promise<void> {
+  const { xml } = await diagram.modeler.saveXML({ format: true });
+  if (!xml || xml.length > LARGE_XML_CHARS) return;
+
+  const diagramId = getDiagramId(diagram);
+  result.content.push({
+    type: 'resource',
+    resource: {
+      uri: diagramId ? `bpmn://diagram/${diagramId}/xml` : 'bpmn://diagram/unknown/xml',
+      mimeType: 'application/xml',
+      text: xml,
+    },
+    annotations: { audience: ['user'] },
+  });
+}
+
 /** Append layout hint and connectivity warnings to result (full hint level only). */
 async function appendFullHints(result: ToolResult, diagram: DiagramState): Promise<void> {
   const LAYOUT_HINT_THRESHOLD = 5;
@@ -474,8 +503,9 @@ export async function appendLintFeedback(
   const willAppendFeedback = hintLevel !== 'none';
   const imageFormats = resolveIncludeFormats(diagram.includeImage);
   const willAppendImage = imageFormats.length > 0;
+  const willAppendAppView = diagram.includeAppView === true;
 
-  if (!willAppendFeedback && !willAppendImage) return result;
+  if (!willAppendFeedback && !willAppendImage && !willAppendAppView) return result;
 
   bumpDiagramVersion(diagram);
   const diagramId = getDiagramId(diagram);
@@ -490,6 +520,10 @@ export async function appendLintFeedback(
 
   if (willAppendImage) {
     await appendImageContent(result, diagram.modeler, imageFormats);
+  }
+
+  if (willAppendAppView) {
+    await appendMcpAppContent(result, diagram);
   }
 
   return result;

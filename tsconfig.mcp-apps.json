@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true
+  },
+  "include": ["src/mcp-apps/viewer-entry.ts"],
+  "exclude": ["node_modules", "dist", "test"]
+}

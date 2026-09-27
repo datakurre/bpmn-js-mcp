@@ -16,6 +16,7 @@
 import { type ToolResult, type ToolContext } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { ERR_INTERNAL } from '../errors';
+import { APP_VIEWER_RESOURCE_URI } from '../mcp-apps/resource';
 
 // ── Core: diagram lifecycle, import/export, validation, batch ──────────────
 
@@ -245,6 +246,15 @@ const READONLY_TOOLS = new Set([
 const DESTRUCTIVE_TOOLS = new Set(['delete_bpmn_diagram', 'delete_bpmn_element']);
 
 /**
+ * Mutating tools eligible for the MCP Apps `ui://bpmn-diagram-viewer` view
+ * (issue #11 / ADR-025) — every tool that changes a diagram's content,
+ * except `delete_bpmn_diagram` (nothing left to view once the diagram is
+ * gone). Read-only tools (`READONLY_TOOLS`) never get one: they don't
+ * change diagram state.
+ */
+const MCP_APP_VIEW_EXCLUDED_TOOLS = new Set(['delete_bpmn_diagram']);
+
+/**
  * Tools that read or write local files (via `filePath`), so they interact
  * with something outside the in-memory diagram model.
  */
@@ -330,11 +340,30 @@ function resolveToolTier(): 'core' | 'full' {
 export const TOOL_TIER: 'core' | 'full' = resolveToolTier();
 
 /** Build the ListTools payload for a given tier. Exposed for direct testing. */
+/**
+ * Build the MCP Apps `_meta.ui.resourceUri` for a tool (issue #11 / ADR-025),
+ * or `undefined` for tools not eligible (read-only, or `delete_bpmn_diagram`).
+ * Modern `_meta.ui.resourceUri` format per the ext-apps spec; hosts that
+ * don't understand `_meta` simply ignore it.
+ */
+function buildMcpAppsMeta(name: string): Record<string, unknown> | undefined {
+  if (READONLY_TOOLS.has(name) || MCP_APP_VIEW_EXCLUDED_TOOLS.has(name)) return undefined;
+  return { ui: { resourceUri: APP_VIEWER_RESOURCE_URI } };
+}
+
 export function computeToolDefinitions(
   tier: 'core' | 'full'
 ): Array<{ name: string; [key: string]: unknown }> {
   return TOOL_REGISTRY.filter((r) => !r.hidden && (tier === 'full' || r.tier === 'core')).map(
-    (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
+    (r) => {
+      const name = r.definition.name as string;
+      const meta = buildMcpAppsMeta(name);
+      return {
+        ...r.definition,
+        annotations: buildAnnotations(name),
+        ...(meta ? { _meta: meta } : {}),
+      };
+    }
   );
 }
 

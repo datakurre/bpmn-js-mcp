@@ -136,6 +136,17 @@ describe('readResource', () => {
     );
   });
 
+  test('reads ui://bpmn-diagram-viewer (MCP Apps view)', async () => {
+    const result = await readResource('ui://bpmn-diagram-viewer');
+    expect(result.contents).toHaveLength(1);
+    expect(result.contents[0].mimeType).toBe('text/html;profile=mcp-app');
+    const html = result.contents[0].text;
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('id="bpmn-app-view"');
+    expect(html).toContain('TokenSimulation');
+    expect(html).toContain('ontoolresult');
+  });
+
   test('reads bpmn://guides/executable-camunda7', async () => {
     const result = await readResource('bpmn://guides/executable-camunda7');
     expect(result.contents).toHaveLength(1);

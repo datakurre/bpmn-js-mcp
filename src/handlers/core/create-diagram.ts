@@ -17,6 +17,7 @@ import {
   createModelerFromXml,
 } from '../../diagram-manager';
 import { jsonResult, getService, getProcesses } from '../helpers';
+import { appendMcpAppContent } from '../../linter';
 
 /** Workflow context hint for guiding pool/lane usage. */
 export type WorkflowContext = 'single-organization' | 'multi-organization' | 'multi-system';
@@ -46,6 +47,13 @@ export interface CreateDiagramArgs {
    * - `false`          — no images
    */
   includeImage?: IncludeImage;
+  /**
+   * When true, every mutating tool response also embeds the diagram's
+   * current XML for MCP Apps-capable hosts to render an interactive
+   * `ui://bpmn-diagram-viewer` view (issue #11). Independent of
+   * `includeImage`. Default: false.
+   */
+  includeAppView?: boolean;
 }
 
 /** Convert a human name into a valid BPMN process id (XML NCName). */
@@ -159,6 +167,7 @@ async function cloneDiagram(args: CreateDiagramArgs): Promise<ToolResult> {
     xml: xml || '',
     name: args.name || source.name,
     includeImage: args.includeImage ?? source.includeImage,
+    includeAppView: args.includeAppView ?? source.includeAppView,
   });
   return jsonResult({
     success: true,
@@ -197,14 +206,16 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
   // Resolve effective hint level: explicit hintLevel > draftMode > server default
   const hintLevel: HintLevel | undefined = args.hintLevel ?? (args.draftMode ? 'none' : undefined);
 
-  storeDiagram(diagramId, {
+  const diagramState = {
     modeler,
     xml: savedXml,
     name: args.name,
     draftMode: args.draftMode ?? false,
     hintLevel,
     includeImage: args.includeImage ?? ['png'],
-  });
+    includeAppView: args.includeAppView ?? false,
+  };
+  storeDiagram(diagramId, diagramState);
 
   const effectiveDraft = hintLevel === 'none' || (args.draftMode ?? false);
 
@@ -242,6 +253,10 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
   // Append image(s) when includeImage is set (default: ['png'])
   const formats = resolveIncludeFormats(args.includeImage ?? ['png']);
   await appendImages(result, modeler, formats);
+
+  if (args.includeAppView) {
+    await appendMcpAppContent(result, diagramState);
+  }
 
   return result;
 }
@@ -307,6 +322,14 @@ export const TOOL_DEFINITION = {
           },
           { type: 'boolean' },
         ],
+      },
+      includeAppView: {
+        type: 'boolean',
+        description:
+          "When true, every mutating tool response also embeds the diagram's current XML " +
+          "for MCP Apps-capable hosts (see the 'ui://bpmn-diagram-viewer' resource) to render " +
+          'an interactive, pannable/zoomable view inline in the conversation, instead of (or ' +
+          'alongside) includeImage. Independent of includeImage. Default: false.',
       },
     },
   },
