@@ -186,9 +186,9 @@ export function assertContainedIn(
  * where target is intentionally to the left of source will fail this check,
  * so pass them in `excludeFlowIds` to skip them.
  *
- * This catches TODO #3: open-fan gateway backward connections where
- * the rebuild engine places downstream elements at the same X-layer
- * as sibling-branch elements, causing U-turn routes.
+ * This catches open-fan gateway backward connections where the layout
+ * algorithm places downstream elements at the same X-layer as
+ * sibling-branch elements, causing U-turn routes.
  */
 export function assertAllFlowsForward(
   registry: ElementRegistry,

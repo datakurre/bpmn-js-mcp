@@ -26,7 +26,8 @@ import {
   getRegistry,
 } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
-import { segmentIntersectsRect, type Rect } from '../../../src/geometry';
+import type { Rect } from '../../../src/geometry';
+import { segmentIntersectsRect } from '../../utils/geometry';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

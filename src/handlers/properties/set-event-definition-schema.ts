@@ -116,29 +116,5 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId', 'elementId', 'eventDefinitionType'],
-    examples: [
-      {
-        title: 'Set a timer boundary event with a 30-minute duration',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'BoundaryEvent_Timeout',
-          eventDefinitionType: 'bpmn:TimerEventDefinition',
-          properties: { timeDuration: 'PT30M' },
-        },
-      },
-      {
-        title: 'Set a signal throw event with variable mappings',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'IntermediateThrowEvent_Signal',
-          eventDefinitionType: 'bpmn:SignalEventDefinition',
-          signalRef: { id: 'Signal_OrderCompleted', name: 'Order Completed' },
-          inMappings: [
-            { source: 'orderId', target: 'orderId' },
-            { source: 'customerName', target: 'customerName' },
-          ],
-        },
-      },
-    ],
   },
 } as const;

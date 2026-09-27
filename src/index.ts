@@ -55,6 +55,13 @@ Options:
                         minimal (lint errors only), none (no implicit feedback).
   --help                Show this help message and exit.
 
+Environment variables:
+  BPMN_MCP_TOOLS        Tool tier exposed via ListTools. Values: full (default,
+                        every tool), core (the 12 most-used tools, for agents
+                        with limited context). Every tool is always dispatchable
+                        regardless of tier.
+  BPMN_MCP_MAX_DIAGRAMS Max diagrams held in memory at once (default: 100).
+
 Examples:
   bpmn-js-mcp
   bpmn-js-mcp --persist-dir ./diagrams
@@ -117,7 +124,15 @@ const modules: ToolModule[] = [bpmnModule];
 
 const server = new Server(
   { name: 'bpmn-js-mcp', version: PKG_VERSION },
-  { capabilities: { tools: {}, resources: {}, prompts: {} } }
+  {
+    capabilities: { tools: {}, resources: {}, prompts: {} },
+    instructions:
+      'Every mutating tool (all tools except export_bpmn, list_bpmn_diagrams, list_bpmn_elements, ' +
+      'get_bpmn_element_properties, validate_bpmn_diagram, analyze_bpmn_lanes, and ' +
+      'list_bpmn_process_variables) accepts an optional `_clientRequestId` string argument, not ' +
+      'listed in its schema. If the same ID is sent again, the server returns the cached result ' +
+      'without re-executing the operation — use it for safe retries on network errors.',
+  }
 );
 
 // ── Tool handlers ──────────────────────────────────────────────────────────

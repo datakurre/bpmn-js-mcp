@@ -44,6 +44,124 @@ const SCRIPT_SCHEMA = {
   required: ['scriptFormat', 'value'],
 } as const;
 
+/** Shared `{ executionListeners, taskListeners, errorDefinitions }` schema fragment (no diagramId/elementId). */
+export const CAMUNDA_LISTENERS_SCHEMA_PROPERTIES = {
+  executionListeners: {
+    type: 'array',
+    description: 'Execution listeners to set (replaces existing)',
+    items: {
+      type: 'object',
+      properties: {
+        event: {
+          type: 'string',
+          description: "Listener event: 'start', 'end', or 'take' (for sequence flows)",
+        },
+        class: {
+          type: 'string',
+          description: 'Fully qualified Java class name implementing ExecutionListener',
+        },
+        delegateExpression: {
+          type: 'string',
+          description: "Expression resolving to a listener bean (e.g. '${myListenerBean}')",
+        },
+        expression: {
+          type: 'string',
+          description: "UEL expression to evaluate (e.g. '${myBean.notify(execution)}')",
+        },
+        script: SCRIPT_SCHEMA,
+        fields: FIELD_INJECTION_SCHEMA,
+      },
+      required: ['event'],
+    },
+  },
+  taskListeners: {
+    type: 'array',
+    description: 'Task listeners to set (UserTask only, replaces existing)',
+    items: {
+      type: 'object',
+      properties: {
+        event: {
+          type: 'string',
+          description:
+            "Listener event: 'create', 'assignment', 'complete', 'delete', or 'timeout' (requires timerEventDefinition)",
+        },
+        id: {
+          type: 'string',
+          description:
+            'Optional unique ID for the task listener. Required when using timeout event with timerEventDefinition.',
+        },
+        class: {
+          type: 'string',
+          description: 'Fully qualified Java class name implementing TaskListener',
+        },
+        delegateExpression: {
+          type: 'string',
+          description: 'Expression resolving to a listener bean',
+        },
+        expression: {
+          type: 'string',
+          description: 'UEL expression to evaluate',
+        },
+        script: SCRIPT_SCHEMA,
+        fields: FIELD_INJECTION_SCHEMA,
+        timerEventDefinition: {
+          type: 'object',
+          description:
+            "Timer definition for 'timeout' task listeners. Specifies when the listener fires if the task isn't completed in time. Provide exactly ONE of timeDuration, timeDate, or timeCycle.",
+          properties: {
+            timeDuration: {
+              type: 'string',
+              description:
+                "ISO 8601 duration (e.g. 'PT15M' for 15 minutes, 'PT1H' for 1 hour). Also supports expressions like '${myDuration}'.",
+            },
+            timeDate: {
+              type: 'string',
+              description:
+                "ISO 8601 date-time (e.g. '2025-12-31T23:59:00Z'). Also supports expressions.",
+            },
+            timeCycle: {
+              type: 'string',
+              description:
+                "ISO 8601 repeating interval (e.g. 'R3/PT10M' for 3 repetitions every 10 minutes).",
+            },
+          },
+        },
+      },
+      required: ['event'],
+    },
+  },
+  errorDefinitions: {
+    type: 'array',
+    description:
+      'camunda:ErrorEventDefinition entries for ServiceTask error handling (replaces existing). ' +
+      'Distinct from standard bpmn:ErrorEventDefinition on boundary events.',
+    items: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'Unique ID for the error event definition',
+        },
+        expression: {
+          type: 'string',
+          description: 'Error expression (e.g. \'${error.code == "ERR_001"}\')',
+        },
+        errorRef: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Error element ID' },
+            name: { type: 'string', description: 'Error name' },
+            errorCode: { type: 'string', description: 'Error code' },
+          },
+          required: ['id'],
+          description: 'Reference to a bpmn:Error root element (created if not existing)',
+        },
+      },
+      required: ['id'],
+    },
+  },
+} as const;
+
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_camunda_listeners',
   description:
@@ -58,152 +176,8 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'The ID of the element to configure',
       },
-      executionListeners: {
-        type: 'array',
-        description: 'Execution listeners to set (replaces existing)',
-        items: {
-          type: 'object',
-          properties: {
-            event: {
-              type: 'string',
-              description: "Listener event: 'start', 'end', or 'take' (for sequence flows)",
-            },
-            class: {
-              type: 'string',
-              description: 'Fully qualified Java class name implementing ExecutionListener',
-            },
-            delegateExpression: {
-              type: 'string',
-              description: "Expression resolving to a listener bean (e.g. '${myListenerBean}')",
-            },
-            expression: {
-              type: 'string',
-              description: "UEL expression to evaluate (e.g. '${myBean.notify(execution)}')",
-            },
-            script: SCRIPT_SCHEMA,
-            fields: FIELD_INJECTION_SCHEMA,
-          },
-          required: ['event'],
-        },
-      },
-      taskListeners: {
-        type: 'array',
-        description: 'Task listeners to set (UserTask only, replaces existing)',
-        items: {
-          type: 'object',
-          properties: {
-            event: {
-              type: 'string',
-              description:
-                "Listener event: 'create', 'assignment', 'complete', 'delete', or 'timeout' (requires timerEventDefinition)",
-            },
-            id: {
-              type: 'string',
-              description:
-                'Optional unique ID for the task listener. Required when using timeout event with timerEventDefinition.',
-            },
-            class: {
-              type: 'string',
-              description: 'Fully qualified Java class name implementing TaskListener',
-            },
-            delegateExpression: {
-              type: 'string',
-              description: 'Expression resolving to a listener bean',
-            },
-            expression: {
-              type: 'string',
-              description: 'UEL expression to evaluate',
-            },
-            script: SCRIPT_SCHEMA,
-            fields: FIELD_INJECTION_SCHEMA,
-            timerEventDefinition: {
-              type: 'object',
-              description:
-                "Timer definition for 'timeout' task listeners. Specifies when the listener fires if the task isn't completed in time. Provide exactly ONE of timeDuration, timeDate, or timeCycle.",
-              properties: {
-                timeDuration: {
-                  type: 'string',
-                  description:
-                    "ISO 8601 duration (e.g. 'PT15M' for 15 minutes, 'PT1H' for 1 hour). Also supports expressions like '${myDuration}'.",
-                },
-                timeDate: {
-                  type: 'string',
-                  description:
-                    "ISO 8601 date-time (e.g. '2025-12-31T23:59:00Z'). Also supports expressions.",
-                },
-                timeCycle: {
-                  type: 'string',
-                  description:
-                    "ISO 8601 repeating interval (e.g. 'R3/PT10M' for 3 repetitions every 10 minutes).",
-                },
-              },
-            },
-          },
-          required: ['event'],
-        },
-      },
-      errorDefinitions: {
-        type: 'array',
-        description:
-          'camunda:ErrorEventDefinition entries for ServiceTask error handling (replaces existing). ' +
-          'Distinct from standard bpmn:ErrorEventDefinition on boundary events.',
-        items: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              description: 'Unique ID for the error event definition',
-            },
-            expression: {
-              type: 'string',
-              description: 'Error expression (e.g. \'${error.code == "ERR_001"}\')',
-            },
-            errorRef: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', description: 'Error element ID' },
-                name: { type: 'string', description: 'Error name' },
-                errorCode: { type: 'string', description: 'Error code' },
-              },
-              required: ['id'],
-              description: 'Reference to a bpmn:Error root element (created if not existing)',
-            },
-          },
-          required: ['id'],
-        },
-      },
+      ...CAMUNDA_LISTENERS_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId'],
-    examples: [
-      {
-        title: 'Add a groovy execution listener on task start',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'ServiceTask_ProcessOrder',
-          executionListeners: [
-            {
-              event: 'start',
-              script: {
-                scriptFormat: 'groovy',
-                value: 'execution.setVariable("startTime", new Date())',
-              },
-            },
-          ],
-        },
-      },
-      {
-        title: 'Add a task listener with delegate expression',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'UserTask_ReviewOrder',
-          taskListeners: [
-            {
-              event: 'complete',
-              delegateExpression: '${auditLogger}',
-            },
-          ],
-        },
-      },
-    ],
   },
 } as const;

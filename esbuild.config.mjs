@@ -2,7 +2,7 @@ import { build, context } from 'esbuild';
 
 /** @type {import('esbuild').BuildOptions} */
 const config = {
-  entryPoints: ['src/index.ts', 'src/eval-cli.ts'],
+  entryPoints: ['src/index.ts'],
   bundle: true,
   platform: 'node',
   target: 'node18',
@@ -10,12 +10,11 @@ const config = {
   outdir: 'dist',
   entryNames: '[name]',
   external: [
-    'jsdom',
     'bpmn-js',
     'bpmn-auto-layout',
+    'bpmn-to-image',
     'bpmnlint',
     'bpmnlint-plugin-camunda-compat',
-    '@resvg/resvg-js',
   ],
   banner: {
     js: '#!/usr/bin/env node',

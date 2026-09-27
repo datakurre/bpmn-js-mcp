@@ -347,7 +347,7 @@ async function appendImageContent(
 ): Promise<void> {
   if (formats.length === 0) return;
   try {
-    const { svgToPngWithFallback, tightenSvgViewBox } = await import('./svg-to-png');
+    const { svgToPngWithFallback, tightenSvgViewBox } = await import('bpmn-to-image');
     const { svg } = await modeler.saveSVG();
     // Compute tight bounds from the element registry for accurate viewBox cropping
     let allElements: any[] | undefined;

@@ -3,7 +3,7 @@
  * BPMN DI model — not just the canvas element.
  *
  * The bug: `straightenNonOrthogonalFlows` and `assignLShapeWaypoints` in
- * `src/rebuild/waypoints.ts` mutated `conn.waypoints` (canvas) directly but
+ * Layout code once mutated `conn.waypoints` (canvas) directly but
  * never called `modeling.updateWaypoints()`, leaving the DI model
  * (what `saveXML()` serialises) with the original Z-shaped path.
  *

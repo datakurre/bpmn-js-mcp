@@ -5,8 +5,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { type DiagramState } from './types';
-import { createHeadlessCanvas, getBpmnModeler } from './headless-canvas';
-import camundaModdle from 'camunda-bpmn-moddle/resources/camunda.json';
+import { createModeler as createLibModeler } from 'bpmn-to-image';
 
 /** Default BPMN XML used when creating a brand-new diagram. */
 export const INITIAL_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -110,11 +109,12 @@ export function clearDiagrams(): void {
 
 // ── Modeler helpers ────────────────────────────────────────────────────────
 
-/** Shared moddle-extensions option used by every modeler instance. */
-const moddleExtensions = { camunda: camundaModdle };
-
 /**
- * Instantiate a headless BpmnModeler.
+ * Instantiate a headless BpmnModeler via `bpmn-to-image` (shared jsdom
+ * environment, Camunda moddle extensions, headless polyfills).
+ *
+ * `robot: false` keeps rendering identical to bpmn-js-mcp's own diagrams —
+ * bpmn-to-image's Robot Framework task icon is opt-in and unused here.
  *
  * Interactive label direct-editing is disabled: bpmn-js opens an editing
  * session after `autoPlace`/`create`, and the next canvas event completes
@@ -122,9 +122,7 @@ const moddleExtensions = { camunda: camundaModdle };
  * fires in the middle of another command's execution.
  */
 function newModeler(): any {
-  const container = createHeadlessCanvas();
-  const BpmnModeler = getBpmnModeler();
-  const modeler = new BpmnModeler({ container, moddleExtensions });
+  const modeler = createLibModeler({ robot: false });
   modeler.get('directEditing').activate = () => false;
   return modeler;
 }

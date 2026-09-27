@@ -72,8 +72,9 @@ export interface DiagramState {
   pinnedElements?: Set<string>;
   /**
    * Set of connection IDs whose waypoints have been manually set by the user
-   * (via set_bpmn_connection_waypoints). Layout preserves these waypoints
-   * and restores them after the pipeline. Full layout clears this set.
+   * (via connect_bpmn_elements with connectionId + waypoints). Layout
+   * preserves these waypoints and restores them after the pipeline. Full
+   * layout clears this set.
    */
   pinnedConnections?: Set<string>;
   /**
@@ -114,11 +115,24 @@ export interface ToolResult {
     text?: string;
     /** For image content items. */
     data?: string;
-    /** For image content items. */
+    /** For image and resource_link content items. */
     mimeType?: string;
+    /** For resource_link content items: the bpmn:// resource URI. */
+    uri?: string;
+    /** For resource_link content items: a short display name. */
+    name?: string;
+    /** For resource_link content items: what the resource contains. */
+    description?: string;
     /** Optional audience annotation. */
     annotations?: Record<string, unknown>;
   }>;
+  /**
+   * Machine-readable duplicate of a JSON tool result, per the MCP
+   * `structuredContent` field. Additive only — `content[0].text` always
+   * carries the same JSON as a string, so existing callers that do
+   * `JSON.parse(result.content[0].text)` are unaffected.
+   */
+  structuredContent?: Record<string, unknown>;
 }
 
 // ── Tool execution context ─────────────────────────────────────────────────

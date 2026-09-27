@@ -14,6 +14,7 @@
 // @readonly
 
 import { type ToolResult } from '../../types';
+import { LARGE_LIST_COUNT } from '../../constants';
 import {
   requireDiagram,
   jsonResult,
@@ -24,6 +25,8 @@ import {
 
 export interface ListProcessVariablesArgs {
   diagramId: string;
+  /** Force the full variable list even when it's large enough to be summarized. Default: false. */
+  inline?: boolean;
 }
 
 interface VariableReference {
@@ -306,7 +309,7 @@ export async function handleListProcessVariables(
   args: ListProcessVariablesArgs
 ): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
-  const { diagramId } = args;
+  const { diagramId, inline = false } = args;
   const diagram = requireDiagram(diagramId);
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
@@ -343,6 +346,28 @@ export async function handleListProcessVariables(
 
   const variables = Array.from(varMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
+  if (!inline && variables.length > LARGE_LIST_COUNT) {
+    const resourceUri = `bpmn://diagram/${diagramId}/variables`;
+    const result = jsonResult({
+      success: true,
+      variableCount: variables.length,
+      referenceCount: allRefs.length,
+      names: variables.map((v) => v.name),
+      resource: resourceUri,
+      message:
+        `Diagram references ${variables.length} process variables — returning names only ` +
+        `instead of full read/write details. Read ${resourceUri} for the complete list, or pass inline: true.`,
+    });
+    result.content.push({
+      type: 'resource_link',
+      uri: resourceUri,
+      name: `Process variables (${variables.length})`,
+      mimeType: 'application/json',
+      description: `Full process-variable list for a large diagram (${variables.length} variables).`,
+    });
+    return result;
+  }
+
   return jsonResult({
     success: true,
     variableCount: variables.length,
@@ -354,12 +379,26 @@ export async function handleListProcessVariables(
 export const TOOL_DEFINITION = {
   name: 'list_bpmn_process_variables',
   description:
-    'List all process variables referenced in a BPMN diagram. Extracts variables from form fields, input/output parameter mappings, condition expressions, script result variables, loop characteristics, call activity variable mappings, and Camunda properties (assignee, candidateGroups, etc.). Returns each variable with its read/write access pattern and the elements that reference it.',
+    'List all process variables referenced in a BPMN diagram. Extracts variables from form fields, input/output parameter mappings, condition expressions, script result variables, loop characteristics, call activity variable mappings, and Camunda properties (assignee, candidateGroups, etc.). Returns each variable with its read/write access pattern and the elements that reference it — unless the diagram references a lot of variables, in which case it returns just the names plus a bpmn://diagram/{id}/variables resource_link (pass inline: true to force the full list).',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
+      inline: {
+        type: 'boolean',
+        description:
+          'Force the full variable list even for a large diagram that would otherwise be summarized. Default: false.',
+      },
     },
     required: ['diagramId'],
+  },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      success: { type: 'boolean' },
+      variableCount: { type: 'number' },
+    },
+    required: ['success', 'variableCount'],
+    additionalProperties: true,
   },
 } as const;

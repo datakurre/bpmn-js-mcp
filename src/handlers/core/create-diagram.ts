@@ -110,11 +110,21 @@ async function appendImages(
 ): Promise<void> {
   if (formats.length === 0) return;
   try {
-    const { svgToPngWithFallback, cropSvgToViewBox } = await import('../../svg-to-png');
+    const { svgToPngWithFallback, tightenSvgViewBox } = await import('bpmn-to-image');
     const { svg } = await modeler.saveSVG();
+    // Same viewBox-tightening as appendImageContent() in linter.ts, so
+    // includeImage SVG/PNG output matches the export_bpmn SVG regardless
+    // of which tool produced it (ADR-022).
+    let allElements: any[] | undefined;
+    try {
+      allElements = modeler.get('elementRegistry').getAll();
+    } catch {
+      // elementRegistry not available — fall back to origin-strip only
+    }
+    const tightSvg = tightenSvgViewBox(svg || '', allElements);
 
     if (formats.includes('png')) {
-      const { data: pngData, mimeType: pngMime } = svgToPngWithFallback(svg);
+      const { data: pngData, mimeType: pngMime } = svgToPngWithFallback(tightSvg);
       result.content.push({
         type: 'image',
         data: pngData.toString('base64'),
@@ -124,7 +134,7 @@ async function appendImages(
     }
 
     if (formats.includes('svg')) {
-      const base64Svg = Buffer.from(cropSvgToViewBox(svg), 'utf-8').toString('base64');
+      const base64Svg = Buffer.from(tightSvg, 'utf-8').toString('base64');
       result.content.push({
         type: 'image',
         data: base64Svg,

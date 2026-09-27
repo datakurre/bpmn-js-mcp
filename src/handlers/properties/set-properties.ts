@@ -7,7 +7,9 @@
  * Supports the `default` attribute on gateways by resolving the sequence flow
  * business object from a string ID.
  *
- * For loop characteristics, use the dedicated set_loop_characteristics tool.
+ * Also accepts optional inputOutput/formData/listeners/callActivityVariables/loop
+ * sub-objects, delegating to the respective dedicated handler for each
+ * (see ADR-021 — set_bpmn_element_properties as the Camunda-setter facade).
  */
 // @mutating
 
@@ -22,20 +24,111 @@ import {
   getService,
   buildPropertyHints,
 } from '../helpers';
+import { missingRequiredError } from '../../errors';
 import { appendLintFeedback } from '../../linter';
 import { handleScriptProperties } from './set-script-properties';
 import { handleReplaceElement } from '../elements/replace-element';
+import {
+  handleSetInputOutput,
+  IO_PARAMETERS_SCHEMA_PROPERTIES,
+  type IoParameterValue,
+} from './set-input-output';
+import { handleSetFormData, FORM_DATA_SCHEMA_PROPERTIES } from './set-form-data';
+import { handleSetCamundaListeners } from './set-camunda-listeners';
+import { CAMUNDA_LISTENERS_SCHEMA_PROPERTIES } from './set-camunda-listeners-schema';
+import {
+  handleSetCallActivityVariables,
+  CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES,
+} from './set-call-activity-variables';
+import {
+  handleSetLoopCharacteristics,
+  LOOP_CHARACTERISTICS_SCHEMA_PROPERTIES,
+} from './set-loop-characteristics';
 
 export interface SetPropertiesArgs {
   diagramId: string;
   elementId: string;
-  properties: Record<string, any>;
+  properties?: Record<string, any>;
   /**
    * Optional element type replacement. When provided, replaces the element type
    * (e.g. bpmn:Task → bpmn:UserTask) before setting properties.
    * Equivalent to the former replace_bpmn_element tool.
    */
   elementType?: string;
+  /** Camunda input/output parameter mapping. Equivalent to the former set_bpmn_input_output_mapping tool. */
+  inputOutput?: {
+    inputParameters?: IoParameterValue[];
+    outputParameters?: IoParameterValue[];
+  };
+  /** Generated task form fields. Equivalent to the former set_bpmn_form_data tool. */
+  formData?: {
+    businessKey?: string;
+    fields: Array<Record<string, any>>;
+  };
+  /** Execution/task listeners and error definitions. Equivalent to the former set_bpmn_camunda_listeners tool. */
+  listeners?: {
+    executionListeners?: Array<Record<string, any>>;
+    taskListeners?: Array<Record<string, any>>;
+    errorDefinitions?: Array<Record<string, any>>;
+  };
+  /** CallActivity in/out variable mappings. Equivalent to the former set_bpmn_call_activity_variables tool. */
+  callActivityVariables?: {
+    inMappings?: Array<Record<string, any>>;
+    outMappings?: Array<Record<string, any>>;
+  };
+  /** Loop/multi-instance characteristics. Equivalent to the former set_bpmn_loop_characteristics tool. */
+  loop?: {
+    loopType: 'none' | 'standard' | 'parallel' | 'sequential';
+    loopCondition?: string;
+    loopMaximum?: number;
+    loopCardinality?: string;
+    completionCondition?: string;
+    collection?: string;
+    elementVariable?: string;
+  };
+}
+
+/** The five Camunda-concern sub-objects, in the order they're applied. */
+const SUB_OBJECT_DELEGATES = [
+  { key: 'inputOutput', handler: handleSetInputOutput },
+  { key: 'formData', handler: handleSetFormData },
+  { key: 'listeners', handler: handleSetCamundaListeners },
+  { key: 'callActivityVariables', handler: handleSetCallActivityVariables },
+  { key: 'loop', handler: handleSetLoopCharacteristics },
+] as const;
+
+/**
+ * Run every sub-object delegate present on `args` and collect each one's
+ * parsed result under its key. Returns `undefined` when none are present.
+ */
+async function applySubObjectDelegates(
+  args: SetPropertiesArgs,
+  diagramId: string,
+  elementId: string
+): Promise<Record<string, any> | undefined> {
+  const sections: Record<string, any> = {};
+  for (const { key, handler } of SUB_OBJECT_DELEGATES) {
+    const subArgs = (args as Record<string, any>)[key];
+    if (!subArgs) continue;
+    const result = await handler({ diagramId, elementId, ...subArgs } as any);
+    sections[key] = JSON.parse(result.content[0].text as string);
+  }
+  return Object.keys(sections).length > 0 ? sections : undefined;
+}
+
+/** Merge nextSteps arrays from every applied sub-object section, deduping identical entries. */
+function mergeSectionNextSteps(sections: Record<string, any>): Array<Record<string, unknown>> {
+  const seen = new Set<string>();
+  const merged: Array<Record<string, unknown>> = [];
+  for (const section of Object.values(sections)) {
+    for (const step of section.nextSteps ?? []) {
+      const key = JSON.stringify(step);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(step);
+    }
+  }
+  return merged;
 }
 
 // ── Sub-functions for special-case property handling ───────────────────────
@@ -346,9 +439,64 @@ function applyPropsToElement(
   }
 }
 
+/**
+ * Apply the standard `properties` map (if non-empty) to `element`, handling
+ * the gateway `default`, `conditionExpression`, and Camunda-attribute
+ * special cases. Returns the (possibly replaced, e.g. via isExpanded)
+ * element along with hints and the list of applied property keys.
+ */
+function applyStandardProperties(
+  element: any,
+  props: Record<string, any>,
+  diagram: ReturnType<typeof requireDiagram>,
+  elementRegistry: any,
+  modeling: any
+): { element: any; hints: ReturnType<typeof buildPropertyHints>; updatedPropertyKeys: string[] } {
+  if (Object.keys(props).length === 0) {
+    return { element, hints: [], updatedPropertyKeys: [] };
+  }
+
+  const updatedElement = handleIsExpandedOnSubProcess(element, props, diagram);
+
+  const standardProps: Record<string, any> = {};
+  const camundaProps: Record<string, any> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (key.startsWith('camunda:')) camundaProps[key] = value;
+    else standardProps[key] = value;
+  }
+
+  // Auto-set camunda:type="external" when camunda:topic is provided
+  if (camundaProps['camunda:topic'] && !camundaProps['camunda:type']) {
+    camundaProps['camunda:type'] = 'external';
+  }
+
+  handleDefaultOnGateway(updatedElement, standardProps, elementRegistry, modeling);
+  handleConditionExpression(standardProps, getService(diagram.modeler, 'moddle'));
+
+  applyPropsToElement(updatedElement, standardProps, camundaProps, diagram);
+
+  return {
+    element: updatedElement,
+    hints: buildPropertyHints(props, camundaProps, updatedElement),
+    updatedPropertyKeys: Object.keys(props),
+  };
+}
+
 export async function handleSetProperties(args: SetPropertiesArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId', 'properties']);
-  const { diagramId, elementId, properties: props } = args;
+  validateArgs(args, ['diagramId', 'elementId']);
+  const { diagramId, elementId } = args;
+  const props = args.properties ?? {};
+  const hasSubObjects = !!(
+    args.inputOutput ||
+    args.formData ||
+    args.listeners ||
+    args.callActivityVariables ||
+    args.loop
+  );
+
+  if (!args.elementType && Object.keys(props).length === 0 && !hasSubObjects) {
+    throw missingRequiredError(['properties']);
+  }
 
   // If elementType is provided, delegate to replace handler first
   if (args.elementType) {
@@ -358,8 +506,8 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
       newType: args.elementType,
     });
     const replaceData = JSON.parse(replaceResult.content[0].text as string);
-    // If no additional properties to set, return the replace result
-    if (!props || Object.keys(props).length === 0) {
+    // If nothing else to apply, return the replace result
+    if (Object.keys(props).length === 0 && !hasSubObjects) {
       return replaceResult;
     }
     // Use the new element ID for subsequent property setting (may have changed)
@@ -375,44 +523,46 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
   const modeling = getService(diagram.modeler, 'modeling');
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
-  let element = requireElement(elementRegistry, elementId);
-  element = handleIsExpandedOnSubProcess(element, props, diagram);
+  const initialElement = requireElement(elementRegistry, elementId);
+  const { element, hints, updatedPropertyKeys } = applyStandardProperties(
+    initialElement,
+    props,
+    diagram,
+    elementRegistry,
+    modeling
+  );
 
-  const standardProps: Record<string, any> = {};
-  const camundaProps: Record<string, any> = {};
-  for (const [key, value] of Object.entries(props)) {
-    if (key.startsWith('camunda:')) camundaProps[key] = value;
-    else standardProps[key] = value;
-  }
-
-  // Auto-set camunda:type="external" when camunda:topic is provided
-  if (camundaProps['camunda:topic'] && !camundaProps['camunda:type']) {
-    camundaProps['camunda:type'] = 'external';
-  }
-
-  handleDefaultOnGateway(element, standardProps, elementRegistry, modeling);
-  handleConditionExpression(standardProps, getService(diagram.modeler, 'moddle'));
-
-  applyPropsToElement(element, standardProps, camundaProps, diagram);
+  // Delegate any Camunda-concern sub-objects (inputOutput, formData, listeners,
+  // callActivityVariables, loop) to their dedicated handlers.
+  const sections = await applySubObjectDelegates(args, diagramId, element.id);
+  const appliedSections = sections ? Object.keys(sections) : [];
 
   await syncXml(diagram);
 
-  const hints = buildPropertyHints(props, camundaProps, element);
+  const messageParts = [
+    ...(updatedPropertyKeys.length > 0 ? ['properties'] : []),
+    ...appliedSections,
+  ];
+  const combinedNextSteps = [...hints, ...(sections ? mergeSectionNextSteps(sections) : [])];
+
   const result = jsonResult({
     success: true,
     elementId: element.id,
-    updated: [{ id: element.id, changed: Object.keys(args.properties) }],
-    updatedProperties: Object.keys(args.properties),
-    message: `Updated properties on ${element.id}`,
+    ...(updatedPropertyKeys.length > 0
+      ? {
+          updated: [{ id: element.id, changed: updatedPropertyKeys }],
+          updatedProperties: updatedPropertyKeys,
+        }
+      : {}),
+    ...(sections ? { updatedSections: appliedSections, sections } : {}),
+    message: `Updated ${messageParts.join(', ')} on ${element.id}`,
     ...(element.id !== elementId
       ? { note: `Element ID changed from ${elementId} to ${element.id}` }
       : {}),
-    ...(hints.length > 0 ? { nextSteps: hints } : {}),
+    ...(combinedNextSteps.length > 0 ? { nextSteps: combinedNextSteps } : {}),
   });
   return appendLintFeedback(result, diagram);
 }
-
-const EXAMPLE_DIAGRAM_ID = '<diagram-id>';
 
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_element_properties',
@@ -423,9 +573,9 @@ export const TOOL_DEFINITION = {
     'Also handles: scriptFormat/script on ScriptTask, camunda:connector, camunda:field, camunda:properties, ' +
     'camunda:retryTimeCycle, isExpanded on SubProcess, and cancelActivity on BoundaryEvent (false = non-interrupting). ' +
     'See bpmn://guides/element-properties for the full property catalog by element type. ' +
-    'For loop characteristics, use set_bpmn_loop_characteristics. ' +
-    'Supports optional elementType to replace the element type (e.g. bpmn:Task → bpmn:UserTask) — ' +
-    'equivalent to the former replace_bpmn_element tool.',
+    'Supports optional elementType to replace the element type (e.g. bpmn:Task → bpmn:UserTask). ' +
+    'Also accepts optional sub-objects for other Camunda concerns, settable together with properties ' +
+    'in one call: inputOutput, formData, listeners, callActivityVariables, loop.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -444,8 +594,7 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description:
           'Optional element type to replace the element with (e.g. "bpmn:UserTask", "bpmn:ServiceTask"). ' +
-          'When provided, replaces the element type before setting properties. ' +
-          'Equivalent to the former replace_bpmn_element tool.',
+          'When provided, replaces the element type before setting properties.',
         enum: [
           'bpmn:Task',
           'bpmn:UserTask',
@@ -467,64 +616,44 @@ export const TOOL_DEFINITION = {
           'bpmn:SubProcess',
         ],
       },
+      inputOutput: {
+        type: 'object',
+        description:
+          'Camunda input/output parameter mapping (camunda:InputOutput). ' +
+          'Equivalent to the former set_bpmn_input_output_mapping tool.',
+        properties: IO_PARAMETERS_SCHEMA_PROPERTIES,
+      },
+      formData: {
+        type: 'object',
+        description:
+          'Generated task form fields (camunda:FormData) for UserTasks/StartEvents. ' +
+          'Equivalent to the former set_bpmn_form_data tool.',
+        properties: FORM_DATA_SCHEMA_PROPERTIES,
+        required: ['fields'],
+      },
+      listeners: {
+        type: 'object',
+        description:
+          'Execution listeners, task listeners, and/or error event definitions. ' +
+          'Equivalent to the former set_bpmn_camunda_listeners tool.',
+        properties: CAMUNDA_LISTENERS_SCHEMA_PROPERTIES,
+      },
+      callActivityVariables: {
+        type: 'object',
+        description:
+          'CallActivity in/out variable mappings (camunda:in / camunda:out). ' +
+          'Equivalent to the former set_bpmn_call_activity_variables tool.',
+        properties: CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES,
+      },
+      loop: {
+        type: 'object',
+        description:
+          'Loop/multi-instance characteristics on tasks, subprocesses, or call activities. ' +
+          'Equivalent to the former set_bpmn_loop_characteristics tool.',
+        properties: LOOP_CHARACTERISTICS_SCHEMA_PROPERTIES,
+        required: ['loopType'],
+      },
     },
-    required: ['diagramId', 'elementId', 'properties'],
-    examples: [
-      {
-        title: 'Configure an external service task',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'ServiceTask_ProcessPayment',
-          properties: {
-            'camunda:type': 'external',
-            'camunda:topic': 'process-payment',
-          },
-        },
-      },
-      {
-        title: 'Assign a user task to a candidate group',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'UserTask_ReviewOrder',
-          properties: {
-            'camunda:candidateGroups': 'managers',
-            'camunda:dueDate': '${dateTime().plusDays(3).toDate()}',
-          },
-        },
-      },
-      {
-        title: 'Set a condition on a sequence flow',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'Flow_Approved',
-          properties: {
-            name: 'Yes',
-            conditionExpression: '${approved == true}',
-          },
-        },
-      },
-      {
-        title: 'Set the default flow on an exclusive gateway',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'Gateway_OrderValid',
-          properties: {
-            default: 'Flow_Approved',
-          },
-        },
-      },
-      {
-        title: 'Set inline Groovy script on a ScriptTask',
-        value: {
-          diagramId: EXAMPLE_DIAGRAM_ID,
-          elementId: 'ScriptTask_CalcTotal',
-          properties: {
-            scriptFormat: 'groovy',
-            script: 'def total = orderItems.sum { it.price * it.quantity }\ntotal',
-            'camunda:resultVariable': 'orderTotal',
-          },
-        },
-      },
-    ],
+    required: ['diagramId', 'elementId'],
   },
 } as const;

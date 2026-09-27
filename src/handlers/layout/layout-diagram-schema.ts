@@ -64,13 +64,20 @@ export const TOOL_DEFINITION = {
         type: 'boolean',
         description:
           'When true, only resize pools and lanes to fit their contents without running full layout. ' +
-          'Equivalent to the former autosize_bpmn_pools_and_lanes tool. ' +
           'Accepts participantId to scope resizing to a single pool. Default: false.',
       },
       participantId: {
         type: 'string',
         description:
           'Optional. When autosizeOnly is true, scope pool resizing to this participant ID.',
+      },
+      verbose: {
+        type: 'boolean',
+        description:
+          'When true, include full diagnostics: the non-orthogonal flow ID list, per-pool/lane ' +
+          'sizing issues, cross-lane crossing flow IDs, the recomputed association ID list, and ' +
+          'the full nextSteps list. Default: false — a compact summary with only actionable ' +
+          'warnings and up to two nextSteps.',
       },
     },
     required: ['diagramId'],

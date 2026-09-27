@@ -11,7 +11,7 @@ export const STANDARD_BPMN_GAP = 50;
 /**
  * Inter-layer spacing (px) used when inserting elements into existing flows.
  *
- * Matches the spacing the rebuild layout engine produces between layers
+ * Matches the spacing `bpmn-auto-layout` produces between layers
  * (left-to-right), ensuring inserted elements align with the surrounding
  * layout.
  */
@@ -172,3 +172,30 @@ export function getElementSize(elementType: string): { width: number; height: nu
   }
   return ELEMENT_SIZES.default;
 }
+
+// ── Large-diagram resource-link thresholds (ADR-023) ───────────────────────
+
+/**
+ * export_bpmn: inline XML content beyond this many characters is replaced
+ * with a `bpmn://diagram/{id}/xml` resource_link + short summary, unless
+ * `inline: true` is passed.
+ */
+export const LARGE_XML_CHARS = 20_000;
+
+/**
+ * export_bpmn: inline SVG content beyond this many characters is replaced
+ * with a `bpmn://diagram/{id}/svg` resource_link + short summary. SVG runs
+ * roughly 3-4x more verbose per element than XML (per-element style
+ * attributes, hit-test rects, marker defs with unique ids) — a modest
+ * ~20-element diagram with a few lanes already produces 20,000-30,000
+ * characters of SVG, so this needs its own, higher threshold rather than
+ * reusing `LARGE_XML_CHARS`.
+ */
+export const LARGE_SVG_CHARS = 100_000;
+
+/**
+ * list_bpmn_elements / list_bpmn_process_variables: beyond this many
+ * entries, the full list is replaced with a resource_link + short summary,
+ * unless `inline: true` is passed.
+ */
+export const LARGE_LIST_COUNT = 60;

@@ -556,7 +556,7 @@ describe('Layout quality regression', () => {
     const happyPathY = [start, task, gw, endOk].map((id) => centreY(reg.get(id)));
     const refY = happyPathY[0];
     for (const y of happyPathY) {
-      // Rebuild layout may shift the happy path slightly when branches are
+      // Auto-layout may shift the happy path slightly when branches are
       // stacked vertically; allow a larger tolerance than the original 10px.
       expect(Math.abs(y - refY)).toBeLessThanOrEqual(80);
     }

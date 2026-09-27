@@ -160,32 +160,53 @@ import { handleAutosizePoolsAndLanes } from './collaboration/autosize-pools-and-
 interface ToolRegistration {
   readonly definition: { readonly name: string; readonly [key: string]: unknown };
   readonly handler: (args: any, context?: ToolContext) => Promise<ToolResult>;
+  /**
+   * When true, the tool is still fully dispatchable but excluded from
+   * TOOL_DEFINITIONS (ListTools) — a hidden alias kept for one release after
+   * being consolidated into another tool (see ADR-021), so prompts and
+   * scripts written against the old name keep working.
+   */
+  readonly hidden?: boolean;
+  /**
+   * When `'core'`, the tool is included in both the `core` and `full` tiers
+   * (see `resolveToolTier` / `BPMN_MCP_TOOLS`). Tools without this field are
+   * `full`-tier only. Irrelevant to dispatch — a `core`-tier server still
+   * accepts calls to any registered tool; only `ListTools` is filtered.
+   */
+  readonly tier?: 'core';
 }
 
 const TOOL_REGISTRY: ToolRegistration[] = [
-  { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram },
-  { definition: ADD_ELEMENT_DEF, handler: handleAddElement },
-  { definition: CONNECT_DEF, handler: handleConnect },
-  { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement },
-  { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement },
+  { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram, tier: 'core' },
+  { definition: ADD_ELEMENT_DEF, handler: handleAddElement, tier: 'core' },
+  { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
+  { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
+  { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
   { definition: GET_PROPERTIES_DEF, handler: handleGetProperties },
-  { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn },
+  { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn, tier: 'core' },
   { definition: LIST_ELEMENTS_DEF, handler: handleListElements },
-  { definition: SET_PROPERTIES_DEF, handler: handleSetProperties },
-  { definition: IMPORT_XML_DEF, handler: handleImportXml },
+  { definition: SET_PROPERTIES_DEF, handler: handleSetProperties, tier: 'core' },
+  { definition: IMPORT_XML_DEF, handler: handleImportXml, tier: 'core' },
   { definition: DELETE_DIAGRAM_DEF, handler: handleDeleteDiagram },
   { definition: LIST_DIAGRAMS_DEF, handler: handleListDiagrams },
-  { definition: VALIDATE_DEF, handler: handleValidate },
+  { definition: VALIDATE_DEF, handler: handleValidate, tier: 'core' },
   { definition: ALIGN_ELEMENTS_DEF, handler: handleAlignElements },
-  { definition: SET_INPUT_OUTPUT_DEF, handler: handleSetInputOutput },
+  // Hidden aliases: consolidated into set_bpmn_element_properties's inputOutput/
+  // formData/listeners/callActivityVariables/loop sub-objects (ADR-021). Kept
+  // dispatchable for one release so existing prompts/scripts keep working.
+  { definition: SET_INPUT_OUTPUT_DEF, handler: handleSetInputOutput, hidden: true },
   { definition: SET_EVENT_DEFINITION_DEF, handler: handleSetEventDefinition },
-  { definition: SET_FORM_DATA_DEF, handler: handleSetFormData },
-  { definition: LAYOUT_DIAGRAM_DEF, handler: handleLayoutDiagram },
-  { definition: SET_LOOP_CHARACTERISTICS_DEF, handler: handleSetLoopCharacteristics },
+  { definition: SET_FORM_DATA_DEF, handler: handleSetFormData, hidden: true },
+  { definition: LAYOUT_DIAGRAM_DEF, handler: handleLayoutDiagram, tier: 'core' },
+  { definition: SET_LOOP_CHARACTERISTICS_DEF, handler: handleSetLoopCharacteristics, hidden: true },
   { definition: BPMN_HISTORY_DEF, handler: handleBpmnHistory },
-  { definition: BATCH_OPERATIONS_DEF, handler: handleBatchOperations },
-  { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners },
-  { definition: SET_CALL_ACTIVITY_VARIABLES_DEF, handler: handleSetCallActivityVariables },
+  { definition: BATCH_OPERATIONS_DEF, handler: handleBatchOperations, tier: 'core' },
+  { definition: SET_CAMUNDA_LISTENERS_DEF, handler: handleSetCamundaListeners, hidden: true },
+  {
+    definition: SET_CALL_ACTIVITY_VARIABLES_DEF,
+    handler: handleSetCallActivityVariables,
+    hidden: true,
+  },
   { definition: MANAGE_ROOT_ELEMENTS_DEF, handler: handleManageRootElements },
   { definition: CREATE_LANES_DEF, handler: handleCreateLanes },
   { definition: CREATE_PARTICIPANT_DEF, handler: handleCreateParticipant },
@@ -195,7 +216,7 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
   // clone_bpmn_diagram removed: cloneFrom parameter on create_bpmn_diagram
   // diff_bpmn_diagrams removed: compareWith parameter on list_bpmn_diagrams
-  { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain },
+  { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain, tier: 'core' },
   // set_bpmn_connection_waypoints removed: waypoints+connectionId parameters on connect_bpmn_elements
   { definition: ASSIGN_ELEMENTS_TO_LANE_DEF, handler: handleAssignElementsToLane },
   // wrap_bpmn_process_in_collaboration removed: wrapExisting on create_bpmn_participant
@@ -218,45 +239,134 @@ const READONLY_TOOLS = new Set([
   'list_bpmn_elements',
   'get_bpmn_element_properties',
   'analyze_bpmn_lanes',
-  'diff_bpmn_diagrams',
 ]);
 
-/** Property definition for `_clientRequestId` injected into mutating tools. */
-const CLIENT_REQUEST_ID_PROP = {
-  type: 'string',
-  description:
-    'Optional client-provided request ID for idempotent retry. ' +
-    'If the same ID is sent again, the server returns the cached result ' +
-    'without re-executing the operation.',
-} as const;
+/** Tools whose primary effect is permanently removing a diagram or element. */
+const DESTRUCTIVE_TOOLS = new Set(['delete_bpmn_diagram', 'delete_bpmn_element']);
+
+/**
+ * Tools that read or write local files (via `filePath`), so they interact
+ * with something outside the in-memory diagram model.
+ */
+const OPEN_WORLD_TOOLS = new Set(['import_bpmn_xml', 'export_bpmn']);
+
+/**
+ * Tools where repeating an identical call has no additional effect beyond
+ * the first — setting the same properties, moving to the same position, or
+ * deleting an already-deleted target. Excludes tools that create new
+ * elements/diagrams/connections, where a repeat call duplicates state.
+ */
+const IDEMPOTENT_TOOLS = new Set([
+  'set_bpmn_element_properties',
+  'set_bpmn_input_output_mapping',
+  'set_bpmn_event_definition',
+  'set_bpmn_form_data',
+  'set_bpmn_loop_characteristics',
+  'set_bpmn_camunda_listeners',
+  'set_bpmn_call_activity_variables',
+  'move_bpmn_element',
+  'align_bpmn_elements',
+  'layout_bpmn_diagram',
+  'manage_bpmn_root_elements',
+  'delete_bpmn_element',
+  'delete_bpmn_diagram',
+]);
+
+/** Short human-readable title per tool, for clients that label/group tools. */
+const TOOL_TITLES: Record<string, string> = {
+  create_bpmn_diagram: 'Create Diagram',
+  add_bpmn_element: 'Add Element',
+  connect_bpmn_elements: 'Connect Elements',
+  delete_bpmn_element: 'Delete Element',
+  move_bpmn_element: 'Move/Resize Element',
+  get_bpmn_element_properties: 'Get Element Properties',
+  export_bpmn: 'Export Diagram',
+  list_bpmn_elements: 'List Elements',
+  set_bpmn_element_properties: 'Set Element Properties',
+  import_bpmn_xml: 'Import Diagram',
+  delete_bpmn_diagram: 'Delete Diagram',
+  list_bpmn_diagrams: 'List Diagrams',
+  validate_bpmn_diagram: 'Validate Diagram',
+  align_bpmn_elements: 'Align/Distribute Elements',
+  set_bpmn_input_output_mapping: 'Set Input/Output Mapping',
+  set_bpmn_event_definition: 'Set Event Definition',
+  set_bpmn_form_data: 'Set Form Data',
+  layout_bpmn_diagram: 'Auto-Layout Diagram',
+  set_bpmn_loop_characteristics: 'Set Loop Characteristics',
+  bpmn_history: 'Diagram History (Undo/Redo)',
+  batch_bpmn_operations: 'Batch Operations',
+  set_bpmn_camunda_listeners: 'Set Camunda Listeners',
+  set_bpmn_call_activity_variables: 'Set Call Activity Variables',
+  manage_bpmn_root_elements: 'Manage Root Elements',
+  create_bpmn_lanes: 'Create Lanes',
+  create_bpmn_participant: 'Create Participant/Pool',
+  analyze_bpmn_lanes: 'Analyze Lanes',
+  list_bpmn_process_variables: 'List Process Variables',
+  add_bpmn_element_chain: 'Add Element Chain',
+  assign_bpmn_elements_to_lane: 'Assign Elements to Lane',
+};
+
+/** Build the MCP `annotations` object for a tool (see MCP spec ToolAnnotations). */
+function buildAnnotations(name: string): Record<string, unknown> {
+  return {
+    title: TOOL_TITLES[name] ?? name,
+    readOnlyHint: READONLY_TOOLS.has(name),
+    ...(DESTRUCTIVE_TOOLS.has(name) ? { destructiveHint: true } : {}),
+    ...(IDEMPOTENT_TOOLS.has(name) ? { idempotentHint: true } : {}),
+    openWorldHint: OPEN_WORLD_TOOLS.has(name),
+  };
+}
+
+/**
+ * Resolve the active tool tier from `BPMN_MCP_TOOLS` (`core` | `full`).
+ * Anything else (unset, `full`, or an unrecognized value) resolves to `full`
+ * — the complete tool set, unchanged from before tiers existed.
+ */
+function resolveToolTier(): 'core' | 'full' {
+  return (process.env.BPMN_MCP_TOOLS ?? '').trim().toLowerCase() === 'core' ? 'core' : 'full';
+}
+
+/** The tier this server process resolved at startup (see `BPMN_MCP_TOOLS`). */
+export const TOOL_TIER: 'core' | 'full' = resolveToolTier();
+
+/** Build the ListTools payload for a given tier. Exposed for direct testing. */
+export function computeToolDefinitions(
+  tier: 'core' | 'full'
+): Array<{ name: string; [key: string]: unknown }> {
+  return TOOL_REGISTRY.filter((r) => !r.hidden && (tier === 'full' || r.tier === 'core')).map(
+    (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
+  );
+}
 
 /**
  * MCP tool definitions (passed to ListTools).
  *
- * Mutating tools are augmented with an optional `_clientRequestId` property
- * so callers can safely retry on network errors.
+ * Every tool is augmented with `annotations` (title, readOnlyHint,
+ * destructiveHint, idempotentHint, openWorldHint) so clients can auto-approve
+ * read-only calls and group or hide tools without parsing descriptions.
+ *
+ * Every mutating tool also accepts an optional `_clientRequestId` string for
+ * idempotent retry (see `dispatchToolCall` below), advertised once in the
+ * server's top-level `instructions` (src/index.ts) rather than repeated in
+ * every tool's schema — at ~190 characters each, doing so across ~22 tools
+ * added roughly 5 KB to the tool list every session pays for.
+ *
+ * Filtered to the `core` tier's 12 tools when `BPMN_MCP_TOOLS=core` is set
+ * (see `resolveToolTier`), for agents with limited context — collaboration,
+ * lane, history/diff, process-variable, and Camunda-listener tools are
+ * `full`-tier only. `dispatchToolCall` still accepts every registered tool
+ * regardless of tier, so `batch_bpmn_operations` and existing clients that
+ * cached the full list keep working.
  */
-export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> = TOOL_REGISTRY.map(
-  (r) => {
-    if (READONLY_TOOLS.has(r.definition.name as string)) return r.definition;
+export const TOOL_DEFINITIONS: Array<{ name: string; [key: string]: unknown }> =
+  computeToolDefinitions(TOOL_TIER);
 
-    // Augment mutating tool definitions with _clientRequestId
-    const def = r.definition as Record<string, any>;
-    const schema = def.inputSchema as Record<string, any> | undefined;
-    if (!schema?.properties) return r.definition;
-
-    return {
-      ...def,
-      name: def.name as string,
-      inputSchema: {
-        ...schema,
-        properties: {
-          ...schema.properties,
-          _clientRequestId: CLIENT_REQUEST_ID_PROP,
-        },
-      },
-    };
-  }
+/**
+ * Every dispatchable tool name, including hidden aliases (see `ToolRegistration.hidden`).
+ * Exposed for tests that need to distinguish "not a real tool" from "hidden alias".
+ */
+export const ALL_DISPATCHABLE_TOOL_NAMES: string[] = TOOL_REGISTRY.map(
+  (r) => r.definition.name as string
 );
 
 // ── Idempotency cache ──────────────────────────────────────────────────────

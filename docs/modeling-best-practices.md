@@ -167,9 +167,8 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 **Layout guidance:**
 
 - Keep the **happy path** (Yes branch) straight and horizontal — it should flow left-to-right without vertical detours.
-- Route the **loopback** (No branch) **below** the main path with a clean U-shape: down → left → up. This keeps the loopback visually distinct.
-- Use `set_bpmn_connection_waypoints` to manually set clean U-shaped waypoints when the auto-router creates zigzag paths.
-- When inserting a gateway into an existing straight flow, use `insert_bpmn_element` — it preserves horizontal alignment between source, gateway, and target.
+- Route the **loopback** (No branch) **below** the main path with a clean U-shape: down → left → up. `layout_bpmn_diagram` routes this automatically; if a specific connection still needs a custom path, use `connect_bpmn_elements` with `connectionId` + `waypoints`.
+- When inserting a gateway into an existing straight flow, use `add_bpmn_element` with `flowId` set to the flow being split — it preserves horizontal alignment between source, gateway, and target.
 
 **Modeling tips:**
 
@@ -195,7 +194,7 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 **Sizing workflow:**
 
 1. Build the process flow first (tasks, gateways, events, connections).
-2. Wrap in a collaboration (`wrap_bpmn_process_in_collaboration`) with a generous participant width (e.g., 1500px).
+2. Wrap in a collaboration (`create_bpmn_participant` with `wrapExisting: true`) with a generous participant width (e.g., 1500px).
 3. Create lanes (`create_bpmn_lanes`) and assign elements.
 4. Run `layout_bpmn_diagram` — this positions elements within lanes.
 5. If elements overflow, resize the participant with `move_bpmn_element` (set `width`/`height`).
@@ -230,6 +229,6 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 
 **Inserted element lands in the wrong lane:**
 
-- When `insert_bpmn_element` splits a cross-lane flow, the new element is placed at the midpoint between source and target, which may fall into an unrelated lane.
+- When `add_bpmn_element` with `flowId` splits a cross-lane flow, the new element is placed at the midpoint between source and target, which may fall into an unrelated lane.
 - After insertion, use `assign_bpmn_elements_to_lane` to move the element to the correct lane.
 - Alternatively, use `add_bpmn_element` with explicit `x`/`y` coordinates followed by manual connection.

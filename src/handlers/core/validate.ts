@@ -113,8 +113,8 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'bpmn-mcp/parallel-gateway-merge-exclusive': {
-    tool: 'replace_bpmn_element',
-    args: { newType: 'bpmn:ExclusiveGateway' },
+    tool: 'set_bpmn_element_properties',
+    args: { elementType: 'bpmn:ExclusiveGateway' },
     requiresElementId: true,
   },
   'bpmn-mcp/empty-participant-with-lanes': {
@@ -288,8 +288,8 @@ export async function handleValidate(args: ValidateArgs): Promise<ToolResult> {
         args: { ...fixToolCall.args, nonOrthogonalFlowIds },
         hint:
           `${nonOrthogonalFlowIds.length} non-orthogonal flow(s) detected: [${nonOrthogonalFlowIds.join(', ')}]. ` +
-          `Use set_bpmn_connection_waypoints on each to snap it to a straight 2-point path, ` +
-          `or run layout_bpmn_diagram to re-arrange all elements.`,
+          `Layout is deterministic, so re-running layout_bpmn_diagram will not change these; ` +
+          `use connect_bpmn_elements with explicit waypoints to route a specific flow manually if needed.`,
       };
     }
 
@@ -358,5 +358,14 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId'],
+  },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      success: { type: 'boolean' },
+      valid: { type: 'boolean' },
+    },
+    required: ['success', 'valid'],
+    additionalProperties: true,
   },
 } as const;

@@ -137,6 +137,75 @@ export async function handleSetCallActivityVariables(
   return appendLintFeedback(result, diagram);
 }
 
+/** Shared `{ inMappings, outMappings }` schema fragment (no diagramId/elementId). */
+export const CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES = {
+  inMappings: {
+    type: 'array',
+    description: 'Variable mappings from parent process INTO the called process',
+    items: {
+      type: 'object',
+      properties: {
+        source: {
+          type: 'string',
+          description: 'Source variable name in the parent process',
+        },
+        sourceExpression: {
+          type: 'string',
+          description: "Expression to evaluate (e.g. '${myVar + 1}')",
+        },
+        target: {
+          type: 'string',
+          description: 'Target variable name in the called process',
+        },
+        variables: {
+          type: 'string',
+          enum: ['all'],
+          description: "Set to 'all' to pass all variables",
+        },
+        local: {
+          type: 'boolean',
+          description: 'Whether to use local scope (default: false)',
+        },
+        businessKey: {
+          type: 'string',
+          description:
+            "Expression for the business key to propagate to the called process (e.g. '${execution.processBusinessKey}')",
+        },
+      },
+    },
+  },
+  outMappings: {
+    type: 'array',
+    description: 'Variable mappings from the called process back to the parent',
+    items: {
+      type: 'object',
+      properties: {
+        source: {
+          type: 'string',
+          description: 'Source variable name in the called process',
+        },
+        sourceExpression: {
+          type: 'string',
+          description: "Expression to evaluate (e.g. '${result}')",
+        },
+        target: {
+          type: 'string',
+          description: 'Target variable name in the parent process',
+        },
+        variables: {
+          type: 'string',
+          enum: ['all'],
+          description: "Set to 'all' to pass all variables back",
+        },
+        local: {
+          type: 'boolean',
+          description: 'Whether to use local scope (default: false)',
+        },
+      },
+    },
+  },
+} as const;
+
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_call_activity_variables',
   description:
@@ -149,99 +218,8 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'The ID of the CallActivity element',
       },
-      inMappings: {
-        type: 'array',
-        description: 'Variable mappings from parent process INTO the called process',
-        items: {
-          type: 'object',
-          properties: {
-            source: {
-              type: 'string',
-              description: 'Source variable name in the parent process',
-            },
-            sourceExpression: {
-              type: 'string',
-              description: "Expression to evaluate (e.g. '${myVar + 1}')",
-            },
-            target: {
-              type: 'string',
-              description: 'Target variable name in the called process',
-            },
-            variables: {
-              type: 'string',
-              enum: ['all'],
-              description: "Set to 'all' to pass all variables",
-            },
-            local: {
-              type: 'boolean',
-              description: 'Whether to use local scope (default: false)',
-            },
-            businessKey: {
-              type: 'string',
-              description:
-                "Expression for the business key to propagate to the called process (e.g. '${execution.processBusinessKey}')",
-            },
-          },
-        },
-      },
-      outMappings: {
-        type: 'array',
-        description: 'Variable mappings from the called process back to the parent',
-        items: {
-          type: 'object',
-          properties: {
-            source: {
-              type: 'string',
-              description: 'Source variable name in the called process',
-            },
-            sourceExpression: {
-              type: 'string',
-              description: "Expression to evaluate (e.g. '${result}')",
-            },
-            target: {
-              type: 'string',
-              description: 'Target variable name in the parent process',
-            },
-            variables: {
-              type: 'string',
-              enum: ['all'],
-              description: "Set to 'all' to pass all variables back",
-            },
-            local: {
-              type: 'boolean',
-              description: 'Whether to use local scope (default: false)',
-            },
-          },
-        },
-      },
+      ...CALL_ACTIVITY_VARIABLES_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId'],
-    examples: [
-      {
-        title: 'Pass specific variables to a called process and get results back',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'CallActivity_ProcessPayment',
-          inMappings: [
-            { source: 'orderId', target: 'orderId' },
-            { source: 'amount', target: 'paymentAmount' },
-            { businessKey: '${execution.processBusinessKey}' },
-          ],
-          outMappings: [
-            { source: 'paymentStatus', target: 'paymentResult' },
-            { source: 'transactionId', target: 'transactionId' },
-          ],
-        },
-      },
-      {
-        title: 'Pass all variables to a subprocess',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'CallActivity_SubProcess',
-          inMappings: [{ variables: 'all' }],
-          outMappings: [{ variables: 'all' }],
-        },
-      },
-    ],
   },
 } as const;

@@ -8,6 +8,7 @@
 // @readonly
 
 import { type ToolResult } from '../../types';
+import { LARGE_LIST_COUNT } from '../../constants';
 import {
   requireDiagram,
   jsonResult,
@@ -21,6 +22,17 @@ export interface ListElementsArgs {
   namePattern?: string;
   elementType?: string;
   property?: { key: string; value?: string };
+  /** Force the full element list even when it's large enough to be summarized. Default: false. */
+  inline?: boolean;
+}
+
+/** Count elements by type, for the summary shown in place of a large list. */
+function buildElementTypeSummary(elements: any[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const el of elements) {
+    counts[el.type] = (counts[el.type] || 0) + 1;
+  }
+  return counts;
 }
 
 /** Extract camunda:* attributes from a business object, if any. */
@@ -88,7 +100,7 @@ function filterByProperty(elements: any[], property: { key: string; value?: stri
 
 export async function handleListElements(args: ListElementsArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
-  const { diagramId, namePattern, elementType, property } = args;
+  const { diagramId, namePattern, elementType, property, inline = false } = args;
   const diagram = requireDiagram(diagramId);
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
@@ -112,6 +124,31 @@ export async function handleListElements(args: ListElementsArgs): Promise<ToolRe
     elements = filterByProperty(elements, property);
   }
 
+  // Beyond the threshold, an unfiltered listing is summarized to a
+  // resource_link instead of inlining the full array — pass inline: true
+  // to force it. Filtered queries are already a narrowed, deliberate ask,
+  // so they always return in full regardless of size.
+  if (!hasFilters && !inline && elements.length > LARGE_LIST_COUNT) {
+    const resourceUri = `bpmn://diagram/${diagramId}/elements`;
+    const result = jsonResult({
+      success: true,
+      count: elements.length,
+      summaryByType: buildElementTypeSummary(elements),
+      resource: resourceUri,
+      message:
+        `Diagram has ${elements.length} elements — returning a type-count summary instead ` +
+        `of the full list. Read ${resourceUri} for the complete list, or pass inline: true.`,
+    });
+    result.content.push({
+      type: 'resource_link',
+      uri: resourceUri,
+      name: `Elements (${elements.length})`,
+      mimeType: 'application/json',
+      description: `Full element list for a large diagram (${elements.length} elements).`,
+    });
+    return result;
+  }
+
   const elementList = elements.map(mapElementToEntry);
 
   return jsonResult({
@@ -133,11 +170,16 @@ export async function handleListElements(args: ListElementsArgs): Promise<ToolRe
 export const TOOL_DEFINITION = {
   name: 'list_bpmn_elements',
   description:
-    'List elements in a BPMN diagram with their types, names, positions, connections, and properties. Supports optional filters to search by name pattern, element type, or property value. When no filters are given, returns all elements.',
+    'List elements in a BPMN diagram with their types, names, positions, connections, and properties. Supports optional filters to search by name pattern, element type, or property value. When no filters are given, returns all elements — unless the diagram is large, in which case an unfiltered call returns a type-count summary plus a bpmn://diagram/{id}/elements resource_link instead (pass inline: true to force the full list).',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
+      inline: {
+        type: 'boolean',
+        description:
+          'Force the full element list even for a large, unfiltered diagram that would otherwise be summarized. Default: false.',
+      },
       namePattern: {
         type: 'string',
         description:
@@ -165,5 +207,14 @@ export const TOOL_DEFINITION = {
       },
     },
     required: ['diagramId'],
+  },
+  outputSchema: {
+    type: 'object',
+    properties: {
+      success: { type: 'boolean' },
+      count: { type: 'number' },
+    },
+    required: ['success'],
+    additionalProperties: true,
   },
 } as const;

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { TOOL_DEFINITIONS } from '../../../src/tool-definitions';
-import { dispatchToolCall } from '../../../src/handlers';
+import { dispatchToolCall, ALL_DISPATCHABLE_TOOL_NAMES } from '../../../src/handlers';
 
 describe('batch_bpmn_operations — all tools dispatchable', () => {
   test('every registered tool name can be dispatched (no "Unknown tool")', () => {
@@ -18,9 +18,23 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     }
   });
 
-  test('dispatch map covers exactly the same tools as TOOL_DEFINITIONS', () => {
-    // The dispatch map is auto-derived from TOOL_REGISTRY, same as TOOL_DEFINITIONS.
-    // Verify counts match (30 tools — 9 removed via tool consolidation:
+  test('every hidden alias can also be dispatched (no "Unknown tool")', () => {
+    // Hidden aliases (see ADR-021) are excluded from TOOL_DEFINITIONS but
+    // still dispatchable for one release.
+    const hiddenNames = ALL_DISPATCHABLE_TOOL_NAMES.filter(
+      (name) => !TOOL_DEFINITIONS.some((t) => t.name === name)
+    );
+    expect(hiddenNames.length).toBeGreaterThan(0);
+    for (const name of hiddenNames) {
+      const promise = dispatchToolCall(name, {});
+      promise.catch((err: any) => {
+        expect(err.message).not.toContain('Unknown tool');
+      });
+    }
+  });
+
+  test('TOOL_DEFINITIONS and dispatch map have the expected tool counts', () => {
+    // 30 dispatchable tools total — 9 removed entirely via tool consolidation:
     //   clone_bpmn_diagram → create_bpmn_diagram (cloneFrom),
     //   wrap_bpmn_process_in_collaboration → create_bpmn_participant (wrapExisting),
     //   convert_bpmn_collaboration_to_lanes → create_bpmn_lanes (mergeFrom),
@@ -29,8 +43,12 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //   redistribute_bpmn_elements_across_lanes → analyze_bpmn_lanes (mode: redistribute),
     //   replace_bpmn_element → set_bpmn_element_properties (elementType),
     //   set_bpmn_connection_waypoints → connect_bpmn_elements (connectionId + waypoints),
-    //   handoff_bpmn_to_lane → add_bpmn_element (fromElementId + toLaneId)).
-    expect(TOOL_DEFINITIONS.length).toBe(30);
+    //   handoff_bpmn_to_lane → add_bpmn_element (fromElementId + toLaneId).
+    // Of those 30, 5 more are hidden aliases (ADR-021, #8): consolidated into
+    // set_bpmn_element_properties's inputOutput/formData/listeners/
+    // callActivityVariables/loop sub-objects, so only 25 are publicly listed.
+    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(30);
+    expect(TOOL_DEFINITIONS.length).toBe(25);
 
     // Verify no tool name is duplicated
     const names = TOOL_DEFINITIONS.map((t) => t.name);

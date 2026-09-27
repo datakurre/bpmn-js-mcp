@@ -33,7 +33,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/compensation-missing-association':
     'Use connect_bpmn_elements to associate the compensation boundary event with a compensation handler{elementRef}',
   'bpmn-mcp/multiple-expanded-pools':
-    'In Camunda 7 / Operaton, only one pool can be executed. Recreate non-executable pools with collapsed: true in create_bpmn_collaboration, or delete the extra expanded pool and use bpmn:ServiceTask (camunda:type="external") instead',
+    'In Camunda 7 / Operaton, only one pool can be executed. Recreate non-executable pools with collapsed: true in create_bpmn_participant, or delete the extra expanded pool and use bpmn:ServiceTask (camunda:type="external") instead',
   'no-implicit-start':
     'Element{elementRef} has no incoming sequence flow. Connect it with connect_bpmn_elements or verify it should be a start event',
   'no-implicit-end':
@@ -43,7 +43,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/exclusive-gateway-conditions':
     'Exclusive gateway{elementRef} has outgoing flows without conditions. Use set_bpmn_element_properties with conditionExpression on the sequence flows, or mark one as default with isDefault: true',
   'bpmn-mcp/parallel-gateway-merge-exclusive':
-    'A parallel gateway is merging mutually exclusive paths{elementRef}. Replace with an exclusive gateway using replace_bpmn_element',
+    'A parallel gateway is merging mutually exclusive paths{elementRef}. Replace with an exclusive gateway using set_bpmn_element_properties with elementType: "bpmn:ExclusiveGateway"',
   'bpmn-mcp/parallel-gateway-balance':
     'The parallel split gateway{elementRef} has branches that do not reach the join gateway. Connect all branches to the join using connect_bpmn_elements, or use an inclusive gateway if branches are optional',
   'camunda-compat/history-time-to-live':
@@ -51,7 +51,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/no-duplicate-named-flow-nodes':
     'Remove the duplicate element{elementRef} with delete_bpmn_element, or rename it with set_bpmn_element_properties',
   'bpmn-mcp/collaboration-participant-missing-processref':
-    'The expanded participant{elementRef} has no process reference. Recreate it properly with create_bpmn_collaboration, or set it to collapsed if it is a documentation-only partner pool',
+    'The expanded participant{elementRef} has no process reference. Recreate it properly with create_bpmn_participant, or set it to collapsed if it is a documentation-only partner pool',
   'bpmn-mcp/collaboration-multiple-participants-no-messageflows':
     'Add message flows between pools using connect_bpmn_elements to document message exchanges between participants',
   'bpmn-mcp/elements-outside-participant-bounds':
@@ -85,7 +85,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/lane-missing-start-or-end':
     'Assign start and end events to appropriate lanes using move_bpmn_element with laneId',
   'bpmn-mcp/pool-size-insufficient':
-    'Use autosize_bpmn_pools_and_lanes with participantId to auto-resize the pool{elementRef}, or use move_bpmn_element with width/height to manually resize',
+    'Use layout_bpmn_diagram with autosizeOnly: true and participantId to auto-resize the pool{elementRef}, or use move_bpmn_element with width/height to manually resize',
   'bpmn-mcp/subprocess-expansion-issue':
     'Use move_bpmn_element with width/height to resize the subprocess{elementRef}, or run layout_bpmn_diagram to re-arrange elements',
   'bpmn-mcp/lane-overcrowding':
@@ -93,7 +93,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/role-mismatch-with-lane':
     'Use set_bpmn_element_properties to update camunda:assignee or camunda:candidateGroups to match the lane role, or move the element to the correct lane with move_bpmn_element{elementRef}',
   'bpmn-mcp/inconsistent-assignee-grouping':
-    'Group elements with the same assignee/candidateGroups into a single lane using redistribute_bpmn_elements_across_lanes (strategy: manual) or move_bpmn_element with laneId',
+    'Group elements with the same assignee/candidateGroups into a single lane using analyze_bpmn_lanes (mode: redistribute, strategy: manual) or move_bpmn_element with laneId',
   'bpmn-mcp/service-task-missing-implementation':
     'Use set_bpmn_element_properties to set camunda:class, camunda:delegateExpression, camunda:expression, or camunda:type="external" with camunda:topic{elementRef}',
   'bpmn-mcp/timer-missing-definition':
@@ -109,7 +109,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/receive-task-missing-message':
     'Use manage_bpmn_root_elements to create a message definition, then set_bpmn_element_properties to assign messageRef{elementRef}',
   'bpmn-mcp/lane-without-assignments':
-    'Assign elements to the lane using redistribute_bpmn_elements_across_lanes (strategy: manual), or remove the empty lane with delete_bpmn_element{elementRef}',
+    'Assign elements to the lane using analyze_bpmn_lanes (mode: redistribute, strategy: manual), or remove the empty lane with delete_bpmn_element{elementRef}',
   'bpmn-mcp/collaboration-pattern-mismatch':
     'Review the collaboration structure. In Camunda 7 / Operaton, use one expanded executable pool with collapsed partner pools for external systems',
   'bpmn-mcp/message-flow-crossing-excessive':

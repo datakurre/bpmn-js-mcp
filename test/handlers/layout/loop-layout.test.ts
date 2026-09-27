@@ -348,7 +348,7 @@ describe('U-shaped back-edge routing', () => {
 
   test('backward loop-back gets U-shaped 4-waypoint routing below elements', async () => {
     // Build: Start → TaskA → TaskB → End with TaskB → TaskA back-edge.
-    // After rebuild, TaskA is to the left of TaskB (forward flow).
+    // After layout, TaskA is to the left of TaskB (forward flow).
     // The back-edge (TaskB → TaskA) should route below both tasks.
     const diagramId = await createDiagram('U-shape back-edge test');
     const start = await addElement(diagramId, 'bpmn:StartEvent', { name: 'Start' });

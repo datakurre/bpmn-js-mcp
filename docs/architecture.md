@@ -2,7 +2,7 @@
 
 ## Overview
 
-BPMN-MCP is a Model Context Protocol (MCP) server that lets AI assistants create and manipulate BPMN 2.0 workflow diagrams. It uses `bpmn-js` running headlessly via `jsdom` to produce valid BPMN XML and SVG output.
+BPMN-MCP is a Model Context Protocol (MCP) server that lets AI assistants create and manipulate BPMN 2.0 workflow diagrams. It uses `bpmn-js` running headlessly via `jsdom` (delegated to [`bpmn-to-image`](https://github.com/datakurre/bpmn-to-image)) to produce valid BPMN XML and SVG output.
 
 ## Module Dependency Diagram
 
@@ -19,10 +19,11 @@ graph TD
         bpmntypes["bpmn-types.ts"]
         constants["constants.ts"]
         dm["diagram-manager.ts"]
-        hc["headless-canvas.ts"]
-        hp["headless-polyfills.ts"]
-        hb["headless-bbox.ts"]
         persist["persistence.ts"]
+    end
+
+    subgraph "External (headless rendering)"
+        bti["bpmn-to-image (npm)"]
     end
 
     subgraph "Linting"
@@ -42,14 +43,6 @@ graph TD
         autolayout["auto-layout.ts"]
         autolayoutinput["auto-layout-input.ts"]
         lib["bpmn-auto-layout (npm)"]
-    end
-
-    subgraph "Eval (tooling, not MCP)"
-        evalcli["eval-cli.ts"]
-        evaltypes["eval/types.ts"]
-        scenarios["eval/scenarios.ts"]
-        score["eval/score.ts"]
-        runeval["eval/run-eval.ts"]
     end
 
     index --> bpmnmod
@@ -76,9 +69,9 @@ graph TD
     linter --> dm
     linter --> helpers
 
-    dm --> hc
-    hc --> hp
-    hp --> hb
+    dm --> bti
+    linter --> bti
+    handlers --> bti
 
     persist --> dm
 
@@ -86,21 +79,10 @@ graph TD
     autolayout --> lib
     autolayout --> bpmntypes
 
-    evalcli --> runeval
-    runeval --> scenarios
-    runeval --> score
-    runeval --> evaltypes
-    scenarios --> hindex
-    score --> evaltypes
-
     style lintplugin fill:#e8f5e9
     style autolayout fill:#e8f5e9
     style autolayoutinput fill:#e8f5e9
-    style evalcli fill:#fff3e0
-    style evaltypes fill:#fff3e0
-    style scenarios fill:#fff3e0
-    style score fill:#fff3e0
-    style runeval fill:#fff3e0
+    style bti fill:#e8f5e9
 ```
 
 ## Module Boundaries
@@ -130,7 +112,7 @@ Allowed dependency direction: top → bottom
       │    │
       │    └──► linter.ts ──► bpmnlint-plugin-bpmn-mcp/
       │
-      └──► diagram-manager.ts ──► headless-canvas.ts
+      └──► diagram-manager.ts ──► bpmn-to-image (npm)
 ```
 
 ## Directory Layout
@@ -143,10 +125,6 @@ Allowed dependency direction: top → bottom
 | `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, arg types)                                    |
 | `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services                                                     |
 | `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                               |
-| `src/headless-canvas.ts`        | jsdom setup, lazy `BpmnModeler` init                                                           |
-| `src/headless-polyfills.ts`     | SVG/CSS polyfills for headless bpmn-js                                                         |
-| `src/headless-bbox.ts`          | Element-type-aware bounding box estimation                                                     |
-| `src/headless-path.ts`          | SVG path `d` attribute parser                                                                  |
 | `src/geometry.ts`               | Geometry utilities (rectangle overlap, label scoring)                                          |
 | `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store                                                    |
 | `src/linter.ts`                 | Centralised bpmnlint integration                                                               |
@@ -165,9 +143,6 @@ Allowed dependency direction: top → bottom
 | `src/auto-layout.ts`            | Bridge to `bpmn-auto-layout`: runs the library and applies its DI as one undoable command      |
 | `src/auto-layout-input.ts`      | Prepares library input: boundary-event lane sync, element-subset extraction                    |
 | `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                    |
-| `src/eval/`                     | Layout quality scoring harness: scenario builders, metrics, and `run-eval.ts` orchestrator     |
-| `src/eval/scenarios.ts`         | Deterministic BPMN scenario builders used for eval and CI scoring                              |
-| `src/eval/score.ts`             | Layout quality scoring algorithm (overlaps, crossings, spacing, orthogonality, etc.)           |
 
 ## Where to Put New Code
 
@@ -190,13 +165,14 @@ A new bpmn-js type/interface         → src/bpmn-types.ts
 
 A new shared constant                → src/constants.ts
 
-A polyfill for headless bpmn-js      → src/headless-polyfills.ts
-                                       or src/headless-bbox.ts
+A polyfill for headless bpmn-js      → github.com/datakurre/bpmn-to-image
+                                       (headless canvas, polyfills, SVG/PNG
+                                        rendering all live there now)
 ```
 
 ## Core Patterns
 
-1. **Headless bpmn-js via jsdom** — A shared `jsdom` instance polyfills browser APIs so `bpmn-js` can run in Node.js without a browser.
+1. **Headless bpmn-js via jsdom** — Delegated to [`bpmn-to-image`](https://github.com/datakurre/bpmn-to-image), which owns the shared `jsdom` instance, browser API polyfills, and SVG/PNG rendering. `src/diagram-manager.ts` builds its modeler on top of the library's `createModeler()` (see [ADR-022](../agents/adrs/ADR-022-bpmn-to-image-library.md)).
 
 2. **In-memory diagram store** — Diagrams live in a `Map<string, DiagramState>` keyed by generated IDs. Optional file-backed persistence can be enabled.
 

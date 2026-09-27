@@ -171,6 +171,43 @@ export async function handleSetLoopCharacteristics(
   return appendLintFeedback(result, diagram);
 }
 
+/** Shared loop-characteristics schema fragment (no diagramId/elementId). */
+export const LOOP_CHARACTERISTICS_SCHEMA_PROPERTIES = {
+  loopType: {
+    type: 'string',
+    enum: ['none', 'standard', 'parallel', 'sequential'],
+    description:
+      "Type of loop: 'none' (remove), 'standard' (loop marker), 'parallel' (parallel multi-instance |||), 'sequential' (sequential multi-instance \u2261)",
+  },
+  loopCondition: {
+    type: 'string',
+    description:
+      "For standard loops: expression that is evaluated before each iteration (e.g. '${count < 10}')",
+  },
+  loopMaximum: {
+    type: 'number',
+    description: 'For standard loops: maximum number of iterations',
+  },
+  loopCardinality: {
+    type: 'string',
+    description: "For multi-instance: fixed number of instances (e.g. '3' or '${nrOfItems}')",
+  },
+  completionCondition: {
+    type: 'string',
+    description:
+      "For multi-instance: expression to complete early (e.g. '${nrOfCompletedInstances >= 2}')",
+  },
+  collection: {
+    type: 'string',
+    description: 'For multi-instance (Camunda): collection/list variable to iterate over',
+  },
+  elementVariable: {
+    type: 'string',
+    description:
+      'For multi-instance (Camunda): variable name for the current item in the collection',
+  },
+} as const;
+
 export const TOOL_DEFINITION = {
   name: 'set_bpmn_loop_characteristics',
   description:
@@ -183,62 +220,8 @@ export const TOOL_DEFINITION = {
         type: 'string',
         description: 'The ID of the task/subprocess/call activity',
       },
-      loopType: {
-        type: 'string',
-        enum: ['none', 'standard', 'parallel', 'sequential'],
-        description:
-          "Type of loop: 'none' (remove), 'standard' (loop marker), 'parallel' (parallel multi-instance |||), 'sequential' (sequential multi-instance \u2261)",
-      },
-      loopCondition: {
-        type: 'string',
-        description:
-          "For standard loops: expression that is evaluated before each iteration (e.g. '${count < 10}')",
-      },
-      loopMaximum: {
-        type: 'number',
-        description: 'For standard loops: maximum number of iterations',
-      },
-      loopCardinality: {
-        type: 'string',
-        description: "For multi-instance: fixed number of instances (e.g. '3' or '${nrOfItems}')",
-      },
-      completionCondition: {
-        type: 'string',
-        description:
-          "For multi-instance: expression to complete early (e.g. '${nrOfCompletedInstances >= 2}')",
-      },
-      collection: {
-        type: 'string',
-        description: 'For multi-instance (Camunda): collection/list variable to iterate over',
-      },
-      elementVariable: {
-        type: 'string',
-        description:
-          'For multi-instance (Camunda): variable name for the current item in the collection',
-      },
+      ...LOOP_CHARACTERISTICS_SCHEMA_PROPERTIES,
     },
     required: ['diagramId', 'elementId', 'loopType'],
-    examples: [
-      {
-        title: 'Parallel multi-instance over a collection',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'UserTask_ApproveItem',
-          loopType: 'parallel',
-          collection: 'orderItems',
-          elementVariable: 'item',
-        },
-      },
-      {
-        title: 'Sequential multi-instance with early completion',
-        value: {
-          diagramId: '<diagram-id>',
-          elementId: 'ServiceTask_RetryCall',
-          loopType: 'sequential',
-          loopCardinality: '3',
-          completionCondition: '${success == true}',
-        },
-      },
-    ],
   },
 } as const;

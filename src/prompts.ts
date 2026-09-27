@@ -123,13 +123,12 @@ const PROMPTS: PromptDefinition[] = [
             `1. \`create_bpmn_diagram\` with \`includeImage: true\` and \`hintLevel: "minimal"\`\n` +
             `2. Build the flow using \`batch_bpmn_operations\` to add elements and connections together\n` +
             `3. Configure tasks (camunda:assignee, camunda:topic, etc.)\n` +
-            `4. \`layout_bpmn_diagram\` to arrange elements — non-orthogonal (Z-shaped) flows are ` +
-            `automatically corrected; re-run layout if \`qualityMetrics.orthogonalFlowPercent\` ` +
-            `is still below 90%. If the response lists \`nonOrthogonalFlowIds\`, call ` +
-            `\`set_bpmn_connection_waypoints\` for each ID with a 2-point straight path instead ` +
-            `of re-running full layout. Use \`layout_bpmn_diagram\` with \`labelsOnly: true\` ` +
-            `after structural changes to reposition gateway labels onto their flow-free side ` +
-            `without moving other elements.\n` +
+            `4. \`layout_bpmn_diagram\` to arrange elements. Layout is deterministic, so re-running ` +
+            `it does not improve non-orthogonal (Z-shaped) flows — a low ` +
+            `\`qualityMetrics.orthogonalFlowPercent\` usually reflects the diagram's topology ` +
+            `(e.g. gateway fan-out) rather than a fixable defect. Use \`layout_bpmn_diagram\` ` +
+            `with \`labelsOnly: true\` after structural changes to reposition gateway labels onto ` +
+            `their flow-free side without moving other elements.\n` +
             `5. \`validate_bpmn_diagram\` to check for issues\n` +
             `6. Fix any reported issues\n` +
             `7. \`export_bpmn\` with \`filePath\` to save` +
@@ -157,6 +156,9 @@ const PROMPTS: PromptDefinition[] = [
             `You are now operating in **executable BPMN process mode with a participant pool** ` +
             `for Operaton / Camunda 7. When the user describes a workflow to model, ` +
             `follow these rules and build the diagram accordingly.\n\n` +
+            `**Note:** \`create_bpmn_participant\`, \`create_bpmn_lanes\`, and ` +
+            `\`assign_bpmn_elements_to_lane\` are only listed when the server runs with the ` +
+            `\`full\` tool tier (default) — not with \`BPMN_MCP_TOOLS=core\`.\n\n` +
             `**Structure rules:**\n` +
             `- Create ONE expanded participant pool for the executable process using ` +
             `\`create_bpmn_participant\`.\n` +
@@ -187,13 +189,11 @@ const PROMPTS: PromptDefinition[] = [
             `1. \`create_bpmn_diagram\` with \`includeImage: true\` and \`hintLevel: "minimal"\`\n` +
             `2. \`create_bpmn_participant\` (with optional lanes)\n` +
             `3. Build flow using \`batch_bpmn_operations\` (add elements + connect in one call)\n` +
-            `4. \`layout_bpmn_diagram\` — non-orthogonal flows are automatically corrected; ` +
-            `re-run if \`qualityMetrics.orthogonalFlowPercent\` < 90%. If the response lists ` +
-            `\`nonOrthogonalFlowIds\`, call \`set_bpmn_connection_waypoints\` for each ID with ` +
-            `a 2-point straight path instead of re-running full layout. Use ` +
-            `\`layout_bpmn_diagram\` with \`labelsOnly: true\` after structural changes to ` +
-            `reposition gateway labels onto their flow-free side without moving other elements. ` +
-            `→ \`autosize_bpmn_pools_and_lanes\`\n` +
+            `4. \`layout_bpmn_diagram\` — layout is deterministic, so re-running it does not ` +
+            `improve non-orthogonal flows; a low \`qualityMetrics.orthogonalFlowPercent\` usually ` +
+            `reflects the diagram's topology. Use \`layout_bpmn_diagram\` with \`labelsOnly: true\` ` +
+            `after structural changes to reposition gateway labels onto their flow-free side ` +
+            `without moving other elements. → \`layout_bpmn_diagram\` with \`autosizeOnly: true\`\n` +
             `5. \`validate_bpmn_diagram\` → fix issues\n` +
             `6. \`export_bpmn\` with \`filePath\` to save` +
             BOUNDARY_EVENT_GUIDANCE +
@@ -221,6 +221,9 @@ const PROMPTS: PromptDefinition[] = [
             `This diagram is NOT intended for execution — it documents how multiple ` +
             `organisations or systems interact. When the user describes a collaboration ` +
             `to model, follow these rules and build the diagram accordingly.\n\n` +
+            `**Note:** \`create_bpmn_participant\` and \`create_bpmn_lanes\` are only listed ` +
+            `when the server runs with the \`full\` tool tier (default) — not with ` +
+            `\`BPMN_MCP_TOOLS=core\`.\n\n` +
             `**Structure rules:**\n` +
             `- Create **multiple expanded participant pools** using ` +
             `\`create_bpmn_participant\` with a \`participants\` array (each with ` +
@@ -247,7 +250,7 @@ const PROMPTS: PromptDefinition[] = [
             `2. \`create_bpmn_participant\` with multiple expanded pools\n` +
             `3. Build each pool's internal flow using \`batch_bpmn_operations\`\n` +
             `4. \`connect_bpmn_elements\` for message flows between pools\n` +
-            `5. \`layout_bpmn_diagram\` → \`autosize_bpmn_pools_and_lanes\`\n` +
+            `5. \`layout_bpmn_diagram\` (auto-resizes pools; pass \`autosizeOnly: true\` to only resize)\n` +
             `6. \`export_bpmn\` with \`filePath\` and \`skipLint: true\` to save ` +
             `(non-executable diagrams may trigger lint warnings)` +
             SHARED_EFFICIENCY_GUIDELINES +

@@ -29,10 +29,18 @@ export function requireElement(elementRegistry: ElementRegistry, elementId: stri
   return element;
 }
 
-/** Wrap a plain object into the MCP tool-result envelope. */
+/**
+ * Wrap a plain object into the MCP tool-result envelope.
+ *
+ * Also sets `structuredContent` to the same object (MCP's machine-readable
+ * duplicate of a JSON result) — purely additive: `content[0].text` still
+ * carries the identical JSON as a string, so `JSON.parse(result.content[0].text)`
+ * (the pattern ~1500 existing tests use via `parseResult()`) is unaffected.
+ */
 export function jsonResult(data: Record<string, any>): ToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+    structuredContent: data,
   };
 }
 
