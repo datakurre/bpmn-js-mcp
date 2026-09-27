@@ -141,8 +141,8 @@ export const TOOL_DEFINITION = {
           'bpmn:LinkEventDefinition',
         ],
         description:
-          'Shorthand: set an event definition on the new element in one call. ' +
-          'Combines add_bpmn_element + set_bpmn_event_definition. ' +
+          'Shorthand: set an event definition on the new element in one call, combining ' +
+          "add_bpmn_element with set_bpmn_element_properties's eventDefinition sub-object. " +
           'Especially useful for boundary events.',
       },
       eventDefinitionProperties: {

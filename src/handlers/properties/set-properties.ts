@@ -7,9 +7,10 @@
  * Supports the `default` attribute on gateways by resolving the sequence flow
  * business object from a string ID.
  *
- * Also accepts optional inputOutput/formData/listeners/callActivityVariables/loop
- * sub-objects, delegating to the respective dedicated handler for each
- * (see ADR-021 — set_bpmn_element_properties as the Camunda-setter facade).
+ * Also accepts optional inputOutput/formData/listeners/callActivityVariables/loop/
+ * eventDefinition sub-objects, delegating to the respective dedicated handler
+ * for each (see ADR-021 — set_bpmn_element_properties as the Camunda-setter
+ * facade — and ADR-028 for eventDefinition).
  */
 // @mutating
 
@@ -63,6 +64,13 @@ import {
   assertLoopTarget,
   LOOP_CHARACTERISTICS_SCHEMA_PROPERTIES,
 } from './set-loop-characteristics';
+import {
+  handleSetEventDefinition,
+  applySetEventDefinitionCore,
+  assertEventDefinitionTarget,
+  EVENT_DEFINITION_SCHEMA_PROPERTIES,
+  type SetEventDefinitionArgs,
+} from './set-event-definition';
 
 export interface SetPropertiesArgs {
   diagramId: string;
@@ -106,6 +114,8 @@ export interface SetPropertiesArgs {
     collection?: string;
     elementVariable?: string;
   };
+  /** Event definition to add/replace on an event element (formerly the standalone set_bpmn_event_definition tool). */
+  eventDefinition?: Omit<SetEventDefinitionArgs, 'diagramId' | 'elementId'>;
   /**
    * Batch form: apply properties/elementType/sub-objects to several elements
    * in one call, as a single undo step. Alternative to the single-element
@@ -124,15 +134,17 @@ export interface SetPropertiesUpdateItem {
   listeners?: SetPropertiesArgs['listeners'];
   callActivityVariables?: SetPropertiesArgs['callActivityVariables'];
   loop?: SetPropertiesArgs['loop'];
+  eventDefinition?: SetPropertiesArgs['eventDefinition'];
 }
 
-/** The five Camunda-concern sub-objects, in the order they're applied. */
+/** The six Camunda/BPMN-concern sub-objects, in the order they're applied. */
 const SUB_OBJECT_DELEGATES = [
   { key: 'inputOutput', handler: handleSetInputOutput },
   { key: 'formData', handler: handleSetFormData },
   { key: 'listeners', handler: handleSetCamundaListeners },
   { key: 'callActivityVariables', handler: handleSetCallActivityVariables },
   { key: 'loop', handler: handleSetLoopCharacteristics },
+  { key: 'eventDefinition', handler: handleSetEventDefinition },
 ] as const;
 
 /**
@@ -536,13 +548,14 @@ function assertUpdateItemHasConcern(item: SetPropertiesUpdateItem, label: string
     item.formData ||
     item.listeners ||
     item.callActivityVariables ||
-    item.loop
+    item.loop ||
+    item.eventDefinition
   );
   const hasProps = !!(item.properties && Object.keys(item.properties).length > 0);
   if (!item.elementType && !hasProps && !hasSubObjects) {
     throw semanticViolationError(
       `${label}: at least one of properties, elementType, inputOutput, formData, listeners, ` +
-        'callActivityVariables, or loop is required'
+        'callActivityVariables, loop, or eventDefinition is required'
     );
   }
 }
@@ -588,6 +601,7 @@ function assertUpdateItemSubObjectTargets(
     }
     if (item.callActivityVariables) assertCallActivityTarget(effectiveType, item.elementId);
     if (item.loop) assertLoopTarget(effectiveType, item.elementId);
+    if (item.eventDefinition) assertEventDefinitionTarget(effectiveType, item.elementId);
   } catch (err) {
     throw semanticViolationError(`${label}: ${(err as Error).message}`);
   }
@@ -682,6 +696,10 @@ function applyPropertyUpdateItem(
     const loopResult = applySetLoopCharacteristicsCore(diagram, elementId, item.loop);
     hints = [...hints, ...loopResult.hints];
     changed.push('loop');
+  }
+  if (item.eventDefinition) {
+    applySetEventDefinitionCore(diagram, elementId, item.eventDefinition);
+    changed.push('eventDefinition');
   }
 
   return {
@@ -817,41 +835,57 @@ export async function handleSetProperties(args: SetPropertiesArgs): Promise<Tool
   return handleSetPropertiesSingle(args);
 }
 
+/** Whether `args` has any non-elementType concern to apply (properties or a sub-object). */
+function hasNonTypeConcern(args: SetPropertiesArgs): boolean {
+  return (
+    Object.keys(args.properties ?? {}).length > 0 ||
+    !!(
+      args.inputOutput ||
+      args.formData ||
+      args.listeners ||
+      args.callActivityVariables ||
+      args.loop ||
+      args.eventDefinition
+    )
+  );
+}
+
+/**
+ * Replace the element's type first, then recurse to apply the rest of `args`
+ * (properties/sub-objects) to the (possibly renamed) element, merging `newType`
+ * into the final response.
+ */
+async function handleElementTypeReplacement(
+  diagramId: string,
+  elementId: string,
+  args: SetPropertiesArgs
+): Promise<ToolResult> {
+  const replaceResult = await handleReplaceElement({
+    diagramId,
+    elementId,
+    newType: args.elementType!,
+  });
+  if (!hasNonTypeConcern(args)) return replaceResult;
+
+  const replaceData = JSON.parse(replaceResult.content[0].text as string);
+  const newElementId = replaceData.elementId || elementId;
+  const updatedArgs = { ...args, elementId: newElementId, elementType: undefined };
+  const propsResult = await handleSetPropertiesSingle(updatedArgs);
+  const propsData = JSON.parse(propsResult.content[0].text as string);
+  return jsonResult({ ...propsData, newType: args.elementType });
+}
+
 async function handleSetPropertiesSingle(args: SetPropertiesArgs): Promise<ToolResult> {
   const { diagramId } = args;
   const elementId = args.elementId as string;
   const props = args.properties ?? {};
-  const hasSubObjects = !!(
-    args.inputOutput ||
-    args.formData ||
-    args.listeners ||
-    args.callActivityVariables ||
-    args.loop
-  );
 
-  if (!args.elementType && Object.keys(props).length === 0 && !hasSubObjects) {
+  if (!args.elementType && !hasNonTypeConcern(args)) {
     throw missingRequiredError(['properties']);
   }
 
-  // If elementType is provided, delegate to replace handler first
   if (args.elementType) {
-    const replaceResult = await handleReplaceElement({
-      diagramId,
-      elementId,
-      newType: args.elementType,
-    });
-    const replaceData = JSON.parse(replaceResult.content[0].text as string);
-    // If nothing else to apply, return the replace result
-    if (Object.keys(props).length === 0 && !hasSubObjects) {
-      return replaceResult;
-    }
-    // Use the new element ID for subsequent property setting (may have changed)
-    const newElementId = replaceData.elementId || elementId;
-    const updatedArgs = { ...args, elementId: newElementId, elementType: undefined };
-    const propsResult = await handleSetPropertiesSingle(updatedArgs);
-    // Merge newType into the final result so callers can see the type change
-    const propsData = JSON.parse(propsResult.content[0].text as string);
-    return jsonResult({ ...propsData, newType: args.elementType });
+    return handleElementTypeReplacement(diagramId, elementId, args);
   }
 
   const diagram = requireDiagram(diagramId);
@@ -972,6 +1006,14 @@ const CONCERN_SCHEMA_PROPERTIES = {
     properties: LOOP_CHARACTERISTICS_SCHEMA_PROPERTIES,
     required: ['loopType'],
   },
+  eventDefinition: {
+    type: 'object',
+    description:
+      'Event definition to add/replace on an event element (StartEvent, EndEvent, ' +
+      'IntermediateCatchEvent/ThrowEvent, BoundaryEvent).',
+    properties: EVENT_DEFINITION_SCHEMA_PROPERTIES,
+    required: ['eventDefinitionType'],
+  },
 } as const;
 
 /**
@@ -1004,6 +1046,11 @@ const UPDATE_ITEM_CONCERN_PROPERTIES = {
     type: 'object',
     description: 'Same shape as the top-level loop field (loopType is required).',
   },
+  eventDefinition: {
+    type: 'object',
+    description:
+      'Same shape as the top-level eventDefinition field (eventDefinitionType is required).',
+  },
 } as const;
 
 export const TOOL_DEFINITION = {
@@ -1016,8 +1063,8 @@ export const TOOL_DEFINITION = {
     'camunda:retryTimeCycle, isExpanded on SubProcess, and cancelActivity on BoundaryEvent (false = non-interrupting). ' +
     'See bpmn://guides/element-properties for the full property catalog by element type. ' +
     'Supports optional elementType to replace the element type (e.g. bpmn:Task → bpmn:UserTask). ' +
-    'Also accepts optional sub-objects for other Camunda concerns, settable together with properties ' +
-    'in one call: inputOutput, formData, listeners, callActivityVariables, loop. ' +
+    'Also accepts optional sub-objects for other concerns, settable together with properties in one ' +
+    'call: inputOutput, formData, listeners, callActivityVariables, loop, eventDefinition. ' +
     'To update several elements in one call — e.g. setting camunda:assignee on every task in an ' +
     'executable process — pass `updates: [{ elementId, properties, ... }]` instead of the single-element ' +
     'elementId/properties/etc. fields. Every item is validated before any element is changed, and the whole ' +

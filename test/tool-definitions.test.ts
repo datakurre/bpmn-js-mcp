@@ -14,7 +14,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(24);
+    expect(TOOL_DEFINITIONS.length).toBe(23);
   });
 
   test.each([
@@ -31,7 +31,6 @@ describe('tool-definitions', () => {
     'list_bpmn_diagrams',
     'validate_bpmn_diagram',
     'align_bpmn_elements',
-    'set_bpmn_event_definition',
     'layout_bpmn_diagram',
     'bpmn_history',
     'batch_bpmn_operations',
@@ -57,6 +56,8 @@ describe('tool-definitions', () => {
     // callActivityVariables/loop sub-objects
     // get_bpmn_element_properties removed outright (ADR-027, #23) — use list_bpmn_elements
     // with elementIds
+    // set_bpmn_event_definition removed outright (ADR-028, #23) — use
+    // set_bpmn_element_properties's eventDefinition sub-object
   ])("includes tool '%s'", (name) => {
     expect(toolNames).toContain(name);
   });
@@ -190,10 +191,12 @@ describe('tool-definitions', () => {
     expect(inputItemProps.sourceExpression).toBeUndefined();
   });
 
-  test('set_bpmn_event_definition requires eventDefinitionType', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_event_definition');
+  test('set_bpmn_element_properties.eventDefinition requires eventDefinitionType', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_bpmn_element_properties');
     const schema = getSchema(tool);
-    expect(schema.required).toContain('eventDefinitionType');
+    expect(schema.properties!.eventDefinition.required).toEqual(
+      expect.arrayContaining(['eventDefinitionType'])
+    );
   });
 
   test('set_bpmn_element_properties.formData requires fields', () => {

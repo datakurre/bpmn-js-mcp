@@ -39,7 +39,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'no-implicit-end':
     'Element{elementRef} has no outgoing sequence flow. Connect it with connect_bpmn_elements or verify it should be an end event',
   'single-blank-start-event':
-    'Process should have exactly one blank start event. Remove extra start events with delete_bpmn_element or add event definitions with set_bpmn_event_definition',
+    "Process should have exactly one blank start event. Remove extra start events with delete_bpmn_element or add event definitions with set_bpmn_element_properties's eventDefinition sub-object",
   'bpmn-mcp/exclusive-gateway-conditions':
     'Exclusive gateway{elementRef} has outgoing flows without conditions. Use set_bpmn_element_properties with conditionExpression on the sequence flows, or mark one as default with isDefault: true',
   'bpmn-mcp/parallel-gateway-merge-exclusive':
@@ -61,7 +61,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/no-overlapping-shapes':
     'Reposition element{elementRef} using move_bpmn_element, or run layout_bpmn_diagram to re-arrange all elements',
   'bpmn-mcp/unpaired-link-event':
-    'Add a matching link throw/catch event pair. Link events must have matching names set via set_bpmn_event_definition with properties: { name: "LinkName" }',
+    'Add a matching link throw/catch event pair. Link events must have matching names set via set_bpmn_element_properties\'s eventDefinition sub-object: { eventDefinition: { eventDefinitionType: "bpmn:LinkEventDefinition", properties: { name: "LinkName" } } }',
   'bpmn-mcp/collaboration-too-complex':
     'Decompose the collaboration into smaller, independently deployable processes. Use Call Activities or message-based integration between separate BPMN deployments, or Link events to split complex flows within a single process',
   'bpmn-mcp/process-too-complex':
@@ -97,11 +97,11 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/service-task-missing-implementation':
     'Use set_bpmn_element_properties to set camunda:class, camunda:delegateExpression, camunda:expression, or camunda:type="external" with camunda:topic{elementRef}',
   'bpmn-mcp/timer-missing-definition':
-    'Use set_bpmn_event_definition with timeDuration, timeDate, or timeCycle to configure the timer trigger{elementRef}',
+    "Use set_bpmn_element_properties's eventDefinition sub-object with timeDuration, timeDate, or timeCycle to configure the timer trigger{elementRef}",
   'bpmn-mcp/call-activity-missing-called-element':
     'Use set_bpmn_element_properties to set calledElement on the call activity{elementRef}',
   'bpmn-mcp/event-subprocess-missing-trigger':
-    'Use set_bpmn_event_definition to add a trigger (timer, message, error, signal) to the event subprocess start event{elementRef}',
+    "Use set_bpmn_element_properties's eventDefinition sub-object to add a trigger (timer, message, error, signal) to the event subprocess start event{elementRef}",
   'bpmn-mcp/empty-subprocess':
     'Add flow elements inside the subprocess{elementRef} using add_bpmn_element, or remove it with delete_bpmn_element',
   'bpmn-mcp/dangling-boundary-event':

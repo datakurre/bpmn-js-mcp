@@ -112,7 +112,7 @@ For best results, follow this recommended workflow after structural changes:
 
 No separate "repair layout" tool is needed — chain these existing tools for fine-grained control.
 
-## Available Tools (29)
+## Available Tools (28)
 
 ### Core BPMN Tools
 
@@ -139,15 +139,14 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 
 ### Camunda 7 / Operaton Tools
 
-| Tool                               | Description                                         |
-| ---------------------------------- | --------------------------------------------------- |
-| `set_bpmn_element_properties`      | Set standard and Camunda extension properties       |
-| `set_bpmn_input_output_mapping`    | Configure input/output parameter mappings           |
-| `set_bpmn_event_definition`        | Add error, timer, message, signal event definitions |
-| `set_bpmn_form_data`               | Configure generated task forms (Camunda FormData)   |
-| `set_bpmn_camunda_listeners`       | Set listeners and error handling on elements        |
-| `set_bpmn_loop_characteristics`    | Configure loop/multi-instance markers               |
-| `set_bpmn_call_activity_variables` | Set variable mappings on CallActivity elements      |
+| Tool                               | Description                                                                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `set_bpmn_element_properties`      | Set standard and Camunda extension properties, or add event definitions (timer, error, message, signal) via `eventDefinition` |
+| `set_bpmn_input_output_mapping`    | Configure input/output parameter mappings                                                                                     |
+| `set_bpmn_form_data`               | Configure generated task forms (Camunda FormData)                                                                             |
+| `set_bpmn_camunda_listeners`       | Set listeners and error handling on elements                                                                                  |
+| `set_bpmn_loop_characteristics`    | Configure loop/multi-instance markers                                                                                         |
+| `set_bpmn_call_activity_variables` | Set variable mappings on CallActivity elements                                                                                |
 
 ### Collaboration Tools
 

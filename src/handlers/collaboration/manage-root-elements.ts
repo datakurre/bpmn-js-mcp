@@ -65,7 +65,7 @@ export async function handleManageRootElements(args: ManageRootElementsArgs): Pr
 export const TOOL_DEFINITION = {
   name: 'manage_bpmn_root_elements',
   description:
-    'Create or update shared root-level bpmn:Message and bpmn:Signal definitions. These shared definitions can be referenced from multiple event definitions across the diagram via messageRef/signalRef in set_bpmn_event_definition.',
+    "Create or update shared root-level bpmn:Message and bpmn:Signal definitions. These shared definitions can be referenced from multiple event definitions across the diagram via messageRef/signalRef in set_bpmn_element_properties's eventDefinition sub-object.",
   inputSchema: {
     type: 'object',
     properties: {

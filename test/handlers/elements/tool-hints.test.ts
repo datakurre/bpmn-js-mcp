@@ -303,7 +303,7 @@ describe('intermediate event hints', () => {
     const result = await addEl(diagramId, 'bpmn:IntermediateThrowEvent', 'Send Signal');
 
     expect(result.nextSteps).toBeDefined();
-    expect(result.nextSteps.some((h: any) => h.tool === 'set_bpmn_event_definition')).toBe(true);
+    expect(result.nextSteps.some((h: any) => h.tool === 'set_bpmn_element_properties')).toBe(true);
     expect(result.nextSteps.some((h: any) => h.description.includes('LinkEventDefinition'))).toBe(
       true
     );

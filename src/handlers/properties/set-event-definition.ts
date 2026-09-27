@@ -1,5 +1,8 @@
 /**
- * Handler for set_event_definition tool.
+ * Event-definition mutation logic, plus the internal handleSetEventDefinition
+ * function (no longer a registered MCP tool — see ADR-028; set_bpmn_event_definition
+ * was removed outright and folded into set_bpmn_element_properties's
+ * eventDefinition sub-object, per #23's no-alias policy).
  */
 // @mutating
 
@@ -206,11 +209,36 @@ function buildEventDefAttrs(
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
-export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
+/** Throws unless `effectiveType` is an event element. */
+export function assertEventDefinitionTarget(effectiveType: string, elementId: string): void {
+  if (!effectiveType.includes('Event')) {
+    throw typeMismatchError(elementId, effectiveType, [
+      'bpmn:StartEvent',
+      'bpmn:EndEvent',
+      'bpmn:IntermediateCatchEvent',
+      'bpmn:IntermediateThrowEvent',
+      'bpmn:BoundaryEvent',
+    ]);
+  }
+}
+
+export interface SetEventDefinitionCoreResult {
+  eventDefinitionType: string;
+}
+
+/**
+ * Build and apply an event definition, replacing any existing one. Synchronous
+ * — no XML sync or lint feedback — so it is safe to call from within a
+ * command-stack `preExecute` (see `applyPropertyUpdateItem` in
+ * `set-properties.ts`) alongside other elements' updates, grouped into one
+ * undo step.
+ */
+export function applySetEventDefinitionCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Omit<SetEventDefinitionArgs, 'diagramId' | 'elementId'>
+): SetEventDefinitionCoreResult {
   const {
-    diagramId,
-    elementId,
     eventDefinitionType,
     properties: defProps = {},
     errorRef,
@@ -223,8 +251,6 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   // Validate that ref args match the event definition type
   validateRefArgs(eventDefinitionType, { errorRef, messageRef, signalRef, escalationRef });
 
-  const diagram = requireDiagram(diagramId);
-
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
   const moddle = getService(diagram.modeler, 'moddle');
@@ -232,16 +258,7 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   const element = requireElement(elementRegistry, elementId);
   const bo = element.businessObject;
 
-  // Verify element is an event type
-  if (!bo.$type.includes('Event')) {
-    throw typeMismatchError(elementId, bo.$type, [
-      'bpmn:StartEvent',
-      'bpmn:EndEvent',
-      'bpmn:IntermediateCatchEvent',
-      'bpmn:IntermediateThrowEvent',
-      'bpmn:BoundaryEvent',
-    ]);
-  }
+  assertEventDefinitionTarget(bo.$type, elementId);
 
   // Build event definition attributes based on type
   const eventDefAttrs = buildEventDefAttrs(moddle, eventDefinitionType, defProps);
@@ -277,6 +294,16 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
     eventDefinitions: bo.eventDefinitions,
   });
 
+  return { eventDefinitionType };
+}
+
+export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId', 'eventDefinitionType']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const { eventDefinitionType } = applySetEventDefinitionCore(diagram, elementId, args);
+
   await syncXml(diagram);
 
   const result = jsonResult({
@@ -298,5 +325,87 @@ export async function handleSetEventDefinition(args: SetEventDefinitionArgs): Pr
   return appendLintFeedback(result, diagram);
 }
 
-// Schema extracted to set-event-definition-schema.ts for readability.
-export { TOOL_DEFINITION } from './set-event-definition-schema';
+/** Shared `eventDefinition` sub-object schema fragment (no diagramId/elementId). */
+export const EVENT_DEFINITION_SCHEMA_PROPERTIES = {
+  eventDefinitionType: {
+    type: 'string',
+    enum: [
+      'bpmn:ErrorEventDefinition',
+      'bpmn:TimerEventDefinition',
+      'bpmn:MessageEventDefinition',
+      'bpmn:SignalEventDefinition',
+      'bpmn:TerminateEventDefinition',
+      'bpmn:EscalationEventDefinition',
+      'bpmn:ConditionalEventDefinition',
+      'bpmn:CompensateEventDefinition',
+      'bpmn:CancelEventDefinition',
+      'bpmn:LinkEventDefinition',
+    ],
+    description: 'The type of event definition to add',
+  },
+  properties: {
+    type: 'object',
+    description:
+      'Type-specific properties. Timer: exactly ONE of timeDuration/timeDate/timeCycle (ISO 8601, e.g. "PT15M", "R3/PT10M"). Conditional: condition, variableName, variableEvents. Link: name. Error: errorCodeVariable, errorMessageVariable. Escalation: escalationCodeVariable. Camunda expressions supported (e.g. "${myDuration}").',
+    additionalProperties: true,
+  },
+  errorRef: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Error element ID' },
+      name: { type: 'string', description: 'Error name' },
+      errorCode: { type: 'string', description: 'Error code' },
+      errorMessage: { type: 'string', description: 'Error message (camunda:errorMessage)' },
+    },
+    required: ['id'],
+    description: 'For ErrorEventDefinition: creates or references a bpmn:Error root element',
+  },
+  messageRef: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Message element ID' },
+      name: { type: 'string', description: 'Message name' },
+    },
+    required: ['id'],
+    description: 'For MessageEventDefinition: creates or references a bpmn:Message root element',
+  },
+  signalRef: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Signal element ID' },
+      name: { type: 'string', description: 'Signal name' },
+    },
+    required: ['id'],
+    description: 'For SignalEventDefinition: creates or references a bpmn:Signal root element',
+  },
+  escalationRef: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Escalation element ID' },
+      name: { type: 'string', description: 'Escalation name' },
+      escalationCode: { type: 'string', description: 'Escalation code' },
+    },
+    required: ['id'],
+    description:
+      'For EscalationEventDefinition: creates or references a bpmn:Escalation root element',
+  },
+  inMappings: {
+    type: 'array',
+    description:
+      'Variable mappings to pass with a signal throw event (camunda:In on SignalEventDefinition). Only valid for bpmn:SignalEventDefinition.',
+    items: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Source variable name in the throwing process' },
+        sourceExpression: { type: 'string', description: "Expression, e.g. '${myVar + 1}'" },
+        target: { type: 'string', description: 'Target variable name in the catching process' },
+        variables: {
+          type: 'string',
+          enum: ['all'],
+          description: "Set to 'all' to pass all variables",
+        },
+        local: { type: 'boolean', description: 'Whether to use local scope (default: false)' },
+      },
+    },
+  },
+} as const;
