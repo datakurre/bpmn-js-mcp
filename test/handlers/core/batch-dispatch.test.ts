@@ -46,9 +46,11 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //   handoff_bpmn_to_lane → add_bpmn_element (fromElementId + toLaneId).
     // Of those 30, 5 more are hidden aliases (ADR-021, #8): consolidated into
     // set_bpmn_element_properties's inputOutput/formData/listeners/
-    // callActivityVariables/loop sub-objects, so only 25 are publicly listed.
+    // callActivityVariables/loop sub-objects. One more, get_bpmn_element_properties
+    // (ADR-027), is folded into list_bpmn_elements's elementIds mode, so only 24
+    // are publicly listed.
     expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(30);
-    expect(TOOL_DEFINITIONS.length).toBe(25);
+    expect(TOOL_DEFINITIONS.length).toBe(24);
 
     // Verify no tool name is duplicated
     const names = TOOL_DEFINITIONS.map((t) => t.name);

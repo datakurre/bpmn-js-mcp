@@ -8,7 +8,7 @@
 // @readonly
 
 import { type ToolResult } from '../../types';
-import { requireDiagram, requireElement, jsonResult, getService } from '../helpers';
+import { requireDiagram, requireElement, jsonResult, validateArgs, getService } from '../helpers';
 
 export interface GetPropertiesArgs {
   diagramId: string;
@@ -314,12 +314,14 @@ function serializeEventDefinitions(bo: any): any[] | undefined {
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
-export async function handleGetProperties(args: GetPropertiesArgs): Promise<ToolResult> {
-  const { diagramId, elementId } = args;
-  const diagram = requireDiagram(diagramId);
-
-  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
-  const element = requireElement(elementRegistry, elementId);
+/**
+ * Build the full property-detail object for one element: standard BPMN
+ * attributes, Camunda extension properties, extension elements, connections,
+ * and event definitions. Shared by the single-element `get_bpmn_element_properties`
+ * (now a hidden alias) and `list_bpmn_elements`'s `elementIds` mode — see
+ * ADR-027.
+ */
+export function buildElementDetail(element: any): Record<string, any> {
   const bo = element.businessObject;
 
   const result: Record<string, any> = {
@@ -359,7 +361,18 @@ export async function handleGetProperties(args: GetPropertiesArgs): Promise<Tool
   const eventDefs = serializeEventDefinitions(bo);
   if (eventDefs) result.eventDefinitions = eventDefs;
 
-  return jsonResult(result);
+  return result;
+}
+
+export async function handleGetProperties(args: GetPropertiesArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  const element = requireElement(elementRegistry, elementId);
+
+  return jsonResult(buildElementDetail(element));
 }
 
 export const TOOL_DEFINITION = {

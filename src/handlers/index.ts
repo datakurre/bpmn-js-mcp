@@ -183,7 +183,8 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
   { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
   { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
-  { definition: GET_PROPERTIES_DEF, handler: handleGetProperties },
+  // Hidden alias: folded into list_bpmn_elements's elementIds mode (ADR-027).
+  { definition: GET_PROPERTIES_DEF, handler: handleGetProperties, hidden: true },
   { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn, tier: 'core' },
   { definition: LIST_ELEMENTS_DEF, handler: handleListElements },
   { definition: SET_PROPERTIES_DEF, handler: handleSetProperties, tier: 'core' },
