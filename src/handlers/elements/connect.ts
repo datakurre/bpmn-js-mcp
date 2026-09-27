@@ -31,6 +31,7 @@ import { appendLintFeedback } from '../../linter';
 import { handleLayoutDiagram } from '../layout/layout-diagram';
 import { handleSetConnectionWaypoints } from './set-connection-waypoints';
 import { checkParallelGatewayBalance } from './connect-gateway-utils';
+import { handleConnectBatch } from './connect-batch';
 
 /** BPMN connection type constants. */
 const BPMN_SEQUENCE_FLOW_TYPE = 'bpmn:SequenceFlow';
@@ -48,6 +49,13 @@ export interface ConnectArgs {
   connectionType?: string;
   conditionExpression?: string;
   isDefault?: boolean;
+  /**
+   * Batch form: connect several arbitrary source/target pairs in one call, as
+   * a single undo step — e.g. a gateway's branches with per-branch conditions
+   * and a default flow. Alternative to sourceElementId/targetElementId and to
+   * elementIds (chain mode).
+   */
+  connections?: ConnectionItem[];
   /** When true, run layout_bpmn_diagram automatically after connecting. Default: false. */
   autoLayout?: boolean;
   /**
@@ -62,6 +70,16 @@ export interface ConnectArgs {
    * Must have at least 2 points.
    */
   waypoints?: Array<{ x: number; y: number }>;
+}
+
+/** One connection's worth of pair-mode fields within the `connections` batch form. */
+export interface ConnectionItem {
+  sourceElementId: string;
+  targetElementId: string;
+  label?: string;
+  connectionType?: string;
+  conditionExpression?: string;
+  isDefault?: boolean;
 }
 
 /** Types that must be connected via bpmn:Association, not SequenceFlow. */
@@ -196,9 +214,10 @@ function applyConnectionProperties(
 }
 
 /**
- * Connect a single pair of elements. Used by both pair mode and chain mode.
+ * Connect a single pair of elements. Used by pair mode, chain mode, and the
+ * `connections[]` batch form (via connect-batch.ts).
  */
-function connectPair(
+export function connectPair(
   diagram: ReturnType<typeof requireDiagram>,
   source: any,
   target: any,
@@ -284,6 +303,10 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
     });
   }
 
+  if (args.connections && Array.isArray(args.connections)) {
+    return handleConnectBatch(diagramId, args.connections, args.autoLayout);
+  }
+
   if (elementIds && Array.isArray(elementIds)) {
     if (elementIds.length < 2) {
       throw illegalCombinationError(
@@ -297,10 +320,11 @@ export async function handleConnect(args: ConnectArgs): Promise<ToolResult> {
 }
 
 /**
- * Build result hints and warning for a pair connection.
+ * Build result hints and warning for a pair connection. Shared by pair mode
+ * and the `connections[]` batch form.
  * Returns { hints, defaultConditionWarning }.
  */
-function buildPairConnectHints(
+export function buildPairConnectHints(
   autoHint: string | undefined,
   isDefault: boolean | undefined,
   conditionExpression: string | undefined,
@@ -326,7 +350,10 @@ function buildPairConnectHints(
  * Detect whether a completed connection created an implicit merge.
  * Returns a warning string if target (non-gateway) now has ≥2 incoming flows.
  */
-function detectImplicitMergeWarning(target: any, newConnectionId: string): string | undefined {
+export function detectImplicitMergeWarning(
+  target: any,
+  newConnectionId: string
+): string | undefined {
   const targetBo = target.businessObject;
   if ((target.type || '').includes('Gateway')) return undefined;
   const incoming: any[] = targetBo?.incoming ?? [];
@@ -344,6 +371,17 @@ function detectImplicitMergeWarning(target: any, newConnectionId: string): strin
 }
 
 /**
+ * Look up an existing sequence flow from source to target, if any.
+ * Pure/non-mutating — shared by pair mode and the `connections[]` batch form.
+ */
+export function findDuplicateFlowId(source: any, target: any): string | undefined {
+  const existing = (source.businessObject?.outgoing || []).find(
+    (f: any) => f.$type === 'bpmn:SequenceFlow' && f.targetRef?.id === target.businessObject?.id
+  );
+  return existing?.id;
+}
+
+/**
  * Check for a duplicate sequence flow from source to target.
  * Returns a skip result if a flow already exists, or null if no duplicate.
  */
@@ -353,11 +391,8 @@ function checkDuplicateFlow(
   sourceElementId: string,
   targetElementId: string
 ): ReturnType<typeof jsonResult> | null {
-  const existing = (source.businessObject?.outgoing || []).find(
-    (f: any) => f.$type === 'bpmn:SequenceFlow' && f.targetRef?.id === target.businessObject?.id
-  );
-  if (!existing) return null;
-  const id: string = existing.id;
+  const id = findDuplicateFlowId(source, target);
+  if (!id) return null;
   return jsonResult({
     success: true,
     skipped: true,

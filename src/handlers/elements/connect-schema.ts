@@ -9,10 +9,23 @@ const BPMN_SEQUENCE_FLOW_TYPE = 'bpmn:SequenceFlow';
 const BPMN_MESSAGE_FLOW_TYPE = 'bpmn:MessageFlow';
 const BPMN_ASSOCIATION_TYPE = 'bpmn:Association';
 
+/** Lean per-item schema for `connections[]` — same fields as pair mode, no repeated descriptions. */
+const CONNECTION_ITEM_SCHEMA_PROPERTIES = {
+  sourceElementId: { type: 'string' },
+  targetElementId: { type: 'string' },
+  label: { type: 'string' },
+  connectionType: {
+    type: 'string',
+    enum: [BPMN_SEQUENCE_FLOW_TYPE, BPMN_MESSAGE_FLOW_TYPE, BPMN_ASSOCIATION_TYPE],
+  },
+  conditionExpression: { type: 'string' },
+  isDefault: { type: 'boolean' },
+} as const;
+
 export const TOOL_DEFINITION = {
   name: 'connect_bpmn_elements',
   description:
-    "Connect BPMN elements. Supports pair mode (sourceElementId + targetElementId) or chain mode (elementIds array for sequential connections). Auto-detects connection type: SequenceFlow for normal flow, MessageFlow for cross-pool, Association for text annotations, and DataAssociation for data objects/stores. Supports optional condition expressions for gateway branches and isDefault flag for gateway default flows. To modify an existing connection's label or condition after creation, use set_bpmn_element_properties with the connection's ID. " +
+    "Connect BPMN elements. Supports pair mode (sourceElementId + targetElementId), chain mode (elementIds array for sequential connections), or batch mode (connections array for arbitrary source/target pairs, e.g. a gateway's branches with per-branch conditions). Auto-detects connection type: SequenceFlow for normal flow, MessageFlow for cross-pool, Association for text annotations, and DataAssociation for data objects/stores. Supports optional condition expressions for gateway branches and isDefault flag for gateway default flows. To modify an existing connection's label or condition after creation, use set_bpmn_element_properties with the connection's ID. " +
     'Also supports waypoint mode: provide connectionId + waypoints to set custom routing on an existing connection.',
   inputSchema: {
     type: 'object',
@@ -35,6 +48,18 @@ export const TOOL_DEFINITION = {
         minItems: 2,
         description:
           'Ordered list of element IDs to connect sequentially (chain mode). When provided, sourceElementId and targetElementId are ignored.',
+      },
+      connections: {
+        type: 'array',
+        description:
+          "Batch mode — arbitrary source/target pairs (e.g. a gateway's branches), validated up " +
+          'front and applied as one undo step. Each item takes the same fields as pair mode above.',
+        items: {
+          type: 'object',
+          properties: CONNECTION_ITEM_SCHEMA_PROPERTIES,
+          required: ['sourceElementId', 'targetElementId'],
+        },
+        minItems: 1,
       },
       label: {
         type: 'string',
@@ -94,6 +119,10 @@ export const TOOL_DEFINITION = {
       {
         description: 'Chain mode: connect a sequence of elements',
         required: ['elementIds'],
+      },
+      {
+        description: 'Batch mode: connect arbitrary source/target pairs in one call',
+        required: ['connections'],
       },
       {
         description: 'Waypoint mode: set custom waypoints on an existing connection',
