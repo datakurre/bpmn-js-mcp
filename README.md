@@ -112,24 +112,23 @@ For best results, follow this recommended workflow after structural changes:
 
 No separate "repair layout" tool is needed — chain these existing tools for fine-grained control.
 
-## Available Tools (30)
+## Available Tools (29)
 
 ### Core BPMN Tools
 
-| Tool                          | Description                                                                              |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `create_bpmn_diagram`         | Create a new diagram (use `cloneFrom` to duplicate an existing one)                      |
-| `add_bpmn_element`            | Add elements (use `flowId` to insert, `fromElementId`+`toLaneId` for cross-lane handoff) |
-| `add_bpmn_element_chain`      | Add a chain of elements connected in sequence                                            |
-| `connect_bpmn_elements`       | Connect elements (use `connectionId`+`waypoints` for custom routing)                     |
-| `delete_bpmn_element`         | Remove an element or connection                                                          |
-| `move_bpmn_element`           | Move, resize, or reassign an element to a lane                                           |
-| `list_bpmn_elements`          | List elements with filters (name pattern, type, property)                                |
-| `get_bpmn_element_properties` | Inspect all properties of an element                                                     |
-| `validate_bpmn_diagram`       | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)                     |
-| `export_bpmn`                 | Export as BPMN 2.0 XML or SVG (with implicit lint gate)                                  |
-| `import_bpmn_xml`             | Import existing BPMN XML (auto-layout if no DI)                                          |
-| `manage_bpmn_root_elements`   | Create or update shared Message and Signal definitions                                   |
+| Tool                        | Description                                                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `create_bpmn_diagram`       | Create a new diagram (use `cloneFrom` to duplicate an existing one)                                                     |
+| `add_bpmn_element`          | Add elements (use `flowId` to insert, `fromElementId`+`toLaneId` for cross-lane handoff)                                |
+| `add_bpmn_element_chain`    | Add a chain of elements connected in sequence                                                                           |
+| `connect_bpmn_elements`     | Connect elements (use `connectionId`+`waypoints` for custom routing)                                                    |
+| `delete_bpmn_element`       | Remove an element or connection                                                                                         |
+| `move_bpmn_element`         | Move, resize, or reassign an element to a lane                                                                          |
+| `list_bpmn_elements`        | List elements with filters (name pattern, type, property), or inspect specific elements in full detail via `elementIds` |
+| `validate_bpmn_diagram`     | Validate using bpmnlint (recommended + Camunda 7 + custom MCP rules)                                                    |
+| `export_bpmn`               | Export as BPMN 2.0 XML or SVG (with implicit lint gate)                                                                 |
+| `import_bpmn_xml`           | Import existing BPMN XML (auto-layout if no DI)                                                                         |
+| `manage_bpmn_root_elements` | Create or update shared Message and Signal definitions                                                                  |
 
 ### Layout & Alignment Tools
 

@@ -5,8 +5,7 @@
 Accepted. Implements candidate #3 of [#23](https://github.com/datakurre/bpmn-js-mcp/issues/23)
 ("Merge remaining overlapping tools"), which is also item #3 of
 [#22](https://github.com/datakurre/bpmn-js-mcp/issues/22)'s plural-forms
-proposal. Follows the same `hidden: true` alias pattern as
-[ADR-021](ADR-021-camunda-setter-consolidation.md).
+proposal.
 
 ## Context
 
@@ -32,30 +31,45 @@ element" problem #22 tracks.
 2. The detail-building logic (standard attributes, Camunda extension
    properties, extension elements, connections, event definitions) is
    extracted from `get-properties.ts`'s handler into an exported
-   `buildElementDetail(element)` function, called by both the single-element
-   `get_bpmn_element_properties` handler (unchanged behaviour, now used only
-   via the hidden alias) and `list_bpmn_elements`'s new `elementIds` branch.
-   No detail-serialization logic is duplicated.
-3. `get_bpmn_element_properties` is unregistered from `TOOL_DEFINITIONS` (the
-   `hidden: true` flag on its `TOOL_REGISTRY` entry) but stays fully
-   dispatchable, kept for one release so existing prompts/scripts against the
-   old name keep working (same rationale as ADR-021). It stays in
-   `READONLY_TOOLS` since dispatch-time behaviour (e.g. the MCP Apps view
-   exclusion check) doesn't depend on `ListTools` visibility.
-4. Unlike the mutating batch forms in ADR-026, `elementIds` needs no
-   command-stack compound command, pre-validation-before-mutation, or
-   rollback path: nothing is mutated, so a missing element ID simply throws
-   `Element not found` for that ID (via the same `requireElement` the
-   single-element tool already used) and the call fails outright — there is
-   no partial state to protect.
+   `buildElementDetail(element)` function, called by both the internal
+   `handleGetProperties` (see point 3) and `list_bpmn_elements`'s new
+   `elementIds` branch. No detail-serialization logic is duplicated.
+3. **`get_bpmn_element_properties` is removed outright, not kept as a
+   hidden alias.** Unlike [ADR-021](ADR-021-camunda-setter-consolidation.md)'s
+   pattern (`hidden: true` in `TOOL_REGISTRY`, kept dispatchable for one
+   release), #23 was updated to drop that requirement for new merges: this
+   project has no external users depending on old tool names yet, so a
+   hidden alias is dead weight with no compatibility payoff. The
+   `TOOL_REGISTRY` entry, the `TOOL_DEFINITION` export, and every
+   `get_bpmn_element_properties` reference in `READONLY_TOOLS`/`TOOL_TITLES`/
+   server instructions are deleted; calling the old name now gets the
+   ordinary "Unknown tool" error, same as any other consolidated-away tool
+   (`clone_bpmn_diagram`, `replace_bpmn_element`, etc.). The handler
+   function itself, `handleGetProperties`, stays as a plain exported
+   function (not a registered tool) — the same "internal-only handler"
+   pattern those other removed tools already use — since it is still
+   useful directly in tests and costs nothing to keep once it is off the
+   MCP tool surface.
+4. Unlike the mutating batch forms in [ADR-026](ADR-026-multi-element-batch-forms.md),
+   `elementIds` needs no command-stack compound command,
+   pre-validation-before-mutation, or rollback path: nothing is mutated, so
+   a missing element ID simply throws `Element not found` for that ID (via
+   the same `requireElement` the single-element handler already used) and
+   the call fails outright — there is no partial state to protect.
 
 ## Consequences
 
 - Inspecting several elements (e.g. after a `list_bpmn_elements` search)
   costs one call instead of one per element.
-- `TOOL_DEFINITIONS` count: 25 → 24.
-- No functionality loss: `get_bpmn_element_properties` still works
-  identically as a hidden alias, and its output shape is unchanged.
+- `TOOL_DEFINITIONS` count: 25 → 24. `ALL_DISPATCHABLE_TOOL_NAMES` count:
+  30 → 29 (a real removal, unlike ADR-021's hidden aliases which stayed
+  dispatchable and left that count unchanged).
+- No functionality loss for the API surface that remains: every property
+  `get_bpmn_element_properties` returned is available through
+  `list_bpmn_elements`'s `elementIds` mode with an identical shape. A caller
+  still using the literal tool name `get_bpmn_element_properties` gets
+  "Unknown tool" — this is an intentional breaking change per #23's revised
+  no-alias policy, not an oversight.
 - Item #2 of #22 (`connect_bpmn_elements` arbitrary-pair `connections`
   array) remains a follow-up; the tool-definitions size budget
   (`test/tool-definitions.test.ts`) has more headroom after this change

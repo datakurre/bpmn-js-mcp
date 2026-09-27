@@ -55,7 +55,7 @@ describe('tool-definitions', () => {
     // set_bpmn_call_activity_variables, set_bpmn_loop_characteristics: hidden aliases
     // (ADR-021) — use set_bpmn_element_properties's inputOutput/formData/listeners/
     // callActivityVariables/loop sub-objects
-    // get_bpmn_element_properties: hidden alias (ADR-027) — use list_bpmn_elements
+    // get_bpmn_element_properties removed outright (ADR-027, #23) — use list_bpmn_elements
     // with elementIds
   ])("includes tool '%s'", (name) => {
     expect(toolNames).toContain(name);
@@ -67,7 +67,6 @@ describe('tool-definitions', () => {
     'set_bpmn_camunda_listeners',
     'set_bpmn_call_activity_variables',
     'set_bpmn_loop_characteristics',
-    'get_bpmn_element_properties',
   ])(
     "'%s' is a hidden alias — not listed in TOOL_DEFINITIONS but still dispatchable",
     async (name) => {

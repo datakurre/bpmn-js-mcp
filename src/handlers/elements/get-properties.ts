@@ -1,5 +1,7 @@
 /**
- * Handler for get_element_properties tool.
+ * Element property-detail serialization, plus the internal handleGetProperties
+ * function (no longer a registered MCP tool — see ADR-027; get_bpmn_element_properties
+ * was removed outright rather than kept as a hidden alias, per #23).
  *
  * Returns standard BPMN attributes, Camunda extension properties,
  * extension elements (I/O mapping, form data), connections, and
@@ -317,9 +319,9 @@ function serializeEventDefinitions(bo: any): any[] | undefined {
 /**
  * Build the full property-detail object for one element: standard BPMN
  * attributes, Camunda extension properties, extension elements, connections,
- * and event definitions. Shared by the single-element `get_bpmn_element_properties`
- * (now a hidden alias) and `list_bpmn_elements`'s `elementIds` mode — see
- * ADR-027.
+ * and event definitions. Shared by the internal `handleGetProperties` (used
+ * directly by tests, no longer a registered tool) and `list_bpmn_elements`'s
+ * `elementIds` mode — see ADR-027.
  */
 export function buildElementDetail(element: any): Record<string, any> {
   const bo = element.businessObject;
@@ -374,20 +376,3 @@ export async function handleGetProperties(args: GetPropertiesArgs): Promise<Tool
 
   return jsonResult(buildElementDetail(element));
 }
-
-export const TOOL_DEFINITION = {
-  name: 'get_bpmn_element_properties',
-  description:
-    'Get all properties of an element, including standard BPMN attributes and Camunda extension properties.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elementId: {
-        type: 'string',
-        description: 'The ID of the element to inspect',
-      },
-    },
-    required: ['diagramId', 'elementId'],
-  },
-} as const;
