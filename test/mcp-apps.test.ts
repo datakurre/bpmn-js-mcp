@@ -32,7 +32,6 @@ const READONLY_TOOL_NAMES = new Set([
   'list_bpmn_process_variables',
   'validate_bpmn_diagram',
   'list_bpmn_elements',
-  'get_bpmn_element_properties',
 ]);
 
 describe('MCP Apps: host detection', () => {

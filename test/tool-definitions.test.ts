@@ -14,7 +14,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(25);
+    expect(TOOL_DEFINITIONS.length).toBe(24);
   });
 
   test.each([
@@ -23,7 +23,6 @@ describe('tool-definitions', () => {
     'connect_bpmn_elements',
     'delete_bpmn_element',
     'move_bpmn_element',
-    'get_bpmn_element_properties',
     'export_bpmn',
     'list_bpmn_elements',
     'set_bpmn_element_properties',
@@ -56,6 +55,8 @@ describe('tool-definitions', () => {
     // set_bpmn_call_activity_variables, set_bpmn_loop_characteristics: hidden aliases
     // (ADR-021) — use set_bpmn_element_properties's inputOutput/formData/listeners/
     // callActivityVariables/loop sub-objects
+    // get_bpmn_element_properties removed outright (ADR-027, #23) — use list_bpmn_elements
+    // with elementIds
   ])("includes tool '%s'", (name) => {
     expect(toolNames).toContain(name);
   });
@@ -251,7 +252,6 @@ describe('tool-definitions', () => {
       'export_bpmn',
       'list_bpmn_diagrams',
       'list_bpmn_elements',
-      'get_bpmn_element_properties',
       'validate_bpmn_diagram',
       'list_bpmn_process_variables',
     ];

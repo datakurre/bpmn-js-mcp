@@ -70,10 +70,7 @@ import {
   TOOL_DEFINITION as ADD_ELEMENT_CHAIN_DEF,
 } from './elements/add-element-chain';
 import { handleListElements, TOOL_DEFINITION as LIST_ELEMENTS_DEF } from './elements/list-elements';
-import {
-  handleGetProperties,
-  TOOL_DEFINITION as GET_PROPERTIES_DEF,
-} from './elements/get-properties';
+import { handleGetProperties } from './elements/get-properties';
 import { handleSetConnectionWaypoints } from './elements/set-connection-waypoints';
 
 // ── Properties: property setters ───────────────────────────────────────────
@@ -183,7 +180,6 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
   { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
   { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
-  { definition: GET_PROPERTIES_DEF, handler: handleGetProperties },
   { definition: EXPORT_BPMN_DEF, handler: handleExportBpmn, tier: 'core' },
   { definition: LIST_ELEMENTS_DEF, handler: handleListElements },
   { definition: SET_PROPERTIES_DEF, handler: handleSetProperties, tier: 'core' },
@@ -239,7 +235,6 @@ const READONLY_TOOLS = new Set([
   'list_bpmn_process_variables',
   'validate_bpmn_diagram',
   'list_bpmn_elements',
-  'get_bpmn_element_properties',
 ]);
 
 /** Tools whose primary effect is permanently removing a diagram or element. */
@@ -289,7 +284,6 @@ const TOOL_TITLES: Record<string, string> = {
   connect_bpmn_elements: 'Connect Elements',
   delete_bpmn_element: 'Delete Element',
   move_bpmn_element: 'Move/Resize Element',
-  get_bpmn_element_properties: 'Get Element Properties',
   export_bpmn: 'Export Diagram',
   list_bpmn_elements: 'List Elements',
   set_bpmn_element_properties: 'Set Element Properties',

@@ -11,11 +11,13 @@ import { type ToolResult } from '../../types';
 import { LARGE_LIST_COUNT } from '../../constants';
 import {
   requireDiagram,
+  requireElement,
   jsonResult,
   getVisibleElements,
   validateArgs,
   getService,
 } from '../helpers';
+import { buildElementDetail } from './get-properties';
 
 export interface ListElementsArgs {
   diagramId: string;
@@ -24,6 +26,12 @@ export interface ListElementsArgs {
   property?: { key: string; value?: string };
   /** Force the full element list even when it's large enough to be summarized. Default: false. */
   inline?: boolean;
+  /**
+   * Inspect these specific elements in full detail instead of listing/filtering.
+   * Equivalent to the former get_bpmn_element_properties tool, extended to several
+   * elements at once. When provided, all other filters are ignored.
+   */
+  elementIds?: string[];
 }
 
 /** Count elements by type, for the summary shown in place of a large list. */
@@ -100,10 +108,17 @@ function filterByProperty(elements: any[], property: { key: string; value?: stri
 
 export async function handleListElements(args: ListElementsArgs): Promise<ToolResult> {
   validateArgs(args, ['diagramId']);
-  const { diagramId, namePattern, elementType, property, inline = false } = args;
+  const { diagramId, namePattern, elementType, property, inline = false, elementIds } = args;
   const diagram = requireDiagram(diagramId);
 
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+
+  // Inspect mode: full detail for specific elements (former get_bpmn_element_properties).
+  if (elementIds && elementIds.length > 0) {
+    const details = elementIds.map((id) => buildElementDetail(requireElement(elementRegistry, id)));
+    return jsonResult({ success: true, elements: details, count: details.length });
+  }
+
   let elements = getVisibleElements(elementRegistry);
 
   const hasFilters = !!(namePattern || elementType || property);
@@ -170,11 +185,17 @@ export async function handleListElements(args: ListElementsArgs): Promise<ToolRe
 export const TOOL_DEFINITION = {
   name: 'list_bpmn_elements',
   description:
-    'List elements in a BPMN diagram with their types, names, positions, connections, and properties. Supports optional filters to search by name pattern, element type, or property value. When no filters are given, returns all elements — unless the diagram is large, in which case an unfiltered call returns a type-count summary plus a bpmn://diagram/{id}/elements resource_link instead (pass inline: true to force the full list).',
+    'List elements in a BPMN diagram with their types, names, positions, connections, and properties. Supports optional filters to search by name pattern, element type, or property value. When no filters are given, returns all elements — unless the diagram is large, in which case an unfiltered call returns a type-count summary plus a bpmn://diagram/{id}/elements resource_link instead (pass inline: true to force the full list). ' +
+    'Pass elementIds to inspect specific elements in full detail (all properties, extension elements, connections, event definitions) instead — ignores the other filters, one or several elements per call.',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
+      elementIds: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Inspect these specific elements in full detail instead of listing/filtering.',
+      },
       inline: {
         type: 'boolean',
         description:
