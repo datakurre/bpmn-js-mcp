@@ -19,13 +19,21 @@ export const APP_VIEWER_MIME_TYPE = 'text/html;profile=mcp-app';
 /**
  * Resolve `dist/mcp-apps-viewer-bundle.js`, built by esbuild.config.mjs's
  * `mcp-apps-viewer-bundle` target alongside `dist/index.js`.
+ *
+ * esbuild bundles this file directly into `dist/index.js`, so at runtime
+ * `__dirname` is `dist/` itself (not `dist/mcp-apps/` — esbuild flattens the
+ * source tree into one file) and the bundle sits right next to it. Under
+ * `ts-node`/vitest, this file instead runs from its own source location
+ * (`src/mcp-apps/`), two directories above the repo's `dist/`.
  */
 function findViewerBundle(): string {
-  const fromDist = path.resolve(__dirname, '..', 'mcp-apps-viewer-bundle.js');
-  if (fs.existsSync(fromDist)) return fromDist;
-
-  const fromSrc = path.resolve(__dirname, '..', '..', 'dist', 'mcp-apps-viewer-bundle.js');
-  if (fs.existsSync(fromSrc)) return fromSrc;
+  const candidates = [
+    path.resolve(__dirname, 'mcp-apps-viewer-bundle.js'),
+    path.resolve(__dirname, '..', 'mcp-apps-viewer-bundle.js'),
+    path.resolve(__dirname, '..', '..', 'dist', 'mcp-apps-viewer-bundle.js'),
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (found) return found;
 
   throw new Error(
     'dist/mcp-apps-viewer-bundle.js not found — run `npm run build` before serving ' +

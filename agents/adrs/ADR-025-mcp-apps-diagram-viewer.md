@@ -104,6 +104,41 @@ small, self-contained browser bundle for the View, is required.
      `if (typeof document !== 'undefined')` so importing the module for
      tests doesn't execute the DOM-dependent path.
 
+## Addendum: PR review (2026-09-27)
+
+Code review on the implementing PR (datakurre/bpmn-js-mcp#24) surfaced a real
+bug and a design suggestion, both worth recording here.
+
+1. **Bug: `findViewerBundle()` failed under the actual built server.**
+   `src/mcp-apps/resource.ts` resolved `dist/mcp-apps-viewer-bundle.js`
+   relative to `__dirname`, with candidates tuned for running the file from
+   its own source location (`src/mcp-apps/`, as vitest does). esbuild
+   bundles this file straight into `dist/index.js`, so at runtime
+   `__dirname` is `dist/` itself — one directory shallower than either
+   candidate assumed — and both missed. Fixed by adding
+   `path.resolve(__dirname, 'mcp-apps-viewer-bundle.js')` (the correct path
+   when running from the bundled `dist/index.js`) as the first candidate,
+   keeping the other two for the vitest/source case. A source-level test
+   couldn't have caught this, since it never runs from `__dirname === dist/`;
+   `test/mcp-apps-built-server.test.ts` now spawns the actual built
+   `dist/index.js` over stdio with the real SDK client and reads the
+   resource through it, so this class of bundling mismatch is covered going
+   forward.
+2. **Suggestion: replace embedded XML with a `resource_link` +
+   `app.readServerResource()`, dropping `includeAppView`/`LARGE_XML_CHARS`
+   entirely.** Considered and declined, for the same reason `readServerResource`
+   was ruled out in the original design (Context, above):
+   it depends on the optional `hostCapabilities.serverResources` capability,
+   which is not guaranteed present. The chosen design deliberately depends
+   only on `ui/notifications/tool-result`'s full-payload delivery, which the
+   spec requires unconditionally, so it works on every compliant host, not
+   only ones that opted into resource reads. Kept instead: the misleading
+   fallback message (`"too large to preview"` regardless of the actual
+   reason) was fixed to name both possible causes —
+   `includeAppView` not set, or the diagram past `LARGE_XML_CHARS` — since
+   that part of the critique was a real bug in the message text,
+   independent of the design question.
+
 ## Consequences
 
 - No migration off `@modelcontextprotocol/sdk` 1.x was needed; the server

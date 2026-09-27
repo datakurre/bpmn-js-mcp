@@ -12,9 +12,11 @@
  * — connects to the host via `postMessage`, then re-renders the diagram each
  * time a tool call result arrives (`ontoolresult`) that carries an embedded
  * `application/xml` resource content item (see `appendMcpAppContent()` in
- * `src/linter.ts` on the server side). Diagrams past `LARGE_XML_CHARS` aren't
- * embedded server-side, so this view shows a notice instead of the
- * interactive diagram for those.
+ * `src/linter.ts` on the server side). That item is only present when the
+ * diagram was created with `includeAppView: true` and stays under
+ * `LARGE_XML_CHARS`; this view shows an explanatory notice instead of the
+ * interactive diagram otherwise (`_meta.ui.resourceUri` is on every mutating
+ * tool regardless, so a host may open this view for diagrams that opted out).
  *
  * The pure data-extraction logic below (`extractDiagramXml`,
  * `base64EncodeUtf8`) has no DOM dependency and is unit-tested directly in
@@ -67,7 +69,10 @@ function main(): void {
   app.ontoolresult = (result) => {
     const xml = extractDiagramXml((result as { content?: unknown[] }).content);
     if (!xml) {
-      showMessage('This diagram is too large to preview inline. Use export_bpmn instead.');
+      showMessage(
+        'No inline preview for this diagram. Create it with includeAppView: true to preview ' +
+          'it here (a large diagram may still be skipped), or use export_bpmn for an image.'
+      );
       return;
     }
     if (typeof window.TokenSimulation !== 'function') {
