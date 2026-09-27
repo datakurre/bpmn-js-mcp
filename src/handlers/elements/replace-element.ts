@@ -34,7 +34,7 @@ export interface ReplaceElementArgs {
 }
 
 /** Element types that support replacement. */
-const REPLACEABLE_TYPES = new Set([
+export const REPLACEABLE_TYPES = new Set([
   'bpmn:Task',
   'bpmn:UserTask',
   'bpmn:ServiceTask',
@@ -55,24 +55,33 @@ const REPLACEABLE_TYPES = new Set([
   'bpmn:SubProcess',
 ]);
 
-export async function handleReplaceElement(args: ReplaceElementArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId', 'newType']);
-  const { diagramId, elementId, newType } = args;
-  const diagram = requireDiagram(diagramId);
+export interface ReplaceElementCoreResult {
+  element: any;
+  oldType: string;
+  /** True when oldType === newType and no replacement was performed. */
+  unchanged: boolean;
+}
 
+/**
+ * Validate and (unless already of `newType`) replace `elementId`'s type via
+ * bpmn-js's `bpmnReplace` service. Synchronous — performs no XML sync or lint
+ * feedback — so it is safe to call from within a command-stack `preExecute`
+ * (see `applyPropertyUpdateItem` in `set-properties.ts`), where nested
+ * `modeling`/`bpmnReplace` calls must all run inside a single execution frame
+ * to be grouped as one undo step.
+ */
+export function replaceElementCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  newType: string
+): ReplaceElementCoreResult {
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const element = requireElement(elementRegistry, elementId);
 
   const oldType = element.type || element.businessObject?.$type || '';
 
   if (oldType === newType) {
-    return jsonResult({
-      success: true,
-      elementId,
-      oldType,
-      newType,
-      message: `Element ${elementId} is already of type ${newType}, no change needed`,
-    });
+    return { element, oldType, unchanged: true };
   }
 
   // Block replacement to/from BoundaryEvent — requires host attachment
@@ -115,21 +124,41 @@ export async function handleReplaceElement(args: ReplaceElementArgs): Promise<To
     );
   }
 
+  return { element: newElement, oldType, unchanged: false };
+}
+
+export async function handleReplaceElement(args: ReplaceElementArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId', 'newType']);
+  const { diagramId, elementId, newType } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const { element, oldType, unchanged } = replaceElementCore(diagram, elementId, newType);
+
+  if (unchanged) {
+    return jsonResult({
+      success: true,
+      elementId,
+      oldType,
+      newType,
+      message: `Element ${elementId} is already of type ${newType}, no change needed`,
+    });
+  }
+
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
-    elementId: newElement.id,
+    elementId: element.id,
     oldType,
     newType,
-    name: newElement.businessObject?.name || undefined,
-    position: { x: newElement.x, y: newElement.y },
+    name: element.businessObject?.name || undefined,
+    position: { x: element.x, y: element.y },
     message: `Replaced ${elementId} from ${oldType} to ${newType}`,
-    ...(newElement.id !== elementId
-      ? { note: `Element ID changed from ${elementId} to ${newElement.id}` }
+    ...(element.id !== elementId
+      ? { note: `Element ID changed from ${elementId} to ${element.id}` }
       : {}),
     ...getTypeSpecificHints(newType),
-    ...getNamingHint(newType, newElement.businessObject?.name),
+    ...getNamingHint(newType, element.businessObject?.name),
   });
   return appendLintFeedback(result, diagram);
 }

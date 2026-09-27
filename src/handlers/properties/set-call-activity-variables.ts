@@ -74,17 +74,35 @@ function createMappingElement(
   return el;
 }
 
-export async function handleSetCallActivityVariables(
-  args: SetCallActivityVariablesArgs
-): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId']);
-  const { diagramId, elementId, inMappings = [], outMappings = [] } = args;
+/** Throws unless `effectiveType` is a CallActivity. */
+export function assertCallActivityTarget(effectiveType: string, elementId: string): void {
+  if (effectiveType !== 'bpmn:CallActivity') {
+    throw typeMismatchError(elementId, effectiveType, ['bpmn:CallActivity']);
+  }
+}
+
+export interface SetCallActivityVariablesCoreResult {
+  inMappingCount: number;
+  outMappingCount: number;
+}
+
+/**
+ * Build and apply camunda:in / camunda:out mappings. Synchronous — no XML
+ * sync or lint feedback — so it is safe to call from within a command-stack
+ * `preExecute` (see `applyPropertyUpdateItem` in `set-properties.ts`)
+ * alongside other elements' updates, grouped into one undo step.
+ */
+export function applySetCallActivityVariablesCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Pick<SetCallActivityVariablesArgs, 'inMappings' | 'outMappings'>
+): SetCallActivityVariablesCoreResult {
+  const { inMappings = [], outMappings = [] } = args;
 
   if (inMappings.length === 0 && outMappings.length === 0) {
     throw missingRequiredError(['inMappings', 'outMappings']);
   }
 
-  const diagram = requireDiagram(diagramId);
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
   const moddle = getService(diagram.modeler, 'moddle');
@@ -93,9 +111,7 @@ export async function handleSetCallActivityVariables(
   const bo = element.businessObject;
   const elType = element.type || bo.$type || '';
 
-  if (elType !== 'bpmn:CallActivity') {
-    throw typeMismatchError(elementId, elType, ['bpmn:CallActivity']);
-  }
+  assertCallActivityTarget(elType, elementId);
 
   // Ensure extensionElements container exists
   let extensionElements = bo.extensionElements;
@@ -125,14 +141,25 @@ export async function handleSetCallActivityVariables(
 
   modeling.updateProperties(element, { extensionElements });
 
+  return { inMappingCount: inMappings.length, outMappingCount: outMappings.length };
+}
+
+export async function handleSetCallActivityVariables(
+  args: SetCallActivityVariablesArgs
+): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const counts = applySetCallActivityVariablesCore(diagram, elementId, args);
+
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     elementId,
-    inMappingCount: inMappings.length,
-    outMappingCount: outMappings.length,
-    message: `Set ${inMappings.length} in-mapping(s) and ${outMappings.length} out-mapping(s) on ${elementId}`,
+    ...counts,
+    message: `Set ${counts.inMappingCount} in-mapping(s) and ${counts.outMappingCount} out-mapping(s) on ${elementId}`,
   });
   return appendLintFeedback(result, diagram);
 }

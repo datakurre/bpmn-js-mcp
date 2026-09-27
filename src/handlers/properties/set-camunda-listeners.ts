@@ -163,17 +163,39 @@ function createErrorDefinitions(
   }
 }
 
-export async function handleSetCamundaListeners(
-  args: SetCamundaListenersArgs
-): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId']);
-  const {
-    diagramId,
-    elementId,
-    executionListeners = [],
-    taskListeners = [],
-    errorDefinitions = [],
-  } = args;
+/** Throws unless `effectiveType` is a UserTask (required for task listeners). */
+export function assertTaskListenerTarget(effectiveType: string, elementId: string): void {
+  if (!effectiveType.includes('UserTask')) {
+    throw typeMismatchError(elementId, effectiveType, ['bpmn:UserTask']);
+  }
+}
+
+/** Throws unless `effectiveType` is a ServiceTask (required for error definitions). */
+export function assertErrorDefinitionTarget(effectiveType: string, elementId: string): void {
+  if (effectiveType !== 'bpmn:ServiceTask') {
+    throw typeMismatchError(elementId, effectiveType, ['bpmn:ServiceTask']);
+  }
+}
+
+export interface SetCamundaListenersCoreResult {
+  executionListenerCount: number;
+  taskListenerCount: number;
+  errorDefinitionCount: number;
+}
+
+/**
+ * Build and apply execution/task listeners and error definitions. Synchronous
+ * — no XML sync or lint feedback — so it is safe to call from within a
+ * command-stack `preExecute` (see `applyPropertyUpdateItem` in
+ * `set-properties.ts`) alongside other elements' updates, grouped into one
+ * undo step.
+ */
+export function applySetCamundaListenersCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementId: string,
+  args: Pick<SetCamundaListenersArgs, 'executionListeners' | 'taskListeners' | 'errorDefinitions'>
+): SetCamundaListenersCoreResult {
+  const { executionListeners = [], taskListeners = [], errorDefinitions = [] } = args;
 
   if (
     executionListeners.length === 0 &&
@@ -183,7 +205,6 @@ export async function handleSetCamundaListeners(
     throw missingRequiredError(['executionListeners', 'taskListeners', 'errorDefinitions']);
   }
 
-  const diagram = requireDiagram(diagramId);
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const modeling = getService(diagram.modeler, 'modeling');
   const moddle = getService(diagram.modeler, 'moddle');
@@ -192,13 +213,8 @@ export async function handleSetCamundaListeners(
   const bo = element.businessObject;
   const elType = element.type || bo.$type || '';
 
-  if (taskListeners.length > 0 && !elType.includes('UserTask')) {
-    throw typeMismatchError(elementId, elType, ['bpmn:UserTask']);
-  }
-
-  if (errorDefinitions.length > 0 && bo.$type !== 'bpmn:ServiceTask') {
-    throw typeMismatchError(elementId, bo.$type, ['bpmn:ServiceTask']);
-  }
+  if (taskListeners.length > 0) assertTaskListenerTarget(elType, elementId);
+  if (errorDefinitions.length > 0) assertErrorDefinitionTarget(bo.$type, elementId);
 
   // Ensure extensionElements container exists
   let extensionElements = bo.extensionElements;
@@ -232,15 +248,30 @@ export async function handleSetCamundaListeners(
 
   createErrorDefinitions(diagram, moddle, extensionElements!, errorDefinitions);
   modeling.updateProperties(element, { extensionElements });
+
+  return {
+    executionListenerCount: executionListeners.length,
+    taskListenerCount: taskListeners.length,
+    errorDefinitionCount: errorDefinitions.length,
+  };
+}
+
+export async function handleSetCamundaListeners(
+  args: SetCamundaListenersArgs
+): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'elementId']);
+  const { diagramId, elementId } = args;
+  const diagram = requireDiagram(diagramId);
+
+  const counts = applySetCamundaListenersCore(diagram, elementId, args);
+
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     elementId,
-    executionListenerCount: executionListeners.length,
-    taskListenerCount: taskListeners.length,
-    errorDefinitionCount: errorDefinitions.length,
-    message: `Set ${executionListeners.length} execution listener(s), ${taskListeners.length} task listener(s), and ${errorDefinitions.length} error definition(s) on ${elementId}`,
+    ...counts,
+    message: `Set ${counts.executionListenerCount} execution listener(s), ${counts.taskListenerCount} task listener(s), and ${counts.errorDefinitionCount} error definition(s) on ${elementId}`,
   });
   return appendLintFeedback(result, diagram);
 }
