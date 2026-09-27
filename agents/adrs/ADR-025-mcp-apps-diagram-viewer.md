@@ -42,14 +42,14 @@ small, self-contained browser bundle for the View, is required.
 
 1. **Wire the spec directly on the existing SDK**, without
    `@modelcontextprotocol/ext-apps`'s server helpers:
-   - `src/handlers/index.ts`'s `computeToolDefinitions()` adds
+   - `src/handlers/index.ts`'s `withMcpAppsMeta()` adds
      `_meta: { ui: { resourceUri: 'ui://bpmn-diagram-viewer' } }` to every
-     mutating tool that leaves a diagram in place to view. Read-only tools
+     mutating tool that leaves a diagram in place to view, in the ListTools
+     payload for MCP Apps hosts only (see Addendum 3). Read-only tools
      (`export_bpmn`, `list_bpmn_diagrams`, `validate_bpmn_diagram`,
      `list_bpmn_elements`, `get_bpmn_element_properties`,
-     `list_bpmn_process_variables`, `analyze_bpmn_lanes`) and
-     `delete_bpmn_diagram` (nothing left to view) are excluded via
-     `MCP_APP_VIEW_EXCLUDED_TOOLS`.
+     `list_bpmn_process_variables`) and `delete_bpmn_diagram` (nothing left
+     to view) are excluded via `MCP_APP_VIEW_EXCLUDED_TOOLS`.
    - `src/mcp-apps/resource.ts` serves `ui://bpmn-diagram-viewer` as a
      `text/html;profile=mcp-app` resource, wired into `src/resources.ts`
      alongside the existing static resources.
@@ -79,12 +79,11 @@ small, self-contained browser bundle for the View, is required.
    item — the same convention already used for PNG/SVG image attachments —
    so the content reaches user-facing surfaces (including this View)
    without inflating what the model sees.
-5. **Opt-in via a new `includeAppView` flag**, independent of the existing
-   `includeImage` flag, defaulting to `false` on `DiagramState`. Existing
-   tests and callers that don't ask for it see no change in response shape.
-   `create_bpmn_diagram` accepts `includeAppView` (also propagated through
-   `cloneFrom`); once set on a diagram, every subsequent mutating call
-   re-embeds fresh XML. Embedding is skipped past `LARGE_XML_CHARS` (the
+5. **Enabled per host, not per diagram.** The viewer and the embedded XML
+   are only offered to hosts that advertise MCP Apps support (Addendum 3);
+   every other client sees exactly the pre-ADR response shape. (The first
+   version used an opt-in `includeAppView` flag on `create_bpmn_diagram`,
+   removed in Addendum 3.) Embedding is skipped past `LARGE_XML_CHARS` (the
    same threshold ADR-023 introduced), same as the existing image-size
    gate, with the View showing a "too large to preview inline, use
    export_bpmn instead" message in that case.
@@ -139,15 +138,31 @@ bug and a design suggestion, both worth recording here.
    that part of the critique was a real bug in the message text,
    independent of the design question.
 
+3. **Follow-up: the viewer was advertised to every host, but only fed for
+   `includeAppView` diagrams.** `_meta.ui.resourceUri` was on every mutating
+   tool unconditionally while `includeAppView` defaulted to `false`, so an
+   MCP Apps host opened the View after every mutating call and it had
+   nothing to show. Fixed without depending on optional host capabilities:
+   hosts that support MCP Apps say so in `initialize`, under
+   `capabilities.extensions['io.modelcontextprotocol/ui']` (optionally with
+   the `mimeTypes` they render). `src/mcp-apps/host-support.ts` detects that
+   after `initialize` (`server.oninitialized` in `src/index.ts`); only then
+   does ListTools carry the `_meta.ui` field (`withMcpAppsMeta()`) and do
+   tool results embed the XML. `includeAppView` was removed. This needed
+   `@modelcontextprotocol/sdk` ≥ 1.30: earlier 1.x releases dropped the
+   `extensions` capability while parsing `initialize`. The server talks to
+   one client over stdio, so a process-wide flag is sufficient.
+   `test/mcp-apps-built-server.test.ts` checks both kinds of client against
+   the built server.
+
 ## Consequences
 
-- No migration off `@modelcontextprotocol/sdk` 1.x was needed; the server
-  dependency graph is unchanged.
+- No migration off `@modelcontextprotocol/sdk` 1.x was needed; the only
+  server dependency change is the bump to 1.30.1 (Addendum 3).
 - Hosts that understand MCP Apps can render an interactive, pannable,
-  zoomable bpmn-js diagram inline after any mutating tool call on a diagram
-  created with `includeAppView: true`; hosts that don't simply ignore the
-  unfamiliar `_meta` field and `ui://` resource, so this is fully backwards
-  compatible.
+  zoomable bpmn-js diagram inline after any mutating tool call; other
+  clients never see the `_meta` field or the embedded XML, so this is fully
+  backwards compatible.
 - **Known gap, disclosed rather than papered over**: full bidirectional
   protocol behavior (host connects to the View, View receives the live
   `ui/notifications/tool-result` and renders) is not verified by an

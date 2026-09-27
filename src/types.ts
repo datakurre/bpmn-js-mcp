@@ -89,17 +89,6 @@ export interface DiagramState {
    * Set via `create_bpmn_diagram` with `includeImage`.
    */
   includeImage?: IncludeImage;
-  /**
-   * When true, every mutating tool response also embeds the diagram's
-   * current XML as a `type: 'resource'` content item (`audience: ['user']`,
-   * so it doesn't cost the model any context) for MCP Apps-capable hosts to
-   * feed into the `ui://bpmn-diagram-viewer` interactive view (issue #11 /
-   * ADR-025). Skipped for diagrams beyond `LARGE_XML_CHARS`. Default: false
-   * — opt-in, independent of `includeImage`.
-   *
-   * Set via `create_bpmn_diagram` with `includeAppView`.
-   */
-  includeAppView?: boolean;
 }
 
 /** A single text item in a tool result. */

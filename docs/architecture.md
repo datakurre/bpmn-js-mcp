@@ -154,6 +154,7 @@ Allowed dependency direction: top → bottom
 | `src/auto-layout-input.ts`      | Prepares library input: boundary-event lane sync, element-subset extraction                                   |
 | `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                                   |
 | `src/mcp-apps/resource.ts`      | Serves the `ui://bpmn-diagram-viewer` MCP Apps HTML resource (Node)                                           |
+| `src/mcp-apps/host-support.ts`  | Detects MCP Apps hosts from their `initialize` capabilities (Node)                                            |
 | `src/mcp-apps/viewer-entry.ts`  | Browser-side MCP Apps View script — separate esbuild/tsconfig target, never bundled into the server (ADR-025) |
 
 ## Where to Put New Code
@@ -206,4 +207,4 @@ diagram viewer                        MCP_APP_VIEW_EXCLUDED_TOOLS in
 
 9. **Label adjustment** — Geometry-based scoring positions external labels away from connection paths to reduce visual overlap.
 
-10. **MCP Apps diagram viewer** — Mutating tools declare `_meta.ui.resourceUri: 'ui://bpmn-diagram-viewer'`; `includeAppView: true` on a diagram makes `appendMcpAppContent()` embed its XML as an `audience: ["user"]` resource content item on every subsequent mutating call, for hosts that render it inline. See [ADR-025](../agents/adrs/ADR-025-mcp-apps-diagram-viewer.md).
+10. **MCP Apps diagram viewer** — For hosts that advertise the `io.modelcontextprotocol/ui` extension in `initialize`, mutating tools declare `_meta.ui.resourceUri: 'ui://bpmn-diagram-viewer'` and `appendMcpAppContent()` embeds the diagram's XML as an `audience: ["user"]` resource content item in their results, for the View to render inline. See [ADR-025](../agents/adrs/ADR-025-mcp-apps-diagram-viewer.md).

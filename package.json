@@ -39,7 +39,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.30.1",
     "bpmn-auto-layout": "github:datakurre/bpmn-auto-layout",
     "bpmn-js": "^18.28.0",
     "bpmn-to-image": "github:datakurre/bpmn-to-image",

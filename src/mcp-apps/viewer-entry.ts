@@ -13,10 +13,9 @@
  * time a tool call result arrives (`ontoolresult`) that carries an embedded
  * `application/xml` resource content item (see `appendMcpAppContent()` in
  * `src/linter.ts` on the server side). That item is only present when the
- * diagram was created with `includeAppView: true` and stays under
- * `LARGE_XML_CHARS`; this view shows an explanatory notice instead of the
- * interactive diagram otherwise (`_meta.ui.resourceUri` is on every mutating
- * tool regardless, so a host may open this view for diagrams that opted out).
+ * host advertised MCP Apps support and the diagram stays under
+ * `LARGE_XML_CHARS`. The server only points tools at this view for such
+ * hosts, so a missing item means the diagram was too large to embed.
  *
  * The pure data-extraction logic below (`extractDiagramXml`,
  * `base64EncodeUtf8`) has no DOM dependency and is unit-tested directly in
@@ -37,8 +36,8 @@ export const CONTAINER_ID = 'bpmn-app-view';
 
 /**
  * Find the embedded diagram XML in a `ui/notifications/tool-result`
- * payload's content array, or `undefined` if none is present (large diagram,
- * or `includeAppView` wasn't set — see `appendMcpAppContent()`).
+ * payload's content array, or `undefined` if none is present (diagram past
+ * `LARGE_XML_CHARS` — see `appendMcpAppContent()`).
  */
 export function extractDiagramXml(content: unknown[] | undefined): string | undefined {
   const xmlItem = (content ?? []).find(
@@ -69,10 +68,7 @@ function main(): void {
   app.ontoolresult = (result) => {
     const xml = extractDiagramXml((result as { content?: unknown[] }).content);
     if (!xml) {
-      showMessage(
-        'No inline preview for this diagram. Create it with includeAppView: true to preview ' +
-          'it here (a large diagram may still be skipped), or use export_bpmn for an image.'
-      );
+      showMessage('This diagram is too large to preview inline. Use export_bpmn instead.');
       return;
     }
     if (typeof window.TokenSimulation !== 'function') {

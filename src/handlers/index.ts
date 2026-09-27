@@ -340,30 +340,27 @@ function resolveToolTier(): 'core' | 'full' {
 export const TOOL_TIER: 'core' | 'full' = resolveToolTier();
 
 /** Build the ListTools payload for a given tier. Exposed for direct testing. */
-/**
- * Build the MCP Apps `_meta.ui.resourceUri` for a tool (issue #11 / ADR-025),
- * or `undefined` for tools not eligible (read-only, or `delete_bpmn_diagram`).
- * Modern `_meta.ui.resourceUri` format per the ext-apps spec; hosts that
- * don't understand `_meta` simply ignore it.
- */
-function buildMcpAppsMeta(name: string): Record<string, unknown> | undefined {
-  if (READONLY_TOOLS.has(name) || MCP_APP_VIEW_EXCLUDED_TOOLS.has(name)) return undefined;
-  return { ui: { resourceUri: APP_VIEWER_RESOURCE_URI } };
-}
-
 export function computeToolDefinitions(
   tier: 'core' | 'full'
 ): Array<{ name: string; [key: string]: unknown }> {
   return TOOL_REGISTRY.filter((r) => !r.hidden && (tier === 'full' || r.tier === 'core')).map(
-    (r) => {
-      const name = r.definition.name as string;
-      const meta = buildMcpAppsMeta(name);
-      return {
-        ...r.definition,
-        annotations: buildAnnotations(name),
-        ...(meta ? { _meta: meta } : {}),
-      };
-    }
+    (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
+  );
+}
+
+/**
+ * Add the MCP Apps `_meta.ui.resourceUri` (issue #11 / ADR-025) to every
+ * eligible tool — all mutating tools except `delete_bpmn_diagram`.  Only
+ * applied to the ListTools payload for hosts that advertised MCP Apps
+ * support (see `src/mcp-apps/host-support.ts`); other clients never see it.
+ */
+export function withMcpAppsMeta<T extends { name: string; [key: string]: unknown }>(
+  tools: T[]
+): T[] {
+  return tools.map((tool) =>
+    READONLY_TOOLS.has(tool.name) || MCP_APP_VIEW_EXCLUDED_TOOLS.has(tool.name)
+      ? tool
+      : { ...tool, _meta: { ui: { resourceUri: APP_VIEWER_RESOURCE_URI } } }
   );
 }
 

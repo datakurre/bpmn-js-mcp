@@ -30,6 +30,12 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { type ToolModule } from './module';
 import { bpmnModule } from './bpmn-module';
+import { withMcpAppsMeta } from './handlers';
+import {
+  detectMcpAppsSupport,
+  isMcpAppsHostSupported,
+  setMcpAppsHostSupported,
+} from './mcp-apps/host-support';
 import { enablePersistence, persistAllDiagrams } from './persistence';
 import { setServerHintLevel } from './linter';
 import type { HintLevel, ToolContext } from './types';
@@ -135,11 +141,18 @@ const server = new Server(
   }
 );
 
+// Hosts advertise MCP Apps support in `initialize`; the diagram viewer is
+// only offered to them (issue #11 / ADR-025).
+server.oninitialized = () => {
+  setMcpAppsHostSupported(detectMcpAppsSupport(server.getClientCapabilities()));
+};
+
 // ── Tool handlers ──────────────────────────────────────────────────────────
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: modules.flatMap((m) => m.toolDefinitions),
-}));
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const tools = modules.flatMap((m) => m.toolDefinitions);
+  return { tools: isMcpAppsHostSupported() ? withMcpAppsMeta(tools) : tools };
+});
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const { name, arguments: args } = request.params;

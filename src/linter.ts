@@ -23,6 +23,7 @@ import {
 import { getDiagramId } from './diagram-manager';
 import { buildConnectivityWarnings } from './handlers/helpers';
 import { LARGE_XML_CHARS } from './constants';
+import { isMcpAppsHostSupported } from './mcp-apps/host-support';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -503,7 +504,7 @@ export async function appendLintFeedback(
   const willAppendFeedback = hintLevel !== 'none';
   const imageFormats = resolveIncludeFormats(diagram.includeImage);
   const willAppendImage = imageFormats.length > 0;
-  const willAppendAppView = diagram.includeAppView === true;
+  const willAppendAppView = isMcpAppsHostSupported();
 
   if (!willAppendFeedback && !willAppendImage && !willAppendAppView) return result;
 

@@ -23,7 +23,7 @@ describe('extractDiagramXml', () => {
     expect(extractDiagramXml(content)).toBe('<xml/>');
   });
 
-  test('returns undefined when no resource content item is present (includeAppView off)', () => {
+  test('returns undefined when no resource content item is present', () => {
     const content = [{ type: 'text', text: '{"success":true}' }];
     expect(extractDiagramXml(content)).toBeUndefined();
   });

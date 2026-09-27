@@ -1,15 +1,26 @@
 /**
  * Tests for MCP Apps support (issue #11 / ADR-025):
- * - Mutating tools declare `_meta.ui.resourceUri` pointing at
- *   `ui://bpmn-diagram-viewer`; read-only tools and `delete_bpmn_diagram`
- *   don't.
- * - `create_bpmn_diagram`/mutating tools embed the diagram's current XML as
- *   an `audience: ['user']` resource content item when `includeAppView: true`
- *   (opt-in, independent of `includeImage`), skipped past `LARGE_XML_CHARS`.
+ * - The server detects MCP Apps hosts from the `io.modelcontextprotocol/ui`
+ *   extension in their `initialize` capabilities.
+ * - Only for such hosts, mutating tools declare `_meta.ui.resourceUri`
+ *   pointing at `ui://bpmn-diagram-viewer` (read-only tools and
+ *   `delete_bpmn_diagram` never do), and tool results embed the diagram's
+ *   current XML as an `audience: ['user']` resource content item, skipped
+ *   past `LARGE_XML_CHARS`.
  */
-import { describe, test, expect, beforeEach } from 'vitest';
-import { TOOL_DEFINITIONS, handleCreateDiagram, handleAddElement } from '../src/handlers';
-import { clearDiagrams, createDiagram, addElement } from './helpers';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import {
+  TOOL_DEFINITIONS,
+  withMcpAppsMeta,
+  handleCreateDiagram,
+  handleAddElement,
+} from '../src/handlers';
+import {
+  detectMcpAppsSupport,
+  setMcpAppsHostSupported,
+  MCP_APPS_EXTENSION_ID,
+} from '../src/mcp-apps/host-support';
+import { clearDiagrams } from './helpers';
 import { LARGE_XML_CHARS } from '../src/constants';
 
 // Mirrors src/handlers/index.ts's READONLY_TOOLS. analyze_bpmn_lanes is
@@ -24,67 +35,109 @@ const READONLY_TOOL_NAMES = new Set([
   'get_bpmn_element_properties',
 ]);
 
-describe('MCP Apps: _meta.ui.resourceUri on tool definitions', () => {
-  test('mutating tools declare the diagram viewer resource', () => {
-    const createDef = TOOL_DEFINITIONS.find((t) => t.name === 'create_bpmn_diagram') as any;
-    expect(createDef._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+describe('MCP Apps: host detection', () => {
+  test('detects the extension with the viewer MIME type', () => {
+    expect(
+      detectMcpAppsSupport({
+        extensions: { [MCP_APPS_EXTENSION_ID]: { mimeTypes: ['text/html;profile=mcp-app'] } },
+      })
+    ).toBe(true);
+  });
 
-    const addElementDef = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_element') as any;
-    expect(addElementDef._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+  test('accepts the extension without a mimeTypes list', () => {
+    expect(detectMcpAppsSupport({ extensions: { [MCP_APPS_EXTENSION_ID]: {} } })).toBe(true);
+  });
+
+  test('rejects hosts whose mimeTypes exclude the viewer MIME type', () => {
+    expect(
+      detectMcpAppsSupport({
+        extensions: { [MCP_APPS_EXTENSION_ID]: { mimeTypes: ['text/html;profile=other'] } },
+      })
+    ).toBe(false);
+  });
+
+  test('rejects clients without the extension', () => {
+    expect(detectMcpAppsSupport({})).toBe(false);
+    expect(detectMcpAppsSupport(undefined)).toBe(false);
+    expect(detectMcpAppsSupport({ extensions: { 'com.example/other': {} } })).toBe(false);
+  });
+});
+
+describe('MCP Apps: _meta.ui.resourceUri on tool definitions', () => {
+  const withMeta = withMcpAppsMeta(TOOL_DEFINITIONS);
+  const find = (name: string) => withMeta.find((t) => t.name === name) as any;
+
+  test('the default tool list carries no ui meta', () => {
+    for (const tool of TOOL_DEFINITIONS) {
+      expect((tool as any)._meta?.ui, `${tool.name} should have no ui meta`).toBeUndefined();
+    }
+  });
+
+  test('mutating tools declare the diagram viewer resource', () => {
+    expect(find('create_bpmn_diagram')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+    expect(find('add_bpmn_element')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
   });
 
   test('read-only tools do not declare a ui.resourceUri', () => {
-    for (const tool of TOOL_DEFINITIONS) {
+    for (const tool of withMeta) {
       if (READONLY_TOOL_NAMES.has(tool.name)) {
-        expect(
-          (tool as any)._meta?.ui?.resourceUri,
-          `${tool.name} should have no ui meta`
-        ).toBeUndefined();
+        expect((tool as any)._meta?.ui, `${tool.name} should have no ui meta`).toBeUndefined();
       }
     }
   });
 
   test('delete_bpmn_diagram does not declare a ui.resourceUri (nothing left to view)', () => {
-    const def = TOOL_DEFINITIONS.find((t) => t.name === 'delete_bpmn_diagram') as any;
-    expect(def._meta?.ui?.resourceUri).toBeUndefined();
+    expect(find('delete_bpmn_diagram')._meta?.ui).toBeUndefined();
   });
 
   test('analyze_bpmn_lanes (mutating in redistribute mode, #21) declares a ui.resourceUri', () => {
-    const def = TOOL_DEFINITIONS.find((t) => t.name === 'analyze_bpmn_lanes') as any;
-    expect(def._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+    expect(find('analyze_bpmn_lanes')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
   });
 
   test('delete_bpmn_element (still leaves a diagram) does declare a ui.resourceUri', () => {
-    const def = TOOL_DEFINITIONS.find((t) => t.name === 'delete_bpmn_element') as any;
-    expect(def._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+    expect(find('delete_bpmn_element')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
   });
 });
 
-describe('MCP Apps: includeAppView content embedding', () => {
+describe('MCP Apps: diagram XML embedding', () => {
   beforeEach(() => {
     clearDiagrams();
+  });
+
+  afterEach(() => {
+    setMcpAppsHostSupported(false);
   });
 
   function findXmlResourceItem(content: any[]): any {
     return content.find((c) => c.type === 'resource' && c.resource?.mimeType === 'application/xml');
   }
 
-  test('create_bpmn_diagram without includeAppView does not embed XML content', async () => {
-    const result = await handleCreateDiagram({});
-    expect(findXmlResourceItem(result.content)).toBeUndefined();
+  async function createDiagramId(name?: string): Promise<string> {
+    const result = await handleCreateDiagram({ name });
+    return JSON.parse(result.content[0].text!).diagramId;
+  }
+
+  test('nothing is embedded for hosts without MCP Apps support', async () => {
+    const created = await handleCreateDiagram({});
+    expect(findXmlResourceItem(created.content)).toBeUndefined();
+
+    const diagramId = JSON.parse(created.content[0].text!).diagramId;
+    const added = await handleAddElement({ diagramId, elementType: 'bpmn:StartEvent' });
+    expect(findXmlResourceItem(added.content)).toBeUndefined();
   });
 
-  test('create_bpmn_diagram with includeAppView:true embeds XML as audience:user content', async () => {
-    const result = await handleCreateDiagram({ includeAppView: true });
+  test('create_bpmn_diagram embeds XML as audience:user content for MCP Apps hosts', async () => {
+    setMcpAppsHostSupported(true);
+    const result = await handleCreateDiagram({});
     const item = findXmlResourceItem(result.content);
     expect(item).toBeDefined();
     expect(item.resource.text).toContain('bpmn:definitions');
     expect(item.annotations).toEqual({ audience: ['user'] });
   });
 
-  test('a later mutating call on an includeAppView diagram also embeds fresh XML', async () => {
-    const createResult = await handleCreateDiagram({ includeAppView: true });
-    const diagramId = JSON.parse(createResult.content[0].text!).diagramId;
+  test('a later mutating call also embeds fresh XML for MCP Apps hosts', async () => {
+    setMcpAppsHostSupported(true);
+    const diagramId = await createDiagramId();
 
     const addResult = await handleAddElement({
       diagramId,
@@ -96,20 +149,9 @@ describe('MCP Apps: includeAppView content embedding', () => {
     expect(item.resource.text).toContain('Begin');
   });
 
-  test('a mutating call on a diagram without includeAppView does not embed XML', async () => {
-    const diagramId = await createDiagram('No app view');
-    await addElement(diagramId, 'bpmn:StartEvent', { name: 'Begin' });
-    const addAgainResult = await handleAddElement({
-      diagramId,
-      elementType: 'bpmn:EndEvent',
-      name: 'Done',
-    });
-    expect(findXmlResourceItem(addAgainResult.content)).toBeUndefined();
-  });
-
-  test('large diagram skips XML embedding even with includeAppView:true', async () => {
-    const createResult = await handleCreateDiagram({ includeAppView: true, name: 'Big' });
-    const diagramId = JSON.parse(createResult.content[0].text!).diagramId;
+  test('large diagram skips XML embedding even for MCP Apps hosts', async () => {
+    setMcpAppsHostSupported(true);
+    const diagramId = await createDiagramId('Big');
 
     let lastResult;
     for (let i = 0; i < 60; i++) {

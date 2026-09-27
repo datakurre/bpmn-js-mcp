@@ -18,6 +18,7 @@ import {
 } from '../../diagram-manager';
 import { jsonResult, getService, getProcesses } from '../helpers';
 import { appendMcpAppContent } from '../../linter';
+import { isMcpAppsHostSupported } from '../../mcp-apps/host-support';
 
 /** Workflow context hint for guiding pool/lane usage. */
 export type WorkflowContext = 'single-organization' | 'multi-organization' | 'multi-system';
@@ -47,13 +48,6 @@ export interface CreateDiagramArgs {
    * - `false`          — no images
    */
   includeImage?: IncludeImage;
-  /**
-   * When true, every mutating tool response also embeds the diagram's
-   * current XML for MCP Apps-capable hosts to render an interactive
-   * `ui://bpmn-diagram-viewer` view (issue #11). Independent of
-   * `includeImage`. Default: false.
-   */
-  includeAppView?: boolean;
 }
 
 /** Convert a human name into a valid BPMN process id (XML NCName). */
@@ -167,7 +161,6 @@ async function cloneDiagram(args: CreateDiagramArgs): Promise<ToolResult> {
     xml: xml || '',
     name: args.name || source.name,
     includeImage: args.includeImage ?? source.includeImage,
-    includeAppView: args.includeAppView ?? source.includeAppView,
   });
   return jsonResult({
     success: true,
@@ -213,7 +206,6 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
     draftMode: args.draftMode ?? false,
     hintLevel,
     includeImage: args.includeImage ?? ['png'],
-    includeAppView: args.includeAppView ?? false,
   };
   storeDiagram(diagramId, diagramState);
 
@@ -254,7 +246,7 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
   const formats = resolveIncludeFormats(args.includeImage ?? ['png']);
   await appendImages(result, modeler, formats);
 
-  if (args.includeAppView) {
+  if (isMcpAppsHostSupported()) {
     await appendMcpAppContent(result, diagramState);
   }
 
@@ -322,14 +314,6 @@ export const TOOL_DEFINITION = {
           },
           { type: 'boolean' },
         ],
-      },
-      includeAppView: {
-        type: 'boolean',
-        description:
-          "When true, every mutating tool response also embeds the diagram's current XML " +
-          "for MCP Apps-capable hosts (see the 'ui://bpmn-diagram-viewer' resource) to render " +
-          'an interactive, pannable/zoomable view inline in the conversation, instead of (or ' +
-          'alongside) includeImage. Independent of includeImage. Default: false.',
       },
     },
   },
