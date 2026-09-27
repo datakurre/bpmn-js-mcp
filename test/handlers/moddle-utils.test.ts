@@ -25,6 +25,8 @@ import { getService } from '../../src/bpmn-types';
 let diagramId: string;
 let modeler: any;
 let moddle: any;
+let modeling: any;
+let rootElement: any;
 let definitions: any;
 
 beforeEach(async () => {
@@ -32,9 +34,11 @@ beforeEach(async () => {
   const diagram = getDiagram(diagramId)!;
   modeler = diagram.modeler;
   moddle = getService(modeler, 'moddle');
+  modeling = getService(modeler, 'modeling');
   // Get definitions via canvas root
   const canvas = getService(modeler, 'canvas');
-  definitions = canvas.getRootElement()?.businessObject?.$parent;
+  rootElement = canvas.getRootElement();
+  definitions = rootElement?.businessObject?.$parent;
 });
 
 afterEach(() => {
@@ -199,7 +203,7 @@ describe('upsertExtensionElement', () => {
 
 describe('resolveOrCreateError', () => {
   test('creates a new bpmn:Error when not found', () => {
-    const err = resolveOrCreateError(moddle, definitions, {
+    const err = resolveOrCreateError(moddle, modeling, rootElement, definitions, {
       id: 'Error_NotFound',
       name: 'Not Found Error',
       errorCode: '404',
@@ -210,13 +214,17 @@ describe('resolveOrCreateError', () => {
   });
 
   test('returns the same element on a second call with the same id', () => {
-    const err1 = resolveOrCreateError(moddle, definitions, { id: 'Error_Dup' });
-    const err2 = resolveOrCreateError(moddle, definitions, { id: 'Error_Dup' });
+    const err1 = resolveOrCreateError(moddle, modeling, rootElement, definitions, {
+      id: 'Error_Dup',
+    });
+    const err2 = resolveOrCreateError(moddle, modeling, rootElement, definitions, {
+      id: 'Error_Dup',
+    });
     expect(err1).toBe(err2);
   });
 
   test('adds the error to definitions.rootElements', () => {
-    resolveOrCreateError(moddle, definitions, { id: 'Error_Root' });
+    resolveOrCreateError(moddle, modeling, rootElement, definitions, { id: 'Error_Root' });
     const found = definitions.rootElements.find(
       (re: any) => re.$type === 'bpmn:Error' && re.id === 'Error_Root'
     );
@@ -224,7 +232,9 @@ describe('resolveOrCreateError', () => {
   });
 
   test('defaults name to the id when name is not provided', () => {
-    const err = resolveOrCreateError(moddle, definitions, { id: 'Error_NoName' });
+    const err = resolveOrCreateError(moddle, modeling, rootElement, definitions, {
+      id: 'Error_NoName',
+    });
     expect(err.name).toBe('Error_NoName');
   });
 });
@@ -233,7 +243,7 @@ describe('resolveOrCreateError', () => {
 
 describe('resolveOrCreateMessage', () => {
   test('creates a new bpmn:Message', () => {
-    const msg = resolveOrCreateMessage(moddle, definitions, {
+    const msg = resolveOrCreateMessage(moddle, modeling, rootElement, definitions, {
       id: 'Msg_Order',
       name: 'OrderMessage',
     });
@@ -242,8 +252,12 @@ describe('resolveOrCreateMessage', () => {
   });
 
   test('returns existing message on second call', () => {
-    const msg1 = resolveOrCreateMessage(moddle, definitions, { id: 'Msg_Shared' });
-    const msg2 = resolveOrCreateMessage(moddle, definitions, { id: 'Msg_Shared' });
+    const msg1 = resolveOrCreateMessage(moddle, modeling, rootElement, definitions, {
+      id: 'Msg_Shared',
+    });
+    const msg2 = resolveOrCreateMessage(moddle, modeling, rootElement, definitions, {
+      id: 'Msg_Shared',
+    });
     expect(msg1).toBe(msg2);
   });
 });
@@ -252,7 +266,7 @@ describe('resolveOrCreateMessage', () => {
 
 describe('resolveOrCreateSignal', () => {
   test('creates a new bpmn:Signal', () => {
-    const sig = resolveOrCreateSignal(moddle, definitions, {
+    const sig = resolveOrCreateSignal(moddle, modeling, rootElement, definitions, {
       id: 'Sig_Alert',
       name: 'AlertSignal',
     });
@@ -261,8 +275,8 @@ describe('resolveOrCreateSignal', () => {
   });
 
   test('returns existing signal on second call', () => {
-    const sig1 = resolveOrCreateSignal(moddle, definitions, { id: 'Sig_X' });
-    const sig2 = resolveOrCreateSignal(moddle, definitions, { id: 'Sig_X' });
+    const sig1 = resolveOrCreateSignal(moddle, modeling, rootElement, definitions, { id: 'Sig_X' });
+    const sig2 = resolveOrCreateSignal(moddle, modeling, rootElement, definitions, { id: 'Sig_X' });
     expect(sig1).toBe(sig2);
   });
 });
@@ -271,7 +285,7 @@ describe('resolveOrCreateSignal', () => {
 
 describe('resolveOrCreateEscalation', () => {
   test('creates a new bpmn:Escalation', () => {
-    const esc = resolveOrCreateEscalation(moddle, definitions, {
+    const esc = resolveOrCreateEscalation(moddle, modeling, rootElement, definitions, {
       id: 'Esc_L2',
       name: 'Level2Escalation',
       escalationCode: 'L2',
@@ -281,8 +295,12 @@ describe('resolveOrCreateEscalation', () => {
   });
 
   test('returns existing escalation on second call', () => {
-    const esc1 = resolveOrCreateEscalation(moddle, definitions, { id: 'Esc_Y' });
-    const esc2 = resolveOrCreateEscalation(moddle, definitions, { id: 'Esc_Y' });
+    const esc1 = resolveOrCreateEscalation(moddle, modeling, rootElement, definitions, {
+      id: 'Esc_Y',
+    });
+    const esc2 = resolveOrCreateEscalation(moddle, modeling, rootElement, definitions, {
+      id: 'Esc_Y',
+    });
     expect(esc1).toBe(esc2);
   });
 });

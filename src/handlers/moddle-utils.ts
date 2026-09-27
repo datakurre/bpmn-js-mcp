@@ -77,7 +77,15 @@ export function fixConnectionId(connection: any, desiredId: string): void {
  * Find or create a BPMN root element (Error, Message, Signal, Escalation).
  * Replaces the duplicated "find existing or create" pattern across 4 specialized functions.
  *
+ * Creating a new root element goes through `modeling.updateModdleProperties`
+ * (not a direct `definitions.rootElements.push`) so it is captured on the
+ * command stack and undoable — a direct push is invisible to `commandStack`
+ * and leaves an orphaned root element behind on rollback (e.g. the `updates[]`
+ * batch form's all-or-nothing rollback in set-properties.ts).
+ *
  * @param moddle - bpmn-moddle instance
+ * @param modeling - bpmn-js modeling service
+ * @param triggerElement - diagram element to attribute the command to (any element in the diagram works — `definitions` has no shape of its own)
  * @param definitions - bpmn:Definitions element
  * @param type - BPMN type string (e.g. 'bpmn:Error', 'bpmn:Message')
  * @param ref - Object with id (required) and optional properties (name, errorCode, escalationCode, etc.)
@@ -85,22 +93,28 @@ export function fixConnectionId(connection: any, desiredId: string): void {
  */
 function resolveOrCreate<T = any>(
   moddle: any,
+  modeling: any,
+  triggerElement: any,
   definitions: any,
   type: string,
   ref: { id: string; [key: string]: any }
 ): T {
-  if (!definitions.rootElements) definitions.rootElements = [];
+  const rootElements = definitions.rootElements || [];
 
-  let element = definitions.rootElements.find((re: any) => re.$type === type && re.id === ref.id);
-  if (!element) {
-    // Create with all properties from ref, defaulting name to id if not provided
-    const props = { ...ref };
-    if (!props.name) props.name = ref.id;
+  const existing = rootElements.find((re: any) => re.$type === type && re.id === ref.id);
+  if (existing) return existing as T;
 
-    element = moddle.create(type, props);
-    definitions.rootElements.push(element);
-    element.$parent = definitions;
-  }
+  // Create with all properties from ref, defaulting name to id if not provided
+  const props = { ...ref };
+  if (!props.name) props.name = ref.id;
+
+  const element = moddle.create(type, props);
+  element.$parent = definitions;
+
+  modeling.updateModdleProperties(triggerElement, definitions, {
+    rootElements: [...rootElements, element],
+  });
+
   return element as T;
 }
 
@@ -114,10 +128,12 @@ function resolveOrCreate<T = any>(
  */
 export function resolveOrCreateError(
   moddle: any,
+  modeling: any,
+  triggerElement: any,
   definitions: any,
   errorRef: { id: string; name?: string; errorCode?: string; errorMessage?: string }
 ): any {
-  return resolveOrCreate(moddle, definitions, 'bpmn:Error', errorRef);
+  return resolveOrCreate(moddle, modeling, triggerElement, definitions, 'bpmn:Error', errorRef);
 }
 
 /**
@@ -125,10 +141,12 @@ export function resolveOrCreateError(
  */
 export function resolveOrCreateMessage(
   moddle: any,
+  modeling: any,
+  triggerElement: any,
   definitions: any,
   messageRef: { id: string; name?: string }
 ): any {
-  return resolveOrCreate(moddle, definitions, 'bpmn:Message', messageRef);
+  return resolveOrCreate(moddle, modeling, triggerElement, definitions, 'bpmn:Message', messageRef);
 }
 
 /**
@@ -136,10 +154,12 @@ export function resolveOrCreateMessage(
  */
 export function resolveOrCreateSignal(
   moddle: any,
+  modeling: any,
+  triggerElement: any,
   definitions: any,
   signalRef: { id: string; name?: string }
 ): any {
-  return resolveOrCreate(moddle, definitions, 'bpmn:Signal', signalRef);
+  return resolveOrCreate(moddle, modeling, triggerElement, definitions, 'bpmn:Signal', signalRef);
 }
 
 /**
@@ -147,8 +167,17 @@ export function resolveOrCreateSignal(
  */
 export function resolveOrCreateEscalation(
   moddle: any,
+  modeling: any,
+  triggerElement: any,
   definitions: any,
   escalationRef: { id: string; name?: string; escalationCode?: string }
 ): any {
-  return resolveOrCreate(moddle, definitions, 'bpmn:Escalation', escalationRef);
+  return resolveOrCreate(
+    moddle,
+    modeling,
+    triggerElement,
+    definitions,
+    'bpmn:Escalation',
+    escalationRef
+  );
 }

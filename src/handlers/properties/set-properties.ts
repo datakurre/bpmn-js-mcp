@@ -68,6 +68,7 @@ import {
   handleSetEventDefinition,
   applySetEventDefinitionCore,
   assertEventDefinitionTarget,
+  validateEventDefinitionArgs,
   EVENT_DEFINITION_SCHEMA_PROPERTIES,
   type SetEventDefinitionArgs,
 } from './set-event-definition';
@@ -585,7 +586,11 @@ function validateAndResolveEffectiveType(
   return item.elementType;
 }
 
-/** Throws unless every sub-object concern on the item targets a compatible element type. */
+/**
+ * Throws unless every sub-object concern on the item targets a compatible
+ * element type. Also runs eventDefinition's full (side-effect-free) argument
+ * validation, since that sub-object's failure modes go beyond target type.
+ */
 function assertUpdateItemSubObjectTargets(
   item: SetPropertiesUpdateItem,
   effectiveType: string,
@@ -601,7 +606,10 @@ function assertUpdateItemSubObjectTargets(
     }
     if (item.callActivityVariables) assertCallActivityTarget(effectiveType, item.elementId);
     if (item.loop) assertLoopTarget(effectiveType, item.elementId);
-    if (item.eventDefinition) assertEventDefinitionTarget(effectiveType, item.elementId);
+    if (item.eventDefinition) {
+      assertEventDefinitionTarget(effectiveType, item.elementId);
+      validateEventDefinitionArgs(item.eventDefinition);
+    }
   } catch (err) {
     throw semanticViolationError(`${label}: ${(err as Error).message}`);
   }

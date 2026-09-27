@@ -3,7 +3,7 @@
  * — the former set_bpmn_event_definition, removed outright and folded in.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
-import { handleSetProperties, handleExportBpmn } from '../../../src/handlers';
+import { handleSetProperties, handleExportBpmn, handleBpmnHistory } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../helpers';
 
 describe('set_bpmn_element_properties — eventDefinition sub-object', () => {
@@ -114,5 +114,119 @@ describe('set_bpmn_element_properties — eventDefinition sub-object', () => {
     const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
       .text as string;
     expect((xml.match(/timerEventDefinition/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('undoes a single-element eventDefinition change via bpmn_history', async () => {
+    const diagramId = await createDiagram();
+    const eventId = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 100, y: 100 });
+
+    await handleSetProperties({
+      diagramId,
+      elementId: eventId,
+      eventDefinition: {
+        eventDefinitionType: 'bpmn:TimerEventDefinition',
+        properties: { timeDuration: 'PT5M' },
+      },
+    });
+
+    let xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text as string;
+    expect(xml).toContain('timerEventDefinition');
+
+    const undoResult = parseResult(
+      await handleBpmnHistory({ diagramId, action: 'undo', steps: 1 })
+    );
+    expect(undoResult.stepsPerformed).toBe(1);
+
+    xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text as string;
+    expect(xml).not.toContain('timerEventDefinition');
+  });
+
+  test('rolls back an eventDefinition applied by an earlier batch item when a later item fails', async () => {
+    const diagramId = await createDiagram();
+    const eventId = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 100, y: 100 });
+
+    await expect(
+      handleSetProperties({
+        diagramId,
+        updates: [
+          {
+            elementId: eventId,
+            eventDefinition: {
+              eventDefinitionType: 'bpmn:MessageEventDefinition',
+              messageRef: { id: 'Msg_X', name: 'X' },
+            },
+          },
+          {
+            elementId: eventId,
+            // Fails: no timeDuration/timeDate/timeCycle provided.
+            eventDefinition: { eventDefinitionType: 'bpmn:TimerEventDefinition', properties: {} },
+          },
+        ],
+      })
+    ).rejects.toThrow(/updates\[1\]/);
+
+    const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text as string;
+    expect(xml).not.toContain('messageEventDefinition');
+    expect(xml).not.toContain('Msg_X');
+  });
+
+  test('does not leave an orphaned root element when a later batch item fails', async () => {
+    const diagramId = await createDiagram();
+    const event1 = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 100, y: 100 });
+    const event2 = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 300, y: 100 });
+
+    await expect(
+      handleSetProperties({
+        diagramId,
+        updates: [
+          {
+            elementId: event1,
+            eventDefinition: {
+              eventDefinitionType: 'bpmn:ErrorEventDefinition',
+              errorRef: { id: 'Error_X', name: 'X' },
+            },
+          },
+          {
+            elementId: event2,
+            eventDefinition: { eventDefinitionType: 'bpmn:TimerEventDefinition', properties: {} },
+          },
+        ],
+      })
+    ).rejects.toThrow();
+
+    const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text as string;
+    expect(xml).not.toContain('Error_X');
+    expect(xml).not.toContain('bpmn:error');
+  });
+
+  test('rejects a bad eventDefinition before mutating anything (pre-validation)', async () => {
+    const diagramId = await createDiagram();
+    const event1 = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 100, y: 100 });
+    const event2 = await addElement(diagramId, 'bpmn:IntermediateCatchEvent', { x: 300, y: 100 });
+
+    await expect(
+      handleSetProperties({
+        diagramId,
+        updates: [
+          {
+            elementId: event1,
+            eventDefinition: {
+              eventDefinitionType: 'bpmn:TimerEventDefinition',
+              properties: { timeDuration: 'PT5M' },
+            },
+          },
+          // Missing eventDefinitionType entirely — should be caught up front.
+          { elementId: event2, eventDefinition: {} as any },
+        ],
+      })
+    ).rejects.toThrow(/updates\[1\]/);
+
+    const xml = (await handleExportBpmn({ format: 'xml', diagramId, skipLint: true })).content[0]
+      .text as string;
+    expect(xml).not.toContain('timerEventDefinition');
   });
 });

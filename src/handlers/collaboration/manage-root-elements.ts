@@ -35,19 +35,21 @@ export async function handleManageRootElements(args: ManageRootElementsArgs): Pr
 
   const diagram = requireDiagram(diagramId);
   const moddle = getService(diagram.modeler, 'moddle');
+  const modeling = getService(diagram.modeler, 'modeling');
   const canvas = getService(diagram.modeler, 'canvas');
-  const definitions = canvas.getRootElement().businessObject.$parent;
+  const rootElement = canvas.getRootElement();
+  const definitions = rootElement.businessObject.$parent;
 
   const createdMessages: Array<{ id: string; name: string }> = [];
   const createdSignals: Array<{ id: string; name: string }> = [];
 
   for (const msg of messages) {
-    const msgEl = resolveOrCreateMessage(moddle, definitions, msg);
+    const msgEl = resolveOrCreateMessage(moddle, modeling, rootElement, definitions, msg);
     createdMessages.push({ id: msgEl.id, name: msgEl.name });
   }
 
   for (const sig of signals) {
-    const sigEl = resolveOrCreateSignal(moddle, definitions, sig);
+    const sigEl = resolveOrCreateSignal(moddle, modeling, rootElement, definitions, sig);
     createdSignals.push({ id: sigEl.id, name: sigEl.name });
   }
 
