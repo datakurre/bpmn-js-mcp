@@ -87,7 +87,9 @@ inputOutput?, formData?, listeners?, callActivityVariables?, loop? }]`
   applied" rather than a partially-applied diagram, at the cost of an extra
   undo pass in that rarer case.
 - `connect_bpmn_elements` and `get_bpmn_element_properties` plural forms
-  (items #2 and #3 of the proposal) are follow-ups, not covered here.
+  (items #2 and #3 of the proposal) are follow-ups, not covered here — see
+  [ADR-027](ADR-027-get-properties-folded-into-list-elements.md) and
+  [ADR-029](ADR-029-connect-elements-batch-form.md).
 
 ## Follow-up: move_bpmn_element's `moves` array
 
