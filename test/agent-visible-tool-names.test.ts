@@ -10,6 +10,8 @@
  * `create_bpmn_diagram`) and fails if the token isn't a currently
  * registered tool name.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, test, expect } from 'vitest';
 import { TOOL_DEFINITIONS } from '../src/tool-definitions';
 import { ALL_DISPATCHABLE_TOOL_NAMES } from '../src/handlers/index';
@@ -55,4 +57,25 @@ describe('agent-visible text only references registered tools', () => {
       expect(unknown).toEqual([]);
     });
   }
+});
+
+describe('agent-visible lane hints', () => {
+  // analyze_bpmn_lanes' public schema has no laneId/elementIds, so a hint
+  // routing manual lane assignment through it cannot be followed (#21).
+  // Hints are built as strings inside handlers, so scan the sources.
+  function listSourceFiles(dir: string): string[] {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return listSourceFiles(full);
+      return entry.name.endsWith('.ts') ? [full] : [];
+    });
+  }
+
+  test('no hint routes manual lane assignment through analyze_bpmn_lanes', () => {
+    const srcDir = path.resolve(__dirname, '../src');
+    const offenders = listSourceFiles(srcDir).filter((file) =>
+      fs.readFileSync(file, 'utf-8').includes('strategy: manual')
+    );
+    expect(offenders.map((file) => path.relative(srcDir, file))).toEqual([]);
+  });
 });

@@ -268,7 +268,7 @@ export async function handleSplitParticipantIntoLanes(
   if (existingLanes.length > 0) {
     throw illegalCombinationError(
       `Participant "${participantId}" already has ${existingLanes.length} lane(s). ` +
-        'Use analyze_bpmn_lanes (mode: redistribute, strategy: manual) to reassign elements, or delete existing lanes first.',
+        'Use assign_bpmn_elements_to_lane to reassign elements, or delete existing lanes first.',
       ['participantId']
     );
   }
@@ -321,9 +321,9 @@ export async function handleSplitParticipantIntoLanes(
     message: `Split participant "${participantId}" into ${laneIds.length} lanes (${strategy} strategy): ${laneDefs.map((l) => `"${l.name}" (${l.elementIds.length} elements)`).join(', ')}`,
     nextSteps: [
       {
-        tool: 'analyze_bpmn_lanes',
+        tool: 'assign_bpmn_elements_to_lane',
         description:
-          'Move elements between lanes if the automatic assignment needs adjustment (mode: redistribute, strategy: manual)',
+          'Move elements between lanes if the automatic assignment needs adjustment (laneId + elementIds)',
       },
       {
         tool: 'layout_bpmn_diagram',

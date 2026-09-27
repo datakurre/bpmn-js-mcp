@@ -253,7 +253,6 @@ describe('tool-definitions', () => {
       'list_bpmn_elements',
       'get_bpmn_element_properties',
       'validate_bpmn_diagram',
-      'analyze_bpmn_lanes',
       'list_bpmn_process_variables',
     ];
 
@@ -271,6 +270,11 @@ describe('tool-definitions', () => {
     test.each(readOnlyToolNames)('%s has readOnlyHint: true', (name) => {
       const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
       expect((tool as any).annotations.readOnlyHint).toBe(true);
+    });
+
+    test('analyze_bpmn_lanes is not read-only (redistribute mode mutates)', () => {
+      const tool = TOOL_DEFINITIONS.find((t) => t.name === 'analyze_bpmn_lanes');
+      expect((tool as any).annotations.readOnlyHint).toBe(false);
     });
 
     test.each(['delete_bpmn_diagram', 'delete_bpmn_element'])(
