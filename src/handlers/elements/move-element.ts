@@ -21,10 +21,12 @@ import {
   getService,
 } from '../helpers';
 import { appendLintFeedback } from '../../linter';
+import { handleMoveElementBatch } from './move-element-batch';
 
 export interface MoveElementArgs {
   diagramId: string;
-  elementId: string;
+  /** Required for the single-element form. Omit when using `moves`. */
+  elementId?: string;
   x?: number;
   y?: number;
   /** ID of the target lane to move the element into. */
@@ -32,6 +34,22 @@ export interface MoveElementArgs {
   /** New width in pixels for resize. */
   width?: number;
   /** New height in pixels for resize. */
+  height?: number;
+  /**
+   * Batch form: move/resize/relane several elements in one call, as a single
+   * undo step. Alternative to the single-element `elementId` (+ x/y/laneId/
+   * width/height) fields above.
+   */
+  moves?: MoveItem[];
+}
+
+/** One element's worth of move/resize/relane within the `moves` batch form. */
+export interface MoveItem {
+  elementId: string;
+  x?: number;
+  y?: number;
+  laneId?: string;
+  width?: number;
   height?: number;
 }
 
@@ -73,14 +91,22 @@ function applyResize(
   return { width: newWidth, height: newHeight };
 }
 
-export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'elementId']);
-  const { diagramId, elementId, x, y, laneId, width, height } = args;
+export interface MoveItemResult {
+  elementId: string;
+  actions: string[];
+  hasMove: boolean;
+  hasResize: boolean;
+  hasLane: boolean;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  laneId?: string;
+  element: BpmnElement;
+}
 
-  const hasMove = x !== undefined || y !== undefined;
-  const hasResize = width !== undefined || height !== undefined;
-  const hasLane = laneId !== undefined;
-
+/** Throws unless at least one of x/y, width/height, or laneId is present. */
+function assertMoveItemHasOp(hasMove: boolean, hasResize: boolean, hasLane: boolean): void {
   if (!hasMove && !hasResize && !hasLane) {
     throw illegalCombinationError('At least one of x/y, width/height, or laneId must be provided', [
       'x',
@@ -90,21 +116,33 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
       'laneId',
     ]);
   }
+}
 
-  // Lane-only mode — handles its own flow
-  if (hasLane && !hasMove && !hasResize) {
-    return handleMoveToLane(diagramId, elementId, laneId!);
-  }
+/**
+ * Validate and apply one element's move/resize/relane. Synchronous — no XML
+ * sync, no lint — so it is safe to call from within a command-stack
+ * `preExecute` alongside other elements' moves, grouped into one undo step
+ * (see `ensureBatchMoveCommand` below). `performMoveToLane` is declared
+ * `async` but has no real `await` inside, so calling it without awaiting
+ * still runs its mutation synchronously before this function returns.
+ */
+export function applyMoveItemCore(
+  diagram: ReturnType<typeof requireDiagram>,
+  elementRegistry: ElementRegistry,
+  modeling: Modeling,
+  item: MoveItem
+): MoveItemResult {
+  const { elementId, x, y, laneId, width, height } = item;
+  const hasMove = x !== undefined || y !== undefined;
+  const hasResize = width !== undefined || height !== undefined;
+  const hasLane = laneId !== undefined;
+  assertMoveItemHasOp(hasMove, hasResize, hasLane);
 
-  const diagram = requireDiagram(diagramId);
-  const modeling = getService(diagram.modeler, 'modeling');
-  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
   const element = requireElement(elementRegistry, elementId);
-
   const actions: string[] = [];
 
   if (hasLane) {
-    await performMoveToLane(diagram, element, laneId!);
+    void performMoveToLane(diagram, element, laneId!);
     actions.push(`moved into lane ${laneId}`);
   }
   if (hasMove) {
@@ -117,21 +155,51 @@ export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResu
   }
 
   pinElement(diagram, elementId);
+
+  return { elementId, actions, hasMove, hasResize, hasLane, x, y, width, height, laneId, element };
+}
+
+export async function handleMoveElement(args: MoveElementArgs): Promise<ToolResult> {
+  validateArgs(args, ['diagramId']);
+
+  if (args.moves) {
+    return handleMoveElementBatch(args.diagramId, args.moves);
+  }
+
+  validateArgs(args, ['elementId']);
+  return handleMoveElementSingle(args);
+}
+
+async function handleMoveElementSingle(args: MoveElementArgs): Promise<ToolResult> {
+  const { diagramId, x, y, laneId, width, height } = args;
+  const elementId = args.elementId as string;
+
+  const hasMove = x !== undefined || y !== undefined;
+  const hasResize = width !== undefined || height !== undefined;
+  const hasLane = laneId !== undefined;
+  assertMoveItemHasOp(hasMove, hasResize, hasLane);
+
+  // Lane-only mode — handles its own flow
+  if (hasLane && !hasMove && !hasResize) {
+    return handleMoveToLane(diagramId, elementId, laneId!);
+  }
+
+  const diagram = requireDiagram(diagramId);
+  const modeling = getService(diagram.modeler, 'modeling');
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+
+  const itemResult = applyMoveItemCore(diagram, elementRegistry, modeling, {
+    elementId,
+    x,
+    y,
+    laneId,
+    width,
+    height,
+  });
+
   await syncXml(diagram);
 
-  const result = jsonResult(
-    buildMoveResult(elementId, actions, {
-      hasMove,
-      hasResize,
-      hasLane,
-      x,
-      y,
-      width,
-      height,
-      laneId,
-      element,
-    })
-  );
+  const result = jsonResult(buildMoveResult(elementId, itemResult.actions, itemResult));
   return appendLintFeedback(result, diagram);
 }
 
@@ -304,42 +372,56 @@ async function handleMoveToLane(
 // Backward-compatible alias
 export { handleMoveElement as handleMoveToLane };
 
+/** Per-element move/resize/relane properties, shared between the single-element form and each `moves[]` item. */
+const MOVE_CONCERN_SCHEMA_PROPERTIES = {
+  x: { type: 'number', description: 'New X coordinate. Required unless laneId is given.' },
+  y: { type: 'number', description: 'New Y coordinate. Required unless laneId is given.' },
+  width: { type: 'number', description: 'New width in pixels (top-left preserved).' },
+  height: { type: 'number', description: 'New height in pixels (top-left preserved).' },
+  laneId: {
+    type: 'string',
+    description: 'Target lane ID; x/y are ignored and the element is auto-centered in the lane.',
+  },
+} as const;
+
+/** Lean per-item schema for `moves[]` — same fields as above, no repeated descriptions. */
+const MOVE_ITEM_CONCERN_PROPERTIES = {
+  x: { type: 'number' },
+  y: { type: 'number' },
+  width: { type: 'number' },
+  height: { type: 'number' },
+  laneId: { type: 'string' },
+} as const;
+
 export const TOOL_DEFINITION = {
   name: 'move_bpmn_element',
   description:
-    'Move, resize, or reassign an element to a lane. Supports any combination: ' +
-    'x/y to move to absolute coordinates, width/height to resize (top-left preserved), ' +
-    'laneId to move into a lane with auto-centering. At least one operation must be specified.',
+    'Move, resize, or reassign an element to a lane. Any combination of x/y (absolute move), ' +
+    'width/height (resize, top-left preserved), and laneId (auto-centered) — at least one required. ' +
+    'For several elements at once, pass `moves: [{ elementId, x?, y?, width?, height?, laneId? }]` ' +
+    'instead — validated up front, applied as one undo step.',
   inputSchema: {
     type: 'object',
     properties: {
       diagramId: { type: 'string', description: 'The diagram ID' },
       elementId: {
         type: 'string',
-        description: 'The ID of the element to move or resize',
+        description: 'Element to move or resize. Omit when using `moves`.',
       },
-      x: {
-        type: 'number',
-        description: 'New X coordinate (absolute position). Required unless laneId is provided.',
-      },
-      y: {
-        type: 'number',
-        description: 'New Y coordinate (absolute position). Required unless laneId is provided.',
-      },
-      width: {
-        type: 'number',
-        description: 'New width in pixels. The top-left corner position is preserved.',
-      },
-      height: {
-        type: 'number',
-        description: 'New height in pixels. The top-left corner position is preserved.',
-      },
-      laneId: {
-        type: 'string',
-        description:
-          'ID of the target lane to move the element into. When provided, x/y are ignored and the element is auto-centered in the lane.',
+      ...MOVE_CONCERN_SCHEMA_PROPERTIES,
+      moves: {
+        type: 'array',
+        description: 'Batch form — see the tool description.',
+        items: {
+          type: 'object',
+          properties: {
+            elementId: { type: 'string', description: 'Element to move or resize' },
+            ...MOVE_ITEM_CONCERN_PROPERTIES,
+          },
+          required: ['elementId'],
+        },
       },
     },
-    required: ['diagramId', 'elementId'],
+    required: ['diagramId'],
   },
 } as const;

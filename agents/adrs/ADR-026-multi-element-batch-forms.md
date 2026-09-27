@@ -1,4 +1,4 @@
-# ADR-026: Multi-Element `updates` Form for set_bpmn_element_properties
+# ADR-026: Multi-Element Batch Forms (set_bpmn_element_properties, move_bpmn_element)
 
 ## Status
 
@@ -86,5 +86,33 @@ for five elements without five round trips.
   catch-and-rollback path in point 4 makes that degrade safely to "nothing
   applied" rather than a partially-applied diagram, at the cost of an extra
   undo pass in that rarer case.
-- `connect_bpmn_elements`, `get_bpmn_element_properties`, and
-  `move_bpmn_element` plural forms are follow-ups, not covered here.
+- `connect_bpmn_elements` and `get_bpmn_element_properties` plural forms
+  (items #2 and #3 of the proposal) are follow-ups, not covered here.
+
+## Follow-up: move_bpmn_element's `moves` array
+
+The same pattern (validate every item up front, apply the whole batch inside
+one command-stack `preExecute`, catch-don't-throw + undo-loop rollback on
+failure) is applied to `move_bpmn_element` (item #4 of the proposal):
+
+- An optional `moves: [{ elementId, x?, y?, width?, height?, laneId? }]`
+  array is added, alternative to the single-element `elementId` (+ x/y/
+  width/height/laneId) fields. `handleMoveElement` dispatches to either the
+  existing `handleMoveElementSingle` (unchanged behaviour) or
+  `handleMoveElementBatch`.
+- The single-element move/resize/relane logic is extracted into a
+  synchronous `applyMoveItemCore`, reused by both paths — mirroring the
+  `*Core` split point 3 above describes for the property setters.
+- Pre-validation is simpler than the property-setters case: an element move
+  has no sub-object type matrix, just "the element exists", "at least one of
+  x/y/width/height/laneId is given", and (when `laneId` is given) "the lane
+  exists and is a `bpmn:Lane`" — all cheap, non-mutating checks against the
+  element registry.
+- The batch-only code (`ensureBatchMoveCommand`, `preValidateMoveItem`,
+  `handleMoveElementBatch`) lives in a new `move-element-batch.ts` file
+  rather than inline in `move-element.ts`, to stay under the project's
+  per-file `max-lines` budget (`move-element.ts` is not on the exemption
+  list in `eslint.config.mjs` the way `set-properties.ts` is).
+- Unlike the property-setters' response (which lists what changed per
+  element), the moves response only needs `{ elementId, actions }` per item
+  since there are no sub-objects to enumerate.
