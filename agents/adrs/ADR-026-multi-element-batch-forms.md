@@ -23,7 +23,7 @@ for five elements without five round trips.
 ## Decision
 
 1. Add an optional `updates: [{ elementId, properties?, elementType?,
-   inputOutput?, formData?, listeners?, callActivityVariables?, loop? }]`
+inputOutput?, formData?, listeners?, callActivityVariables?, loop? }]`
    array to `set_bpmn_element_properties`, alternative to the single-element
    `elementId` (+ concern) fields. `elementId` becomes optional at the
    top level; `handleSetProperties` is a thin dispatcher that routes to either

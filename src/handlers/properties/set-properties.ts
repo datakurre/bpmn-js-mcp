@@ -637,7 +637,11 @@ function applyPropertyUpdateItem(
   const changed: string[] = [];
 
   if (item.elementType) {
-    const { element: replaced, unchanged } = replaceElementCore(diagram, elementId, item.elementType);
+    const { element: replaced, unchanged } = replaceElementCore(
+      diagram,
+      elementId,
+      item.elementType
+    );
     if (!unchanged) {
       element = replaced;
       elementId = replaced.id;
@@ -717,19 +721,24 @@ function ensureBatchUpdateCommand(modeler: any): void {
   const commandStack = getService(modeler, 'commandStack') as any;
   if (commandStack._getHandler?.(BATCH_UPDATE_COMMAND)) return;
 
-  commandStack.registerHandler(BATCH_UPDATE_COMMAND, function ApplyPropertyUpdatesHandler(this: any) {
-    this.preExecute = (ctx: BatchUpdateContext) => {
-      try {
-        for (const item of ctx.items) {
-          ctx.results.push(applyPropertyUpdateItem(ctx.diagram, ctx.elementRegistry, ctx.modeling, item));
+  commandStack.registerHandler(
+    BATCH_UPDATE_COMMAND,
+    function ApplyPropertyUpdatesHandler(this: any) {
+      this.preExecute = (ctx: BatchUpdateContext) => {
+        try {
+          for (const item of ctx.items) {
+            ctx.results.push(
+              applyPropertyUpdateItem(ctx.diagram, ctx.elementRegistry, ctx.modeling, item)
+            );
+          }
+        } catch (err) {
+          ctx.error = err as Error;
         }
-      } catch (err) {
-        ctx.error = err as Error;
-      }
-    };
-    this.execute = () => [];
-    this.revert = () => [];
-  });
+      };
+      this.execute = () => [];
+      this.revert = () => [];
+    }
+  );
 }
 
 async function handleSetPropertiesBatch(
@@ -766,7 +775,9 @@ async function handleSetPropertiesBatch(
     while ((commandStack._stackIdx ?? 0) > startIdx && commandStack.canUndo()) {
       commandStack.undo();
     }
-    throw semanticViolationError(`Batch update failed: ${ctx.error.message}. No changes were applied.`);
+    throw semanticViolationError(
+      `Batch update failed: ${ctx.error.message}. No changes were applied.`
+    );
   }
 
   await syncXml(diagram);
@@ -1008,7 +1019,7 @@ export const TOOL_DEFINITION = {
     'Also accepts optional sub-objects for other Camunda concerns, settable together with properties ' +
     'in one call: inputOutput, formData, listeners, callActivityVariables, loop. ' +
     'To update several elements in one call — e.g. setting camunda:assignee on every task in an ' +
-    "executable process — pass `updates: [{ elementId, properties, ... }]` instead of the single-element " +
+    'executable process — pass `updates: [{ elementId, properties, ... }]` instead of the single-element ' +
     'elementId/properties/etc. fields. Every item is validated before any element is changed, and the whole ' +
     'batch applies as one undo step.',
   inputSchema: {
@@ -1017,8 +1028,7 @@ export const TOOL_DEFINITION = {
       diagramId: { type: 'string', description: 'The diagram ID' },
       elementId: {
         type: 'string',
-        description:
-          'The ID of the element to update. Required unless `updates` is used instead.',
+        description: 'The ID of the element to update. Required unless `updates` is used instead.',
       },
       ...CONCERN_SCHEMA_PROPERTIES,
       updates: {

@@ -55,7 +55,11 @@ function ensureBatchMoveCommand(modeler: any): void {
 }
 
 /** Validate one `moves[]` item without mutating anything. */
-function preValidateMoveItem(elementRegistry: ElementRegistry, item: MoveItem, index: number): void {
+function preValidateMoveItem(
+  elementRegistry: ElementRegistry,
+  item: MoveItem,
+  index: number
+): void {
   const label = `moves[${index}] (elementId: ${item.elementId})`;
   const hasMove = item.x !== undefined || item.y !== undefined;
   const hasResize = item.width !== undefined || item.height !== undefined;
@@ -105,7 +109,9 @@ export async function handleMoveElementBatch(
     while ((commandStack._stackIdx ?? 0) > startIdx && commandStack.canUndo()) {
       commandStack.undo();
     }
-    throw semanticViolationError(`Batch move failed: ${ctx.error.message}. No changes were applied.`);
+    throw semanticViolationError(
+      `Batch move failed: ${ctx.error.message}. No changes were applied.`
+    );
   }
 
   await syncXml(diagram);
