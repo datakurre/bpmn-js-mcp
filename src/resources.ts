@@ -14,6 +14,7 @@
  *   bpmn://guides/executable-camunda7 — Camunda 7 deployment guide
  *   bpmn://guides/modeling-elements — element modeling best practices
  *   bpmn://guides/element-properties — Camunda property catalog
+ *   ui://bpmn-diagram-viewer   — interactive MCP Apps diagram viewer (issue #11)
  */
 
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
@@ -29,6 +30,11 @@ import {
   ELEMENT_PROPERTIES_GUIDE,
 } from './resource-guides';
 import { adjustSvgViewBox } from './handlers/core/export-helpers';
+import {
+  APP_VIEWER_RESOURCE_URI,
+  APP_VIEWER_MIME_TYPE,
+  renderAppViewerHtml,
+} from './mcp-apps/resource';
 
 const MIME_MARKDOWN = 'text/markdown';
 
@@ -108,6 +114,15 @@ export const STATIC_RESOURCES = [
       'Complete catalog of supported standard BPMN and Camunda extension properties ' +
       'organized by element type, with examples.',
     mimeType: MIME_MARKDOWN,
+  },
+  {
+    uri: APP_VIEWER_RESOURCE_URI,
+    name: 'Interactive diagram viewer (MCP Apps)',
+    description:
+      'Self-contained interactive bpmn-js view. Referenced via `_meta.ui.resourceUri` ' +
+      'on mutating tools (issue #11 / ADR-025) — MCP Apps-capable hosts render it inline ' +
+      "instead of (or alongside) each tool's plain text/image response.",
+    mimeType: APP_VIEWER_MIME_TYPE,
   },
 ];
 
@@ -272,6 +287,13 @@ export async function readResource(
   if (uri === 'bpmn://guides/element-properties') {
     return {
       contents: [{ uri, mimeType: MIME_MARKDOWN, text: ELEMENT_PROPERTIES_GUIDE }],
+    };
+  }
+
+  // ui://bpmn-diagram-viewer (MCP Apps — issue #11 / ADR-025)
+  if (uri === APP_VIEWER_RESOURCE_URI) {
+    return {
+      contents: [{ uri, mimeType: APP_VIEWER_MIME_TYPE, text: renderAppViewerHtml() }],
     };
   }
 

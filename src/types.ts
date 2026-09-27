@@ -123,6 +123,8 @@ export interface ToolResult {
     name?: string;
     /** For resource_link content items: what the resource contains. */
     description?: string;
+    /** For embedded resource content items (`type: 'resource'`). */
+    resource?: { uri: string; mimeType?: string; text?: string; blob?: string };
     /** Optional audience annotation. */
     annotations?: Record<string, unknown>;
   }>;

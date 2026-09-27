@@ -17,6 +17,7 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 - **Language:** TypeScript (ES2022, CommonJS)
 - **Runtime:** Node.js ≥ 22
 - **Key deps:** `@modelcontextprotocol/sdk`, `bpmn-js`, `bpmn-auto-layout` (from `github:datakurre/bpmn-auto-layout`), `bpmn-to-image` (from `github:datakurre/bpmn-to-image` — headless jsdom canvas, polyfills, SVG/PNG rendering), `camunda-bpmn-moddle`, `bpmnlint`, `bpmnlint-plugin-camunda-compat`, `@types/bpmn-moddle`
+- **Dev-only dep:** `@modelcontextprotocol/ext-apps` (plus `@modelcontextprotocol/client`/`core`) — browser-side `App`/`PostMessageTransport` classes only, bundled at build time into `dist/mcp-apps-viewer-bundle.js` for the MCP Apps diagram viewer (see ADR-025); never imported by the Node server bundle or installed at runtime
 - **Test:** Vitest
 - **Lint:** ESLint 9 + typescript-eslint 8
 - **Dev env:** Nix (devenv) with devcontainer support
@@ -31,29 +32,30 @@ MCP (Model Context Protocol) server that lets AI assistants create and manipulat
 
 Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs/architecture.md`](docs/architecture.md) for a full dependency diagram and module boundary rules.
 
-| File / Directory                | Responsibility                                                                                                                                                                    |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                                                                                                       |
-| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends (BPMN, DMN, Forms, …)                                                                                               |
-| `src/bpmn-module.ts`            | BPMN tool module — registers BPMN tools and dispatch with the generic server                                                                                                      |
-| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                                  |
-| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                                  |
-| `src/constants.ts`              | Centralised magic numbers: element sizes, spacing, pool/lane sizing — single source of truth for all constants                                                                    |
-| `src/auto-layout.ts`            | Bridge to the `bpmn-auto-layout` library — runs it and applies the generated DI to the modeler as one undoable command (full, scoped, or element-subset layout)                   |
-| `src/auto-layout-input.ts`      | Prepares the XML handed to `bpmn-auto-layout`: boundary-event lane sync, element-subset extraction                                                                                |
-| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                             |
-| `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                                                         |
-| `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router + unified TOOL_REGISTRY                                                                                                                |
-| `src/handlers/helpers.ts`       | Shared utilities: `validateArgs`, `requireDiagram`, `requireElement`, `getVisibleElements`, `upsertExtensionElement`, `resolveOrCreateError`, etc.                                |
-| `src/handlers/core/`            | Diagram lifecycle: create, delete, clone, list, summarize, import, export, validate, batch, history, diff, list-process-variables                                                 |
-| `src/handlers/elements/`        | Element CRUD: add, connect, delete, move, duplicate, insert, replace, list, get-properties                                                                                        |
-| `src/handlers/properties/`      | Property setters: set-properties, set-input-output, set-event-definition, set-form-data, set-loop-characteristics, set-script, set-camunda-listeners, set-call-activity-variables |
-| `src/handlers/layout/`          | Layout & alignment: layout-diagram, align-elements, adjust-labels, label-utils                                                                                                    |
-| `src/handlers/collaboration/`   | Collaboration: create-collaboration, create-lanes, assign-elements-to-lane, wrap-process-in-collaboration, manage-root-elements, handoff-to-lane                                  |
-| `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                                           |
-| `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                                                          |
-| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                                                   |
-| `src/persistence.ts`            | Optional file-backed diagram persistence — auto-save to `.bpmn` files, load on startup                                                                                            |
+| File / Directory                | Responsibility                                                                                                                                                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                                                                                                                                                          |
+| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends (BPMN, DMN, Forms, …)                                                                                                                                                  |
+| `src/bpmn-module.ts`            | BPMN tool module — registers BPMN tools and dispatch with the generic server                                                                                                                                                         |
+| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, tool arg types)                                                                                                                                                                     |
+| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services (`Modeling`, `ElementRegistry`, etc.)                                                                                                                                                     |
+| `src/constants.ts`              | Centralised magic numbers: element sizes, spacing, pool/lane sizing — single source of truth for all constants                                                                                                                       |
+| `src/auto-layout.ts`            | Bridge to the `bpmn-auto-layout` library — runs it and applies the generated DI to the modeler as one undoable command (full, scoped, or element-subset layout)                                                                      |
+| `src/auto-layout-input.ts`      | Prepares the XML handed to `bpmn-auto-layout`: boundary-event lane sync, element-subset extraction                                                                                                                                   |
+| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store, modeler creation helpers                                                                                                                                                                |
+| `src/tool-definitions.ts`       | Thin barrel collecting co-located `TOOL_DEFINITION` exports from handlers                                                                                                                                                            |
+| `src/handlers/index.ts`         | Handler barrel + `dispatchToolCall` router + unified TOOL_REGISTRY                                                                                                                                                                   |
+| `src/handlers/helpers.ts`       | Shared utilities: `validateArgs`, `requireDiagram`, `requireElement`, `getVisibleElements`, `upsertExtensionElement`, `resolveOrCreateError`, etc.                                                                                   |
+| `src/handlers/core/`            | Diagram lifecycle: create, delete, clone, list, summarize, import, export, validate, batch, history, diff, list-process-variables                                                                                                    |
+| `src/handlers/elements/`        | Element CRUD: add, connect, delete, move, duplicate, insert, replace, list, get-properties                                                                                                                                           |
+| `src/handlers/properties/`      | Property setters: set-properties, set-input-output, set-event-definition, set-form-data, set-loop-characteristics, set-script, set-camunda-listeners, set-call-activity-variables                                                    |
+| `src/handlers/layout/`          | Layout & alignment: layout-diagram, align-elements, adjust-labels, label-utils                                                                                                                                                       |
+| `src/handlers/collaboration/`   | Collaboration: create-collaboration, create-lanes, assign-elements-to-lane, wrap-process-in-collaboration, manage-root-elements, handoff-to-lane                                                                                     |
+| `src/linter.ts`                 | Centralised bpmnlint integration: lint config, Linter instance, `lintDiagram()`, `appendLintFeedback()`                                                                                                                              |
+| `src/bpmnlint-types.ts`         | TypeScript type declarations for bpmnlint (`LintConfig`, `LintResults`, `FlatLintIssue`)                                                                                                                                             |
+| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 (Operaton) specific rules                                                                                                                                                                      |
+| `src/persistence.ts`            | Optional file-backed diagram persistence — auto-save to `.bpmn` files, load on startup                                                                                                                                               |
+| `src/mcp-apps/`                 | MCP Apps diagram viewer (ADR-025): `resource.ts` serves the `ui://bpmn-diagram-viewer` HTML resource, `host-support.ts` detects MCP Apps hosts, `viewer-entry.ts` is the browser-side View script (separate esbuild/tsconfig target) |
 
 **Core pattern:**
 
@@ -66,6 +68,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 7. **bpmnlint** is integrated for BPMN validation. The `McpPluginResolver` wraps bpmnlint's `NodeResolver` to support both npm plugins (`bpmnlint-plugin-camunda-compat`) and the bundled custom plugin (`bpmnlint-plugin-bpmn-mcp`). Mutating tool handlers call `appendLintFeedback()` to append error-level lint issues to their response.
 8. **Label adjustment** runs after layout and connection operations, using geometry-based scoring to position external labels away from connection paths.
 9. **SVG image content** can be appended to every mutating tool response by creating a diagram with `includeImage: true`. When enabled, `appendLintFeedback()` calls `modeler.saveSVG()` → base64-encodes the SVG → appends an `ImageContent` item (`type: "image"`, `mimeType: "image/svg+xml"`, `annotations: { audience: ["user"] }`) to the response content array.
+10. **MCP Apps diagram viewer** (ADR-025): only for hosts that advertise the `io.modelcontextprotocol/ui` extension in `initialize` (detected in `src/mcp-apps/host-support.ts`), mutating tools declare `_meta.ui.resourceUri: 'ui://bpmn-diagram-viewer'` in ListTools (`withMcpAppsMeta()`) and `appendMcpAppContent()` embeds the diagram's current XML as an `audience: ['user']` resource content item in their results (skipped past `LARGE_XML_CHARS`), which the View renders with `bpmn-to-image`'s interactive viewer. Other clients see neither.
 
 ## Tool Naming Convention
 
@@ -144,6 +147,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-022](agents/adrs/ADR-022-bpmn-to-image-library.md) — Headless rendering delegated to bpmn-to-image
 - [ADR-023](agents/adrs/ADR-023-large-output-resource-links.md) — Resource links instead of inlining large output
 - [ADR-024](agents/adrs/ADR-024-structured-content-and-output-schema.md) — structuredContent and outputSchema for tool results
+- [ADR-025](agents/adrs/ADR-025-mcp-apps-diagram-viewer.md) — MCP Apps diagram viewer
 
 ## Key Gotchas
 

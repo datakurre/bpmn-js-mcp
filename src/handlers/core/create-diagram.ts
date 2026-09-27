@@ -17,6 +17,8 @@ import {
   createModelerFromXml,
 } from '../../diagram-manager';
 import { jsonResult, getService, getProcesses } from '../helpers';
+import { appendMcpAppContent } from '../../linter';
+import { isMcpAppsHostSupported } from '../../mcp-apps/host-support';
 
 /** Workflow context hint for guiding pool/lane usage. */
 export type WorkflowContext = 'single-organization' | 'multi-organization' | 'multi-system';
@@ -197,14 +199,15 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
   // Resolve effective hint level: explicit hintLevel > draftMode > server default
   const hintLevel: HintLevel | undefined = args.hintLevel ?? (args.draftMode ? 'none' : undefined);
 
-  storeDiagram(diagramId, {
+  const diagramState = {
     modeler,
     xml: savedXml,
     name: args.name,
     draftMode: args.draftMode ?? false,
     hintLevel,
     includeImage: args.includeImage ?? ['png'],
-  });
+  };
+  storeDiagram(diagramId, diagramState);
 
   const effectiveDraft = hintLevel === 'none' || (args.draftMode ?? false);
 
@@ -242,6 +245,10 @@ export async function handleCreateDiagram(args: CreateDiagramArgs): Promise<Tool
   // Append image(s) when includeImage is set (default: ['png'])
   const formats = resolveIncludeFormats(args.includeImage ?? ['png']);
   await appendImages(result, modeler, formats);
+
+  if (isMcpAppsHostSupported()) {
+    await appendMcpAppContent(result, diagramState);
+  }
 
   return result;
 }

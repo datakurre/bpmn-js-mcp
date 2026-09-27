@@ -45,6 +45,11 @@ graph TD
         lib["bpmn-auto-layout (npm)"]
     end
 
+    subgraph "MCP Apps (ADR-025)"
+        mcpappsres["mcp-apps/resource.ts"]
+        mcpappsviewer["mcp-apps/viewer-entry.ts (browser bundle)"]
+    end
+
     index --> bpmnmod
     bpmnmod --> mod
     bpmnmod --> hindex
@@ -79,10 +84,15 @@ graph TD
     autolayout --> lib
     autolayout --> bpmntypes
 
+    handlers --> mcpappsres
+    mcpappsres --> bti
+    mcpappsres -.build-time bundle.-> mcpappsviewer
+
     style lintplugin fill:#e8f5e9
     style autolayout fill:#e8f5e9
     style autolayoutinput fill:#e8f5e9
     style bti fill:#e8f5e9
+    style mcpappsviewer fill:#e8f5e9
 ```
 
 ## Module Boundaries
@@ -117,32 +127,35 @@ Allowed dependency direction: top → bottom
 
 ## Directory Layout
 
-| Directory / File                | Responsibility                                                                                 |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                    |
-| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends                                  |
-| `src/bpmn-module.ts`            | BPMN tool module — registers tools and dispatches calls                                        |
-| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, arg types)                                    |
-| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services                                                     |
-| `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                               |
-| `src/geometry.ts`               | Geometry utilities (rectangle overlap, label scoring)                                          |
-| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store                                                    |
-| `src/linter.ts`                 | Centralised bpmnlint integration                                                               |
-| `src/lint-suggestions.ts`       | Fix suggestion generation for lint issues                                                      |
-| `src/bpmnlint-types.ts`         | TypeScript types for bpmnlint                                                                  |
-| `src/persistence.ts`            | Optional file-backed diagram persistence                                                       |
-| `src/tool-definitions.ts`       | Thin re-export of TOOL_DEFINITIONS                                                             |
-| `src/handlers/`                 | Handler files organised by domain (38 registered MCP tools)                                    |
-| `src/handlers/index.ts`         | Tool registry + dispatch map + re-exports                                                      |
-| `src/handlers/helpers.ts`       | Shared utilities barrel (validation, element access, etc.)                                     |
-| `src/handlers/core/`            | Diagram lifecycle: create, delete, clone, list, import, export, validate, batch, history, diff |
-| `src/handlers/elements/`        | Element CRUD: add, connect, delete, move, duplicate, insert, replace, list, get-properties     |
-| `src/handlers/properties/`      | Property setters: set-properties, set-input-output, set-event-definition, set-form-data, etc.  |
-| `src/handlers/layout/`          | Layout & alignment: layout-diagram, align-elements, label adjustment                           |
-| `src/handlers/collaboration/`   | Collaboration: create-participant, create-lanes, assign-to-lane, wrap-process, handoff, etc.   |
-| `src/auto-layout.ts`            | Bridge to `bpmn-auto-layout`: runs the library and applies its DI as one undoable command      |
-| `src/auto-layout-input.ts`      | Prepares library input: boundary-event lane sync, element-subset extraction                    |
-| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                    |
+| Directory / File                | Responsibility                                                                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                  | Entry point — wires MCP server, transport, and tool modules                                                   |
+| `src/module.ts`                 | Generic `ToolModule` interface for pluggable editor back-ends                                                 |
+| `src/bpmn-module.ts`            | BPMN tool module — registers tools and dispatches calls                                                       |
+| `src/types.ts`                  | Shared interfaces (`DiagramState`, `ToolResult`, arg types)                                                   |
+| `src/bpmn-types.ts`             | TypeScript interfaces for bpmn-js services                                                                    |
+| `src/constants.ts`              | Centralised magic numbers (`STANDARD_BPMN_GAP`, `ELEMENT_SIZES`)                                              |
+| `src/geometry.ts`               | Geometry utilities (rectangle overlap, label scoring)                                                         |
+| `src/diagram-manager.ts`        | In-memory `Map<string, DiagramState>` store                                                                   |
+| `src/linter.ts`                 | Centralised bpmnlint integration                                                                              |
+| `src/lint-suggestions.ts`       | Fix suggestion generation for lint issues                                                                     |
+| `src/bpmnlint-types.ts`         | TypeScript types for bpmnlint                                                                                 |
+| `src/persistence.ts`            | Optional file-backed diagram persistence                                                                      |
+| `src/tool-definitions.ts`       | Thin re-export of TOOL_DEFINITIONS                                                                            |
+| `src/handlers/`                 | Handler files organised by domain (38 registered MCP tools)                                                   |
+| `src/handlers/index.ts`         | Tool registry + dispatch map + re-exports                                                                     |
+| `src/handlers/helpers.ts`       | Shared utilities barrel (validation, element access, etc.)                                                    |
+| `src/handlers/core/`            | Diagram lifecycle: create, delete, clone, list, import, export, validate, batch, history, diff                |
+| `src/handlers/elements/`        | Element CRUD: add, connect, delete, move, duplicate, insert, replace, list, get-properties                    |
+| `src/handlers/properties/`      | Property setters: set-properties, set-input-output, set-event-definition, set-form-data, etc.                 |
+| `src/handlers/layout/`          | Layout & alignment: layout-diagram, align-elements, label adjustment                                          |
+| `src/handlers/collaboration/`   | Collaboration: create-participant, create-lanes, assign-to-lane, wrap-process, handoff, etc.                  |
+| `src/auto-layout.ts`            | Bridge to `bpmn-auto-layout`: runs the library and applies its DI as one undoable command                     |
+| `src/auto-layout-input.ts`      | Prepares library input: boundary-event lane sync, element-subset extraction                                   |
+| `src/bpmnlint-plugin-bpmn-mcp/` | Custom bpmnlint plugin with Camunda 7 rules                                                                   |
+| `src/mcp-apps/resource.ts`      | Serves the `ui://bpmn-diagram-viewer` MCP Apps HTML resource (Node)                                           |
+| `src/mcp-apps/host-support.ts`  | Detects MCP Apps hosts from their `initialize` capabilities (Node)                                            |
+| `src/mcp-apps/viewer-entry.ts`  | Browser-side MCP Apps View script — separate esbuild/tsconfig target, never bundled into the server (ADR-025) |
 
 ## Where to Put New Code
 
@@ -168,6 +181,10 @@ A new shared constant                → src/constants.ts
 A polyfill for headless bpmn-js      → github.com/datakurre/bpmn-to-image
                                        (headless canvas, polyfills, SVG/PNG
                                         rendering all live there now)
+
+A tool eligible for the MCP Apps     → add/remove it from
+diagram viewer                        MCP_APP_VIEW_EXCLUDED_TOOLS in
+                                       src/handlers/index.ts
 ```
 
 ## Core Patterns
@@ -189,3 +206,5 @@ A polyfill for headless bpmn-js      → github.com/datakurre/bpmn-to-image
 8. **Library-based layout** — Layout is delegated to [`bpmn-auto-layout`](https://github.com/datakurre/bpmn-auto-layout) (XML in, XML with DI out). `src/auto-layout.ts` exports the modeler's XML, runs the library, and applies the resulting shape bounds, waypoints and label bounds through `modeling` commands wrapped in one compound command, so a layout is a single undo step. Partial layout: `scopeElementId` takes one participant/subprocess from a full layout and keeps it anchored; `elementIds` lays out a pruned copy of the process holding only the chosen siblings. Connections crossing the boundary of a partial layout are re-routed with `modeling.layoutConnection()`. See [ADR-020](../agents/adrs/ADR-020-bpmn-auto-layout-library.md).
 
 9. **Label adjustment** — Geometry-based scoring positions external labels away from connection paths to reduce visual overlap.
+
+10. **MCP Apps diagram viewer** — For hosts that advertise the `io.modelcontextprotocol/ui` extension in `initialize`, mutating tools declare `_meta.ui.resourceUri: 'ui://bpmn-diagram-viewer'` and `appendMcpAppContent()` embeds the diagram's XML as an `audience: ["user"]` resource content item in their results, for the View to render inline. See [ADR-025](../agents/adrs/ADR-025-mcp-apps-diagram-viewer.md).

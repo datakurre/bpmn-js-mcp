@@ -16,6 +16,7 @@
 import { type ToolResult, type ToolContext } from '../types';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { ERR_INTERNAL } from '../errors';
+import { APP_VIEWER_RESOURCE_URI } from '../mcp-apps/resource';
 
 // ── Core: diagram lifecycle, import/export, validation, batch ──────────────
 
@@ -245,6 +246,15 @@ const READONLY_TOOLS = new Set([
 const DESTRUCTIVE_TOOLS = new Set(['delete_bpmn_diagram', 'delete_bpmn_element']);
 
 /**
+ * Mutating tools eligible for the MCP Apps `ui://bpmn-diagram-viewer` view
+ * (issue #11 / ADR-025) — every tool that changes a diagram's content,
+ * except `delete_bpmn_diagram` (nothing left to view once the diagram is
+ * gone). Read-only tools (`READONLY_TOOLS`) never get one: they don't
+ * change diagram state.
+ */
+const MCP_APP_VIEW_EXCLUDED_TOOLS = new Set(['delete_bpmn_diagram']);
+
+/**
  * Tools that read or write local files (via `filePath`), so they interact
  * with something outside the in-memory diagram model.
  */
@@ -335,6 +345,22 @@ export function computeToolDefinitions(
 ): Array<{ name: string; [key: string]: unknown }> {
   return TOOL_REGISTRY.filter((r) => !r.hidden && (tier === 'full' || r.tier === 'core')).map(
     (r) => ({ ...r.definition, annotations: buildAnnotations(r.definition.name as string) })
+  );
+}
+
+/**
+ * Add the MCP Apps `_meta.ui.resourceUri` (issue #11 / ADR-025) to every
+ * eligible tool — all mutating tools except `delete_bpmn_diagram`.  Only
+ * applied to the ListTools payload for hosts that advertised MCP Apps
+ * support (see `src/mcp-apps/host-support.ts`); other clients never see it.
+ */
+export function withMcpAppsMeta<T extends { name: string; [key: string]: unknown }>(
+  tools: T[]
+): T[] {
+  return tools.map((tool) =>
+    READONLY_TOOLS.has(tool.name) || MCP_APP_VIEW_EXCLUDED_TOOLS.has(tool.name)
+      ? tool
+      : { ...tool, _meta: { ui: { resourceUri: APP_VIEWER_RESOURCE_URI } } }
   );
 }
 
