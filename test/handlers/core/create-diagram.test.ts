@@ -4,6 +4,7 @@ import {
   handleExportBpmn,
   handleListElements,
   handleValidate as handleLintDiagram,
+  dispatchToolCall,
 } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../helpers';
 
@@ -115,5 +116,43 @@ describe('create_bpmn_diagram', () => {
     const diagramId = await createDiagram('Original');
     const res = parseResult(await handleCreateDiagram({ cloneFrom: diagramId, name: 'Clone' }));
     expect(res.name).toBe('Clone');
+  });
+
+  // ── xml/filePath import (folded from import_bpmn_xml, ADR-030) ───────────
+
+  test('xml creates a diagram from inline BPMN XML', async () => {
+    const source = await createDiagram('Source');
+    await addElement(source, 'bpmn:Task', { name: 'Do it' });
+    const sourceXml = (await handleExportBpmn({ format: 'xml', diagramId: source, skipLint: true }))
+      .content[0].text as string;
+
+    const res = parseResult(await handleCreateDiagram({ xml: sourceXml }));
+    expect(res.success).toBe(true);
+    expect(res.diagramId).toBeDefined();
+
+    const list = parseResult(await handleListElements({ diagramId: res.diagramId }));
+    expect(list.count).toBeGreaterThan(0);
+  });
+
+  test('filePath and xml are mutually exclusive with cloneFrom (cloneFrom wins)', async () => {
+    const source = await createDiagram('Source');
+    const res = parseResult(await handleCreateDiagram({ cloneFrom: source, xml: '<bogus/>' }));
+    expect(res.success).toBe(true);
+    expect(res.clonedFrom).toBe(source);
+  });
+
+  test('import_bpmn_xml is no longer a registered tool', async () => {
+    await expect(dispatchToolCall('import_bpmn_xml', { xml: '<bogus/>' })).rejects.toThrow(
+      /Unknown tool/
+    );
+  });
+
+  test('create_bpmn_diagram is dispatchable with xml via dispatchToolCall', async () => {
+    const source = await createDiagram('Source');
+    const sourceXml = (await handleExportBpmn({ format: 'xml', diagramId: source, skipLint: true }))
+      .content[0].text as string;
+    const res = parseResult(await dispatchToolCall('create_bpmn_diagram', { xml: sourceXml }));
+    expect(res.success).toBe(true);
+    expect(res.diagramId).toBeDefined();
   });
 });

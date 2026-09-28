@@ -34,7 +34,7 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
   });
 
   test('TOOL_DEFINITIONS and dispatch map have the expected tool counts', () => {
-    // 28 dispatchable tools total — 11 removed entirely via tool consolidation:
+    // 27 dispatchable tools total — 12 removed entirely via tool consolidation:
     //   clone_bpmn_diagram → create_bpmn_diagram (cloneFrom),
     //   wrap_bpmn_process_in_collaboration → create_bpmn_participant (wrapExisting),
     //   convert_bpmn_collaboration_to_lanes → create_bpmn_lanes (mergeFrom),
@@ -47,12 +47,14 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //   get_bpmn_element_properties → list_bpmn_elements (elementIds; ADR-027, #23 —
     //     removed outright, not kept as a hidden alias, per #23's no-alias policy),
     //   set_bpmn_event_definition → set_bpmn_element_properties (eventDefinition; ADR-028, #23 —
+    //     same no-alias policy),
+    //   import_bpmn_xml → create_bpmn_diagram (xml/filePath/autoLayout; ADR-030, #23 —
     //     same no-alias policy).
-    // Of those 28, 5 are hidden aliases (ADR-021, #8): consolidated into
+    // Of those 27, 5 are hidden aliases (ADR-021, #8): consolidated into
     // set_bpmn_element_properties's inputOutput/formData/listeners/
-    // callActivityVariables/loop sub-objects, so only 23 are publicly listed.
-    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(28);
-    expect(TOOL_DEFINITIONS.length).toBe(23);
+    // callActivityVariables/loop sub-objects, so only 22 are publicly listed.
+    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(27);
+    expect(TOOL_DEFINITIONS.length).toBe(22);
 
     // Verify no tool name is duplicated
     const names = TOOL_DEFINITIONS.map((t) => t.name);

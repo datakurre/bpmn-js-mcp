@@ -16,7 +16,6 @@ import {
 
 const CORE_TOOL_NAMES = [
   'create_bpmn_diagram',
-  'import_bpmn_xml',
   'export_bpmn',
   'add_bpmn_element',
   'add_bpmn_element_chain',
@@ -32,10 +31,10 @@ const CORE_TOOL_NAMES = [
 describe('tool tiers (#9)', () => {
   test('default tier (no BPMN_MCP_TOOLS set) is full', () => {
     expect(TOOL_TIER).toBe('full');
-    expect(TOOL_DEFINITIONS.length).toBe(23);
+    expect(TOOL_DEFINITIONS.length).toBe(22);
   });
 
-  test('core tier exposes exactly the documented 12 tools', () => {
+  test('core tier exposes exactly the documented 11 tools', () => {
     const core = computeToolDefinitions('core');
     expect(core.map((t) => t.name).sort()).toEqual([...CORE_TOOL_NAMES].sort());
   });

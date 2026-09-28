@@ -285,12 +285,12 @@ source element with a sequence flow — a clean cross-lane handoff.
 Load an existing `.bpmn` file, make changes, and write it back.
 
 ```
-1. import_bpmn_xml             → { filePath: "./process.bpmn" }
+1. create_bpmn_diagram          → { filePath: "./process.bpmn" }
 2. (make changes using any MCP tools: add elements, set properties, etc.)
 3. export_bpmn                 → { format: "xml", filePath: "./process.bpmn" }
 ```
 
-Both `import_bpmn_xml` and `export_bpmn` support `filePath` for
+Both `create_bpmn_diagram` and `export_bpmn` support `filePath` for
 direct file I/O. This replaces the error-prone manual pattern of
 exporting XML, then using `replace_string_in_file` to update the file.
 

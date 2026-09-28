@@ -54,7 +54,7 @@ describe('bpmnModule.dispatch', () => {
   test('routes non-core tools when BPMN_MCP_TOOLS=core', async () => {
     const mod = await loadModule('core');
     const listed = mod.toolDefinitions.map((t) => t.name);
-    expect(listed).toHaveLength(12);
+    expect(listed).toHaveLength(11);
     expect(listed).not.toContain('list_bpmn_process_variables');
 
     const diagramId = await createDiagram(mod);
