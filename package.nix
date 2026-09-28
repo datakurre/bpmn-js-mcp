@@ -11,7 +11,7 @@ buildNpmPackage {
 
   src = lib.cleanSource ./.;
 
-  npmDepsHash = "sha256-4BUs7ZebjqT1Z8OI76Ib/iIj93sLFXI7ZhYfYOyydeU=";
+  npmDepsHash = "sha256-IdwdNPa11toW8ChpHiMh2slDvWlBOzlKvwzNrbtBmAg=";
 
   # The lockfile has unmet optional peer ranges (eslint-plugin-vitest) that npm
   # would otherwise try to fetch from the registry inside the sandbox.

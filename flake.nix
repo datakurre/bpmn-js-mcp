@@ -12,7 +12,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     bpmn-auto-layout = {
-      url = "github:datakurre/bpmn-auto-layout/7ceacf2fbbe5132ed0446bcb0e3ea94d0c5b2884";
+      url = "github:datakurre/bpmn-auto-layout/139cc5803679651417a1dcd06107b6af761c5ffb";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.bpmn-to-image.follows = "bpmn-to-image";
     };
