@@ -62,12 +62,12 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'start-event-required': {
-    tool: 'add_bpmn_element',
-    args: { elementType: 'bpmn:StartEvent' },
+    tool: 'add_bpmn_elements',
+    args: { elements: [{ elementType: 'bpmn:StartEvent' }] },
   },
   'end-event-required': {
-    tool: 'add_bpmn_element',
-    args: { elementType: 'bpmn:EndEvent' },
+    tool: 'add_bpmn_elements',
+    args: { elements: [{ elementType: 'bpmn:EndEvent' }] },
   },
   'bpmn-mcp/camunda-topic-without-external-type': {
     tool: 'set_bpmn_element_properties',
@@ -158,8 +158,8 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'bpmn-mcp/empty-subprocess': {
-    tool: 'add_bpmn_element',
-    args: { elementType: 'bpmn:StartEvent' },
+    tool: 'add_bpmn_elements',
+    args: { elements: [{ elementType: 'bpmn:StartEvent' }] },
     requiresElementId: true,
   },
   'bpmn-mcp/user-task-missing-assignee': {
@@ -168,12 +168,16 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'bpmn-mcp/implicit-merge': {
-    tool: 'add_bpmn_element',
+    tool: 'add_bpmn_elements',
     args: {
-      elementType: 'bpmn:ExclusiveGateway',
-      flowId: '<one-of-the-incoming-sequence-flow-ids>',
+      elements: [
+        {
+          elementType: 'bpmn:ExclusiveGateway',
+          flowId: '<one-of-the-incoming-sequence-flow-ids>',
+        },
+      ],
     },
-    hint: "Two-step fix: (1) insert a merge gateway into one incoming flow using add_bpmn_element with flowId set to that flow's ID, (2) reconnect the remaining incoming flow(s) to the new gateway with connect_bpmn_elements.",
+    hint: "Two-step fix: (1) insert a merge gateway into one incoming flow using add_bpmn_elements with flowId set to that flow's ID, (2) reconnect the remaining incoming flow(s) to the new gateway with connect_bpmn_elements.",
   },
   'bpmn-mcp/loop-without-limit': {
     tool: 'set_bpmn_loop_characteristics',
@@ -181,8 +185,8 @@ const FIX_TOOL_CALLS: Record<string, FixTemplate> = {
     requiresElementId: true,
   },
   'bpmn-mcp/implicit-split': {
-    tool: 'add_bpmn_element',
-    args: { elementType: 'bpmn:ExclusiveGateway' },
+    tool: 'add_bpmn_elements',
+    args: { elements: [{ elementType: 'bpmn:ExclusiveGateway' }] },
     requiresElementId: true,
   },
   'bpmn-mcp/elements-outside-participant-bounds': {

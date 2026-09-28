@@ -1,5 +1,11 @@
 /**
- * Handler for add_bpmn_element tool.
+ * Internal handler backing add_bpmn_elements' single-element and per-item
+ * placement logic.
+ *
+ * Former standalone add_bpmn_element tool, folded into add_bpmn_elements
+ * and removed outright (no hidden alias) — see ADR-031. Kept as a plain
+ * exported function since add-elements.ts and add-element-chain.ts call it
+ * directly, and existing tests call it directly too.
  */
 // @mutating
 
@@ -398,6 +404,3 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
   });
   return appendLintFeedback(result, diagram);
 }
-
-// Schema extracted to add-element-schema.ts (R1.5) for readability.
-export { TOOL_DEFINITION } from './add-element-schema';

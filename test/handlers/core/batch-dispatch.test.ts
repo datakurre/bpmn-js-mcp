@@ -34,7 +34,7 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
   });
 
   test('TOOL_DEFINITIONS and dispatch map have the expected tool counts', () => {
-    // 27 dispatchable tools total — 12 removed entirely via tool consolidation:
+    // 26 dispatchable tools total — 14 removed entirely via tool consolidation:
     //   clone_bpmn_diagram → create_bpmn_diagram (cloneFrom),
     //   wrap_bpmn_process_in_collaboration → create_bpmn_participant (wrapExisting),
     //   convert_bpmn_collaboration_to_lanes → create_bpmn_lanes (mergeFrom),
@@ -43,18 +43,20 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //   redistribute_bpmn_elements_across_lanes → analyze_bpmn_lanes (mode: redistribute),
     //   replace_bpmn_element → set_bpmn_element_properties (elementType),
     //   set_bpmn_connection_waypoints → connect_bpmn_elements (connectionId + waypoints),
-    //   handoff_bpmn_to_lane → add_bpmn_element (fromElementId + toLaneId),
+    //   handoff_bpmn_to_lane → add_bpmn_elements (fromElementId + toLaneId),
     //   get_bpmn_element_properties → list_bpmn_elements (elementIds; ADR-027, #23 —
     //     removed outright, not kept as a hidden alias, per #23's no-alias policy),
     //   set_bpmn_event_definition → set_bpmn_element_properties (eventDefinition; ADR-028, #23 —
     //     same no-alias policy),
     //   import_bpmn_xml → create_bpmn_diagram (xml/filePath/autoLayout; ADR-030, #23 —
-    //     same no-alias policy).
-    // Of those 27, 5 are hidden aliases (ADR-021, #8): consolidated into
+    //     same no-alias policy),
+    //   add_bpmn_element + add_bpmn_element_chain → add_bpmn_elements (elements: [...] with
+    //     connect: 'chain' | 'none'; ADR-031, #23 — same no-alias policy, net -1 tool).
+    // Of those 26, 5 are hidden aliases (ADR-021, #8): consolidated into
     // set_bpmn_element_properties's inputOutput/formData/listeners/
-    // callActivityVariables/loop sub-objects, so only 22 are publicly listed.
-    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(27);
-    expect(TOOL_DEFINITIONS.length).toBe(22);
+    // callActivityVariables/loop sub-objects, so only 21 are publicly listed.
+    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(26);
+    expect(TOOL_DEFINITIONS.length).toBe(21);
 
     // Verify no tool name is duplicated
     const names = TOOL_DEFINITIONS.map((t) => t.name);

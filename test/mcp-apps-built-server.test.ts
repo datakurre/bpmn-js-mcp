@@ -50,8 +50,8 @@ async function addElementContentTypes(client: Client): Promise<string[]> {
   });
   const diagramId = JSON.parse((created.content as any[])[0].text).diagramId;
   const added = await client.callTool({
-    name: 'add_bpmn_element',
-    arguments: { diagramId, elementType: 'bpmn:StartEvent' },
+    name: 'add_bpmn_elements',
+    arguments: { diagramId, elements: [{ elementType: 'bpmn:StartEvent' }] },
   });
   return (added.content as any[]).map((c) =>
     c.type === 'resource' ? `resource:${c.resource.mimeType}` : c.type
@@ -97,7 +97,7 @@ describe('MCP Apps host detection via the built server (stdio)', () => {
     const client = await connect(MCP_APPS_CAPABILITIES);
     try {
       const { tools } = await client.listTools();
-      const addElement = tools.find((t) => t.name === 'add_bpmn_element');
+      const addElement = tools.find((t) => t.name === 'add_bpmn_elements');
       expect((addElement?._meta as any)?.ui?.resourceUri).toBe('ui://bpmn-diagram-viewer');
       const listElements = tools.find((t) => t.name === 'list_bpmn_elements');
       expect(listElements?._meta?.ui).toBeUndefined();

@@ -17,8 +17,8 @@ export function validateArgs<T extends object>(args: T, requiredKeys: (keyof T &
 }
 
 /**
- * All valid element types accepted by add_bpmn_element.
- * Kept in sync with the enum in add-element-schema.ts.
+ * All valid element types accepted by add_bpmn_elements.
+ * Kept in sync with the enum in add-elements-schema.ts.
  */
 export const ALLOWED_ELEMENT_TYPES = [
   'bpmn:StartEvent',

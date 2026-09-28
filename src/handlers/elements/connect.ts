@@ -364,7 +364,7 @@ export function detectImplicitMergeWarning(
   return (
     `⚠ \`${targetBo?.name ?? target.id}\` now has ${sequenceFlows.length} incoming flows without a merge gateway. ` +
     `This creates an implicit merge that causes multiple token activations at runtime. ` +
-    `Fix: use \`add_bpmn_element\` with \`flowId\` set to one of the incoming flow IDs ` +
+    `Fix: use \`add_bpmn_elements\` with \`flowId\` set to one of the incoming flow IDs ` +
     `(e.g. \`"${newConnectionId}"\`) to insert an ExclusiveGateway inline, then reconnect ` +
     `the other incoming flow(s) to the new gateway with \`connect_bpmn_elements\`.`
   );

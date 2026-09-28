@@ -75,10 +75,11 @@ describe('implicit-merge lint rule', () => {
     const res = parseResult(await handleValidate({ diagramId }));
     const issues = res.issues.filter((i: any) => i.rule === 'bpmn-mcp/implicit-merge');
     expect(issues.length).toBeGreaterThan(0);
-    // The fix tool call should reference flowId (not bare elementId)
+    // The fix tool call should reference flowId (not bare elementId), nested
+    // inside the elements[] item (add_bpmn_elements' batch form — ADR-031).
     for (const issue of issues) {
       if (issue.fixToolCall) {
-        expect(issue.fixToolCall.args).toHaveProperty('flowId');
+        expect(issue.fixToolCall.args.elements[0]).toHaveProperty('flowId');
       }
     }
   });

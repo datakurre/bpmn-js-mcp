@@ -168,7 +168,7 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 
 - Keep the **happy path** (Yes branch) straight and horizontal — it should flow left-to-right without vertical detours.
 - Route the **loopback** (No branch) **below** the main path with a clean U-shape: down → left → up. `layout_bpmn_diagram` routes this automatically; if a specific connection still needs a custom path, use `connect_bpmn_elements` with `connectionId` + `waypoints`.
-- When inserting a gateway into an existing straight flow, use `add_bpmn_element` with `flowId` set to the flow being split — it preserves horizontal alignment between source, gateway, and target.
+- When inserting a gateway into an existing straight flow, use `add_bpmn_elements` with `flowId` set to the flow being split — it preserves horizontal alignment between source, gateway, and target.
 
 **Modeling tips:**
 
@@ -229,6 +229,6 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 
 **Inserted element lands in the wrong lane:**
 
-- When `add_bpmn_element` with `flowId` splits a cross-lane flow, the new element is placed at the midpoint between source and target, which may fall into an unrelated lane.
+- When `add_bpmn_elements` with `flowId` splits a cross-lane flow, the new element is placed at the midpoint between source and target, which may fall into an unrelated lane.
 - After insertion, use `assign_bpmn_elements_to_lane` to move the element to the correct lane.
-- Alternatively, use `add_bpmn_element` with explicit `x`/`y` coordinates followed by manual connection.
+- Alternatively, use `add_bpmn_elements` with explicit `x`/`y` coordinates followed by manual connection.

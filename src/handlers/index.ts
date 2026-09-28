@@ -46,7 +46,8 @@ import {
 
 // ── Elements: element CRUD operations ──────────────────────────────────────
 
-import { handleAddElement, TOOL_DEFINITION as ADD_ELEMENT_DEF } from './elements/add-element';
+import { handleAddElement } from './elements/add-element';
+import { handleAddElements, TOOL_DEFINITION as ADD_ELEMENTS_DEF } from './elements/add-elements';
 import {
   handleConnect,
   handleAutoConnect,
@@ -65,10 +66,7 @@ import {
 import { handleDuplicateElement } from './elements/duplicate-element';
 import { handleInsertElement } from './elements/insert-element';
 import { handleReplaceElement } from './elements/replace-element';
-import {
-  handleAddElementChain,
-  TOOL_DEFINITION as ADD_ELEMENT_CHAIN_DEF,
-} from './elements/add-element-chain';
+import { handleAddElementChain } from './elements/add-element-chain';
 import { handleListElements, TOOL_DEFINITION as LIST_ELEMENTS_DEF } from './elements/list-elements';
 import { handleGetProperties } from './elements/get-properties';
 import { handleSetConnectionWaypoints } from './elements/set-connection-waypoints';
@@ -173,7 +171,7 @@ interface ToolRegistration {
 
 const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram, tier: 'core' },
-  { definition: ADD_ELEMENT_DEF, handler: handleAddElement, tier: 'core' },
+  { definition: ADD_ELEMENTS_DEF, handler: handleAddElements, tier: 'core' },
   { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
   { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
   { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
@@ -209,11 +207,12 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
   // clone_bpmn_diagram removed: cloneFrom parameter on create_bpmn_diagram
   // diff_bpmn_diagrams removed: compareWith parameter on list_bpmn_diagrams
-  { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain, tier: 'core' },
+  // add_bpmn_element removed: elements: [{...}] (single item) on add_bpmn_elements (ADR-031)
+  // add_bpmn_element_chain removed: elements: [...] (connect defaults to chain) on add_bpmn_elements (ADR-031)
   // set_bpmn_connection_waypoints removed: waypoints+connectionId parameters on connect_bpmn_elements
   { definition: ASSIGN_ELEMENTS_TO_LANE_DEF, handler: handleAssignElementsToLane },
   // wrap_bpmn_process_in_collaboration removed: wrapExisting on create_bpmn_participant
-  // handoff_bpmn_to_lane removed: fromElementId + toLaneId params on add_bpmn_element
+  // handoff_bpmn_to_lane removed: fromElementId + toLaneId params on add_bpmn_elements
   // convert_bpmn_collaboration_to_lanes removed: mergeFrom on create_bpmn_lanes
   // autosize_bpmn_pools_and_lanes removed: autosizeOnly on layout_bpmn_diagram
 ];
@@ -275,7 +274,7 @@ const IDEMPOTENT_TOOLS = new Set([
 /** Short human-readable title per tool, for clients that label/group tools. */
 const TOOL_TITLES: Record<string, string> = {
   create_bpmn_diagram: 'Create Diagram',
-  add_bpmn_element: 'Add Element',
+  add_bpmn_elements: 'Add Element(s)',
   connect_bpmn_elements: 'Connect Elements',
   delete_bpmn_element: 'Delete Element',
   move_bpmn_element: 'Move/Resize Element',
@@ -299,7 +298,6 @@ const TOOL_TITLES: Record<string, string> = {
   create_bpmn_participant: 'Create Participant/Pool',
   analyze_bpmn_lanes: 'Analyze Lanes',
   list_bpmn_process_variables: 'List Process Variables',
-  add_bpmn_element_chain: 'Add Element Chain',
   assign_bpmn_elements_to_lane: 'Assign Elements to Lane',
 };
 
@@ -465,6 +463,7 @@ export async function dispatchToolCall(
 export {
   handleCreateDiagram,
   handleAddElement,
+  handleAddElements,
   handleConnect,
   handleAutoConnect,
   handleCreateDataAssociation,

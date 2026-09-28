@@ -18,8 +18,8 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/naming-convention':
     'Use set_bpmn_element_properties to set a descriptive name{elementRef}',
   'no-disconnected': 'Use connect_bpmn_elements to connect the disconnected element{elementRef}',
-  'start-event-required': 'Use add_bpmn_element to add a bpmn:StartEvent to diagram "{diagramId}"',
-  'end-event-required': 'Use add_bpmn_element to add a bpmn:EndEvent to diagram "{diagramId}"',
+  'start-event-required': 'Use add_bpmn_elements to add a bpmn:StartEvent to diagram "{diagramId}"',
+  'end-event-required': 'Use add_bpmn_elements to add a bpmn:EndEvent to diagram "{diagramId}"',
   'bpmn-mcp/gateway-missing-default':
     'Use connect_bpmn_elements with isDefault: true to set a default flow{elementRef}',
   'bpmn-mcp/implicit-split':
@@ -65,19 +65,19 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/collaboration-too-complex':
     'Decompose the collaboration into smaller, independently deployable processes. Use Call Activities or message-based integration between separate BPMN deployments, or Link events to split complex flows within a single process',
   'bpmn-mcp/process-too-complex':
-    'Decompose the process into smaller subprocesses using Call Activities (add_bpmn_element with elementType "bpmn:CallActivity"), or use Link events (bpmn:IntermediateThrowEvent + bpmn:IntermediateCatchEvent with LinkEventDefinition) to split the flow into readable sections within the same process',
+    'Decompose the process into smaller subprocesses using Call Activities (add_bpmn_elements with elementType "bpmn:CallActivity"), or use Link events (bpmn:IntermediateThrowEvent + bpmn:IntermediateCatchEvent with LinkEventDefinition) to split the flow into readable sections within the same process',
   'bpmn-mcp/empty-participant-with-lanes':
     'Remove the empty participant{elementRef} with delete_bpmn_element, or add process elements to it. If it represents an external system, collapse it with set_bpmn_element_properties { isExpanded: false } on the participant ID',
   'bpmn-mcp/lane-zigzag-flow':
     'Consider moving the element{elementRef} to the same lane as its predecessor and successor using move_bpmn_element with laneId, or restructure the process to avoid unnecessary lane crossings',
   'bpmn-mcp/gateway-pair-mismatch':
-    'Add a matching join gateway of the same type downstream{elementRef}. Pair split/join gateways for readability — use add_bpmn_element to add the join gateway',
+    'Add a matching join gateway of the same type downstream{elementRef}. Pair split/join gateways for readability — use add_bpmn_elements to add the join gateway',
   'bpmn-mcp/boundary-event-scope':
     'Consider replacing the boundary event{elementRef} with an event subprocess (bpmn:SubProcess with triggeredByEvent: true) for process-wide scope coverage',
   'bpmn-mcp/user-task-missing-assignee':
     'Use set_bpmn_element_properties to set camunda:assignee, camunda:candidateUsers, or camunda:candidateGroups{elementRef}',
   'bpmn-mcp/implicit-merge':
-    'Insert a merge gateway before element{elementRef}: (1) use add_bpmn_element with flowId set to one of the incoming flow IDs to insert a bpmn:ExclusiveGateway or bpmn:ParallelGateway inline, then (2) reconnect the remaining incoming flow(s) to the new gateway with connect_bpmn_elements.',
+    'Insert a merge gateway before element{elementRef}: (1) use add_bpmn_elements with flowId set to one of the incoming flow IDs to insert a bpmn:ExclusiveGateway or bpmn:ParallelGateway inline, then (2) reconnect the remaining incoming flow(s) to the new gateway with connect_bpmn_elements.',
   'bpmn-mcp/undefined-variable':
     'Ensure variable{elementRef} is defined upstream via a form field, output parameter, script result variable, or call activity out-mapping before it is referenced',
   'bpmn-mcp/lane-crossing-excessive':
@@ -103,7 +103,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/event-subprocess-missing-trigger':
     "Use set_bpmn_element_properties's eventDefinition sub-object to add a trigger (timer, message, error, signal) to the event subprocess start event{elementRef}",
   'bpmn-mcp/empty-subprocess':
-    'Add flow elements inside the subprocess{elementRef} using add_bpmn_element, or remove it with delete_bpmn_element',
+    'Add flow elements inside the subprocess{elementRef} using add_bpmn_elements, or remove it with delete_bpmn_element',
   'bpmn-mcp/dangling-boundary-event':
     'Connect the boundary event{elementRef} to a downstream element using connect_bpmn_elements, or remove it with delete_bpmn_element',
   'bpmn-mcp/receive-task-missing-message':

@@ -14,12 +14,12 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(22);
+    expect(TOOL_DEFINITIONS.length).toBe(21);
   });
 
   test.each([
     'create_bpmn_diagram',
-    'add_bpmn_element',
+    'add_bpmn_elements',
     'connect_bpmn_elements',
     'delete_bpmn_element',
     'move_bpmn_element',
@@ -43,11 +43,11 @@ describe('tool-definitions', () => {
     'list_bpmn_process_variables',
     // clone_bpmn_diagram removed — use create_bpmn_diagram with cloneFrom
     // diff_bpmn_diagrams removed — use list_bpmn_diagrams with compareWith
-    'add_bpmn_element_chain',
+    // add_bpmn_element_chain removed — use add_bpmn_elements with elements: [...] (connect: chain)
     // set_bpmn_connection_waypoints removed — use connect_bpmn_elements with connectionId + waypoints
     'assign_bpmn_elements_to_lane',
     // wrap_bpmn_process_in_collaboration removed — use create_bpmn_participant with wrapExisting
-    // handoff_bpmn_to_lane removed — use add_bpmn_element with fromElementId + toLaneId
+    // handoff_bpmn_to_lane removed — use add_bpmn_elements with fromElementId + toLaneId
     // convert_bpmn_collaboration_to_lanes removed — use create_bpmn_lanes with mergeFrom
     // autosize_bpmn_pools_and_lanes removed — use layout_bpmn_diagram with autosizeOnly
     // set_bpmn_input_output_mapping, set_bpmn_form_data, set_bpmn_camunda_listeners,
@@ -58,6 +58,8 @@ describe('tool-definitions', () => {
     // with elementIds
     // set_bpmn_event_definition removed outright (ADR-028, #23) — use
     // set_bpmn_element_properties's eventDefinition sub-object
+    // add_bpmn_element removed outright (ADR-031, #23) — use add_bpmn_elements with
+    // elements: [{...}] (single item)
   ])("includes tool '%s'", (name) => {
     expect(toolNames).toContain(name);
   });
@@ -134,19 +136,29 @@ describe('tool-definitions', () => {
     }
   });
 
-  test('add_bpmn_element requires diagramId and elementType', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_element');
+  test('add_bpmn_elements requires diagramId and elements', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_elements');
     const schema = getSchema(tool);
-    expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elementType']));
+    expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elements']));
+    expect(schema.properties!.elements.items.required).toEqual(
+      expect.arrayContaining(['elementType'])
+    );
   });
 
-  test('add_bpmn_element enum includes BoundaryEvent and CallActivity', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_element');
+  test('add_bpmn_elements per-item enum includes BoundaryEvent and CallActivity', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_elements');
     const schema = getSchema(tool);
-    const enumValues = schema.properties!.elementType.enum;
+    const enumValues = schema.properties!.elements.items.properties.elementType.enum;
     expect(enumValues).toContain('bpmn:BoundaryEvent');
     expect(enumValues).toContain('bpmn:CallActivity');
     expect(enumValues).toContain('bpmn:TextAnnotation');
+  });
+
+  test('add_bpmn_elements has a connect enum with chain/none, default chain', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_elements');
+    const schema = getSchema(tool);
+    expect(schema.properties!.connect.enum).toEqual(['chain', 'none']);
+    expect(schema.properties!.connect.default).toBe('chain');
   });
 
   test('export_bpmn requires diagramId, format, and filePath', () => {
@@ -222,10 +234,10 @@ describe('tool-definitions', () => {
     expect(schema.properties!.isDefault.type).toBe('boolean');
   });
 
-  test('add_bpmn_element enum includes Participant and Lane', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_element');
+  test('add_bpmn_elements per-item enum includes Participant and Lane', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_elements');
     const schema = getSchema(tool);
-    const enumValues = schema.properties!.elementType.enum;
+    const enumValues = schema.properties!.elements.items.properties.elementType.enum;
     expect(enumValues).toContain('bpmn:Participant');
     expect(enumValues).toContain('bpmn:Lane');
   });

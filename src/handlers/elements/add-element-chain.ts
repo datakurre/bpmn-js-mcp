@@ -1,10 +1,16 @@
 /**
- * Handler for add_bpmn_element_chain tool.
+ * Internal handler backing add_bpmn_elements' `connect: 'chain'` mode
+ * (the default).
  *
- * Convenience tool that creates a sequence of BPMN elements and connects
- * them in order, reducing round-trips compared to calling add_bpmn_element
- * multiple times. Internally uses add_bpmn_element with afterElementId
- * chaining.
+ * Former standalone add_bpmn_element_chain tool, folded into add_bpmn_elements
+ * and removed outright (no hidden alias) — see ADR-031. Kept as a plain
+ * exported function since add-elements.ts calls it directly, and existing
+ * tests call it directly too.
+ *
+ * Creates a sequence of BPMN elements and connects them in order, reducing
+ * round-trips compared to calling add_bpmn_element (now add_bpmn_elements
+ * with a single-item elements[] array) multiple times. Internally uses
+ * add_bpmn_element with afterElementId chaining.
  */
 // @mutating
 
@@ -13,22 +19,26 @@ import { missingRequiredError, typeMismatchError, semanticViolationError } from 
 import { requireDiagram, jsonResult, validateArgs, buildElementCounts } from '../helpers';
 import { getService } from '../../bpmn-types';
 import { appendLintFeedback } from '../../linter';
-import { handleAddElement } from './add-element';
+import { handleAddElement, type AddElementArgs } from './add-element';
 import { handleLayoutDiagram } from '../layout/layout-diagram';
+import { ALLOWED_ELEMENT_TYPES } from '../validation';
+
+/**
+ * One element's worth of `add_bpmn_element` fields within the chain, minus
+ * `diagramId`. Broadened (see ADR-031) from an earlier 4-field subset
+ * (elementType/name/participantId/laneId) to the full field set, so a chain
+ * item can also be a boundary event (hostElementId), a flow insertion
+ * (flowId), a handoff (fromElementId+toLaneId), a copy (copyFrom), etc. —
+ * whichever of those an item sets, it is placed at its own anchor instead of
+ * being auto-connected after the previous element (see `hasOwnAnchor` in
+ * `runChainLoop`).
+ */
+export type AddElementChainItem = Omit<AddElementArgs, 'diagramId'>;
 
 export interface AddElementChainArgs {
   diagramId: string;
   /** Array of elements to create in order. */
-  elements: Array<{
-    /** BPMN element type (e.g. 'bpmn:UserTask', 'bpmn:ExclusiveGateway'). */
-    elementType: string;
-    /** Optional name/label for the element. */
-    name?: string;
-    /** Optional participant pool to place element into. */
-    participantId?: string;
-    /** Optional lane to place element into. */
-    laneId?: string;
-  }>;
+  elements: AddElementChainItem[];
   /** Optional: connect the first element after this existing element ID. */
   afterElementId?: string;
   /** Optional participant pool for all elements (can be overridden per-element). */
@@ -86,8 +96,8 @@ function validateChainElements(
     if (!el.elementType) {
       throw missingRequiredError([`elements[${i}].elementType`]);
     }
-    if (!CHAIN_ELEMENT_TYPES.has(el.elementType)) {
-      throw typeMismatchError(`elements[${i}]`, el.elementType, Array.from(CHAIN_ELEMENT_TYPES));
+    if (!(ALLOWED_ELEMENT_TYPES as readonly string[]).includes(el.elementType)) {
+      throw typeMismatchError(`elements[${i}]`, el.elementType, [...ALLOWED_ELEMENT_TYPES]);
     }
   }
 
@@ -148,7 +158,7 @@ function detectCrossPoolTransition(
     warnings.push(
       `Element "${el.name || el.elementType}" specifies participantId "${currentParticipantId}" but the previous element is in "${previousParticipantId}". ` +
         `AutoPlace does not support cross-pool placement — the element may have landed in the wrong pool. ` +
-        `Use add_bpmn_element with explicit x/y coordinates and participantId to place it correctly.`
+        `Use add_bpmn_elements with explicit x/y coordinates and participantId to place it correctly.`
     );
   }
   return currentParticipantId || previousParticipantId;
@@ -167,6 +177,25 @@ interface ChainLoopResult {
   warnings: string[];
 }
 
+/**
+ * True when an item specifies its own placement anchor or absolute position
+ * (hostElementId, flowId, a handoff, a copy, or explicit x/y) — such an item
+ * is placed at its own anchor instead of being auto-connected after the
+ * previous element in the chain.
+ */
+function hasOwnAnchor(el: AddElementChainItem): boolean {
+  return !!(
+    el.hostElementId ||
+    el.flowId ||
+    el.fromElementId ||
+    el.toLaneId ||
+    el.afterElementId ||
+    el.copyFrom ||
+    el.x !== undefined ||
+    el.y !== undefined
+  );
+}
+
 async function runChainLoop(
   args: AddElementChainArgs,
   initialPreviousId: string | undefined,
@@ -180,13 +209,13 @@ async function runChainLoop(
   let previousParticipantId = initialParticipantId;
   for (const el of args.elements) {
     const isGateway = GATEWAY_TYPES.has(el.elementType);
+    const skipAutoConnect = postGateway || hasOwnAnchor(el);
     const addResult = await handleAddElement({
       diagramId: args.diagramId,
-      elementType: el.elementType,
-      name: el.name,
+      ...el,
       participantId: el.participantId || args.participantId,
       laneId: el.laneId || args.laneId,
-      ...(postGateway ? {} : previousId ? { afterElementId: previousId } : {}),
+      ...(skipAutoConnect ? {} : previousId ? { afterElementId: previousId } : {}),
     });
     const parsed = JSON.parse(addResult.content[0].text!);
     createdElements.push({
@@ -261,7 +290,7 @@ function buildLaneWarnings(
     ],
     nextSteps: [
       {
-        tool: 'add_bpmn_element_chain',
+        tool: 'add_bpmn_elements',
         description:
           `Re-run with laneId set to one of the available lanes: ${laneList}. ` +
           `Available lanes are listed above.`,
@@ -353,66 +382,3 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
   });
   return appendLintFeedback(result, diagram);
 }
-
-export const TOOL_DEFINITION = {
-  name: 'add_bpmn_element_chain',
-  description:
-    'Add a chain of BPMN elements connected in sequence, reducing round-trips. ' +
-    'Creates each element and auto-connects it to the previous one via sequence flows. ' +
-    'Equivalent to calling add_bpmn_element multiple times with afterElementId chaining. ' +
-    'Use afterElementId to attach the chain after an existing element. ' +
-    'For branching/merging patterns, use add_bpmn_element and connect_bpmn_elements instead.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elements: {
-        type: 'array',
-        description: 'Ordered array of elements to create and connect sequentially.',
-        items: {
-          type: 'object',
-          properties: {
-            elementType: {
-              type: 'string',
-              description: 'The BPMN element type (e.g. bpmn:UserTask, bpmn:ServiceTask)',
-              enum: Array.from(CHAIN_ELEMENT_TYPES),
-            },
-            name: { type: 'string', description: 'Optional name/label for the element' },
-            participantId: {
-              type: 'string',
-              description: 'Optional participant pool (overrides top-level participantId)',
-            },
-            laneId: {
-              type: 'string',
-              description: 'Optional lane (overrides top-level laneId)',
-            },
-          },
-          required: ['elementType'],
-        },
-        minItems: 1,
-      },
-      afterElementId: {
-        type: 'string',
-        description:
-          'Connect the first element in the chain after this existing element. ' +
-          'If omitted, the chain starts unconnected.',
-      },
-      participantId: {
-        type: 'string',
-        description: 'Default participant pool for all elements (can be overridden per-element).',
-      },
-      laneId: {
-        type: 'string',
-        description: 'Default lane for all elements (can be overridden per-element).',
-      },
-      autoLayout: {
-        type: 'boolean',
-        default: true,
-        description:
-          'When true (default), run layout_bpmn_diagram after the chain is built. ' +
-          'Pass false to skip auto-layout when more elements will be added first.',
-      },
-    },
-    required: ['diagramId', 'elements'],
-  },
-} as const;

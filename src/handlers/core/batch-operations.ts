@@ -166,7 +166,7 @@ export const TOOL_DEFINITION = {
             tool: {
               type: 'string',
               description:
-                'The tool name to invoke (e.g. "add_bpmn_element", "connect_bpmn_elements")',
+                'The tool name to invoke (e.g. "add_bpmn_elements", "connect_bpmn_elements")',
             },
             args: {
               type: 'object',

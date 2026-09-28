@@ -76,9 +76,25 @@ describe('add_bpmn_element_chain', () => {
     await expect(
       handleAddElementChain({
         diagramId,
-        elements: [{ elementType: 'bpmn:Participant' }],
+        elements: [{ elementType: 'bpmn:NotARealType' }],
       })
     ).rejects.toThrow();
+  });
+
+  test('accepts a non-flow-node element type (broadened in ADR-031)', async () => {
+    // bpmn:Participant used to be rejected by chain mode's narrower type
+    // list; ADR-031 broadened accepted per-item types to match
+    // add_bpmn_element's full ALLOWED_ELEMENT_TYPES.
+    const diagramId = await createDiagram();
+
+    const res = parseResult(
+      await handleAddElementChain({
+        diagramId,
+        elements: [{ elementType: 'bpmn:Participant' }],
+      })
+    );
+    expect(res.success).toBe(true);
+    expect(res.elements[0].elementType).toBe('bpmn:Participant');
   });
 
   test('creates single element chain', async () => {

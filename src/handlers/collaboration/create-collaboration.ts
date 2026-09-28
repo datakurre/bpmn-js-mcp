@@ -198,7 +198,7 @@ export async function handleCreateCollaboration(
     message: `Created collaboration with ${createdIds.length} participants: ${createdIds.join(', ')}${Object.keys(lanesCreated).length > 0 ? ` (with lanes in ${Object.keys(lanesCreated).length} participant(s))` : ''}`,
     nextSteps: [
       {
-        tool: 'add_bpmn_element',
+        tool: 'add_bpmn_elements',
         description:
           'Add start events, tasks, and end events inside the executable (expanded) pool using participantId',
       },

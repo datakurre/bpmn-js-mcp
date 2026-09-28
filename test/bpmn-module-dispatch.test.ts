@@ -36,12 +36,11 @@ describe('bpmnModule.dispatch', () => {
     expect(mod.toolDefinitions.map((t) => t.name)).not.toContain('set_bpmn_input_output_mapping');
 
     const diagramId = await createDiagram(mod);
-    const added = await call(mod, 'add_bpmn_element', {
+    const added = await call(mod, 'add_bpmn_elements', {
       diagramId,
-      elementType: 'bpmn:UserTask',
-      name: 'Review',
+      elements: [{ elementType: 'bpmn:UserTask', name: 'Review' }],
     });
-    const { elementId } = JSON.parse(added.content[0].text as string);
+    const [elementId] = JSON.parse(added.content[0].text as string).elementIds;
 
     const result = await call(mod, 'set_bpmn_input_output_mapping', {
       diagramId,
@@ -54,7 +53,7 @@ describe('bpmnModule.dispatch', () => {
   test('routes non-core tools when BPMN_MCP_TOOLS=core', async () => {
     const mod = await loadModule('core');
     const listed = mod.toolDefinitions.map((t) => t.name);
-    expect(listed).toHaveLength(11);
+    expect(listed).toHaveLength(10);
     expect(listed).not.toContain('list_bpmn_process_variables');
 
     const diagramId = await createDiagram(mod);
