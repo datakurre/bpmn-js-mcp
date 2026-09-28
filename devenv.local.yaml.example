@@ -1,7 +1,0 @@
-inputs:
-  devenv-module-devcontainer:
-    url: github:datakurre/devenv-module-devcontainer
-    flake: false
-imports:
-  - devenv-module-devcontainer
-allowUnfree: true

@@ -87,13 +87,3 @@ clean:
 
 # Install and build
 all: node_modules build
-
-.PHONY: develop
-develop: devenv.local.nix devenv.local.yaml ## Bootstrap opinionated development environment
-	devenv shell --profile=devcontainer -- code .
-
-devenv.local.nix:
-	cp devenv.local.nix.example devenv.local.nix
-
-devenv.local.yaml:
-	cp devenv.local.yaml.example devenv.local.yaml

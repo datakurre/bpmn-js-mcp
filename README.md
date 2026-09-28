@@ -23,6 +23,16 @@ MCP server that lets AI assistants create and manipulate BPMN 2.0 workflow diagr
 }
 ```
 
+### Nix
+
+With [Nix flakes](https://nixos.wiki/wiki/Flakes) enabled, the server can be run without cloning or installing anything:
+
+```sh
+nix run github:datakurre/bpmn-js-mcp
+```
+
+or as an MCP server command (`"command": "nix", "args": ["run", "github:datakurre/bpmn-js-mcp", "--", "--persist-dir", "./diagrams"]`).
+
 ### Persistence
 
 By default, all diagrams are held **in-memory only** and are lost when the MCP server process restarts. To survive restarts, pass `--persist-dir` with a directory path:
