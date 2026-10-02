@@ -76,7 +76,7 @@ describe('add_bpmn_element (elements form)', () => {
     await expect(
       handleAddElementChain({
         diagramId,
-        elements: [{ elementType: 'bpmn:Participant' }],
+        elements: [{ elementType: 'bpmn:NotAType' }],
       })
     ).rejects.toThrow();
   });

@@ -10,11 +10,7 @@
 import { type ToolResult } from '../../types';
 import { illegalCombinationError } from '../../errors';
 import { handleAddElement, type AddElementArgs } from './add-element';
-import {
-  handleAddElementChain,
-  CHAIN_ELEMENT_TYPES,
-  type AddElementChainArgs,
-} from './add-element-chain';
+import { handleAddElementChain, type AddElementChainArgs } from './add-element-chain';
 import { TOOL_DEFINITION as SINGLE_DEFINITION } from './add-element-schema';
 
 /** Arguments that may accompany `elements` (everything else is single-element only). */
@@ -65,36 +61,24 @@ export const TOOL_DEFINITION = {
         minItems: 1,
         description:
           'Multi-element form (replaces elementType and the other single-element parameters): ' +
-          'ordered elements to create. participantId, laneId and afterElementId at the top level apply to all.',
+          'ordered elements to create; a single element is an array of one. ' +
+          'participantId, laneId and afterElementId at the top level apply to all.',
         items: {
           type: 'object',
+          description:
+            'Any single-element parameter except diagramId (elementType, name, hostElementId, flowId, ' +
+            'eventDefinitionType, copyFrom, x/y, ...). An entry that sets its own anchor or position ' +
+            '(hostElementId, flowId, fromElementId/toLaneId, copyFrom, afterElementId, x/y) is placed there ' +
+            'instead of being chained, and then auto-layout is off unless autoLayout is true.',
           properties: {
             elementType: {
               type: 'string',
-              enum: Array.from(CHAIN_ELEMENT_TYPES),
-              description: 'The BPMN element type',
+              description: 'Same values as the top-level elementType',
             },
-            name: { type: 'string', description: 'Name/label' },
-            participantId: { type: 'string', description: 'Overrides top-level participantId' },
-            laneId: { type: 'string', description: 'Overrides top-level laneId' },
-            x: {
-              type: 'number',
-              description: 'X position — only with connect "none" (rejected when chaining)',
-            },
-            y: {
-              type: 'number',
-              description: 'Y position — only with connect "none" (rejected when chaining)',
-            },
-            isExpanded: { type: 'boolean', description: 'For bpmn:SubProcess only' },
-            // Event shorthands: same shape and meaning as the top-level parameters.
-            eventDefinitionType: { type: 'string' },
-            eventDefinitionProperties: { type: 'object' },
-            errorRef: { type: 'object' },
-            messageRef: { type: 'object' },
-            signalRef: { type: 'object' },
-            escalationRef: { type: 'object' },
+            name: { type: 'string' },
           },
           required: ['elementType'],
+          additionalProperties: true,
         },
       },
       connect: {
@@ -103,13 +87,12 @@ export const TOOL_DEFINITION = {
         default: 'chain',
         description:
           'With elements: "chain" (default) connects each element to the previous one; "none" only adds them, ' +
-          'placing each right of the previous one (starting from afterElementId) unless it has an explicit x/y.',
+          'placing each right of the previous one (starting from afterElementId) unless it sets its own anchor/position.',
       },
       autoLayout: {
         type: 'boolean',
-        default: true,
         description:
-          'With elements and connect "chain": run layout_bpmn_diagram afterwards (default true; skipped when a gateway is in the chain).',
+          'With elements and connect "chain": run layout_bpmn_diagram afterwards (default true; skipped when a gateway is in the chain or an entry sets its own anchor/position).',
       },
     },
     required: ['diagramId'],

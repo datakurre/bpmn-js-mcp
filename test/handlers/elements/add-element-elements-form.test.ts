@@ -22,6 +22,7 @@ describe('add_bpmn_element elements form', () => {
     expect(tool.inputSchema.properties).toHaveProperty('elements');
     expect(tool.inputSchema.properties.connect.enum).toEqual(['chain', 'none']);
     expect(tool.inputSchema.required).toEqual(['diagramId']);
+    expect(tool.inputSchema.properties.elements.items.additionalProperties).toBe(true);
   });
 
   test('connects elements in a chain by default', async () => {
@@ -79,42 +80,111 @@ describe('add_bpmn_element elements form', () => {
     expect(reg.filter((e: any) => e.type === 'bpmn:SequenceFlow')).toHaveLength(0);
   });
 
-  test.each([
-    ['flowId', { flowId: 'Flow_X' }],
-    ['copyFrom', { copyFrom: 'Task_X' }],
-    ['afterElementId', { afterElementId: 'Task_X' }],
-    ['autoConnect', { autoConnect: false }],
-  ])('rejects unsupported per-entry key %s', async (key, extra) => {
+  test('rejects entry keys that are not single-element parameters', async () => {
     const diagramId = await createDiagram();
     await expect(
       dispatchToolCall('add_bpmn_element', {
         diagramId,
-        elements: [{ elementType: 'bpmn:UserTask', ...extra }],
+        elements: [{ elementType: 'bpmn:UserTask', bogus: 1, connect: 'none' }],
       })
-    ).rejects.toThrow(new RegExp(`unsupported key.*${key}`));
+    ).rejects.toThrow(/unsupported key.*bogus.*connect/);
   });
 
-  test('rejects per-entry x/y when chaining', async () => {
+  test('rejects an element type outside the allowed list', async () => {
     const diagramId = await createDiagram();
     await expect(
       dispatchToolCall('add_bpmn_element', {
         diagramId,
-        elements: [{ elementType: 'bpmn:UserTask', x: 300, y: 300 }],
+        elements: [{ elementType: 'bpmn:Nope' }],
       })
-    ).rejects.toThrow(/x\/y are ignored when chaining/);
+    ).rejects.toThrow();
   });
 
-  test('single form still works', async () => {
+  test('a single-item array behaves like the single form', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await dispatchToolCall('add_bpmn_element', {
         diagramId,
-        elementType: 'bpmn:UserTask',
-        name: 'Solo',
+        elements: [{ elementType: 'bpmn:UserTask', name: 'Solo' }],
       })
     );
     expect(res.success).toBe(true);
-    expect(res.elementId).toBeDefined();
+    expect(res.elementCount).toBe(1);
+  });
+
+  test('an entry with hostElementId (boundary event) is attached, not chained', async () => {
+    const diagramId = await createDiagram();
+    const task = parseResult(
+      await dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elementType: 'bpmn:UserTask',
+        name: 'Work',
+      })
+    ).elementId;
+    const res = parseResult(
+      await dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elements: [
+          {
+            elementType: 'bpmn:BoundaryEvent',
+            hostElementId: task,
+            eventDefinitionType: 'bpmn:TimerEventDefinition',
+            eventDefinitionProperties: { timeDuration: 'PT1H' },
+          },
+          { elementType: 'bpmn:EndEvent', name: 'Timed out' },
+        ],
+      })
+    );
+    expect(res.elementCount).toBe(2);
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry') as any;
+    const boundary = reg.get(res.elementIds[0]);
+    expect(boundary.type).toBe('bpmn:BoundaryEvent');
+    expect(boundary.host.id).toBe(task);
+    // The boundary event itself was not auto-connected from the previous element
+    expect(boundary.incoming).toHaveLength(0);
+  });
+
+  test('an entry with flowId is inserted into that flow', async () => {
+    const diagramId = await createDiagram();
+    const chain = parseResult(
+      await dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elements: [
+          { elementType: 'bpmn:StartEvent', name: 'Start' },
+          { elementType: 'bpmn:EndEvent', name: 'End' },
+        ],
+      })
+    );
+    const flowId = Object.values(chain.connectionIds)[0] as string;
+    const res = parseResult(
+      await dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elements: [{ elementType: 'bpmn:UserTask', name: 'Inserted', flowId }],
+      })
+    );
+    expect(res.success).toBe(true);
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry') as any;
+    expect(reg.get(flowId)).toBeUndefined();
+    expect(reg.get(res.elementIds[0]).incoming).toHaveLength(1);
+    expect(reg.get(res.elementIds[0]).outgoing).toHaveLength(1);
+  });
+
+  test('an entry with explicit x/y keeps its position (auto-layout off by default)', async () => {
+    const diagramId = await createDiagram();
+    const res = parseResult(
+      await dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elements: [
+          { elementType: 'bpmn:UserTask', name: 'A', x: 500, y: 400 },
+          { elementType: 'bpmn:UserTask', name: 'B' },
+        ],
+      })
+    );
+    expect(res.autoLayoutApplied).toBeUndefined();
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry') as any;
+    const a = reg.get(res.elementIds[0]);
+    expect(a.x + a.width / 2).toBe(500);
+    expect(a.y + a.height / 2).toBe(400);
   });
 
   test('rejects mixing elements with single-element parameters', async () => {

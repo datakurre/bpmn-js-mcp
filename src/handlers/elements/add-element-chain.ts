@@ -13,37 +13,28 @@ import { missingRequiredError } from '../../errors';
 import { requireDiagram, jsonResult, validateArgs, buildElementCounts } from '../helpers';
 import { getService } from '../../bpmn-types';
 import { appendLintFeedback } from '../../linter';
-import { handleAddElement } from './add-element';
+import { handleAddElement, type AddElementArgs } from './add-element';
 import { handleLayoutDiagram } from '../layout/layout-diagram';
-import { CHAIN_ELEMENT_TYPES, validateChainElements } from './add-element-chain-validation';
+import {
+  CHAIN_ELEMENT_TYPES,
+  validateChainElements,
+  hasOwnAnchor,
+} from './add-element-chain-validation';
 
 export { CHAIN_ELEMENT_TYPES };
+
+/**
+ * One entry of `elements`: the full single-element `add_bpmn_element` parameter
+ * set minus `diagramId`. An entry that sets its own anchor (hostElementId,
+ * flowId, a handoff, copyFrom, afterElementId or explicit x/y) is placed there
+ * instead of being chained after the previous element.
+ */
+export type AddElementChainItem = Omit<AddElementArgs, 'diagramId'>;
 
 export interface AddElementChainArgs {
   diagramId: string;
   /** Array of elements to create in order. */
-  elements: Array<{
-    /** BPMN element type (e.g. 'bpmn:UserTask', 'bpmn:ExclusiveGateway'). */
-    elementType: string;
-    /** Optional name/label for the element. */
-    name?: string;
-    /** Optional participant pool to place element into. */
-    participantId?: string;
-    /** Optional lane to place element into. */
-    laneId?: string;
-    /** Explicit position (mostly useful with connect: 'none'). */
-    x?: number;
-    y?: number;
-    /** For bpmn:SubProcess: expanded (default) or collapsed. */
-    isExpanded?: boolean;
-    /** Event shorthand: event definition type (e.g. 'bpmn:TimerEventDefinition'). */
-    eventDefinitionType?: string;
-    eventDefinitionProperties?: Record<string, unknown>;
-    errorRef?: { id: string; name?: string; errorCode?: string };
-    messageRef?: { id: string; name?: string };
-    signalRef?: { id: string; name?: string };
-    escalationRef?: { id: string; name?: string; escalationCode?: string };
-  }>;
+  elements: AddElementChainItem[];
   /**
    * 'chain' (default): connect each element to the previous one with a sequence flow.
    * 'none': just add the elements, connecting nothing (each is placed right of the previous
@@ -121,6 +112,22 @@ interface ChainLoopResult {
   warnings: string[];
 }
 
+/**
+ * Placement args for one entry. An entry with its own anchor/position is placed there.
+ * Otherwise 'none' places it right of the previous element (or the afterElementId anchor)
+ * without connecting, and 'chain' connects it after the previous element (not past a gateway).
+ */
+function planPlacement(
+  el: AddElementChainItem,
+  connect: 'chain' | 'none',
+  previousId: string | undefined,
+  postGateway: boolean
+): Partial<AddElementArgs> {
+  if (hasOwnAnchor(el) || !previousId) return {};
+  if (connect === 'none') return { afterElementId: previousId, autoConnect: false };
+  return postGateway ? {} : { afterElementId: previousId };
+}
+
 async function runChainLoop(
   args: AddElementChainArgs,
   initialPreviousId: string | undefined,
@@ -135,17 +142,7 @@ async function runChainLoop(
   let previousParticipantId = initialParticipantId;
   for (const el of args.elements) {
     const isGateway = GATEWAY_TYPES.has(el.elementType);
-    const hasPosition = el.x !== undefined || el.y !== undefined;
-    // 'none': place each element right of the previous one (or the afterElementId
-    // anchor) without connecting, unless it has an explicit position.
-    const placement =
-      connect === 'none'
-        ? previousId && !hasPosition
-          ? { afterElementId: previousId, autoConnect: false }
-          : {}
-        : !postGateway && previousId
-          ? { afterElementId: previousId }
-          : {};
+    const placement = planPlacement(el, connect, previousId, postGateway);
     const addResult = await handleAddElement({
       ...el,
       diagramId: args.diagramId,
@@ -244,7 +241,9 @@ function planLayout(
     connected && args.elements.some((el) => GATEWAY_TYPES.has(el.elementType));
   return {
     chainHasGateway,
-    shouldLayout: args.autoLayout !== false && connected && !chainHasGateway,
+    // Layout would discard explicit anchors/positions, so it is off by default when any entry sets one.
+    shouldLayout:
+      (args.autoLayout ?? !args.elements.some(hasOwnAnchor)) && connected && !chainHasGateway,
   };
 }
 

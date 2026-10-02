@@ -24,5 +24,13 @@ schemas.
   `core`-tier slot. The handler remains internal (`handleAddElementChain`).
 - The routing lives in `add-element-tool.ts`; `handleAddElement` stays the
   single-element handler used internally (e.g. by handoff).
-- Per-entry `hostElementId`, `flowId` and `copyFrom` are not supported: use the
-  single form for those.
+- Entries accept the full single-element parameter set (except `diagramId`) and
+  any `bpmn:` element type the single form allows, so an entry can be a boundary
+  event (`hostElementId`), a flow insertion (`flowId`), a handoff
+  (`fromElementId` + `toLaneId`), a copy (`copyFrom`) or explicitly positioned
+  (`x`/`y`). Unknown entry keys are rejected with `illegalCombinationError`.
+- An entry that sets its own anchor or position is placed there instead of being
+  chained after the previous element, and auto-layout then defaults to off (it
+  would discard the placement) unless `autoLayout: true` is passed.
+- With `connect: 'none'`, entries without their own anchor are placed right of
+  the previous one (starting from `afterElementId`) without connecting.
