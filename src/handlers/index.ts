@@ -46,7 +46,11 @@ import {
 
 // ── Elements: element CRUD operations ──────────────────────────────────────
 
-import { handleAddElement, TOOL_DEFINITION as ADD_ELEMENT_DEF } from './elements/add-element';
+import { handleAddElement } from './elements/add-element';
+import {
+  handleAddElementTool,
+  TOOL_DEFINITION as ADD_ELEMENT_DEF,
+} from './elements/add-element-tool';
 import {
   handleConnect,
   handleAutoConnect,
@@ -65,10 +69,7 @@ import {
 import { handleDuplicateElement } from './elements/duplicate-element';
 import { handleInsertElement } from './elements/insert-element';
 import { handleReplaceElement } from './elements/replace-element';
-import {
-  handleAddElementChain,
-  TOOL_DEFINITION as ADD_ELEMENT_CHAIN_DEF,
-} from './elements/add-element-chain';
+import { handleAddElementChain } from './elements/add-element-chain';
 import { handleListElements, TOOL_DEFINITION as LIST_ELEMENTS_DEF } from './elements/list-elements';
 import { handleGetProperties } from './elements/get-properties';
 import { handleSetConnectionWaypoints } from './elements/set-connection-waypoints';
@@ -170,7 +171,7 @@ interface ToolRegistration {
 
 const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram, tier: 'core' },
-  { definition: ADD_ELEMENT_DEF, handler: handleAddElement, tier: 'core' },
+  { definition: ADD_ELEMENT_DEF, handler: handleAddElementTool, tier: 'core' },
   { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
   { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
   { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
@@ -207,7 +208,7 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
   // clone_bpmn_diagram removed: cloneFrom parameter on create_bpmn_diagram
   // diff_bpmn_diagrams removed: compareWith parameter on list_bpmn_diagrams
-  { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain, tier: 'core' },
+  // add_bpmn_element_chain removed: elements array on add_bpmn_element (ADR-032)
   // set_bpmn_connection_waypoints removed: waypoints+connectionId parameters on connect_bpmn_elements
   // wrap_bpmn_process_in_collaboration removed: wrapExisting on create_bpmn_participant
   // handoff_bpmn_to_lane removed: fromElementId + toLaneId params on add_bpmn_element
@@ -296,7 +297,6 @@ const TOOL_TITLES: Record<string, string> = {
   create_bpmn_participant: 'Create Participant/Pool',
   analyze_bpmn_lanes: 'Analyze Lanes',
   list_bpmn_process_variables: 'List Process Variables',
-  add_bpmn_element_chain: 'Add Element Chain',
 };
 
 /** Build the MCP `annotations` object for a tool (see MCP spec ToolAnnotations). */

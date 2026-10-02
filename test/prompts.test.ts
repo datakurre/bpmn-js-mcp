@@ -105,7 +105,7 @@ describe('getPrompt', () => {
     expect(text).toMatch(/output mappings? on external tasks?.*worker/i);
   });
 
-  test('executable prompt warns about afterElementId when using add_bpmn_element_chain', () => {
+  test('executable prompt warns about afterElementId when using add_bpmn_element elements', () => {
     const result = getPrompt('executable');
     const text = result.messages[0].content.text;
     expect(text).toContain('afterElementId');

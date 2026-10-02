@@ -66,7 +66,7 @@ You can also combine `--persist-dir` with `--hint-level` to reduce response verb
 
 ### Tool tiers
 
-For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 11 most-used tools (`create_bpmn_diagram`, `export_bpmn`, `add_bpmn_element`, `add_bpmn_element_chain`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
+For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 10 most-used tools (`create_bpmn_diagram`, `export_bpmn`, `add_bpmn_element`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
 
 ```json
 {
@@ -130,7 +130,6 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `create_bpmn_diagram`       | Create a new diagram: blank, cloned (`cloneFrom`), or imported (`xml`/`filePath`, auto-layout if no DI)                 |
 | `add_bpmn_element`          | Add elements (use `flowId` to insert, `fromElementId`+`toLaneId` for cross-lane handoff)                                |
-| `add_bpmn_element_chain`    | Add a chain of elements connected in sequence                                                                           |
 | `connect_bpmn_elements`     | Connect elements (use `connectionId`+`waypoints` for custom routing, or `connections` for arbitrary pairs)              |
 | `delete_bpmn_element`       | Remove an element or connection                                                                                         |
 | `move_bpmn_element`         | Move, resize, or reassign an element to a lane                                                                          |

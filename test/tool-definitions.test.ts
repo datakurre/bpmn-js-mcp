@@ -14,7 +14,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(21);
+    expect(TOOL_DEFINITIONS.length).toBe(20);
   });
 
   test.each([
@@ -43,7 +43,6 @@ describe('tool-definitions', () => {
     'list_bpmn_process_variables',
     // clone_bpmn_diagram removed — use create_bpmn_diagram with cloneFrom
     // diff_bpmn_diagrams removed — use list_bpmn_diagrams with compareWith
-    'add_bpmn_element_chain',
     // set_bpmn_connection_waypoints removed — use connect_bpmn_elements with connectionId + waypoints
     // wrap_bpmn_process_in_collaboration removed — use create_bpmn_participant with wrapExisting
     // handoff_bpmn_to_lane removed — use add_bpmn_element with fromElementId + toLaneId
@@ -140,10 +139,11 @@ describe('tool-definitions', () => {
     }
   });
 
-  test('add_bpmn_element requires diagramId and elementType', () => {
+  test('add_bpmn_element requires diagramId and either elementType or elements', () => {
     const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_element');
-    const schema = getSchema(tool);
-    expect(schema.required).toEqual(expect.arrayContaining(['diagramId', 'elementType']));
+    const schema = getSchema(tool) as any;
+    expect(schema.required).toEqual(['diagramId']);
+    expect(schema.anyOf).toEqual([{ required: ['elementType'] }, { required: ['elements'] }]);
   });
 
   test('add_bpmn_element enum includes BoundaryEvent and CallActivity', () => {
