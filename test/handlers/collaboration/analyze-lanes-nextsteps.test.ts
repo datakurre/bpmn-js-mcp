@@ -1,7 +1,7 @@
 /**
  * Tests for analyze_bpmn_lanes suggest mode:
  * - Response should include a concrete nextSteps array with
- *   assign_bpmn_elements_to_lane calls that an AI agent can execute
+ *   create_bpmn_lanes (assignments) calls that an AI agent can execute
  *   directly without re-deriving element/lane IDs.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
@@ -11,7 +11,7 @@ import { createDiagram, addElement, parseResult, clearDiagrams } from '../../hel
 describe('analyze_bpmn_lanes suggest — nextSteps with assign tool calls', () => {
   beforeEach(() => clearDiagrams());
 
-  test('suggest mode includes nextSteps with assign_bpmn_elements_to_lane calls', async () => {
+  test('suggest mode includes nextSteps with create_bpmn_lanes (assignments) calls', async () => {
     const diagramId = await createDiagram();
     const poolRes = parseResult(
       await handleCreateParticipant({ diagramId, name: 'Groceries', height: 400 })
@@ -57,11 +57,11 @@ describe('analyze_bpmn_lanes suggest — nextSteps with assign tool calls', () =
     expect(Array.isArray(res.nextSteps)).toBe(true);
 
     const assignStep = (res.nextSteps as any[]).find(
-      (s: any) => s.tool === 'assign_bpmn_elements_to_lane'
+      (s: any) => s.tool === 'create_bpmn_lanes' && s.args?.assignments
     );
     expect(assignStep).toBeDefined();
     // The step should include elementIds and laneId
     expect(assignStep.args).toBeDefined();
-    expect(assignStep.args.elementIds).toBeDefined();
+    expect(assignStep.args.assignments[0].elementIds).toBeDefined();
   });
 });

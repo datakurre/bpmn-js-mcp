@@ -14,7 +14,7 @@ describe('tool-definitions', () => {
   const toolNames = TOOL_DEFINITIONS.map((t) => t.name);
 
   test('exports the expected number of tools', () => {
-    expect(TOOL_DEFINITIONS.length).toBe(22);
+    expect(TOOL_DEFINITIONS.length).toBe(21);
   });
 
   test.each([
@@ -38,14 +38,13 @@ describe('tool-definitions', () => {
     'create_bpmn_lanes',
     'create_bpmn_participant',
     'analyze_bpmn_lanes',
-    // redistribute_bpmn_elements_across_lanes removed — use analyze_bpmn_lanes with mode: redistribute
+    // redistribute_bpmn_elements_across_lanes removed — use create_bpmn_lanes with strategy
     // replace_bpmn_element removed — use set_bpmn_element_properties with elementType
     'list_bpmn_process_variables',
     // clone_bpmn_diagram removed — use create_bpmn_diagram with cloneFrom
     // diff_bpmn_diagrams removed — use list_bpmn_diagrams with compareWith
     'add_bpmn_element_chain',
     // set_bpmn_connection_waypoints removed — use connect_bpmn_elements with connectionId + waypoints
-    'assign_bpmn_elements_to_lane',
     // wrap_bpmn_process_in_collaboration removed — use create_bpmn_participant with wrapExisting
     // handoff_bpmn_to_lane removed — use add_bpmn_element with fromElementId + toLaneId
     // convert_bpmn_collaboration_to_lanes removed — use create_bpmn_lanes with mergeFrom
@@ -108,10 +107,17 @@ describe('tool-definitions', () => {
     expect(schema.properties).toHaveProperty('autosizeOnly');
   });
 
-  test('analyze_bpmn_lanes has redistribute mode (merged from redistribute_bpmn_elements_across_lanes)', () => {
+  test('create_bpmn_lanes has assignments and strategy (merged from assign/redistribute)', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'create_bpmn_lanes');
+    const schema = getSchema(tool);
+    expect(schema.properties).toHaveProperty('assignments');
+    expect(schema.properties).toHaveProperty('strategy');
+  });
+
+  test('analyze_bpmn_lanes has no redistribute mode', () => {
     const tool = TOOL_DEFINITIONS.find((t) => t.name === 'analyze_bpmn_lanes');
     const schema = getSchema(tool);
-    expect(schema.properties!.mode.enum).toContain('redistribute');
+    expect(schema.properties!.mode.enum).not.toContain('redistribute');
   });
 
   test('set_bpmn_element_properties has elementType parameter (merged from replace_bpmn_element)', () => {
@@ -257,6 +263,7 @@ describe('tool-definitions', () => {
       'list_bpmn_elements',
       'validate_bpmn_diagram',
       'list_bpmn_process_variables',
+      'analyze_bpmn_lanes',
     ];
 
     test('every tool has a title and boolean readOnlyHint/openWorldHint', () => {
@@ -273,11 +280,6 @@ describe('tool-definitions', () => {
     test.each(readOnlyToolNames)('%s has readOnlyHint: true', (name) => {
       const tool = TOOL_DEFINITIONS.find((t) => t.name === name);
       expect((tool as any).annotations.readOnlyHint).toBe(true);
-    });
-
-    test('analyze_bpmn_lanes is not read-only (redistribute mode mutates)', () => {
-      const tool = TOOL_DEFINITIONS.find((t) => t.name === 'analyze_bpmn_lanes');
-      expect((tool as any).annotations.readOnlyHint).toBe(false);
     });
 
     test.each(['delete_bpmn_diagram', 'delete_bpmn_element'])(

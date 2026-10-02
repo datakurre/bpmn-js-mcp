@@ -125,10 +125,7 @@ import {
   handleCreateLanes,
   TOOL_DEFINITION as CREATE_LANES_DEF,
 } from './collaboration/create-lanes';
-import {
-  handleAssignElementsToLane,
-  TOOL_DEFINITION as ASSIGN_ELEMENTS_TO_LANE_DEF,
-} from './collaboration/assign-elements-to-lane';
+import { handleAssignElementsToLane } from './collaboration/assign-elements-to-lane';
 import { handleWrapProcessInCollaboration } from './collaboration/wrap-process-in-collaboration';
 import { handleSplitParticipantIntoLanes } from './collaboration/split-participant-into-lanes';
 import {
@@ -204,14 +201,14 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: CREATE_LANES_DEF, handler: handleCreateLanes },
   { definition: CREATE_PARTICIPANT_DEF, handler: handleCreateParticipant },
   { definition: ANALYZE_LANES_DEF, handler: handleAnalyzeLanes },
-  // redistribute_bpmn_elements_across_lanes removed: redistribute mode on analyze_bpmn_lanes
+  // redistribute_bpmn_elements_across_lanes removed: strategy on create_bpmn_lanes
+  // assign_bpmn_elements_to_lane removed: assignments on create_bpmn_lanes
   // replace_bpmn_element removed: elementType parameter on set_bpmn_element_properties
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
   // clone_bpmn_diagram removed: cloneFrom parameter on create_bpmn_diagram
   // diff_bpmn_diagrams removed: compareWith parameter on list_bpmn_diagrams
   { definition: ADD_ELEMENT_CHAIN_DEF, handler: handleAddElementChain, tier: 'core' },
   // set_bpmn_connection_waypoints removed: waypoints+connectionId parameters on connect_bpmn_elements
-  { definition: ASSIGN_ELEMENTS_TO_LANE_DEF, handler: handleAssignElementsToLane },
   // wrap_bpmn_process_in_collaboration removed: wrapExisting on create_bpmn_participant
   // handoff_bpmn_to_lane removed: fromElementId + toLaneId params on add_bpmn_element
   // convert_bpmn_collaboration_to_lanes removed: mergeFrom on create_bpmn_lanes
@@ -222,8 +219,7 @@ const TOOL_REGISTRY: ToolRegistration[] = [
 
 /**
  * Tools that only read diagram state — no idempotency caching needed.
- * Derived from handler files tagged `// @readonly`.  `analyze_bpmn_lanes`
- * is not listed: its `redistribute` mode moves elements between lanes.
+ * Derived from handler files tagged `// @readonly`.
  */
 const READONLY_TOOLS = new Set([
   'export_bpmn',
@@ -231,6 +227,7 @@ const READONLY_TOOLS = new Set([
   'list_bpmn_process_variables',
   'validate_bpmn_diagram',
   'list_bpmn_elements',
+  'analyze_bpmn_lanes',
 ]);
 
 /** Tools whose primary effect is permanently removing a diagram or element. */
@@ -300,7 +297,6 @@ const TOOL_TITLES: Record<string, string> = {
   analyze_bpmn_lanes: 'Analyze Lanes',
   list_bpmn_process_variables: 'List Process Variables',
   add_bpmn_element_chain: 'Add Element Chain',
-  assign_bpmn_elements_to_lane: 'Assign Elements to Lane',
 };
 
 /** Build the MCP `annotations` object for a tool (see MCP spec ToolAnnotations). */

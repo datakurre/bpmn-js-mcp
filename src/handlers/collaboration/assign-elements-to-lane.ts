@@ -1,5 +1,5 @@
 /**
- * Handler for assign_bpmn_elements_to_lane tool.
+ * Internal handler behind create_bpmn_lanes's `assignments` form.
  *
  * Bulk-assigns multiple elements to a lane, updating their flowNodeRef
  * membership and optionally repositioning them vertically within the lane.
@@ -153,32 +153,3 @@ export async function handleAssignElementsToLane(
   });
   return appendLintFeedback(result, diagram);
 }
-
-export const TOOL_DEFINITION = {
-  name: 'assign_bpmn_elements_to_lane',
-  description:
-    "Bulk-assign multiple elements to a lane. Updates the lane's flowNodeRef membership " +
-    'and optionally repositions elements vertically within the lane bounds. ' +
-    'Elements are removed from any previous lane assignment. ' +
-    'Participants, lanes, processes, and collaborations cannot be assigned to lanes.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      laneId: { type: 'string', description: 'The ID of the target lane' },
-      elementIds: {
-        type: 'array',
-        description: 'Array of element IDs to assign to the lane',
-        items: { type: 'string' },
-        minItems: 1,
-      },
-      reposition: {
-        type: 'boolean',
-        description:
-          'When true (default), repositions elements vertically to center them within the lane bounds. ' +
-          'Set to false to keep elements at their current position and only update the lane membership.',
-      },
-    },
-    required: ['diagramId', 'laneId', 'elementIds'],
-  },
-} as const;

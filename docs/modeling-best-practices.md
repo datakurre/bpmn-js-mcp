@@ -230,5 +230,5 @@ A common pattern is **Task → Review → Gateway → (Yes: continue) / (No: loo
 **Inserted element lands in the wrong lane:**
 
 - When `add_bpmn_element` with `flowId` splits a cross-lane flow, the new element is placed at the midpoint between source and target, which may fall into an unrelated lane.
-- After insertion, use `assign_bpmn_elements_to_lane` to move the element to the correct lane.
+- After insertion, use `create_bpmn_lanes` with `assignments` to move the element to the correct lane.
 - Alternatively, use `add_bpmn_element` with explicit `x`/`y` coordinates followed by manual connection.

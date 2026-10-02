@@ -40,7 +40,7 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //   convert_bpmn_collaboration_to_lanes → create_bpmn_lanes (mergeFrom),
     //   diff_bpmn_diagrams → list_bpmn_diagrams (compareWith),
     //   autosize_bpmn_pools_and_lanes → layout_bpmn_diagram (autosizeOnly),
-    //   redistribute_bpmn_elements_across_lanes → analyze_bpmn_lanes (mode: redistribute),
+    //   redistribute_bpmn_elements_across_lanes → create_bpmn_lanes (strategy),
     //   replace_bpmn_element → set_bpmn_element_properties (elementType),
     //   set_bpmn_connection_waypoints → connect_bpmn_elements (connectionId + waypoints),
     //   handoff_bpmn_to_lane → add_bpmn_element (fromElementId + toLaneId),
@@ -50,11 +50,11 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //     same no-alias policy),
     //   import_bpmn_xml → create_bpmn_diagram (xml/filePath/autoLayout; ADR-030, #23 —
     //     same no-alias policy).
-    // Of those 27, 5 are hidden aliases (ADR-021, #8): consolidated into
+    // Of those 26, 5 are hidden aliases (ADR-021, #8): consolidated into
     // set_bpmn_element_properties's inputOutput/formData/listeners/
-    // callActivityVariables/loop sub-objects, so only 22 are publicly listed.
-    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(27);
-    expect(TOOL_DEFINITIONS.length).toBe(22);
+    // callActivityVariables/loop sub-objects, so only 21 are publicly listed.
+    expect(ALL_DISPATCHABLE_TOOL_NAMES.length).toBe(26);
+    expect(TOOL_DEFINITIONS.length).toBe(21);
 
     // Verify no tool name is duplicated
     const names = TOOL_DEFINITIONS.map((t) => t.name);

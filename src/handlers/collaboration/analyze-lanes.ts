@@ -12,20 +12,11 @@ import { type ToolResult } from '../../types';
 import { requireDiagram, jsonResult, validateArgs } from '../helpers';
 import { getService } from '../../bpmn-types';
 import { findProcess } from './collaboration-utils';
-import { handleRedistributeElementsAcrossLanes } from './redistribute-elements-across-lanes';
 
 export interface AnalyzeLanesArgs {
   diagramId: string;
-  mode: 'suggest' | 'validate' | 'pool-vs-lanes' | 'redistribute';
+  mode: 'suggest' | 'validate' | 'pool-vs-lanes';
   participantId?: string;
-  /** For redistribute mode: redistribution strategy. */
-  strategy?: string;
-  /** For redistribute mode: dry run without applying changes. */
-  dryRun?: boolean;
-  /** For redistribute mode: validate before/after. */
-  validate?: boolean;
-  /** For redistribute mode: whether to reposition elements. */
-  reposition?: boolean;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -378,7 +369,7 @@ function buildRecommendation(
   }
   const stats = `${coherence}% coherence (${intraLane} intra-lane vs ${crossLane} cross-lane flows)`;
   if (coherence >= 70) {
-    return `Suggested organization achieves ${stats}. This is a good lane structure. Use create_bpmn_lanes and assign_bpmn_elements_to_lane to apply.`;
+    return `Suggested organization achieves ${stats}. This is a good lane structure. Use create_bpmn_lanes (lanes, then assignments) to apply.`;
   }
   return `Suggested organization achieves ${stats}. Consider organizing by business role (e.g. "Requester", "Approver", "System") rather than task type for better flow coherence.`;
 }
@@ -417,7 +408,7 @@ function buildSuggestLanesAndNextSteps(
 
   // Build actionable nextSteps so the AI agent can apply the suggestions directly.
   // Step 1: create_bpmn_lanes (only when the pool has no lanes yet)
-  // Step N: one assign_bpmn_elements_to_lane per suggestion
+  // Step N: one create_bpmn_lanes assignments call per suggestion
   const nextSteps: Array<{ tool: string; description: string; args: Record<string, unknown> }> = [];
   if (currentLanes.length === 0 && suggestions.length > 0) {
     nextSteps.push({
@@ -433,12 +424,13 @@ function buildSuggestLanesAndNextSteps(
   for (const s of suggestions) {
     const existingLaneId = existingLaneIdByName.get(s.laneName);
     nextSteps.push({
-      tool: 'assign_bpmn_elements_to_lane',
+      tool: 'create_bpmn_lanes',
       description: `Assign ${s.elementIds.length} element(s) to lane "${s.laneName}"`,
       args: {
         diagramId: args.diagramId,
-        elementIds: s.elementIds,
-        ...(existingLaneId ? { laneId: existingLaneId } : {}),
+        assignments: [
+          { ...(existingLaneId ? { laneId: existingLaneId } : {}), elementIds: s.elementIds },
+        ],
       },
     });
   }
@@ -635,7 +627,7 @@ function checkLanePopulation(laneDetails: LaneDetail[], issues: LaneIssue[]): vo
         message: `Lane "${detail.laneName}" is empty. Remove it or assign elements to it.`,
         elementIds: [detail.laneId],
         suggestion:
-          'Use delete_bpmn_element to remove the empty lane, or assign_bpmn_elements_to_lane to populate it.',
+          'Use delete_bpmn_element to remove the empty lane, or create_bpmn_lanes with assignments to populate it.',
       });
     } else if (detail.elementCount <= 1) {
       issues.push({
@@ -644,7 +636,7 @@ function checkLanePopulation(laneDetails: LaneDetail[], issues: LaneIssue[]): vo
         message: `Lane "${detail.laneName}" contains only ${detail.elementCount} element(s). Consider merging with another lane.`,
         elementIds: [detail.laneId],
         suggestion:
-          "Consider using assign_bpmn_elements_to_lane to merge this lane's elements into a related lane.",
+          "Consider using create_bpmn_lanes with assignments to merge this lane's elements into a related lane.",
       });
     }
   }
@@ -659,7 +651,8 @@ function checkUnassigned(flowNodes: any[], laneMap: Map<string, any>, issues: La
       code: 'elements-not-in-lane',
       message: `${unassigned.length} flow node(s) are not assigned to any lane: ${unassigned.map((e: any) => e.name || e.id).join(', ')}`,
       elementIds: unassigned.map((e: any) => e.id),
-      suggestion: 'Use assign_bpmn_elements_to_lane to assign these elements to appropriate lanes.',
+      suggestion:
+        'Use create_bpmn_lanes with assignments to assign these elements to appropriate lanes.',
     });
   }
 }
@@ -703,7 +696,7 @@ function buildZigzagIssue(
     code: 'zigzag-flow',
     message: `Zigzag flow: ${pName} → ${nName} (${nodeLane.name || nodeLane.id}) → ${sName}. Consider moving "${nName}" to lane "${predLane.name || predLane.id}".`,
     elementIds: [node.id],
-    suggestion: `Use assign_bpmn_elements_to_lane to move "${nName}" to lane "${predLane.name || predLane.id}".`,
+    suggestion: `Use create_bpmn_lanes with assignments to move "${nName}" to lane "${predLane.name || predLane.id}".`,
   };
 }
 
@@ -1213,15 +1206,6 @@ export async function handleAnalyzeLanes(args: AnalyzeLanesArgs): Promise<ToolRe
       return handleSuggestPoolVsLanes({
         diagramId: args.diagramId,
       });
-    case 'redistribute':
-      return handleRedistributeElementsAcrossLanes({
-        diagramId: args.diagramId,
-        participantId: args.participantId,
-        strategy: args.strategy as any,
-        dryRun: args.dryRun,
-        validate: args.validate,
-        reposition: args.reposition,
-      });
     default:
       return handleSuggestLaneOrganization({
         diagramId: args.diagramId,
@@ -1240,8 +1224,7 @@ export const TOOL_DEFINITION = {
     'zigzag patterns, single-element lanes, and overall coherence. Returns structured issues with fix suggestions. ' +
     "'pool-vs-lanes' — evaluate whether a collaboration should use separate pools (different organizations/systems) " +
     'or lanes (role separation within one organization). Returns recommendation with confidence and reasoning. ' +
-    "'redistribute' — rebalance element placement across existing lanes. " +
-    'Supports strategy (role-based, balance, minimize-crossings, manual), dryRun, validate, and reposition options.',
+    'Read-only; to assign or redistribute elements use create_bpmn_lanes.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -1251,41 +1234,16 @@ export const TOOL_DEFINITION = {
       },
       mode: {
         type: 'string',
-        enum: ['suggest', 'validate', 'pool-vs-lanes', 'redistribute'],
+        enum: ['suggest', 'validate', 'pool-vs-lanes'],
         description:
           "Analysis mode: 'suggest' for lane assignment recommendations, " +
           "'validate' for checking current lane organization quality, " +
-          "'pool-vs-lanes' for deciding between pools and lanes, " +
-          "'redistribute' for rebalancing element placement across existing lanes.",
+          "'pool-vs-lanes' for deciding between pools and lanes.",
       },
       participantId: {
         type: 'string',
         description:
-          "Optional participant ID to scope the analysis (used with 'suggest', 'validate', and 'redistribute' modes).",
-      },
-      strategy: {
-        type: 'string',
-        enum: ['role-based', 'balance', 'minimize-crossings', 'manual'],
-        description:
-          "Redistribution strategy (mode: 'redistribute' only). " +
-          "'role-based' matches assignee/candidateGroups to lane names. " +
-          "'balance' spreads elements evenly. 'minimize-crossings' minimizes cross-lane flows. " +
-          "'manual' assigns specified elementIds to a target laneId.",
-      },
-      dryRun: {
-        type: 'boolean',
-        description:
-          "When true (mode: 'redistribute' only), returns the redistribution plan without applying changes.",
-      },
-      validate: {
-        type: 'boolean',
-        description:
-          "When true (mode: 'redistribute' only), runs lane validation before and after redistribution.",
-      },
-      reposition: {
-        type: 'boolean',
-        description:
-          "When true (mode: 'redistribute' only, default true), repositions elements vertically within their new lane bounds.",
+          "Optional participant ID to scope the analysis (used with 'suggest' and 'validate' modes).",
       },
     },
     required: ['diagramId', 'mode'],
