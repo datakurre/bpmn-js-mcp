@@ -164,7 +164,6 @@ describe('create_bpmn_lanes', () => {
         diagramId,
         participantId: poolA,
         mergeFrom: poolA,
-        lanes: [{ name: 'Lane A' }, { name: 'Lane B' }],
         layout: false,
       })
     );

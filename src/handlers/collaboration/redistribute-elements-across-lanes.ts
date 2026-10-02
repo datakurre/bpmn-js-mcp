@@ -23,7 +23,6 @@ import { typeMismatchError } from '../../errors';
 import { appendLintFeedback } from '../../linter';
 import { handleValidateLaneOrganization } from './analyze-lanes';
 import { removeFromAllLanes, addToLane } from '../lane-helpers';
-import { handleAssignElementsToLane } from './assign-elements-to-lane';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Inlined from auto-distribute.ts
@@ -485,15 +484,11 @@ export async function validateAndRedistribute(
 export interface RedistributeElementsAcrossLanesArgs {
   diagramId: string;
   participantId?: string;
-  strategy?: 'role-based' | 'balance' | 'minimize-crossings' | 'manual';
+  strategy?: 'role-based' | 'balance' | 'minimize-crossings';
   reposition?: boolean;
   dryRun?: boolean;
   /** When true, runs validation before and after redistribution (merged optimize flow). */
   validate?: boolean;
-  /** Target lane ID for manual strategy. */
-  laneId?: string;
-  /** Element IDs to assign (manual strategy). */
-  elementIds?: string[];
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -739,7 +734,7 @@ function collectMoves(
  * Return IDs of lanes in the given participant that have zero flowNodeRef entries.
  * Called after redistribution to surface lanes that can be safely deleted.
  */
-function findEmptyLaneIds(reg: any, participantId: string): string[] {
+export function findEmptyLaneIds(reg: any, participantId: string): string[] {
   const lanes: any[] = reg.filter(
     (el: any) => el.type === 'bpmn:Lane' && el.parent?.id === participantId
   );
@@ -755,7 +750,7 @@ function findEmptyLaneIds(reg: any, participantId: string): string[] {
  * Build nextStep entries for each empty lane — suggests calling
  * delete_bpmn_element for each to clean up the diagram.
  */
-function buildEmptyLaneNextSteps(
+export function buildEmptyLaneNextSteps(
   emptyLaneIds: string[],
   reg: any
 ): Array<{ tool: string; description: string; args?: Record<string, unknown> }> {
@@ -770,60 +765,7 @@ function buildEmptyLaneNextSteps(
   });
 }
 
-/** Find the participant that contains a given lane element. */
-function getParticipantIdFromLaneId(reg: any, laneId: string): string | null {
-  const lane: any = reg.get(laneId);
-  if (!lane) return null;
-  let el: any = lane.parent;
-  while (el) {
-    if (el.type === PARTICIPANT_TYPE) return el.id as string;
-    el = el.parent;
-  }
-  return null;
-}
-
 // ── Main handler ───────────────────────────────────────────────────────────
-
-/** Handle manual strategy: direct lane assignment (merged from assign_bpmn_elements_to_lane). */
-async function handleManualStrategy(
-  args: RedistributeElementsAcrossLanesArgs
-): Promise<ToolResult> {
-  if (!args.laneId || !args.elementIds || args.elementIds.length === 0) {
-    return Promise.resolve(
-      jsonResult({
-        success: false,
-        message: "Manual strategy requires 'laneId' and 'elementIds' parameters.",
-      })
-    );
-  }
-  const assignResult = await handleAssignElementsToLane({
-    diagramId: args.diagramId,
-    laneId: args.laneId,
-    elementIds: args.elementIds,
-    reposition: args.reposition !== false,
-  });
-
-  // TODO #6: detect empty lanes after assignment and suggest deletion
-  try {
-    const diagram = requireDiagram(args.diagramId);
-    const reg = getService(diagram.modeler, 'elementRegistry');
-    const poolId = args.participantId || getParticipantIdFromLaneId(reg, args.laneId);
-    if (poolId) {
-      const emptyLaneIds = findEmptyLaneIds(reg, poolId);
-      if (emptyLaneIds.length > 0) {
-        const parsed = JSON.parse(assignResult.content[0].text as string);
-        const emptySteps = buildEmptyLaneNextSteps(emptyLaneIds, reg);
-        const existing: any[] = parsed.nextSteps ?? [];
-        const merged = jsonResult({ ...parsed, nextSteps: [...existing, ...emptySteps] });
-        return merged;
-      }
-    }
-  } catch {
-    // Non-fatal — return original result if detection fails
-  }
-
-  return assignResult;
-}
 
 export async function handleRedistributeElementsAcrossLanes(
   args: RedistributeElementsAcrossLanesArgs
@@ -836,8 +778,6 @@ export async function handleRedistributeElementsAcrossLanes(
     dryRun = false,
     validate = false,
   } = args;
-
-  if (strategy === 'manual') return handleManualStrategy(args);
 
   const diagram = requireDiagram(diagramId);
   const reg = getService(diagram.modeler, 'elementRegistry');

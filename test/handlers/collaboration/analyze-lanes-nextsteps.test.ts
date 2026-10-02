@@ -56,12 +56,13 @@ describe('analyze_bpmn_lanes suggest — nextSteps with assign tool calls', () =
     expect(res.nextSteps).toBeDefined();
     expect(Array.isArray(res.nextSteps)).toBe(true);
 
-    const assignStep = (res.nextSteps as any[]).find(
-      (s: any) => s.tool === 'create_bpmn_lanes' && s.args?.assignments
-    );
-    expect(assignStep).toBeDefined();
-    // The step should include elementIds and laneId
-    expect(assignStep.args).toBeDefined();
-    expect(assignStep.args.assignments[0].elementIds).toBeDefined();
+    // No lanes yet: one step creates the lanes and assigns their elements
+    const createStep = (res.nextSteps as any[]).find((s: any) => s.tool === 'create_bpmn_lanes');
+    expect(createStep).toBeDefined();
+    expect(createStep.args.distributeStrategy).toBe('manual');
+    expect(createStep.args.lanes.length).toBeGreaterThanOrEqual(2);
+    for (const lane of createStep.args.lanes) {
+      expect(lane.elementIds.length).toBeGreaterThan(0);
+    }
   });
 });

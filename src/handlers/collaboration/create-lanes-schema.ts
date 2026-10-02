@@ -17,7 +17,7 @@ export const TOOL_DEFINITION = {
     'elementIds in each lane definition to assign elements explicitly. ' +
     'Use assignments ([{ laneId, elementIds }]) to assign existing elements to existing lanes, ' +
     'or strategy (role-based | balance | minimize-crossings, with dryRun/validate) to ' +
-    'redistribute elements across existing lanes. ' +
+    'redistribute elements across existing lanes. These forms are mutually exclusive. ' +
     'Use mergeFrom to convert a multi-pool collaboration into a single pool with lanes ' +
     '(elements are moved, message flows become sequence flows).',
   inputSchema: {
@@ -97,7 +97,8 @@ export const TOOL_DEFINITION = {
         type: 'string',
         enum: ['role-based', 'balance', 'minimize-crossings'],
         description:
-          'Redistribute elements across existing lanes (participantId optional, auto-detected). ' +
+          'Redistribute elements across EXISTING lanes (participantId optional, auto-detected); ' +
+          'unlike distributeStrategy, it never creates lanes. ' +
           "'role-based' matches assignee/candidateGroups to lane names; 'balance' spreads " +
           "elements evenly; 'minimize-crossings' minimizes cross-lane flows.",
       },

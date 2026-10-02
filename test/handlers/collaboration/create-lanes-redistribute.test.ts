@@ -107,7 +107,6 @@ describe('create_bpmn_lanes strategy (redistribute)', () => {
     const res = parseResult(
       await handleCreateLanes({
         diagramId,
-
         participantId: poolId,
         strategy: 'role-based',
         dryRun: true,
@@ -136,7 +135,6 @@ describe('create_bpmn_lanes strategy (redistribute)', () => {
     const res = parseResult(
       await handleCreateLanes({
         diagramId,
-
         participantId: poolId,
         strategy: 'balance',
       })

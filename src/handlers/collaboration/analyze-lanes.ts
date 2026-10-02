@@ -406,33 +406,35 @@ function buildSuggestLanesAndNextSteps(
     }
   }
 
-  // Build actionable nextSteps so the AI agent can apply the suggestions directly.
-  // Step 1: create_bpmn_lanes (only when the pool has no lanes yet)
-  // Step N: one create_bpmn_lanes assignments call per suggestion
+  // Build actionable nextSteps so the AI agent can apply the suggestions directly:
+  // one create-and-assign step when the pool has no lanes yet, otherwise one
+  // batched `assignments` step for the existing lanes.
   const nextSteps: Array<{ tool: string; description: string; args: Record<string, unknown> }> = [];
-  if (currentLanes.length === 0 && suggestions.length > 0) {
-    nextSteps.push({
-      tool: 'create_bpmn_lanes',
-      description: `Create ${suggestions.length} suggested lane(s) in the pool`,
-      args: {
-        diagramId: args.diagramId,
-        participantId: args.participantId,
-        lanes: suggestions.map((s) => ({ name: s.laneName })),
-      },
+  if (currentLanes.length === 0) {
+    if (suggestions.length >= 2) {
+      nextSteps.push({
+        tool: 'create_bpmn_lanes',
+        description: `Create ${suggestions.length} suggested lane(s) and assign their elements`,
+        args: {
+          diagramId: args.diagramId,
+          participantId: args.participantId,
+          distributeStrategy: 'manual',
+          lanes: suggestions.map((s) => ({ name: s.laneName, elementIds: s.elementIds })),
+        },
+      });
+    }
+  } else {
+    const assignments = suggestions.flatMap((s) => {
+      const laneId = existingLaneIdByName.get(s.laneName);
+      return laneId ? [{ laneId, elementIds: s.elementIds }] : [];
     });
-  }
-  for (const s of suggestions) {
-    const existingLaneId = existingLaneIdByName.get(s.laneName);
-    nextSteps.push({
-      tool: 'create_bpmn_lanes',
-      description: `Assign ${s.elementIds.length} element(s) to lane "${s.laneName}"`,
-      args: {
-        diagramId: args.diagramId,
-        assignments: [
-          { ...(existingLaneId ? { laneId: existingLaneId } : {}), elementIds: s.elementIds },
-        ],
-      },
-    });
+    if (assignments.length > 0) {
+      nextSteps.push({
+        tool: 'create_bpmn_lanes',
+        description: `Assign elements to ${assignments.length} existing lane(s)`,
+        args: { diagramId: args.diagramId, assignments },
+      });
+    }
   }
 
   return { currentLanes, nextSteps };
