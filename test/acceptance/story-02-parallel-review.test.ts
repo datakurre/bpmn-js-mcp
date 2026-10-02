@@ -2,7 +2,7 @@
  * Story 2: Parallel Review — Fork / Join with Lanes
  *
  * Verifies:
- * 1. add_bpmn_element_chain with a ParallelGateway emits deferredLayout:true
+ * 1. add_bpmn_element (elements form) with a ParallelGateway emits deferredLayout:true
  *    and does NOT run auto-layout prematurely.
  * 2. After wiring parallel branches with connect_bpmn_elements, connect.ts
  *    emits an align_bpmn_elements nextStep for gateway connections.

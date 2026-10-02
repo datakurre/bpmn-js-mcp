@@ -77,8 +77,14 @@ export const TOOL_DEFINITION = {
             name: { type: 'string', description: 'Name/label' },
             participantId: { type: 'string', description: 'Overrides top-level participantId' },
             laneId: { type: 'string', description: 'Overrides top-level laneId' },
-            x: { type: 'number', description: 'X position (useful with connect: "none")' },
-            y: { type: 'number', description: 'Y position (useful with connect: "none")' },
+            x: {
+              type: 'number',
+              description: 'X position — only with connect "none" (rejected when chaining)',
+            },
+            y: {
+              type: 'number',
+              description: 'Y position — only with connect "none" (rejected when chaining)',
+            },
             isExpanded: { type: 'boolean', description: 'For bpmn:SubProcess only' },
             // Event shorthands: same shape and meaning as the top-level parameters.
             eventDefinitionType: { type: 'string' },
@@ -96,7 +102,8 @@ export const TOOL_DEFINITION = {
         enum: ['chain', 'none'],
         default: 'chain',
         description:
-          'With elements: "chain" (default) connects each element to the previous one; "none" only adds them.',
+          'With elements: "chain" (default) connects each element to the previous one; "none" only adds them, ' +
+          'placing each right of the previous one (starting from afterElementId) unless it has an explicit x/y.',
       },
       autoLayout: {
         type: 'boolean',

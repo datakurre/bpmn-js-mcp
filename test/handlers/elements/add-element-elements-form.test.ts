@@ -5,6 +5,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { dispatchToolCall, TOOL_DEFINITIONS } from '../../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../../helpers';
+import { getDiagram } from '../../../src/diagram-manager';
 
 describe('add_bpmn_element elements form', () => {
   beforeEach(() => {
@@ -55,6 +56,52 @@ describe('add_bpmn_element elements form', () => {
     expect(res.success).toBe(true);
     expect(res.elementCount).toBe(2);
     expect(res.connectionIds).toEqual({});
+  });
+
+  test("connect: 'none' without x/y places elements at distinct positions, unconnected", async () => {
+    const diagramId = await createDiagram();
+    const res = parseResult(
+      await dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        connect: 'none',
+        elements: [
+          { elementType: 'bpmn:UserTask', name: 'A' },
+          { elementType: 'bpmn:UserTask', name: 'B' },
+          { elementType: 'bpmn:UserTask', name: 'C' },
+        ],
+      })
+    );
+    expect(res.elementCount).toBe(3);
+    expect(res.connectionIds).toEqual({});
+    const reg = getDiagram(diagramId)!.modeler.get('elementRegistry') as any;
+    const xs = (res.elementIds as string[]).map((id) => reg.get(id).x);
+    expect(new Set(xs).size).toBe(3);
+    expect(reg.filter((e: any) => e.type === 'bpmn:SequenceFlow')).toHaveLength(0);
+  });
+
+  test.each([
+    ['flowId', { flowId: 'Flow_X' }],
+    ['copyFrom', { copyFrom: 'Task_X' }],
+    ['afterElementId', { afterElementId: 'Task_X' }],
+    ['autoConnect', { autoConnect: false }],
+  ])('rejects unsupported per-entry key %s', async (key, extra) => {
+    const diagramId = await createDiagram();
+    await expect(
+      dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elements: [{ elementType: 'bpmn:UserTask', ...extra }],
+      })
+    ).rejects.toThrow(new RegExp(`unsupported key.*${key}`));
+  });
+
+  test('rejects per-entry x/y when chaining', async () => {
+    const diagramId = await createDiagram();
+    await expect(
+      dispatchToolCall('add_bpmn_element', {
+        diagramId,
+        elements: [{ elementType: 'bpmn:UserTask', x: 300, y: 300 }],
+      })
+    ).rejects.toThrow(/x\/y are ignored when chaining/);
   });
 
   test('single form still works', async () => {

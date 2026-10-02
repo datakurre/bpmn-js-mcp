@@ -1,5 +1,5 @@
 /**
- * Tests for add_bpmn_element_chain improvements:
+ * Tests for add_bpmn_element (elements form) improvements:
  * 1. When chain stops at a gateway, the response should include:
  *    - The IDs of already-created flows that lack conditions
  *    - A hint about setting isDefault on the default branch
@@ -14,7 +14,7 @@ import {
 } from '../../../src/handlers';
 import { createDiagram, addElement, parseResult, clearDiagrams } from '../../helpers';
 
-describe('add_bpmn_element_chain — gateway hints and lane nextSteps', () => {
+describe('add_bpmn_element (elements form) — gateway hints and lane nextSteps', () => {
   beforeEach(() => clearDiagrams());
 
   test('lists unconditioned flow IDs after gateway stop', async () => {
