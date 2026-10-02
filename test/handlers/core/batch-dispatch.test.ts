@@ -43,7 +43,7 @@ describe('batch_bpmn_operations — all tools dispatchable', () => {
     //   redistribute_bpmn_elements_across_lanes → create_bpmn_lanes (strategy),
     //   replace_bpmn_element → set_bpmn_element_properties (elementType),
     //   set_bpmn_connection_waypoints → connect_bpmn_elements (connectionId + waypoints),
-    //   handoff_bpmn_to_lane → add_bpmn_element (fromElementId + toLaneId),
+    //   handoff_bpmn_to_lane → add_bpmn_elements (fromElementId + toLaneId),
     //   get_bpmn_element_properties → list_bpmn_elements (elementIds; ADR-027, #23 —
     //     removed outright, not kept as a hidden alias, per #23's no-alias policy),
     //   set_bpmn_event_definition → set_bpmn_element_properties (eventDefinition; ADR-028, #23 —

@@ -1,5 +1,5 @@
 /**
- * Handler for add_bpmn_element tool.
+ * Single-element handler behind add_bpmn_elements (called per entry; see add-element-chain.ts).
  */
 // @mutating
 
@@ -400,4 +400,3 @@ export async function handleAddElement(args: AddElementArgs): Promise<ToolResult
 }
 
 // Schema extracted to add-element-schema.ts (R1.5) for readability.
-export { TOOL_DEFINITION } from './add-element-schema';

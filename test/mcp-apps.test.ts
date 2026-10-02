@@ -73,7 +73,7 @@ describe('MCP Apps: _meta.ui.resourceUri on tool definitions', () => {
 
   test('mutating tools declare the diagram viewer resource', () => {
     expect(find('create_bpmn_diagram')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
-    expect(find('add_bpmn_element')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+    expect(find('add_bpmn_elements')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
   });
 
   test('read-only tools do not declare a ui.resourceUri', () => {

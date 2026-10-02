@@ -1,5 +1,5 @@
 /**
- * Tests for add_bpmn_element with isForCompensation=true parameter.
+ * Tests for add_bpmn_elements with isForCompensation=true parameter.
  *
  * When creating a compensation handler task, the tool should:
  * 1. Set the isForCompensation property on the element
@@ -12,7 +12,7 @@ import { handleAddElement } from '../../../src/handlers';
 import { parseResult, createDiagram, clearDiagrams } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
 
-describe('add_bpmn_element — isForCompensation parameter', () => {
+describe('add_bpmn_elements — isForCompensation parameter', () => {
   beforeEach(() => clearDiagrams());
 
   test('sets isForCompensation=true on the created element', async () => {

@@ -10,12 +10,15 @@ Build a Start → Task → End flow from scratch.
 
 ```
 1. create_bpmn_diagram        → { name: "Order Processing" }
-2. add_bpmn_element           → { elementType: "bpmn:StartEvent", name: "Order Received" }
-3. add_bpmn_element           → { elementType: "bpmn:UserTask",   name: "Review Order", afterElementId: "<startId>" }
-4. add_bpmn_element           → { elementType: "bpmn:EndEvent",   name: "Done", afterElementId: "<taskId>" }
+2. add_bpmn_elements          → { elements: [{ elementType: "bpmn:StartEvent", name: "Order Received" }] }
+3. add_bpmn_elements          → { elements: [{ elementType: "bpmn:UserTask",   name: "Review Order", afterElementId: "<startId>" }] }
+4. add_bpmn_elements          → { elements: [{ elementType: "bpmn:EndEvent",   name: "Done", afterElementId: "<taskId>" }] }
 5. layout_bpmn_diagram        → { }
 6. export_bpmn                → { format: "xml" }
 ```
+
+Steps 2–4 can be a single call: `add_bpmn_elements` with `elements: [StartEvent, UserTask, EndEvent]`
+connects them in order (`connect: "chain"`, the default) and lays the diagram out.
 
 `afterElementId` auto-positions the new element to the right and
 creates a connecting sequence flow in one step.
@@ -29,7 +32,7 @@ manually deleting/reconnecting flows.
 
 ```
 1. list_bpmn_elements         → find the flow ID between the two elements
-2. add_bpmn_element            → { flowId: "<flowId>", elementType: "bpmn:UserTask", name: "Verify Data" }
+2. add_bpmn_elements           → { elements: [{ flowId: "<flowId>", elementType: "bpmn:UserTask", name: "Verify Data" }] }
 ```
 
 The tool splits the sequence flow, creates the new element at the
@@ -44,12 +47,12 @@ right.
 Create two tasks that execute in parallel.
 
 ```
-1. add_bpmn_element           → { elementType: "bpmn:ParallelGateway", name: "Fork",  afterElementId: "<precedingTaskId>" }
-2. add_bpmn_element           → { elementType: "bpmn:ServiceTask",     name: "Send Email",       afterElementId: "<forkGatewayId>", autoConnect: false }
-3. add_bpmn_element           → { elementType: "bpmn:ServiceTask",     name: "Update Inventory",  afterElementId: "<forkGatewayId>", autoConnect: false }
+1. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ParallelGateway", name: "Fork",  afterElementId: "<precedingTaskId>" }] }
+2. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ServiceTask",     name: "Send Email",       afterElementId: "<forkGatewayId>", autoConnect: false }] }
+3. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ServiceTask",     name: "Update Inventory",  afterElementId: "<forkGatewayId>", autoConnect: false }] }
 4. connect_bpmn_elements      → { sourceElementId: "<forkGatewayId>",  targetElementId: "<emailTaskId>" }
 5. connect_bpmn_elements      → { sourceElementId: "<forkGatewayId>",  targetElementId: "<inventoryTaskId>" }
-6. add_bpmn_element           → { elementType: "bpmn:ParallelGateway", name: "Join" }
+6. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ParallelGateway", name: "Join" }] }
 7. connect_bpmn_elements      → { sourceElementId: "<emailTaskId>",      targetElementId: "<joinGatewayId>" }
 8. connect_bpmn_elements      → { sourceElementId: "<inventoryTaskId>",  targetElementId: "<joinGatewayId>" }
 9. layout_bpmn_diagram        → { }   ← cleans up the parallel branches
@@ -62,9 +65,9 @@ Create two tasks that execute in parallel.
 Route the flow based on a condition.
 
 ```
-1. add_bpmn_element           → { elementType: "bpmn:ExclusiveGateway", name: "Order valid?", afterElementId: "<reviewTaskId>" }
-2. add_bpmn_element           → { elementType: "bpmn:ServiceTask", name: "Process Order" }
-3. add_bpmn_element           → { elementType: "bpmn:EndEvent",    name: "Rejected" }
+1. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ExclusiveGateway", name: "Order valid?", afterElementId: "<reviewTaskId>" }] }
+2. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ServiceTask", name: "Process Order" }] }
+3. add_bpmn_elements          → { elements: [{ elementType: "bpmn:EndEvent",    name: "Rejected" }] }
 4. connect_bpmn_elements      → { sourceElementId: "<gatewayId>", targetElementId: "<processTaskId>",
                                    label: "Yes", conditionExpression: "${valid == true}" }
 5. connect_bpmn_elements      → { sourceElementId: "<gatewayId>", targetElementId: "<rejectedEndId>",
@@ -99,12 +102,12 @@ Attach generated task form fields to a UserTask.
 Interrupt a task after a timeout.
 
 ```
-1. add_bpmn_element           → { elementType: "bpmn:BoundaryEvent", hostElementId: "<userTaskId>",
-                                   name: "Timeout" }
+1. add_bpmn_elements          → { elements: [{ elementType: "bpmn:BoundaryEvent", hostElementId: "<userTaskId>",
+                                   name: "Timeout" }] }
 2. set_bpmn_event_definition  → { elementId: "<boundaryEventId>",
                                    eventDefinitionType: "bpmn:TimerEventDefinition",
                                    properties: { timeDuration: "PT24H" } }
-3. add_bpmn_element           → { elementType: "bpmn:EndEvent", name: "Escalated" }
+3. add_bpmn_elements          → { elements: [{ elementType: "bpmn:EndEvent", name: "Escalated" }] }
 4. connect_bpmn_elements      → { sourceElementId: "<boundaryEventId>", targetElementId: "<escalatedEndId>" }
 ```
 
@@ -123,7 +126,7 @@ collapsed to document message endpoints.
        { name: "Payment Provider", collapsed: true }
      ]
    }
-2. add_bpmn_element           → (build process inside "Order Service" pool)
+2. add_bpmn_elements           → (build process inside "Order Service" pool)
    ...
 3. connect_bpmn_elements      → { sourceElementId: "<sendTaskId>",
                                    targetElementId: "<paymentPoolId>" }
@@ -137,18 +140,18 @@ collapsed to document message endpoints.
 Handle errors that can occur anywhere in the process scope.
 
 ```
-1. add_bpmn_element           → { elementType: "bpmn:SubProcess", name: "Error Handler" }
+1. add_bpmn_elements          → { elements: [{ elementType: "bpmn:SubProcess", name: "Error Handler" }] }
 2. set_bpmn_element_properties → { elementId: "<subProcessId>",
                                     properties: { triggeredByEvent: true, isExpanded: true } }
-3. add_bpmn_element           → { elementType: "bpmn:StartEvent", name: "Error Caught",
-                                   participantId: "<subProcessId>" }
+3. add_bpmn_elements          → { elements: [{ elementType: "bpmn:StartEvent", name: "Error Caught",
+                                   participantId: "<subProcessId>" }] }
 4. set_bpmn_event_definition  → { elementId: "<errorStartId>",
                                    eventDefinitionType: "bpmn:ErrorEventDefinition",
                                    errorRef: { id: "Error_Timeout", name: "Timeout", errorCode: "ERR_TIMEOUT" } }
-5. add_bpmn_element           → { elementType: "bpmn:ServiceTask", name: "Notify Admin",
-                                   afterElementId: "<errorStartId>" }
-6. add_bpmn_element           → { elementType: "bpmn:EndEvent", name: "Handled",
-                                   afterElementId: "<notifyTaskId>" }
+5. add_bpmn_elements          → { elements: [{ elementType: "bpmn:ServiceTask", name: "Notify Admin",
+                                   afterElementId: "<errorStartId>" }] }
+6. add_bpmn_elements          → { elements: [{ elementType: "bpmn:EndEvent", name: "Handled",
+                                   afterElementId: "<notifyTaskId>" }] }
 ```
 
 ---
@@ -156,7 +159,7 @@ Handle errors that can occur anywhere in the process scope.
 ## 9. Configure an external service task (Camunda 7)
 
 ```
-1. add_bpmn_element            → { elementType: "bpmn:ServiceTask", name: "Send Invoice" }
+1. add_bpmn_elements           → { elements: [{ elementType: "bpmn:ServiceTask", name: "Send Invoice" }] }
 2. set_bpmn_element_properties → { elementId: "<serviceTaskId>",
                                     properties: {
                                       "camunda:type": "external",
@@ -186,13 +189,13 @@ Create a pool with lanes and assign tasks to the appropriate lane.
 
 ```
 1. create_bpmn_diagram           → { name: "Approval Process" }
-2. add_bpmn_element              → { elementType: "bpmn:StartEvent", name: "Request Submitted" }
-3. add_bpmn_element              → { elementType: "bpmn:UserTask", name: "Review Request",
-                                      afterElementId: "<startId>" }
-4. add_bpmn_element              → { elementType: "bpmn:UserTask", name: "Approve Request",
-                                      afterElementId: "<reviewId>" }
-5. add_bpmn_element              → { elementType: "bpmn:EndEvent", name: "Completed",
-                                      afterElementId: "<approveId>" }
+2. add_bpmn_elements             → { elements: [{ elementType: "bpmn:StartEvent", name: "Request Submitted" }] }
+3. add_bpmn_elements             → { elements: [{ elementType: "bpmn:UserTask", name: "Review Request",
+                                      afterElementId: "<startId>" }] }
+4. add_bpmn_elements             → { elements: [{ elementType: "bpmn:UserTask", name: "Approve Request",
+                                      afterElementId: "<reviewId>" }] }
+5. add_bpmn_elements             → { elements: [{ elementType: "bpmn:EndEvent", name: "Completed",
+                                      afterElementId: "<approveId>" }] }
 6. create_bpmn_participant       → { wrapExisting: true, name: "Approval Process" }
 7. create_bpmn_lanes             → { participantId: "<poolId>",
                                       lanes: [{ name: "Requester" }, { name: "Approver" }] }
@@ -242,13 +245,13 @@ Migrate an existing flat process into lanes without duplicating elements.
 
 ## 13. Create a cross-lane handoff
 
-Use `add_bpmn_element` with `fromElementId` + `toLaneId` when one role passes work to another.
+Use `add_bpmn_elements` with `fromElementId` + `toLaneId` when one role passes work to another.
 
 ```
-1. add_bpmn_element              → { elementType: "bpmn:UserTask",
+1. add_bpmn_elements             → { elements: [{ elementType: "bpmn:UserTask",
                                       fromElementId: "<customerTaskId>",
                                       toLaneId: "<supportLaneId>",
-                                      name: "Handle Request" }
+                                      name: "Handle Request" }] }
 ```
 
 This creates a new task in the target lane and connects it to the
@@ -263,7 +266,7 @@ source element with a sequence flow — a clean cross-lane handoff.
 - **Avoid full layout** on diagrams with careful manual positioning,
   boundary events, or custom labels. Use `scopeElementId` or
   `elementIds` for partial re-layout instead.
-- **Use `add_bpmn_element` with `flowId`** instead of the manual 3-step pattern
+- **Use `add_bpmn_elements` with `flowId`** instead of the manual 3-step pattern
   (delete flow → add element → reconnect) when adding a step into an
   existing flow.
 - **Validate before exporting:** `export_bpmn` runs bpmnlint by
@@ -307,10 +310,10 @@ to control which lane the new element lands in.
 
 ```
 1. list_bpmn_elements          → find the flow ID and lane IDs
-2. add_bpmn_element            → { flowId: "<flowId>",
+2. add_bpmn_elements           → { elements: [{ flowId: "<flowId>",
                                     elementType: "bpmn:IntermediateCatchEvent",
                                     name: "Wait for Approval",
-                                    laneId: "<approverLaneId>" }
+                                    laneId: "<approverLaneId>" }] }
 ```
 
 Without `laneId`, the element is placed at the midpoint between the

@@ -1,8 +1,8 @@
 /**
- * Tests for add_bpmn_element with toLaneId + fromElementId (merged handoff).
+ * Tests for add_bpmn_elements with toLaneId + fromElementId (merged handoff).
  *
  * Covers the medium-priority consolidation: handoff_bpmn_to_lane functionality
- * absorbed into add_bpmn_element via optional toLaneId + fromElementId params.
+ * absorbed into add_bpmn_elements via optional toLaneId + fromElementId params.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../../../src/handlers';
 import { parseResult, createDiagram, clearDiagrams } from '../../helpers';
 
-describe('add_bpmn_element with toLaneId + fromElementId (handoff)', () => {
+describe('add_bpmn_elements with toLaneId + fromElementId (handoff)', () => {
   beforeEach(() => {
     clearDiagrams();
   });

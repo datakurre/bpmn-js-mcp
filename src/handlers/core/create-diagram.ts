@@ -269,7 +269,7 @@ export async function handleCreateDiagram(
   }
 
   nextSteps.push({
-    tool: 'add_bpmn_element',
+    tool: 'add_bpmn_elements',
     description: 'Add a bpmn:StartEvent to begin building the process.',
   });
   resultData.nextSteps = nextSteps;

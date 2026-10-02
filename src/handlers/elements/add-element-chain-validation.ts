@@ -1,5 +1,5 @@
 /**
- * Up-front validation for add_bpmn_element's `elements` form (see add-element-chain.ts).
+ * Up-front validation for add_bpmn_elements (see add-element-chain.ts).
  */
 
 import {
@@ -11,6 +11,8 @@ import {
 import { getService } from '../../bpmn-types';
 import type { requireDiagram } from '../helpers';
 import type { AddElementChainArgs } from './add-element-chain';
+import { SINGLE_ELEMENT_DEFINITION } from './add-element-schema';
+import { ALLOWED_ELEMENT_TYPES } from '../validation';
 
 export const CHAIN_ELEMENT_TYPES = new Set([
   'bpmn:StartEvent',
@@ -33,34 +35,39 @@ export const CHAIN_ELEMENT_TYPES = new Set([
   'bpmn:SubProcess',
 ]);
 
-/** Keys an `elements` entry may carry; anything else belongs to the single-element form. */
-const ENTRY_KEYS = new Set([
-  'elementType',
-  'name',
-  'participantId',
-  'laneId',
-  'x',
-  'y',
-  'isExpanded',
-  'eventDefinitionType',
-  'eventDefinitionProperties',
-  'errorRef',
-  'messageRef',
-  'signalRef',
-  'escalationRef',
-]);
+/** Keys an `elements` entry may carry: every single-element parameter except `diagramId`. */
+const ENTRY_KEYS = new Set(
+  Object.keys(SINGLE_ELEMENT_DEFINITION.inputSchema.properties).filter((k) => k !== 'diagramId')
+);
 
-/** Reject entry keys outside the documented set (e.g. flowId, copyFrom, afterElementId). */
+/** Reject entry keys that are not single-element parameters (e.g. typos, `connect`, `elements`). */
 function validateEntryKeys(el: AddElementChainArgs['elements'][number], i: number): void {
   const unsupported = Object.keys(el).filter((k) => !ENTRY_KEYS.has(k));
   if (unsupported.length > 0) {
     throw illegalCombinationError(
       `elements[${i}] has unsupported key(s): ${unsupported.join(', ')}. ` +
-        'Entries accept only ' +
-        `${Array.from(ENTRY_KEYS).join(', ')}; use the single-element form of add_bpmn_element for other options.`,
+        'Entries accept the per-element add_bpmn_elements parameters (see the elements item schema).',
       unsupported.map((k) => `elements[${i}].${k}`)
     );
   }
+}
+
+/**
+ * True when an entry sets its own placement anchor or absolute position
+ * (hostElementId, flowId, a handoff, a copy, afterElementId or explicit x/y).
+ * Such an entry is placed there instead of being chained after the previous element.
+ */
+export function hasOwnAnchor(el: AddElementChainArgs['elements'][number]): boolean {
+  return !!(
+    el.hostElementId ||
+    el.flowId ||
+    el.fromElementId ||
+    el.toLaneId ||
+    el.afterElementId ||
+    el.copyFrom ||
+    el.x !== undefined ||
+    el.y !== undefined
+  );
 }
 
 /**
@@ -79,15 +86,8 @@ export function validateChainElements(
     if (!el.elementType) {
       throw missingRequiredError([`elements[${i}].elementType`]);
     }
-    if (!CHAIN_ELEMENT_TYPES.has(el.elementType)) {
-      throw typeMismatchError(`elements[${i}]`, el.elementType, Array.from(CHAIN_ELEMENT_TYPES));
-    }
-    if (connected && (el.x !== undefined || el.y !== undefined)) {
-      throw illegalCombinationError(
-        `elements[${i}]: x/y are ignored when chaining (elements are auto-placed and laid out). ` +
-          "Use connect: 'none' to position elements explicitly.",
-        [`elements[${i}].x`, `elements[${i}].y`]
-      );
+    if (!(ALLOWED_ELEMENT_TYPES as readonly string[]).includes(el.elementType)) {
+      throw typeMismatchError(`elements[${i}]`, el.elementType, [...ALLOWED_ELEMENT_TYPES]);
     }
   }
   // Flow-sink rules only matter when elements are connected in sequence

@@ -1,6 +1,6 @@
 /**
  * Story 5b: Groceries Order — Same process as Story 5, but built with
- * Customer / Store / Delivery lanes using laneId on every add_bpmn_element
+ * Customer / Store / Delivery lanes using laneId on every add_bpmn_elements
  * call (lane-first placement, no retroactive reassignment).
  *
  * Asserts:

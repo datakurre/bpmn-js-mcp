@@ -240,7 +240,7 @@ const TYPE_HINTS: Array<{ match: (type: string) => boolean; hints: Hint[] }> = [
           'Set triggeredByEvent: true for event subprocesses, or isExpanded to toggle inline/collapsed view',
       },
       {
-        tool: 'add_bpmn_element',
+        tool: 'add_bpmn_elements',
         description: 'Add start/end events and tasks inside the subprocess',
       },
     ],
@@ -333,7 +333,7 @@ export function getNamingHint(elementType: string, name?: string): { namingHint?
 function hintTriggeredByEvent(props: Record<string, any>, hints: Hint[]): void {
   if (props['triggeredByEvent'] === true) {
     hints.push({
-      tool: 'add_bpmn_element',
+      tool: 'add_bpmn_elements',
       description:
         'Add a start event with an event definition (timer, message, error, signal) inside the event subprocess',
     });

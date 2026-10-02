@@ -15,12 +15,12 @@ describe('batch_bpmn_operations', () => {
       await handleBatchOperations({
         operations: [
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:StartEvent', name: 'Start' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:StartEvent', name: 'Start' }] },
           },
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:EndEvent', name: 'End' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:EndEvent', name: 'End' }] },
           },
         ],
       })
@@ -44,16 +44,16 @@ describe('batch_bpmn_operations', () => {
       await handleBatchOperations({
         operations: [
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:StartEvent' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:StartEvent' }] },
           },
           {
             tool: 'delete_bpmn_element',
             args: { diagramId, elementId: 'nonexistent' },
           },
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:EndEvent' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:EndEvent' }] },
           },
         ],
       })
@@ -72,16 +72,16 @@ describe('batch_bpmn_operations', () => {
       await handleBatchOperations({
         operations: [
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:StartEvent' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:StartEvent' }] },
           },
           {
             tool: 'delete_bpmn_element',
             args: { diagramId, elementId: 'nonexistent' },
           },
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:EndEvent' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:EndEvent' }] },
           },
         ],
         stopOnError: false,

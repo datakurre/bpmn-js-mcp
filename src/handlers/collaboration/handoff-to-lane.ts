@@ -6,7 +6,7 @@
  * 2. Connecting the source element to the new element
  *
  * This reduces the multi-step pattern of:
- *   add_bpmn_element → create_bpmn_lanes with assignments → connect_bpmn_elements
+ *   add_bpmn_elements → create_bpmn_lanes with assignments → connect_bpmn_elements
  */
 // @mutating
 
@@ -176,7 +176,7 @@ export const TOOL_DEFINITION = {
   description:
     'Create a clean cross-lane handoff by adding a new element in a target lane and connecting it ' +
     'from a source element. Automatically detects whether to use SequenceFlow (same pool) or ' +
-    'MessageFlow (cross-pool). Reduces the multi-step pattern of add_bpmn_element + ' +
+    'MessageFlow (cross-pool). Reduces the multi-step pattern of add_bpmn_elements + ' +
     'create_bpmn_lanes with assignments + connect_bpmn_elements into a single call. ' +
     'Useful when modeling work handoffs between roles/departments represented as lanes.',
   inputSchema: {

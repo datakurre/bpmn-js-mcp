@@ -66,7 +66,7 @@ You can also combine `--persist-dir` with `--hint-level` to reduce response verb
 
 ### Tool tiers
 
-For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 10 most-used tools (`create_bpmn_diagram`, `export_bpmn`, `add_bpmn_element`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
+For AI agents with limited context, set `BPMN_MCP_TOOLS=core` to expose only the 10 most-used tools (`create_bpmn_diagram`, `export_bpmn`, `add_bpmn_elements`, `connect_bpmn_elements`, `delete_bpmn_element`, `move_bpmn_element`, `set_bpmn_element_properties`, `layout_bpmn_diagram`, `validate_bpmn_diagram`, `batch_bpmn_operations`) instead of the full set:
 
 ```json
 {
@@ -89,7 +89,7 @@ The default (`full`, or `BPMN_MCP_TOOLS` unset) exposes every tool, including co
 
 **To modify an existing `.bpmn` file**, use `create_bpmn_diagram` with `filePath` (or `xml`) to load it, make changes with the MCP tools, then `export_bpmn` and write the result back to the file.
 
-**To create a new diagram**, use `create_bpmn_diagram`, build it with `add_bpmn_element` / `connect_bpmn_elements`, then `export_bpmn` to get the XML.
+**To create a new diagram**, use `create_bpmn_diagram`, build it with `add_bpmn_elements` / `connect_bpmn_elements`, then `export_bpmn` to get the XML.
 
 ### BPMN Modeling Best Practices
 
@@ -115,7 +115,7 @@ See [docs/modeling-best-practices.md](docs/modeling-best-practices.md) for full 
 
 For best results, follow this recommended workflow after structural changes:
 
-1. **Build structure** — `add_bpmn_element` / `connect_bpmn_elements` to create the flow.
+1. **Build structure** — `add_bpmn_elements` / `connect_bpmn_elements` to create the flow.
 2. **Auto-layout** — `layout_bpmn_diagram` to arrange elements (use `scopeElementId` to scope to a pool/subprocess).
 3. **Fine-tune** — `align_bpmn_elements` for alignment (with `compact=true` or `orientation` for distribution).
 4. **Fix labels** — `layout_bpmn_diagram` with `labelsOnly: true` to resolve label overlaps.
@@ -129,7 +129,7 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 | Tool                        | Description                                                                                                             |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `create_bpmn_diagram`       | Create a new diagram: blank, cloned (`cloneFrom`), or imported (`xml`/`filePath`, auto-layout if no DI)                 |
-| `add_bpmn_element`          | Add elements (use `flowId` to insert, `fromElementId`+`toLaneId` for cross-lane handoff)                                |
+| `add_bpmn_elements`         | Add one or more elements (`elements`; `connect` chain/none; `flowId` to insert, `fromElementId`+`toLaneId` for handoff) |
 | `connect_bpmn_elements`     | Connect elements (use `connectionId`+`waypoints` for custom routing, or `connections` for arbitrary pairs)              |
 | `delete_bpmn_element`       | Remove an element or connection                                                                                         |
 | `move_bpmn_element`         | Move, resize, or reassign an element to a lane                                                                          |

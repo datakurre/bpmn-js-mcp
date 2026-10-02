@@ -184,7 +184,7 @@ export function buildCreateLanesNextSteps(
   }
   steps.push(
     {
-      tool: 'add_bpmn_element',
+      tool: 'add_bpmn_elements',
       description:
         'Add elements to a specific lane using the laneId parameter for automatic vertical centering',
     },

@@ -230,7 +230,7 @@ export async function handleCreateParticipant(args: CreateParticipantArgs): Prom
       ...(!args.collapsed
         ? [
             {
-              tool: 'add_bpmn_element',
+              tool: 'add_bpmn_elements',
               description: `Add elements inside the pool using participantId: "${created.id}"`,
             },
           ]

@@ -1,7 +1,7 @@
 /**
  * Tests for MCP evaluation feedback improvements:
  * - replace_bpmn_element: boundary event guard
- * - add_bpmn_element: visual boundary event feedback
+ * - add_bpmn_elements: visual boundary event feedback
  * - export_bpmn: skipLint abuse warning
  * - linter: enriched error context for boundary events
  */
@@ -28,7 +28,7 @@ describe('replace_bpmn_element — boundary event guard', () => {
     ).rejects.toThrow(/Cannot replace an element to bpmn:BoundaryEvent/);
   });
 
-  test('error message suggests using add_bpmn_element with hostElementId', async () => {
+  test('error message suggests using add_bpmn_elements with hostElementId', async () => {
     const diagramId = await createDiagram();
     const taskId = await addElement(diagramId, 'bpmn:Task', { name: 'My Task' });
 
@@ -38,7 +38,7 @@ describe('replace_bpmn_element — boundary event guard', () => {
         elementId: taskId,
         newType: 'bpmn:BoundaryEvent',
       })
-    ).rejects.toThrow(/add_bpmn_element.*hostElementId/);
+    ).rejects.toThrow(/add_bpmn_elements.*hostElementId/);
   });
 
   test('rejects replacing FROM a BoundaryEvent with helpful error', async () => {
@@ -79,7 +79,7 @@ describe('replace_bpmn_element — boundary event guard', () => {
   });
 });
 
-describe('add_bpmn_element — visual boundary event feedback', () => {
+describe('add_bpmn_elements — visual boundary event feedback', () => {
   beforeEach(() => {
     clearDiagrams();
   });

@@ -1,6 +1,6 @@
 /**
  * Response building, warning collection, auto-connect, and event definition
- * shorthand helpers for the add_bpmn_element handler.
+ * shorthand helpers for the add_bpmn_elements handler.
  *
  * Extracted from add-element.ts to keep the main handler focused on the
  * element creation flow.
@@ -263,7 +263,7 @@ function buildElementTypeHints(
   if (isForCompensation) {
     extra.push(
       {
-        tool: 'add_bpmn_element',
+        tool: 'add_bpmn_elements',
         description:
           'Step 1 — Add a BoundaryEvent with eventDefinitionType: "bpmn:CompensateEventDefinition" ' +
           'on the task being compensated (the task whose failure should trigger this handler). ' +

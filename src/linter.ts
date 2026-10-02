@@ -463,7 +463,7 @@ async function appendLintErrors(result: ToolResult, diagram: DiagramState): Prom
         if (el?.type === 'bpmn:BoundaryEvent' && !el.host) {
           line +=
             ' — This boundary event is not attached to a host element. ' +
-            'Use add_bpmn_element with hostElementId to attach it to a task or subprocess.';
+            'Use add_bpmn_elements with hostElementId to attach it to a task or subprocess.';
         }
       }
       return line;

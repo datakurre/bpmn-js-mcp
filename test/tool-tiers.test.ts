@@ -17,7 +17,7 @@ import {
 const CORE_TOOL_NAMES = [
   'create_bpmn_diagram',
   'export_bpmn',
-  'add_bpmn_element',
+  'add_bpmn_elements',
   'connect_bpmn_elements',
   'delete_bpmn_element',
   'move_bpmn_element',

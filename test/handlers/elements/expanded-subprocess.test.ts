@@ -3,12 +3,12 @@ import { handleAddElement, handleSetProperties } from '../../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams, addElement, exportXml } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
 
-describe('add_bpmn_element — expanded subprocess', () => {
+describe('add_bpmn_elements — expanded subprocess', () => {
   beforeEach(() => {
     clearDiagrams();
   });
 
-  describe('add_bpmn_element with isExpanded', () => {
+  describe('add_bpmn_elements with isExpanded', () => {
     test('creates expanded subprocess by default (no separate plane)', async () => {
       const diagramId = await createDiagram();
 

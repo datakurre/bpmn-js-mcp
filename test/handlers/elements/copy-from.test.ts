@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAddElement, handleDuplicateElement } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../helpers';
 
-describe('add_bpmn_element copyFrom — parity with duplicate_bpmn_element', () => {
+describe('add_bpmn_elements copyFrom — parity with duplicate_bpmn_element', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -38,7 +38,7 @@ describe('add_bpmn_element copyFrom — parity with duplicate_bpmn_element', () 
       y: 150,
     });
 
-    // Use copyFrom via add_bpmn_element
+    // Use copyFrom via add_bpmn_elements
     const copyRes = parseResult(
       await handleAddElement({
         diagramId,

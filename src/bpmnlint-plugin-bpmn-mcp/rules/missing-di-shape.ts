@@ -125,7 +125,7 @@ function reportMissingShape(el: any, shapeIds: Set<string>, reporter: any): void
     el.id,
     `Flow element ${label} (${el.$type}) has no BPMNShape in the diagram — ` +
       'it will be invisible. Run layout_bpmn_diagram to regenerate DI, ' +
-      'or re-add the element with add_bpmn_element.'
+      'or re-add the element with add_bpmn_elements.'
   );
 }
 
