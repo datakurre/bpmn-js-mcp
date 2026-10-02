@@ -36,7 +36,7 @@ const SHARED_EFFICIENCY_GUIDELINES =
   `\`create_bpmn_diagram\` to suppress connectivity warnings during incremental building. ` +
   `Switch to full validation at the end via \`validate_bpmn_diagram\`.\n` +
   `- **Always specify \`afterElementId\`** when extending an existing flow with ` +
-  `\`add_bpmn_element_chain\` — omitting it creates a disconnected segment that requires ` +
+  `\`add_bpmn_element\` (\`elements\` form) — omitting it creates a disconnected segment that requires ` +
   `extra manual wiring.\n`;
 
 // ── Shared export reminder ─────────────────────────────────────────────────
@@ -97,8 +97,8 @@ const PROMPTS: PromptDefinition[] = [
             `- Do NOT create any participant pools — model a flat process.\n` +
             `- The process must be executable: set \`isExecutable: true\` on the process ` +
             `(this is the default for \`create_bpmn_diagram\`).\n` +
-            `- Use \`create_bpmn_diagram\` to start, then \`add_bpmn_element\` / ` +
-            `\`add_bpmn_element_chain\` / \`connect_bpmn_elements\` to build the flow.\n\n` +
+            `- Use \`create_bpmn_diagram\` to start, then \`add_bpmn_element\` (single element or ` +
+            `\`elements\` array) / \`connect_bpmn_elements\` to build the flow.\n\n` +
             `**Task configuration (make it deployable):**\n` +
             `- UserTasks: set \`camunda:assignee\` or \`camunda:candidateGroups\`. ` +
             `Add form fields with \`set_bpmn_form_data\` or set \`camunda:formRef\`.\n` +
@@ -109,7 +109,7 @@ const PROMPTS: PromptDefinition[] = [
             `- Gateways: always set condition expressions on outgoing flows and mark ` +
             `one flow as the default with \`isDefault: true\`. The default flow must NOT ` +
             `have a conditionExpression — it is the engine fallback. When using ` +
-            `\`add_bpmn_element_chain\` with a gateway, inspect the \`connectionIds\` map ` +
+            `\`add_bpmn_element\` (\`elements\`) with a gateway, inspect the \`connectionIds\` map ` +
             `in the response — flows from elements BEFORE the gateway are already wired ` +
             `and must NOT be recreated with \`connect_bpmn_elements\`.\n\n` +
             `**Retry / loop-back flows (CRITICAL):**\n` +
@@ -164,7 +164,7 @@ const PROMPTS: PromptDefinition[] = [
             `- Optionally add **lanes** for role separation: pass a \`lanes\` array to ` +
             `\`create_bpmn_participant\` (e.g. \`lanes: [{ name: "Manager" }, { name: "Clerk" }]\`).\n` +
             `- When placing elements, always specify \`participantId\` (and \`laneId\` if ` +
-            `using lanes) in \`add_bpmn_element\` / \`add_bpmn_element_chain\`.\n` +
+            `using lanes) in \`add_bpmn_element\`.\n` +
             `- Optionally add **collapsed partner pools** for external systems: use ` +
             `\`create_bpmn_participant\` with \`participants\` array where partner entries ` +
             `have \`collapsed: true\`. Connect via \`connect_bpmn_elements\` (auto-creates ` +

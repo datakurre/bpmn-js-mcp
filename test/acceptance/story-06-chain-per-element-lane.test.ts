@@ -1,7 +1,7 @@
 /**
- * Acceptance test: add_bpmn_element_chain with per-element laneId overrides.
+ * Acceptance test: add_bpmn_element (elements form) with per-element laneId overrides.
  *
- * Verifies that when `add_bpmn_element_chain` is called with a per-element
+ * Verifies that when `add_bpmn_element (elements form)` is called with a per-element
  * `laneId`, each element ends up in the correct lane — even when different
  * elements within the same chain are assigned to different lanes.
  *
@@ -16,7 +16,7 @@ import {
 } from '../../src/handlers';
 import { createDiagram, clearDiagrams, parseResult, getRegistry } from '../helpers';
 
-describe('add_bpmn_element_chain — per-element laneId override', () => {
+describe('add_bpmn_element (elements form) — per-element laneId override', () => {
   beforeEach(() => clearDiagrams());
 
   test('elements are placed in their own lane when per-element laneId is set', async () => {

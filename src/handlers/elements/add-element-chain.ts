@@ -1,20 +1,23 @@
 /**
- * Handler for add_bpmn_element_chain tool.
+ * Multi-element form of add_bpmn_element (`elements` array; ADR-032).
  *
- * Convenience tool that creates a sequence of BPMN elements and connects
- * them in order, reducing round-trips compared to calling add_bpmn_element
- * multiple times. Internally uses add_bpmn_element with afterElementId
- * chaining.
+ * Creates a sequence of BPMN elements and (by default) connects them in
+ * order, reducing round-trips compared to calling add_bpmn_element multiple
+ * times. Internally uses the single-element handler with afterElementId
+ * chaining. Formerly the standalone add_bpmn_element_chain tool.
  */
 // @mutating
 
 import { type ToolResult } from '../../types';
-import { missingRequiredError, typeMismatchError, semanticViolationError } from '../../errors';
+import { missingRequiredError } from '../../errors';
 import { requireDiagram, jsonResult, validateArgs, buildElementCounts } from '../helpers';
 import { getService } from '../../bpmn-types';
 import { appendLintFeedback } from '../../linter';
 import { handleAddElement } from './add-element';
 import { handleLayoutDiagram } from '../layout/layout-diagram';
+import { CHAIN_ELEMENT_TYPES, validateChainElements } from './add-element-chain-validation';
+
+export { CHAIN_ELEMENT_TYPES };
 
 export interface AddElementChainArgs {
   diagramId: string;
@@ -28,7 +31,25 @@ export interface AddElementChainArgs {
     participantId?: string;
     /** Optional lane to place element into. */
     laneId?: string;
+    /** Explicit position (mostly useful with connect: 'none'). */
+    x?: number;
+    y?: number;
+    /** For bpmn:SubProcess: expanded (default) or collapsed. */
+    isExpanded?: boolean;
+    /** Event shorthand: event definition type (e.g. 'bpmn:TimerEventDefinition'). */
+    eventDefinitionType?: string;
+    eventDefinitionProperties?: Record<string, unknown>;
+    errorRef?: { id: string; name?: string; errorCode?: string };
+    messageRef?: { id: string; name?: string };
+    signalRef?: { id: string; name?: string };
+    escalationRef?: { id: string; name?: string; escalationCode?: string };
   }>;
+  /**
+   * 'chain' (default): connect each element to the previous one with a sequence flow.
+   * 'none': just add the elements, connecting nothing (each is placed right of the previous
+   * one, starting from afterElementId, unless it has an explicit x/y).
+   */
+  connect?: 'chain' | 'none';
   /** Optional: connect the first element after this existing element ID. */
   afterElementId?: string;
   /** Optional participant pool for all elements (can be overridden per-element). */
@@ -50,73 +71,6 @@ const GATEWAY_TYPES = new Set([
   'bpmn:EventBasedGateway',
   'bpmn:ExclusiveGateway',
 ]);
-
-const CHAIN_ELEMENT_TYPES = new Set([
-  'bpmn:StartEvent',
-  'bpmn:EndEvent',
-  'bpmn:Task',
-  'bpmn:UserTask',
-  'bpmn:ServiceTask',
-  'bpmn:ScriptTask',
-  'bpmn:ManualTask',
-  'bpmn:BusinessRuleTask',
-  'bpmn:SendTask',
-  'bpmn:ReceiveTask',
-  'bpmn:CallActivity',
-  'bpmn:ExclusiveGateway',
-  'bpmn:ParallelGateway',
-  'bpmn:InclusiveGateway',
-  'bpmn:EventBasedGateway',
-  'bpmn:IntermediateCatchEvent',
-  'bpmn:IntermediateThrowEvent',
-  'bpmn:SubProcess',
-]);
-
-/**
- * Validate chain element types and EndEvent placement before creating anything.
- */
-function validateChainElements(
-  elements: AddElementChainArgs['elements'],
-  afterElementId: string | undefined,
-  diagram: ReturnType<typeof requireDiagram>
-): void {
-  // Validate all element types up front
-  for (let i = 0; i < elements.length; i++) {
-    const el = elements[i];
-    if (!el.elementType) {
-      throw missingRequiredError([`elements[${i}].elementType`]);
-    }
-    if (!CHAIN_ELEMENT_TYPES.has(el.elementType)) {
-      throw typeMismatchError(`elements[${i}]`, el.elementType, Array.from(CHAIN_ELEMENT_TYPES));
-    }
-  }
-
-  // Check if afterElementId is an EndEvent — cannot place elements after a flow sink
-  if (afterElementId) {
-    const elementRegistry = getService(diagram.modeler, 'elementRegistry');
-    const afterEl = elementRegistry.get(afterElementId);
-    if (afterEl) {
-      const afterType: string = afterEl.type || afterEl.businessObject?.$type || '';
-      if (afterType === 'bpmn:EndEvent') {
-        throw semanticViolationError(
-          `Cannot add elements after ${afterElementId} — bpmn:EndEvent is a flow sink and must not have outgoing sequence flows. ` +
-            `Use a different element as afterElementId, or replace the EndEvent with an IntermediateThrowEvent if the flow should continue.`
-        );
-      }
-    }
-  }
-
-  // Validate that EndEvent is only used as the last element in the chain
-  for (let i = 0; i < elements.length - 1; i++) {
-    if (elements[i].elementType === 'bpmn:EndEvent') {
-      throw semanticViolationError(
-        `elements[${i}] is bpmn:EndEvent but is not the last element in the chain. ` +
-          `EndEvent is a flow sink and must not have outgoing sequence flows. ` +
-          `Move the EndEvent to the end of the chain, or use bpmn:IntermediateThrowEvent instead.`
-      );
-    }
-  }
-}
 
 /** Resolve the participantId of an anchor element (afterElementId). */
 function resolveAnchorParticipantId(
@@ -175,18 +129,29 @@ async function runChainLoop(
   const createdElements: CreatedEntry[] = [];
   const unconnectedElements: UnconnectedEntry[] = [];
   const warnings: string[] = [];
+  const connect = args.connect ?? 'chain';
   let previousId = initialPreviousId;
   let postGateway = false;
   let previousParticipantId = initialParticipantId;
   for (const el of args.elements) {
     const isGateway = GATEWAY_TYPES.has(el.elementType);
+    const hasPosition = el.x !== undefined || el.y !== undefined;
+    // 'none': place each element right of the previous one (or the afterElementId
+    // anchor) without connecting, unless it has an explicit position.
+    const placement =
+      connect === 'none'
+        ? previousId && !hasPosition
+          ? { afterElementId: previousId, autoConnect: false }
+          : {}
+        : !postGateway && previousId
+          ? { afterElementId: previousId }
+          : {};
     const addResult = await handleAddElement({
+      ...el,
       diagramId: args.diagramId,
-      elementType: el.elementType,
-      name: el.name,
       participantId: el.participantId || args.participantId,
       laneId: el.laneId || args.laneId,
-      ...(postGateway ? {} : previousId ? { afterElementId: previousId } : {}),
+      ...placement,
     });
     const parsed = JSON.parse(addResult.content[0].text!);
     createdElements.push({
@@ -201,14 +166,14 @@ async function runChainLoop(
       previousParticipantId,
       warnings
     );
-    if (postGateway) {
+    if (postGateway && connect !== 'none') {
       unconnectedElements.push({
         elementId: parsed.elementId,
         elementType: el.elementType,
         name: el.name,
       });
     }
-    if (isGateway) postGateway = true;
+    if (isGateway && connect !== 'none') postGateway = true;
     previousId = parsed.elementId;
   }
   return { createdElements, unconnectedElements, warnings };
@@ -261,12 +226,25 @@ function buildLaneWarnings(
     ],
     nextSteps: [
       {
-        tool: 'add_bpmn_element_chain',
+        tool: 'add_bpmn_element',
         description:
           `Re-run with laneId set to one of the available lanes: ${laneList}. ` +
           `Available lanes are listed above.`,
       },
     ],
+  };
+}
+
+/** A connected chain with a gateway defers layout; only connected chains auto-layout at all. */
+function planLayout(
+  args: AddElementChainArgs,
+  connected: boolean
+): { chainHasGateway: boolean; shouldLayout: boolean } {
+  const chainHasGateway =
+    connected && args.elements.some((el) => GATEWAY_TYPES.has(el.elementType));
+  return {
+    chainHasGateway,
+    shouldLayout: args.autoLayout !== false && connected && !chainHasGateway,
   };
 }
 
@@ -276,11 +254,14 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
   if (!Array.isArray(elements) || elements.length === 0) throw missingRequiredError(['elements']);
 
   const diagram = requireDiagram(diagramId);
-  validateChainElements(elements, afterElementId, diagram);
+  validateChainElements(elements, afterElementId, diagram, (args.connect ?? 'chain') === 'chain');
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
   // Check for disconnected chain BEFORE running the loop (state must be pre-mutation)
-  const preWarnings = buildDisconnectedChainWarning(elementRegistry, afterElementId);
+  const connected = (args.connect ?? 'chain') === 'chain';
+  const preWarnings = connected
+    ? buildDisconnectedChainWarning(elementRegistry, afterElementId)
+    : [];
 
   const initialParticipantId = resolveAnchorParticipantId(
     elementRegistry,
@@ -302,8 +283,7 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
   warnings.push(...laneResult.warnings);
   const laneNextStep = laneResult.nextSteps;
 
-  const chainHasGateway = elements.some((el) => GATEWAY_TYPES.has(el.elementType));
-  const shouldLayout = args.autoLayout !== false && !chainHasGateway;
+  const { chainHasGateway, shouldLayout } = planLayout(args, connected);
   if (shouldLayout) await handleLayoutDiagram({ diagramId });
 
   // Collect connection IDs created in this chain that have no condition expression.
@@ -353,66 +333,3 @@ export async function handleAddElementChain(args: AddElementChainArgs): Promise<
   });
   return appendLintFeedback(result, diagram);
 }
-
-export const TOOL_DEFINITION = {
-  name: 'add_bpmn_element_chain',
-  description:
-    'Add a chain of BPMN elements connected in sequence, reducing round-trips. ' +
-    'Creates each element and auto-connects it to the previous one via sequence flows. ' +
-    'Equivalent to calling add_bpmn_element multiple times with afterElementId chaining. ' +
-    'Use afterElementId to attach the chain after an existing element. ' +
-    'For branching/merging patterns, use add_bpmn_element and connect_bpmn_elements instead.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      elements: {
-        type: 'array',
-        description: 'Ordered array of elements to create and connect sequentially.',
-        items: {
-          type: 'object',
-          properties: {
-            elementType: {
-              type: 'string',
-              description: 'The BPMN element type (e.g. bpmn:UserTask, bpmn:ServiceTask)',
-              enum: Array.from(CHAIN_ELEMENT_TYPES),
-            },
-            name: { type: 'string', description: 'Optional name/label for the element' },
-            participantId: {
-              type: 'string',
-              description: 'Optional participant pool (overrides top-level participantId)',
-            },
-            laneId: {
-              type: 'string',
-              description: 'Optional lane (overrides top-level laneId)',
-            },
-          },
-          required: ['elementType'],
-        },
-        minItems: 1,
-      },
-      afterElementId: {
-        type: 'string',
-        description:
-          'Connect the first element in the chain after this existing element. ' +
-          'If omitted, the chain starts unconnected.',
-      },
-      participantId: {
-        type: 'string',
-        description: 'Default participant pool for all elements (can be overridden per-element).',
-      },
-      laneId: {
-        type: 'string',
-        description: 'Default lane for all elements (can be overridden per-element).',
-      },
-      autoLayout: {
-        type: 'boolean',
-        default: true,
-        description:
-          'When true (default), run layout_bpmn_diagram after the chain is built. ' +
-          'Pass false to skip auto-layout when more elements will be added first.',
-      },
-    },
-    required: ['diagramId', 'elements'],
-  },
-} as const;

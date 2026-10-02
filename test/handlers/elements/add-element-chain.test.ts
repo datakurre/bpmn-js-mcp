@@ -7,7 +7,7 @@ import {
 } from '../../../src/handlers';
 import { createDiagram, parseResult, addElement, clearDiagrams } from '../../helpers';
 
-describe('add_bpmn_element_chain', () => {
+describe('add_bpmn_element (elements form)', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -288,7 +288,7 @@ describe('add_bpmn_element_chain', () => {
   });
 
   test('emits warning when participantId has lanes but no laneId is specified', async () => {
-    // Regression for TODO #8: add_bpmn_element_chain should warn about missing laneId
+    // Regression for TODO #8: add_bpmn_element (elements form) should warn about missing laneId
     const diagramId = await createDiagram();
 
     const collResult = parseResult(
