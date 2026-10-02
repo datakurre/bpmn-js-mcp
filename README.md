@@ -159,12 +159,11 @@ No separate "repair layout" tool is needed — chain these existing tools for fi
 
 ### Collaboration Tools
 
-| Tool                           | Description                                                                               |
-| ------------------------------ | ----------------------------------------------------------------------------------------- |
-| `create_bpmn_participant`      | Create pools (use `wrapExisting` to wrap an existing process)                             |
-| `create_bpmn_lanes`            | Create swimlanes (use `mergeFrom` to convert multi-pool to lanes)                         |
-| `assign_bpmn_elements_to_lane` | Bulk-assign elements to a lane                                                            |
-| `analyze_bpmn_lanes`           | Analyze, suggest, and validate lane assignments (modes: suggest, validate, pool-vs-lanes) |
+| Tool                      | Description                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `create_bpmn_participant` | Create pools (use `wrapExisting` to wrap an existing process)                                        |
+| `create_bpmn_lanes`       | Create swimlanes; `assignments` assigns elements, `strategy` redistributes, `mergeFrom` merges pools |
+| `analyze_bpmn_lanes`      | Read-only lane analysis (modes: suggest, validate, pool-vs-lanes)                                    |
 
 ### Utility Tools
 

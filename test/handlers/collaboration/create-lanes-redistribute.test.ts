@@ -1,10 +1,8 @@
 /**
- * Tests for mode: 'redistribute' on analyze_bpmn_lanes.
- * Merges redistribute_bpmn_elements_across_lanes into analyze_bpmn_lanes.
+ * Tests for the `strategy` (redistribute) form of create_bpmn_lanes.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
 import {
-  handleAnalyzeLanes,
   handleCreateCollaboration,
   handleAddElement,
   handleCreateLanes,
@@ -14,7 +12,7 @@ import {
 import { TOOL_DEFINITION as ANALYZE_LANES_TOOL } from '../../../src/handlers/collaboration/analyze-lanes';
 import { createDiagram, parseResult, clearDiagrams } from '../../helpers';
 
-describe('analyze_bpmn_lanes mode: redistribute', () => {
+describe('create_bpmn_lanes strategy (redistribute)', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -43,7 +41,7 @@ describe('analyze_bpmn_lanes mode: redistribute', () => {
     return { poolId, laneIds };
   }
 
-  test('mode: redistribute delegates to redistribute handler', async () => {
+  test('strategy delegates to redistribute handler', async () => {
     const diagramId = await createDiagram();
     const { poolId, laneIds } = await createPoolWithLanes(diagramId);
 
@@ -86,7 +84,7 @@ describe('analyze_bpmn_lanes mode: redistribute', () => {
     });
 
     const res = parseResult(
-      await handleAnalyzeLanes({ diagramId, mode: 'redistribute', participantId: poolId })
+      await handleCreateLanes({ diagramId, participantId: poolId, strategy: 'role-based' })
     );
 
     // Should return redistribute result (success field or moved/assignments)
@@ -95,7 +93,7 @@ describe('analyze_bpmn_lanes mode: redistribute', () => {
     expect(res.success !== undefined || res.coherenceScore !== undefined).toBe(true);
   });
 
-  test('mode: redistribute with dryRun returns plan', async () => {
+  test('strategy with dryRun returns plan', async () => {
     const diagramId = await createDiagram();
     const { poolId } = await createPoolWithLanes(diagramId);
 
@@ -107,10 +105,10 @@ describe('analyze_bpmn_lanes mode: redistribute', () => {
     });
 
     const res = parseResult(
-      await handleAnalyzeLanes({
+      await handleCreateLanes({
         diagramId,
-        mode: 'redistribute',
         participantId: poolId,
+        strategy: 'role-based',
         dryRun: true,
       })
     );
@@ -118,12 +116,12 @@ describe('analyze_bpmn_lanes mode: redistribute', () => {
     expect(res).toBeDefined();
   });
 
-  test('redistribute mode appears in tool definition enum', () => {
-    const modeEnum = ANALYZE_LANES_TOOL.inputSchema.properties.mode.enum;
-    expect(modeEnum).toContain('redistribute');
+  test('analyze_bpmn_lanes no longer has redistribute mode', () => {
+    const modeEnum = ANALYZE_LANES_TOOL.inputSchema.properties.mode.enum as readonly string[];
+    expect(modeEnum).not.toContain('redistribute');
   });
 
-  test('mode: redistribute forwards strategy parameter', async () => {
+  test('strategy forwards strategy parameter', async () => {
     const diagramId = await createDiagram();
     const { poolId } = await createPoolWithLanes(diagramId);
 
@@ -135,9 +133,8 @@ describe('analyze_bpmn_lanes mode: redistribute', () => {
     });
 
     const res = parseResult(
-      await handleAnalyzeLanes({
+      await handleCreateLanes({
         diagramId,
-        mode: 'redistribute',
         participantId: poolId,
         strategy: 'balance',
       })

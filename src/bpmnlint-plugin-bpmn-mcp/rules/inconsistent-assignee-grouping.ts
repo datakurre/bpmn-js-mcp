@@ -94,7 +94,7 @@ export default function inconsistentAssigneeGrouping() {
         `Elements with ${roleLabel} are spread across ${lanes.size} lanes ` +
           `(${laneNames}): ${elements.join(', ')}. ` +
           `Consider grouping same-role elements in a single lane for clarity, ` +
-          `or use assign_bpmn_elements_to_lane to reorganize.`
+          `or use create_bpmn_lanes with assignments to reorganize.`
       );
     }
   }

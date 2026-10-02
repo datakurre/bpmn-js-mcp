@@ -196,11 +196,10 @@ Create a pool with lanes and assign tasks to the appropriate lane.
 6. create_bpmn_participant       → { wrapExisting: true, name: "Approval Process" }
 7. create_bpmn_lanes             → { participantId: "<poolId>",
                                       lanes: [{ name: "Requester" }, { name: "Approver" }] }
-8. assign_bpmn_elements_to_lane  → { laneId: "<requesterId>",
-                                      elementIds: ["<startId>", "<reviewId>"] }
-9. assign_bpmn_elements_to_lane  → { laneId: "<approverId>",
-                                      elementIds: ["<approveId>", "<endId>"] }
-10. layout_bpmn_diagram          → { }
+8. create_bpmn_lanes             → { assignments: [
+                                      { laneId: "<requesterId>", elementIds: ["<startId>", "<reviewId>"] },
+                                      { laneId: "<approverId>", elementIds: ["<approveId>", "<endId>"] }] }
+9. layout_bpmn_diagram          → { }
 ```
 
 The layout response includes `laneCrossingMetrics` showing how many
@@ -221,11 +220,11 @@ Migrate an existing flat process into lanes without duplicating elements.
                                         { name: "Support" },
                                         { name: "System" }
                                       ] }
-4. assign_bpmn_elements_to_lane  → { laneId: "<customerId>",
+4. create_bpmn_lanes (assignments)  → { laneId: "<customerId>",
                                       elementIds: ["<startId>", "<submitTaskId>"] }
-5. assign_bpmn_elements_to_lane  → { laneId: "<supportId>",
+5. create_bpmn_lanes (assignments)  → { laneId: "<supportId>",
                                       elementIds: ["<reviewTaskId>", "<approveTaskId>"] }
-6. assign_bpmn_elements_to_lane  → { laneId: "<systemId>",
+6. create_bpmn_lanes (assignments)  → { laneId: "<systemId>",
                                       elementIds: ["<notifyTaskId>", "<endId>"] }
 7. layout_bpmn_diagram           → { }
 ```
@@ -273,7 +272,7 @@ source element with a sequence flow — a clean cross-lane handoff.
 - **Batch operations** with `batch_bpmn_operations` to reduce
   round-trips when building complex diagrams.
 - **Use `laneId` when adding elements** to a process that already has
-  lanes. This avoids the separate `assign_bpmn_elements_to_lane` step.
+  lanes. This avoids the separate `create_bpmn_lanes (assignments)` step.
 - **Check `laneCrossingMetrics`** in layout results to assess lane
   organization quality. A `laneCoherenceScore` above 70% indicates
   well-organized lanes.

@@ -93,7 +93,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/role-mismatch-with-lane':
     'Use set_bpmn_element_properties to update camunda:assignee or camunda:candidateGroups to match the lane role, or move the element to the correct lane with move_bpmn_element{elementRef}',
   'bpmn-mcp/inconsistent-assignee-grouping':
-    'Group elements with the same assignee/candidateGroups into a single lane using assign_bpmn_elements_to_lane or move_bpmn_element with laneId',
+    'Group elements with the same assignee/candidateGroups into a single lane using create_bpmn_lanes with assignments or move_bpmn_element with laneId',
   'bpmn-mcp/service-task-missing-implementation':
     'Use set_bpmn_element_properties to set camunda:class, camunda:delegateExpression, camunda:expression, or camunda:type="external" with camunda:topic{elementRef}',
   'bpmn-mcp/timer-missing-definition':
@@ -109,7 +109,7 @@ export const FIX_SUGGESTIONS: Record<string, string> = {
   'bpmn-mcp/receive-task-missing-message':
     'Use manage_bpmn_root_elements to create a message definition, then set_bpmn_element_properties to assign messageRef{elementRef}',
   'bpmn-mcp/lane-without-assignments':
-    'Assign elements to the lane using assign_bpmn_elements_to_lane, or remove the empty lane with delete_bpmn_element{elementRef}',
+    'Assign elements to the lane using create_bpmn_lanes with assignments, or remove the empty lane with delete_bpmn_element{elementRef}',
   'bpmn-mcp/collaboration-pattern-mismatch':
     'Review the collaboration structure. In Camunda 7 / Operaton, use one expanded executable pool with collapsed partner pools for external systems',
   'bpmn-mcp/message-flow-crossing-excessive':

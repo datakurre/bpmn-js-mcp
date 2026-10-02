@@ -1,5 +1,5 @@
 /**
- * Handler for assign_bpmn_elements_to_lane tool.
+ * Internal handler behind create_bpmn_lanes's `assignments` form.
  *
  * Bulk-assigns multiple elements to a lane, updating their flowNodeRef
  * membership and optionally repositioning them vertically within the lane.
@@ -74,13 +74,24 @@ function repositionInLane(
   return undefined;
 }
 
-export async function handleAssignElementsToLane(
-  args: AssignElementsToLaneArgs
-): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'laneId', 'elementIds']);
-  const { diagramId, laneId, elementIds, reposition = true } = args;
+export interface LaneAssignmentOutcome {
+  laneId: string;
+  laneName: string;
+  assigned: string[];
+  skipped: Array<{ elementId: string; reason: string }>;
+  repositionWarnings: string[];
+}
 
-  const diagram = requireDiagram(diagramId);
+/**
+ * Assign elements to a lane without syncing XML or linting — callers that
+ * batch several assignments sync and lint once for the whole call.
+ */
+export function applyLaneAssignment(
+  diagram: any,
+  laneId: string,
+  elementIds: string[],
+  reposition = true
+): LaneAssignmentOutcome {
   const modeling = getService(diagram.modeler, 'modeling');
   const elementRegistry = getService(diagram.modeler, 'elementRegistry');
 
@@ -133,17 +144,40 @@ export async function handleAssignElementsToLane(
     }
   }
 
+  return {
+    laneId,
+    laneName: lane.businessObject?.name || laneId,
+    assigned,
+    skipped,
+    repositionWarnings,
+  };
+}
+
+export async function handleAssignElementsToLane(
+  args: AssignElementsToLaneArgs
+): Promise<ToolResult> {
+  validateArgs(args, ['diagramId', 'laneId', 'elementIds']);
+  const { diagramId, laneId, elementIds, reposition = true } = args;
+
+  const diagram = requireDiagram(diagramId);
+  const { laneName, assigned, skipped, repositionWarnings } = applyLaneAssignment(
+    diagram,
+    laneId,
+    elementIds,
+    reposition
+  );
+
   await syncXml(diagram);
 
   const result = jsonResult({
     success: true,
     laneId,
-    laneName: lane.businessObject?.name || laneId,
+    laneName,
     assignedCount: assigned.length,
     assignedElementIds: assigned,
     ...(skipped.length > 0 ? { skipped } : {}),
     ...(repositionWarnings.length > 0 ? { repositionWarnings } : {}),
-    message: `Assigned ${assigned.length} element(s) to lane "${lane.businessObject?.name || laneId}"${skipped.length > 0 ? ` (${skipped.length} skipped)` : ''}`,
+    message: `Assigned ${assigned.length} element(s) to lane "${laneName}"${skipped.length > 0 ? ` (${skipped.length} skipped)` : ''}`,
     nextSteps: [
       {
         tool: 'layout_bpmn_diagram',
@@ -153,32 +187,3 @@ export async function handleAssignElementsToLane(
   });
   return appendLintFeedback(result, diagram);
 }
-
-export const TOOL_DEFINITION = {
-  name: 'assign_bpmn_elements_to_lane',
-  description:
-    "Bulk-assign multiple elements to a lane. Updates the lane's flowNodeRef membership " +
-    'and optionally repositions elements vertically within the lane bounds. ' +
-    'Elements are removed from any previous lane assignment. ' +
-    'Participants, lanes, processes, and collaborations cannot be assigned to lanes.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      diagramId: { type: 'string', description: 'The diagram ID' },
-      laneId: { type: 'string', description: 'The ID of the target lane' },
-      elementIds: {
-        type: 'array',
-        description: 'Array of element IDs to assign to the lane',
-        items: { type: 'string' },
-        minItems: 1,
-      },
-      reposition: {
-        type: 'boolean',
-        description:
-          'When true (default), repositions elements vertically to center them within the lane bounds. ' +
-          'Set to false to keep elements at their current position and only update the lane membership.',
-      },
-    },
-    required: ['diagramId', 'laneId', 'elementIds'],
-  },
-} as const;

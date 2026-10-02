@@ -165,4 +165,88 @@ describe('assign_bpmn_elements_to_lane', () => {
     const beEl = reg.get(be);
     expect(laneRefs).toContain(beEl.businessObject);
   });
+
+  describe('create_bpmn_lanes assignments form', () => {
+    test('assigns to multiple lanes in one call without participantId', async () => {
+      const diagramId = await createDiagram();
+      const { laneIds } = await createPoolWithLanes(diagramId);
+      const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
+      const t2 = await addElement(diagramId, 'bpmn:ServiceTask', { name: 'Task 2' });
+
+      const result = await handleCreateLanes({
+        diagramId,
+        assignments: [
+          { laneId: laneIds[0], elementIds: [t1] },
+          { laneId: laneIds[1], elementIds: [t2] },
+        ],
+      });
+      const res = parseResult(result);
+
+      expect(res.success).toBe(true);
+      expect(res.assignments).toHaveLength(2);
+      expect(res.assignments[0].assignedElementIds).toEqual([t1]);
+      expect(res.assignments[1].assignedElementIds).toEqual([t2]);
+      // Goes through the shared lint/viewer feedback path (adds the diagram image)
+      expect(result.content.some((c: any) => c.type === 'image')).toBe(true);
+    });
+
+    test('rejects a non-lane laneId before applying any assignment', async () => {
+      const diagramId = await createDiagram();
+      const { participant, laneIds } = await createPoolWithLanes(diagramId);
+      const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
+      const reg = getDiagram(diagramId)!.modeler.get('elementRegistry') as any;
+      const membership = () =>
+        laneIds.map((id) => (reg.get(id).businessObject.flowNodeRef || []).map((r: any) => r.id));
+      const before = membership();
+
+      await expect(
+        handleCreateLanes({
+          diagramId,
+          assignments: [
+            { laneId: laneIds[1], elementIds: [t1] },
+            { laneId: participant, elementIds: [t1] },
+          ],
+        })
+      ).rejects.toThrow();
+
+      // Membership is unchanged by the rejected call
+      expect(membership()).toEqual(before);
+    });
+
+    test('reports skipped elements', async () => {
+      const diagramId = await createDiagram();
+      const { laneIds } = await createPoolWithLanes(diagramId);
+      const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
+
+      const res = parseResult(
+        await handleCreateLanes({
+          diagramId,
+          assignments: [{ laneId: laneIds[0], elementIds: [t1, 'Missing_1'] }],
+        })
+      );
+
+      expect(res.assignments[0].assignedElementIds).toEqual([t1]);
+      expect(res.assignments[0].skipped).toEqual([
+        { elementId: 'Missing_1', reason: 'Element not found' },
+      ]);
+    });
+
+    test.each([
+      ['lanes + assignments', { lanes: [{ name: 'A' }, { name: 'B' }] }],
+      ['strategy + assignments', { strategy: 'balance' as const }],
+      ['mergeFrom + assignments', { mergeFrom: 'Participant_1' }],
+    ])('rejects mixed forms: %s', async (_label, extra) => {
+      const diagramId = await createDiagram();
+      const { laneIds } = await createPoolWithLanes(diagramId);
+      const t1 = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task 1' });
+
+      await expect(
+        handleCreateLanes({
+          diagramId,
+          assignments: [{ laneId: laneIds[0], elementIds: [t1] }],
+          ...extra,
+        })
+      ).rejects.toThrow(/mutually exclusive/);
+    });
+  });
 });

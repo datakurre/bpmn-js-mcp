@@ -15,6 +15,9 @@ export const TOOL_DEFINITION = {
     'defined manually. Alternatively, use distributeStrategy to auto-generate lanes: ' +
     '"by-type" groups elements into Human Tasks vs Automated Tasks lanes; "manual" uses ' +
     'elementIds in each lane definition to assign elements explicitly. ' +
+    'Use assignments ([{ laneId, elementIds }]) to assign existing elements to existing lanes, ' +
+    'or strategy (role-based | balance | minimize-crossings, with dryRun/validate) to ' +
+    'redistribute elements across existing lanes. These forms are mutually exclusive. ' +
     'Use mergeFrom to convert a multi-pool collaboration into a single pool with lanes ' +
     '(elements are moved, message flows become sequence flows).',
   inputSchema: {
@@ -23,7 +26,8 @@ export const TOOL_DEFINITION = {
       diagramId: { type: 'string', description: 'The diagram ID' },
       participantId: {
         type: 'string',
-        description: 'The ID of the participant (pool) to add lanes to',
+        description:
+          'The ID of the participant (pool) to add lanes to (required unless using assignments or strategy)',
       },
       lanes: {
         type: 'array',
@@ -75,11 +79,47 @@ export const TOOL_DEFINITION = {
           'Provide the ID of the participant to keep as the main pool. ' +
           'Other expanded pools become lanes, elements are moved, and message flows are converted to sequence flows.',
       },
+      assignments: {
+        type: 'array',
+        description:
+          'Assign existing elements to existing lanes (participantId and lane creation not needed).',
+        items: {
+          type: 'object',
+          properties: {
+            laneId: { type: 'string', description: 'Target lane ID' },
+            elementIds: { type: 'array', items: { type: 'string' }, minItems: 1 },
+          },
+          required: ['laneId', 'elementIds'],
+        },
+        minItems: 1,
+      },
+      strategy: {
+        type: 'string',
+        enum: ['role-based', 'balance', 'minimize-crossings'],
+        description:
+          'Redistribute elements across EXISTING lanes (participantId optional, auto-detected); ' +
+          'unlike distributeStrategy, it never creates lanes. ' +
+          "'role-based' matches assignee/candidateGroups to lane names; 'balance' spreads " +
+          "elements evenly; 'minimize-crossings' minimizes cross-lane flows.",
+      },
+      dryRun: {
+        type: 'boolean',
+        description: 'With strategy: return the redistribution plan without applying changes.',
+      },
+      validate: {
+        type: 'boolean',
+        description: 'With strategy: run lane validation before and after redistribution.',
+      },
+      reposition: {
+        type: 'boolean',
+        description:
+          'With assignments/strategy (default true): move elements vertically into their lane.',
+      },
       layout: {
         type: 'boolean',
         description: 'When true (default), runs layout after mergeFrom conversion.',
       },
     },
-    required: ['diagramId', 'participantId'],
+    required: ['diagramId'],
   },
 } as const;

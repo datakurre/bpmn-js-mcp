@@ -61,7 +61,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 1. `bpmn-to-image` provides the shared `jsdom` instance, browser API polyfills (SVG, CSS, structuredClone), and the headless `BpmnModeler` factory that let `bpmn-js` run headlessly.
 2. Diagrams are stored in-memory in a `Map<string, DiagramState>` keyed by generated IDs.
-3. **22 MCP tools** are exposed (see "Tool Naming" below; set `BPMN_MCP_TOOLS=core` for an 11-tool subset via the `tier` field on `TOOL_REGISTRY` entries — dispatch always accepts every tool regardless of tier), plus **6 resource templates** (diagram summary, lint, variables, XML, SVG, and elements) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
+3. **21 MCP tools** are exposed (see "Tool Naming" below; set `BPMN_MCP_TOOLS=core` for an 11-tool subset via the `tier` field on `TOOL_REGISTRY` entries — dispatch always accepts every tool regardless of tier), plus **6 resource templates** (diagram summary, lint, variables, XML, SVG, and elements) and **3 modeling-style prompts** (`executable`, `executable-pool`, `collaboration`) that set the diagram-building context for the session.
 4. Each tool handler manipulates the `bpmn-js` modeler API (`modeling`, `elementFactory`, `elementRegistry`) and returns JSON or raw XML/SVG.
 5. `camunda-bpmn-moddle` is registered as a moddle extension, enabling Camunda-specific attributes (e.g. `camunda:assignee`, `camunda:class`, `camunda:formKey`) on elements.
 6. Each handler file **co-locates** its MCP tool definition (`TOOL_DEFINITION`) alongside the handler function, preventing definition drift.
@@ -76,7 +76,7 @@ Modular `src/` layout, communicates over **stdio** using the MCP SDK. See [`docs
 
 - **Core structural tools:** `create_bpmn_diagram` (includes cloning via `cloneFrom`, plus XML/file import via `xml`/`filePath`+`autoLayout`, folded from `import_bpmn_xml` — see ADR-030), `add_bpmn_element` (includes insert-into-flow via `flowId`, cross-lane handoff via `fromElementId`+`toLaneId`), `connect_bpmn_elements` (includes waypoint editing via `connectionId`+`waypoints`, plus a multi-pair `connections` array applied as a single undo step — see ADR-029), `delete_bpmn_element`, `move_bpmn_element` (includes resize via `width`/`height`, plus a multi-element `moves` array applied as a single undo step — see ADR-026), `list_bpmn_elements` (includes full per-element detail inspection via `elementIds`, folded from `get_bpmn_element_properties` — see ADR-027), `validate_bpmn_diagram`, `align_bpmn_elements` (includes distribute via `orientation`), `export_bpmn` (formats: `xml`/`svg`/`both`, plus `png`/`gif`/`apng`/`mp4`/`webp`/`html` via `bpmn-to-image`'s token-simulation and interactive-viewer rendering — see ADR-022)
 - **Property / extension tools:** `set_bpmn_element_properties` (includes element-type replacement via `elementType`, plus `inputOutput`/`formData`/`listeners`/`callActivityVariables`/`loop`/`eventDefinition` sub-objects — see ADR-021 and ADR-028 — and a multi-element `updates` array applied as a single undo step — see ADR-026)
-- **Collaboration tools:** `create_bpmn_participant` (includes wrapping an existing process via `wrapExisting`), `create_bpmn_lanes` (includes merging an existing collaboration via `mergeFrom`), `assign_bpmn_elements_to_lane`, `manage_bpmn_root_elements`, `analyze_bpmn_lanes` (modes: suggest, validate, pool-vs-lanes, redistribute)
+- **Collaboration tools:** `create_bpmn_participant` (includes wrapping an existing process via `wrapExisting`), `create_bpmn_lanes` (includes merging an existing collaboration via `mergeFrom`, element assignment via `assignments`, and redistribution via `strategy` — see ADR-031), `manage_bpmn_root_elements`, `analyze_bpmn_lanes` (read-only; modes: suggest, validate, pool-vs-lanes)
 - **History tools:** `bpmn_history`
 - **Batch tools:** `batch_bpmn_operations`
 - **Utility tools:** `delete_bpmn_diagram`, `list_bpmn_diagrams` (includes diagram summary via `diagramId`, diffing via `compareWith`), `list_bpmn_process_variables`, `layout_bpmn_diagram` (includes pool/lane autosizing via `autosizeOnly`), `add_bpmn_element_chain`
@@ -153,6 +153,7 @@ Individual ADRs are in [`agents/adrs/`](agents/adrs/):
 - [ADR-028](agents/adrs/ADR-028-event-definition-folded-into-set-properties.md) — set_bpmn_event_definition folded into set_bpmn_element_properties's eventDefinition sub-object and removed outright
 - [ADR-029](agents/adrs/ADR-029-connect-elements-batch-form.md) — connect_bpmn_elements's `connections` batch form for arbitrary source/target pairs
 - [ADR-030](agents/adrs/ADR-030-import-xml-folded-into-create-diagram.md) — import_bpmn_xml folded into create_bpmn_diagram's xml/filePath source and removed outright
+- [ADR-031](agents/adrs/ADR-031-lane-tools-split-mutation-from-analysis.md) — assign_bpmn_elements_to_lane and analyze_bpmn_lanes's redistribute mode folded into create_bpmn_lanes; analyze_bpmn_lanes is read-only
 
 ## Key Gotchas
 

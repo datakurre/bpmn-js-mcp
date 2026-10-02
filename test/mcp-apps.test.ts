@@ -23,15 +23,14 @@ import {
 import { clearDiagrams } from './helpers';
 import { LARGE_XML_CHARS } from '../src/constants';
 
-// Mirrors src/handlers/index.ts's READONLY_TOOLS. analyze_bpmn_lanes is
-// deliberately not listed: its `redistribute` mode mutates lane assignment
-// (see #21), so it gets a ui.resourceUri like any other mutating tool.
+// Mirrors src/handlers/index.ts's READONLY_TOOLS.
 const READONLY_TOOL_NAMES = new Set([
   'export_bpmn',
   'list_bpmn_diagrams',
   'list_bpmn_process_variables',
   'validate_bpmn_diagram',
   'list_bpmn_elements',
+  'analyze_bpmn_lanes',
 ]);
 
 describe('MCP Apps: host detection', () => {
@@ -89,8 +88,8 @@ describe('MCP Apps: _meta.ui.resourceUri on tool definitions', () => {
     expect(find('delete_bpmn_diagram')._meta?.ui).toBeUndefined();
   });
 
-  test('analyze_bpmn_lanes (mutating in redistribute mode, #21) declares a ui.resourceUri', () => {
-    expect(find('analyze_bpmn_lanes')._meta.ui.resourceUri).toBe('ui://bpmn-diagram-viewer');
+  test('analyze_bpmn_lanes (read-only) does not declare a ui.resourceUri', () => {
+    expect(find('analyze_bpmn_lanes')._meta?.ui).toBeUndefined();
   });
 
   test('delete_bpmn_element (still leaves a diagram) does declare a ui.resourceUri', () => {

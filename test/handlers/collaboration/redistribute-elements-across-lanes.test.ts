@@ -327,12 +327,9 @@ describe('redistribute_bpmn_elements_across_lanes', () => {
 
     // Manually redistribute all to Support lane (leaves Engineering + Management empty)
     const result = parseResult(
-      await handleRedistributeElementsAcrossLanes({
+      await handleCreateLanes({
         diagramId,
-        participantId: poolId,
-        strategy: 'manual',
-        laneId: laneIds[0], // Support
-        elementIds: [task1, task2],
+        assignments: [{ laneId: laneIds[0], elementIds: [task1, task2] }], // Support
       })
     );
 

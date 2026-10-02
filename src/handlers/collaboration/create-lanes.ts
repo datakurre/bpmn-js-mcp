@@ -11,7 +11,7 @@
 // @mutating
 
 import { type ToolResult } from '../../types';
-import { missingRequiredError, typeMismatchError } from '../../errors';
+import { missingRequiredError, typeMismatchError, illegalCombinationError } from '../../errors';
 import {
   requireDiagram,
   requireElement,
@@ -24,10 +24,13 @@ import {
 import { appendLintFeedback } from '../../linter';
 import {
   autoDistributeElements,
+  handleRedistributeElementsAcrossLanes,
+  findEmptyLaneIds,
+  buildEmptyLaneNextSteps,
   type AutoDistributeResult,
 } from './redistribute-elements-across-lanes';
 import { calculateOptimalPoolSize } from '../../constants';
-import { handleAssignElementsToLane } from './assign-elements-to-lane';
+import { handleAssignElementsToLane, applyLaneAssignment } from './assign-elements-to-lane';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Inlined from by-type-distribution.ts
@@ -190,8 +193,9 @@ export function buildCreateLanesNextSteps(
       description: 'Move existing elements into lanes using the laneId parameter',
     },
     {
-      tool: 'assign_bpmn_elements_to_lane',
-      description: 'Bulk-assign multiple existing elements to a lane (laneId + elementIds)',
+      tool: 'create_bpmn_lanes',
+      description:
+        'Bulk-assign existing elements to lanes (assignments: [{ laneId, elementIds }], no lanes needed)',
     }
   );
   return steps;
@@ -201,8 +205,21 @@ import { handleConvertCollaborationToLanes } from './convert-collaboration-to-la
 
 export interface CreateLanesArgs {
   diagramId: string;
-  /** The participant (pool) to add lanes to. */
-  participantId: string;
+  /**
+   * The participant (pool) to add lanes to. Required for creating lanes and
+   * mergeFrom; optional for assignments and redistribution (strategy).
+   */
+  participantId?: string;
+  /** Assign existing elements to existing lanes (no lane creation). */
+  assignments?: Array<{ laneId: string; elementIds: string[] }>;
+  /** Reposition elements vertically into their lane when assigning/redistributing. Default true. */
+  reposition?: boolean;
+  /** Redistribute elements across existing lanes (instead of creating lanes). */
+  strategy?: 'role-based' | 'balance' | 'minimize-crossings';
+  /** For strategy: return the plan without applying changes. */
+  dryRun?: boolean;
+  /** For strategy: validate lane organization before and after. */
+  validate?: boolean;
   /** Lane definitions — at least 2 lanes required (unless distributeStrategy generates them). */
   lanes?: Array<{
     name: string;
@@ -312,7 +329,8 @@ function resolveDistributeStrategy(
   args: CreateLanesArgs,
   elementRegistry: any
 ): StrategyResult | ToolResult {
-  const { distributeStrategy, participantId } = args;
+  const { distributeStrategy } = args;
+  const participantId = args.participantId as string;
   let lanes = args.lanes;
   let distributeAssignments: Array<{ name: string; elementIds: string[] }> | undefined;
 
@@ -457,10 +475,99 @@ function buildCreateLanesResult(
   return jsonResult(resultData);
 }
 
+// ── Assignments mode ───────────────────────────────────────────────────────
+
+/** Assign elements to existing lanes; lanes are validated up front, XML synced and linted once. */
+async function handleAssignments(args: CreateLanesArgs): Promise<ToolResult> {
+  const { diagramId, assignments = [], reposition = true } = args;
+  if (assignments.length === 0) throw missingRequiredError(['assignments (at least 1 required)']);
+  const diagram = requireDiagram(diagramId);
+  const elementRegistry = getService(diagram.modeler, 'elementRegistry');
+  for (const a of assignments) {
+    if (!a.laneId || !Array.isArray(a.elementIds) || a.elementIds.length === 0) {
+      throw missingRequiredError(['laneId and elementIds in each assignment']);
+    }
+    const lane = requireElement(elementRegistry, a.laneId);
+    if (lane.type !== 'bpmn:Lane') throw typeMismatchError(a.laneId, lane.type, ['bpmn:Lane']);
+  }
+
+  const outcomes = assignments.map((a) =>
+    applyLaneAssignment(diagram, a.laneId, a.elementIds, reposition)
+  );
+  await syncXml(diagram);
+
+  // Suggest deleting lanes the reassignment left empty (per affected pool)
+  const poolIds = new Set<string>(
+    assignments.map((a) => elementRegistry.get(a.laneId)?.parent?.id as string).filter(Boolean)
+  );
+  const emptyLaneIds = [...poolIds].flatMap((id) => findEmptyLaneIds(elementRegistry, id));
+
+  const result = jsonResult({
+    success: true,
+    assignments: outcomes.map((o) => ({
+      laneId: o.laneId,
+      laneName: o.laneName,
+      assignedElementIds: o.assigned,
+      ...(o.skipped.length > 0 ? { skipped: o.skipped } : {}),
+    })),
+    ...(outcomes.some((o) => o.repositionWarnings.length > 0)
+      ? { repositionWarnings: outcomes.flatMap((o) => o.repositionWarnings) }
+      : {}),
+    message: `Assigned elements to ${outcomes.length} lane(s)`,
+    nextSteps: [
+      {
+        tool: 'layout_bpmn_diagram',
+        description: 'Re-layout the diagram to position elements within their lanes.',
+      },
+      ...buildEmptyLaneNextSteps(emptyLaneIds, elementRegistry),
+    ],
+  });
+  return appendLintFeedback(result, diagram);
+}
+
+// ── Form validation ────────────────────────────────────────────────────────
+
+/** Reject calls that mix the mutually exclusive forms of create_bpmn_lanes. */
+function assertSingleForm(args: CreateLanesArgs): void {
+  const forms: Array<[string, boolean]> = [
+    ['assignments', !!args.assignments],
+    ['strategy', !!args.strategy],
+    ['mergeFrom', !!args.mergeFrom],
+    [
+      'lanes/distributeStrategy/autoDistribute',
+      !!(args.lanes || args.distributeStrategy || args.autoDistribute),
+    ],
+  ];
+  const used = forms.filter(([, on]) => on).map(([name]) => name);
+  if (used.length > 1) {
+    throw illegalCombinationError(
+      `create_bpmn_lanes forms are mutually exclusive, but got: ${used.join(', ')}. ` +
+        'Call once to create lanes (lanes + elementIds), then again to assign (assignments) ' +
+        'or redistribute (strategy).',
+      used
+    );
+  }
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResult> {
-  validateArgs(args, ['diagramId', 'participantId']);
+  validateArgs(args, ['diagramId']);
+  assertSingleForm(args);
+
+  if (args.assignments) return handleAssignments(args);
+  if (args.strategy) {
+    return handleRedistributeElementsAcrossLanes({
+      diagramId: args.diagramId,
+      participantId: args.participantId,
+      strategy: args.strategy,
+      dryRun: args.dryRun,
+      validate: args.validate,
+      reposition: args.reposition,
+    });
+  }
+  validateArgs(args, ['participantId']);
+  const participantId = args.participantId as string;
 
   // MergeFrom mode: convert collaboration pools into lanes
   if (args.mergeFrom) {
@@ -471,7 +578,7 @@ export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResu
     });
   }
 
-  const { diagramId, participantId, autoDistribute = false, distributeStrategy } = args;
+  const { diagramId, autoDistribute = false, distributeStrategy } = args;
 
   const diagram = requireDiagram(diagramId);
   const modeling = getService(diagram.modeler, 'modeling');
@@ -490,7 +597,7 @@ export async function handleCreateLanes(args: CreateLanesArgs): Promise<ToolResu
     const existingNames = existingLanes.map((l: any) => l.businessObject?.name || l.id).join(', ');
     throw new Error(
       `Participant "${participantId}" already has ${existingLanes.length} lane(s): ${existingNames}. ` +
-        'Use assign_bpmn_elements_to_lane to modify lane assignments, or delete existing lanes first.'
+        'Use create_bpmn_lanes with assignments to modify lane assignments, or delete existing lanes first.'
     );
   }
 

@@ -156,8 +156,7 @@ const PROMPTS: PromptDefinition[] = [
             `You are now operating in **executable BPMN process mode with a participant pool** ` +
             `for Operaton / Camunda 7. When the user describes a workflow to model, ` +
             `follow these rules and build the diagram accordingly.\n\n` +
-            `**Note:** \`create_bpmn_participant\`, \`create_bpmn_lanes\`, and ` +
-            `\`assign_bpmn_elements_to_lane\` are only listed when the server runs with the ` +
+            `**Note:** \`create_bpmn_participant\` and \`create_bpmn_lanes\` are only listed when the server runs with the ` +
             `\`full\` tool tier (default) — not with \`BPMN_MCP_TOOLS=core\`.\n\n` +
             `**Structure rules:**\n` +
             `- Create ONE expanded participant pool for the executable process using ` +
