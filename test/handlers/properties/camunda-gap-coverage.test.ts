@@ -310,7 +310,7 @@ describe('tool-discovery hints', () => {
     clearDiagrams();
   });
 
-  test('add_bpmn_element returns nextSteps for UserTask', async () => {
+  test('add_bpmn_elements returns nextSteps for UserTask', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -324,7 +324,7 @@ describe('tool-discovery hints', () => {
     expect(res.nextSteps.some((h: any) => h.tool === 'set_bpmn_form_data')).toBe(true);
   });
 
-  test('add_bpmn_element returns nextSteps for ServiceTask', async () => {
+  test('add_bpmn_elements returns nextSteps for ServiceTask', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -337,7 +337,7 @@ describe('tool-discovery hints', () => {
     expect(res.nextSteps.some((h: any) => h.tool === 'set_bpmn_element_properties')).toBe(true);
   });
 
-  test('add_bpmn_element returns nextSteps for ScriptTask', async () => {
+  test('add_bpmn_elements returns nextSteps for ScriptTask', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -350,7 +350,7 @@ describe('tool-discovery hints', () => {
     expect(res.nextSteps.some((h: any) => h.tool === 'set_bpmn_element_properties')).toBe(true);
   });
 
-  test('add_bpmn_element returns nextSteps for CallActivity', async () => {
+  test('add_bpmn_elements returns nextSteps for CallActivity', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({
@@ -380,7 +380,7 @@ describe('tool-discovery hints', () => {
     expect(res.nextSteps.some((h: any) => h.tool === 'set_bpmn_form_data')).toBe(true);
   });
 
-  test('add_bpmn_element returns no nextSteps for StartEvent', async () => {
+  test('add_bpmn_elements returns no nextSteps for StartEvent', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
       await handleAddElement({

@@ -18,12 +18,12 @@ describe('batch_bpmn_operations image output', () => {
     const batchResult = await handleBatchOperations({
       operations: [
         {
-          tool: 'add_bpmn_element',
-          args: { diagramId, elementType: 'bpmn:StartEvent', name: 'Start' },
+          tool: 'add_bpmn_elements',
+          args: { diagramId, elements: [{ elementType: 'bpmn:StartEvent', name: 'Start' }] },
         },
         {
-          tool: 'add_bpmn_element',
-          args: { diagramId, elementType: 'bpmn:EndEvent', name: 'End' },
+          tool: 'add_bpmn_elements',
+          args: { diagramId, elements: [{ elementType: 'bpmn:EndEvent', name: 'End' }] },
         },
       ],
     });
@@ -40,8 +40,8 @@ describe('batch_bpmn_operations image output', () => {
     const batchResult = await handleBatchOperations({
       operations: [
         {
-          tool: 'add_bpmn_element',
-          args: { diagramId, elementType: 'bpmn:StartEvent', name: 'Start' },
+          tool: 'add_bpmn_elements',
+          args: { diagramId, elements: [{ elementType: 'bpmn:StartEvent', name: 'Start' }] },
         },
       ],
     });

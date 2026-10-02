@@ -26,7 +26,7 @@ import {
 } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
 
-describe('add_bpmn_element argument validation', () => {
+describe('add_bpmn_elements argument validation', () => {
   beforeEach(() => {
     clearDiagrams();
   });

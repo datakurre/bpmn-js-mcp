@@ -1,5 +1,5 @@
 /**
- * Up-front validation for add_bpmn_element's `elements` form (see add-element-chain.ts).
+ * Up-front validation for add_bpmn_elements (see add-element-chain.ts).
  */
 
 import {
@@ -11,7 +11,7 @@ import {
 import { getService } from '../../bpmn-types';
 import type { requireDiagram } from '../helpers';
 import type { AddElementChainArgs } from './add-element-chain';
-import { TOOL_DEFINITION as SINGLE_DEFINITION } from './add-element-schema';
+import { SINGLE_ELEMENT_DEFINITION } from './add-element-schema';
 import { ALLOWED_ELEMENT_TYPES } from '../validation';
 
 export const CHAIN_ELEMENT_TYPES = new Set([
@@ -37,7 +37,7 @@ export const CHAIN_ELEMENT_TYPES = new Set([
 
 /** Keys an `elements` entry may carry: every single-element parameter except `diagramId`. */
 const ENTRY_KEYS = new Set(
-  Object.keys(SINGLE_DEFINITION.inputSchema.properties).filter((k) => k !== 'diagramId')
+  Object.keys(SINGLE_ELEMENT_DEFINITION.inputSchema.properties).filter((k) => k !== 'diagramId')
 );
 
 /** Reject entry keys that are not single-element parameters (e.g. typos, `connect`, `elements`). */
@@ -46,7 +46,7 @@ function validateEntryKeys(el: AddElementChainArgs['elements'][number], i: numbe
   if (unsupported.length > 0) {
     throw illegalCombinationError(
       `elements[${i}] has unsupported key(s): ${unsupported.join(', ')}. ` +
-        'Entries accept the single-element add_bpmn_element parameters (except diagramId).',
+        'Entries accept the per-element add_bpmn_elements parameters (see the elements item schema).',
       unsupported.map((k) => `elements[${i}].${k}`)
     );
   }

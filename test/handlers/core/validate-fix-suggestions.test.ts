@@ -34,7 +34,7 @@ describe('validate_bpmn_diagram — fix suggestions', () => {
     const res = parseResult(await handleValidate({ diagramId }));
     const startIssue = res.issues.find((i: any) => i.rule === 'start-event-required');
     expect(startIssue).toBeDefined();
-    expect(startIssue.fix).toContain('add_bpmn_element');
+    expect(startIssue.fix).toContain('add_bpmn_elements');
     expect(startIssue.fix).toContain('StartEvent');
   });
 
@@ -45,7 +45,7 @@ describe('validate_bpmn_diagram — fix suggestions', () => {
     const res = parseResult(await handleValidate({ diagramId }));
     const endIssue = res.issues.find((i: any) => i.rule === 'end-event-required');
     expect(endIssue).toBeDefined();
-    expect(endIssue.fix).toContain('add_bpmn_element');
+    expect(endIssue.fix).toContain('add_bpmn_elements');
     expect(endIssue.fix).toContain('EndEvent');
   });
 

@@ -47,10 +47,7 @@ import {
 // ── Elements: element CRUD operations ──────────────────────────────────────
 
 import { handleAddElement } from './elements/add-element';
-import {
-  handleAddElementTool,
-  TOOL_DEFINITION as ADD_ELEMENT_DEF,
-} from './elements/add-element-tool';
+import { handleAddElements, TOOL_DEFINITION as ADD_ELEMENTS_DEF } from './elements/add-elements';
 import {
   handleConnect,
   handleAutoConnect,
@@ -171,7 +168,7 @@ interface ToolRegistration {
 
 const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: CREATE_DIAGRAM_DEF, handler: handleCreateDiagram, tier: 'core' },
-  { definition: ADD_ELEMENT_DEF, handler: handleAddElementTool, tier: 'core' },
+  { definition: ADD_ELEMENTS_DEF, handler: handleAddElements, tier: 'core' },
   { definition: CONNECT_DEF, handler: handleConnect, tier: 'core' },
   { definition: DELETE_ELEMENT_DEF, handler: handleDeleteElement, tier: 'core' },
   { definition: MOVE_ELEMENT_DEF, handler: handleMoveElement, tier: 'core' },
@@ -208,10 +205,10 @@ const TOOL_REGISTRY: ToolRegistration[] = [
   { definition: LIST_PROCESS_VARIABLES_DEF, handler: handleListProcessVariables },
   // clone_bpmn_diagram removed: cloneFrom parameter on create_bpmn_diagram
   // diff_bpmn_diagrams removed: compareWith parameter on list_bpmn_diagrams
-  // add_bpmn_element_chain removed: elements array on add_bpmn_element (ADR-032)
+  // add_bpmn_element + add_bpmn_element_chain merged into add_bpmn_elements (ADR-032)
   // set_bpmn_connection_waypoints removed: waypoints+connectionId parameters on connect_bpmn_elements
   // wrap_bpmn_process_in_collaboration removed: wrapExisting on create_bpmn_participant
-  // handoff_bpmn_to_lane removed: fromElementId + toLaneId params on add_bpmn_element
+  // handoff_bpmn_to_lane removed: fromElementId + toLaneId params on add_bpmn_elements
   // convert_bpmn_collaboration_to_lanes removed: mergeFrom on create_bpmn_lanes
   // autosize_bpmn_pools_and_lanes removed: autosizeOnly on layout_bpmn_diagram
 ];
@@ -273,7 +270,7 @@ const IDEMPOTENT_TOOLS = new Set([
 /** Short human-readable title per tool, for clients that label/group tools. */
 const TOOL_TITLES: Record<string, string> = {
   create_bpmn_diagram: 'Create Diagram',
-  add_bpmn_element: 'Add Element',
+  add_bpmn_elements: 'Add Elements',
   connect_bpmn_elements: 'Connect Elements',
   delete_bpmn_element: 'Delete Element',
   move_bpmn_element: 'Move/Resize Element',
@@ -461,6 +458,7 @@ export async function dispatchToolCall(
 export {
   handleCreateDiagram,
   handleAddElement,
+  handleAddElements,
   handleConnect,
   handleAutoConnect,
   handleCreateDataAssociation,

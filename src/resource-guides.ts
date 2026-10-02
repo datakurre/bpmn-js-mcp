@@ -145,7 +145,7 @@ Business Rule Tasks primarily integrate with DMN decision tables:
 8. **Retry / loop-back flows creating implicit merges** — when a flow loops
    back to a task that already has an incoming flow (e.g. a retry path
    rejoining a task), you MUST insert an explicit merge gateway first.
-   Use \`add_bpmn_element\` with \`flowId\` set to the existing incoming
+   Use \`add_bpmn_elements\` with \`flowId\` set to the existing incoming
    flow to insert the gateway in-line, then connect the retry flow to
    that gateway. Never connect two flows directly into a task — this
    creates an implicit merge that causes runtime errors.
@@ -154,7 +154,7 @@ Business Rule Tasks primarily integrate with DMN decision tables:
 /**
  * Element modeling best practices guide.
  *
- * Moved from the add_bpmn_element tool description to keep tool descriptions
+ * Moved from the add_bpmn_elements tool description to keep tool descriptions
  * focused on parameters. Referenced via bpmn://guides/modeling-elements.
  */
 export const MODELING_ELEMENTS_GUIDE = `# BPMN Element Modeling Guide
@@ -195,7 +195,7 @@ export const MODELING_ELEMENTS_GUIDE = `# BPMN Element Modeling Guide
   that creates a standalone event not attached to any host.
 - After adding, use \`set_bpmn_element_properties\`'s \`eventDefinition\`
   sub-object to set the type (error, timer, message, signal).
-- Or use the \`eventDefinitionType\` shorthand parameter on \`add_bpmn_element\`.
+- Or use the \`eventDefinitionType\` shorthand parameter on \`add_bpmn_elements\`.
 
 ## Subprocesses
 

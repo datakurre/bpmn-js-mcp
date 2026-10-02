@@ -24,8 +24,11 @@ describe('batch_bpmn_operations — rollback', () => {
       await handleBatchOperations({
         operations: [
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:UserTask', name: 'Should Be Rolled Back' },
+            tool: 'add_bpmn_elements',
+            args: {
+              diagramId,
+              elements: [{ elementType: 'bpmn:UserTask', name: 'Should Be Rolled Back' }],
+            },
           },
           {
             tool: 'delete_bpmn_element',
@@ -58,16 +61,16 @@ describe('batch_bpmn_operations — rollback', () => {
       await handleBatchOperations({
         operations: [
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:StartEvent', name: 'Kept' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:StartEvent', name: 'Kept' }] },
           },
           {
             tool: 'delete_bpmn_element',
             args: { diagramId, elementId: 'nonexistent_element_xyz' },
           },
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:EndEvent', name: 'Also Kept' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:EndEvent', name: 'Also Kept' }] },
           },
         ],
         stopOnError: false,
@@ -91,8 +94,8 @@ describe('batch_bpmn_operations — rollback', () => {
       await handleBatchOperations({
         operations: [
           {
-            tool: 'add_bpmn_element',
-            args: { diagramId, elementType: 'bpmn:UserTask', name: 'Task' },
+            tool: 'add_bpmn_elements',
+            args: { diagramId, elements: [{ elementType: 'bpmn:UserTask', name: 'Task' }] },
           },
           {
             tool: 'delete_bpmn_element',

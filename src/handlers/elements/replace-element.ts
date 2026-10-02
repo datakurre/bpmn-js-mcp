@@ -88,13 +88,13 @@ export function replaceElementCore(
   if (newType === 'bpmn:BoundaryEvent') {
     throw semanticViolationError(
       'Cannot replace an element to bpmn:BoundaryEvent. Boundary events must be attached to a host element. ' +
-        'Use add_bpmn_element with hostElementId to create a boundary event on a task or subprocess.'
+        'Use add_bpmn_elements with hostElementId to create a boundary event on a task or subprocess.'
     );
   }
   if (oldType === 'bpmn:BoundaryEvent') {
     throw semanticViolationError(
       'Cannot replace a BoundaryEvent to another type. Delete the boundary event and create the desired ' +
-        'element type separately using add_bpmn_element.'
+        'element type separately using add_bpmn_elements.'
     );
   }
 

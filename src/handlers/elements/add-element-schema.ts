@@ -1,12 +1,12 @@
 /**
- * JSON Schema for the add_bpmn_element tool.
+ * Per-element JSON Schema (parameters and rules) for add_bpmn_elements entries.
  *
  * Extracted from add-element.ts (R1.5) to keep the handler logic readable.
  * The schema is ~180 lines — over half the original file.
  */
 
-export const TOOL_DEFINITION = {
-  name: 'add_bpmn_element',
+export const SINGLE_ELEMENT_DEFINITION = {
+  name: 'add_bpmn_elements',
   description:
     'Add an element (task, gateway, event, etc.) to a BPMN diagram. ' +
     'Supports boundary events via hostElementId and auto-positioning via afterElementId. ' +
@@ -142,7 +142,7 @@ export const TOOL_DEFINITION = {
         ],
         description:
           'Shorthand: set an event definition on the new element in one call, combining ' +
-          "add_bpmn_element with set_bpmn_element_properties's eventDefinition sub-object. " +
+          "add_bpmn_elements with set_bpmn_element_properties's eventDefinition sub-object. " +
           'Especially useful for boundary events.',
       },
       eventDefinitionProperties: {

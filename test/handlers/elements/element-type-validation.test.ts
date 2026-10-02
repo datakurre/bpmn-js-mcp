@@ -8,7 +8,7 @@ describe('elementType validation', () => {
     clearDiagrams();
   });
 
-  describe('add_bpmn_element', () => {
+  describe('add_bpmn_elements', () => {
     test('rejects invalid elementType with "did you mean" for case mismatch', async () => {
       const diagramId = await createDiagram('Test');
       await expect(handleAddElement({ diagramId, elementType: 'bpmn:startEvent' })).rejects.toThrow(

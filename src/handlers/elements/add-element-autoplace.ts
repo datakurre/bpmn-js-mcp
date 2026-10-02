@@ -126,7 +126,7 @@ function isCrossPoolPlacement(afterEl: BpmnElement, participantId: string | unde
 }
 
 /**
- * Handle add_bpmn_element with afterElementId using bpmn-js AutoPlace.
+ * Handle add_bpmn_elements with afterElementId using bpmn-js AutoPlace.
  *
  * AutoPlace positions the new element AND creates a SequenceFlow from
  * the source element in one step.

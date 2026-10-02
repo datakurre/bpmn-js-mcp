@@ -87,7 +87,7 @@ export function checkDiIntegrity(diagram: any, elementRegistry: any): string[] {
       const label = el.name ? `"${el.name}"` : el.id;
       warnings.push(
         `⚠️ DI integrity: ${label} (${el.type}) exists in process but has no visual shape. ` +
-          'It may be invisible in the diagram. Re-add with add_bpmn_element or re-import the diagram.'
+          'It may be invisible in the diagram. Re-add with add_bpmn_elements or re-import the diagram.'
       );
     }
     for (const edge of missingEdges) {

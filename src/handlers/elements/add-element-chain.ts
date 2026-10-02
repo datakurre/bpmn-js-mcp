@@ -1,10 +1,9 @@
 /**
- * Multi-element form of add_bpmn_element (`elements` array; ADR-032).
+ * Handler core of add_bpmn_elements (ADR-032; routed via add-elements.ts).
  *
  * Creates a sequence of BPMN elements and (by default) connects them in
- * order, reducing round-trips compared to calling add_bpmn_element multiple
- * times. Internally uses the single-element handler with afterElementId
- * chaining. Formerly the standalone add_bpmn_element_chain tool.
+ * order (connect: 'chain', the default) or just adds them (connect: 'none'),
+ * calling the single-element handler per entry. Formerly the add_bpmn_element_chain tool.
  */
 // @mutating
 
@@ -24,7 +23,7 @@ import {
 export { CHAIN_ELEMENT_TYPES };
 
 /**
- * One entry of `elements`: the full single-element `add_bpmn_element` parameter
+ * One entry of `elements`: the full single-element `add_bpmn_elements` parameter
  * set minus `diagramId`. An entry that sets its own anchor (hostElementId,
  * flowId, a handoff, copyFrom, afterElementId or explicit x/y) is placed there
  * instead of being chained after the previous element.
@@ -93,7 +92,7 @@ function detectCrossPoolTransition(
     warnings.push(
       `Element "${el.name || el.elementType}" specifies participantId "${currentParticipantId}" but the previous element is in "${previousParticipantId}". ` +
         `AutoPlace does not support cross-pool placement — the element may have landed in the wrong pool. ` +
-        `Use add_bpmn_element with explicit x/y coordinates and participantId to place it correctly.`
+        `Use add_bpmn_elements with explicit x/y coordinates and participantId to place it correctly.`
     );
   }
   return currentParticipantId || previousParticipantId;
@@ -223,7 +222,7 @@ function buildLaneWarnings(
     ],
     nextSteps: [
       {
-        tool: 'add_bpmn_element',
+        tool: 'add_bpmn_elements',
         description:
           `Re-run with laneId set to one of the available lanes: ${laneList}. ` +
           `Available lanes are listed above.`,

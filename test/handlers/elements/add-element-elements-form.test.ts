@@ -1,34 +1,39 @@
 /**
- * add_bpmn_element's multi-element form (`elements`, ADR-032) — the former
- * add_bpmn_element_chain tool, reached through the public tool dispatch.
+ * add_bpmn_elements through the public tool dispatch (ADR-032): the former
+ * add_bpmn_element and add_bpmn_element_chain tools, merged.
  */
 import { describe, test, expect, beforeEach } from 'vitest';
 import { dispatchToolCall, TOOL_DEFINITIONS } from '../../../src/handlers';
 import { createDiagram, parseResult, clearDiagrams } from '../../helpers';
 import { getDiagram } from '../../../src/diagram-manager';
 
-describe('add_bpmn_element elements form', () => {
+describe('add_bpmn_elements', () => {
   beforeEach(() => {
     clearDiagrams();
   });
 
-  test('add_bpmn_element_chain is no longer a tool', async () => {
-    expect(TOOL_DEFINITIONS.some((t) => t.name === 'add_bpmn_element_chain')).toBe(false);
-    await expect(dispatchToolCall('add_bpmn_element_chain', {})).rejects.toThrow();
-  });
+  test.each(['add_bpmn_element', 'add_bpmn_element_chain'])(
+    '%s is no longer a tool (no backwards compatibility)',
+    async (name) => {
+      expect(TOOL_DEFINITIONS.some((t) => t.name === name)).toBe(false);
+      await expect(dispatchToolCall(name, {})).rejects.toThrow();
+    }
+  );
 
-  test('schema exposes elements, connect and autoLayout without requiring elementType', () => {
-    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_element') as any;
-    expect(tool.inputSchema.properties).toHaveProperty('elements');
+  test('schema: elements are required and carry the per-element parameters', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'add_bpmn_elements') as any;
+    const item = tool.inputSchema.properties.elements.items;
     expect(tool.inputSchema.properties.connect.enum).toEqual(['chain', 'none']);
-    expect(tool.inputSchema.required).toEqual(['diagramId']);
-    expect(tool.inputSchema.properties.elements.items.additionalProperties).toBe(true);
+    expect(tool.inputSchema.required).toEqual(['diagramId', 'elements']);
+    for (const key of ['elementType', 'hostElementId', 'flowId', 'copyFrom', 'x', 'y']) {
+      expect(item.properties).toHaveProperty(key);
+    }
   });
 
   test('connects elements in a chain by default', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [
           { elementType: 'bpmn:StartEvent', name: 'Start' },
@@ -45,7 +50,7 @@ describe('add_bpmn_element elements form', () => {
   test("connect: 'none' adds elements without connecting them", async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         connect: 'none',
         elements: [
@@ -62,7 +67,7 @@ describe('add_bpmn_element elements form', () => {
   test("connect: 'none' without x/y places elements at distinct positions, unconnected", async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         connect: 'none',
         elements: [
@@ -83,7 +88,7 @@ describe('add_bpmn_element elements form', () => {
   test('rejects entry keys that are not single-element parameters', async () => {
     const diagramId = await createDiagram();
     await expect(
-      dispatchToolCall('add_bpmn_element', {
+      dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [{ elementType: 'bpmn:UserTask', bogus: 1, connect: 'none' }],
       })
@@ -93,7 +98,7 @@ describe('add_bpmn_element elements form', () => {
   test('rejects an element type outside the allowed list', async () => {
     const diagramId = await createDiagram();
     await expect(
-      dispatchToolCall('add_bpmn_element', {
+      dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [{ elementType: 'bpmn:Nope' }],
       })
@@ -103,7 +108,7 @@ describe('add_bpmn_element elements form', () => {
   test('a single-item array behaves like the single form', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [{ elementType: 'bpmn:UserTask', name: 'Solo' }],
       })
@@ -115,14 +120,13 @@ describe('add_bpmn_element elements form', () => {
   test('an entry with hostElementId (boundary event) is attached, not chained', async () => {
     const diagramId = await createDiagram();
     const task = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
-        elementType: 'bpmn:UserTask',
-        name: 'Work',
+        elements: [{ elementType: 'bpmn:UserTask', name: 'Work' }],
       })
-    ).elementId;
+    ).elementIds[0];
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [
           {
@@ -147,7 +151,7 @@ describe('add_bpmn_element elements form', () => {
   test('an entry with flowId is inserted into that flow', async () => {
     const diagramId = await createDiagram();
     const chain = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [
           { elementType: 'bpmn:StartEvent', name: 'Start' },
@@ -157,7 +161,7 @@ describe('add_bpmn_element elements form', () => {
     );
     const flowId = Object.values(chain.connectionIds)[0] as string;
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [{ elementType: 'bpmn:UserTask', name: 'Inserted', flowId }],
       })
@@ -172,7 +176,7 @@ describe('add_bpmn_element elements form', () => {
   test('an entry with explicit x/y keeps its position (auto-layout off by default)', async () => {
     const diagramId = await createDiagram();
     const res = parseResult(
-      await dispatchToolCall('add_bpmn_element', {
+      await dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elements: [
           { elementType: 'bpmn:UserTask', name: 'A', x: 500, y: 400 },
@@ -187,14 +191,21 @@ describe('add_bpmn_element elements form', () => {
     expect(a.y + a.height / 2).toBe(400);
   });
 
-  test('rejects mixing elements with single-element parameters', async () => {
+  test('requires elements (the single-element form is gone)', async () => {
     const diagramId = await createDiagram();
     await expect(
-      dispatchToolCall('add_bpmn_element', {
+      dispatchToolCall('add_bpmn_elements', { diagramId, elementType: 'bpmn:UserTask' })
+    ).rejects.toThrow(/elements/);
+  });
+
+  test('rejects per-element options at the top level', async () => {
+    const diagramId = await createDiagram();
+    await expect(
+      dispatchToolCall('add_bpmn_elements', {
         diagramId,
         elementType: 'bpmn:UserTask',
         elements: [{ elementType: 'bpmn:EndEvent' }],
       })
-    ).rejects.toThrow(/cannot be combined with elementType/);
+    ).rejects.toThrow(/must be set inside each entry/);
   });
 });

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { handleAddElement } from '../../../src/handlers';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../helpers';
 
-describe('add_bpmn_element', () => {
+describe('add_bpmn_elements', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -77,7 +77,7 @@ describe('add_bpmn_element', () => {
   });
 });
 
-describe('add_bpmn_element — descriptive element IDs', () => {
+describe('add_bpmn_elements — descriptive element IDs', () => {
   beforeEach(() => {
     clearDiagrams();
   });
@@ -157,7 +157,7 @@ describe('add_bpmn_element — descriptive element IDs', () => {
   });
 });
 
-describe('add_bpmn_element — smart insertion', () => {
+describe('add_bpmn_elements — smart insertion', () => {
   beforeEach(() => {
     clearDiagrams();
   });

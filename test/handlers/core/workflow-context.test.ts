@@ -64,7 +64,7 @@ describe('create_bpmn_diagram workflowContext', () => {
     expect(res.structureGuidance).toBeUndefined();
 
     // Should have standard nextSteps
-    const addStep = res.nextSteps.find((s: any) => s.tool === 'add_bpmn_element');
+    const addStep = res.nextSteps.find((s: any) => s.tool === 'add_bpmn_elements');
     expect(addStep).toBeDefined();
   });
 

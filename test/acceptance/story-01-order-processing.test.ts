@@ -1,7 +1,7 @@
 /**
  * Story 1: Order Processing — From Empty to Executable
  *
- * Covers: create_bpmn_diagram, add_bpmn_element, add_bpmn_element (elements form),
+ * Covers: create_bpmn_diagram, add_bpmn_elements, add_bpmn_elements,
  * connect_bpmn_elements, set_bpmn_element_properties, set_bpmn_form_data,
  * set_bpmn_input_output_mapping, set_bpmn_event_definition,
  * layout_bpmn_diagram, validate_bpmn_diagram, export_bpmn

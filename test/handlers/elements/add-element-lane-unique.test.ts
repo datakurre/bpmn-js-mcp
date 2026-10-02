@@ -1,5 +1,5 @@
 /**
- * Tests for add_bpmn_element's laneId, ensureUnique, and di response fields.
+ * Tests for add_bpmn_elements's laneId, ensureUnique, and di response fields.
  */
 import { describe, test, expect, afterEach } from 'vitest';
 import { parseResult, createDiagram, addElement, clearDiagrams } from '../../utils/diagram';
@@ -12,7 +12,7 @@ import {
 
 afterEach(() => clearDiagrams());
 
-describe('add_bpmn_element — laneId parameter', () => {
+describe('add_bpmn_elements — laneId parameter', () => {
   test('rejects laneId that is not a Lane', async () => {
     const diagramId = await createDiagram('lane-test');
     const task = await addElement(diagramId, 'bpmn:UserTask', { name: 'Task1' });
@@ -41,7 +41,7 @@ describe('add_bpmn_element — laneId parameter', () => {
   });
 });
 
-describe('add_bpmn_element — ensureUnique flag', () => {
+describe('add_bpmn_elements — ensureUnique flag', () => {
   test('rejects duplicate when ensureUnique is true', async () => {
     const diagramId = await createDiagram('unique-test');
     await addElement(diagramId, 'bpmn:UserTask', { name: 'Review Order' });
@@ -106,7 +106,7 @@ describe('add_bpmn_element — ensureUnique flag', () => {
   });
 });
 
-describe('add_bpmn_element — di info in response', () => {
+describe('add_bpmn_elements — di info in response', () => {
   test('returns di object with x, y, width, height', async () => {
     const diagramId = await createDiagram('di-test');
     const result = parseResult(
@@ -160,7 +160,7 @@ describe('add_bpmn_element — di info in response', () => {
   });
 });
 
-describe('add_bpmn_element — laneId warning when participantId has lanes (TODO #8)', () => {
+describe('add_bpmn_elements — laneId warning when participantId has lanes (TODO #8)', () => {
   test('emits warning when participantId refers to a pool with lanes and no laneId given', async () => {
     const diagramId = await createDiagram();
 

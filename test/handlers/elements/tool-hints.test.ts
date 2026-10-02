@@ -107,7 +107,7 @@ describe('collaboration pattern guidance', () => {
     );
 
     expect(result.nextSteps).toBeDefined();
-    expect(result.nextSteps.some((h: any) => h.tool === 'add_bpmn_element')).toBe(true);
+    expect(result.nextSteps.some((h: any) => h.tool === 'add_bpmn_elements')).toBe(true);
     expect(result.nextSteps.some((h: any) => h.tool === 'connect_bpmn_elements')).toBe(true);
   });
 });
